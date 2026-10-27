@@ -12,11 +12,12 @@ import Sidebar from '@/components/Sidebar';
 import { navSections, PICKER_ROUTES } from '@/lib/navData';
 import Header from '@/components/Header';
 import NotificationPopup from '@/components/NotificationPopup';
+import FloatingAIAssistant, { AI_ASSISTANT_TOGGLE_EVENT } from '@/components/FloatingAIAssistant';
 import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import { canRoleAccessModule, canSeeAllEmployees, isSelfServicePathAllowed, isSelfServiceRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
+import { canRoleAccessModule, canSeeAllEmployees, homeHrefForRole, isSelfServicePathAllowed, isSelfServiceRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
 import { loggedInPhotoUrl } from '@/lib/profile-photo';
 import {
@@ -52,21 +53,32 @@ export default function DashboardLayout({
   const [explicitModuleKey, setExplicitModuleKey] = useState<string | null>(null);
   const userRole = navRoleOrLeastPrivilege(user?.role);
 
-  const mobileNavItems = useMemo(() => {
+  // Task 153 — footer is always [2 left] + raised CENTER AI button + [2 right]
+  // so the AI Assistant dock button sits perfectly centered (PhonePe-style).
+  const leftNavItems = useMemo(() => {
+    // Task 163 — admins get the Admin Dashboard (/home); everyone else lands
+    // on the Employee Dashboard (/dashboard).
+    const homeHref = homeHrefForRole(userRole);
     const items: { label: string; href: string; icon: typeof FiGrid }[] = [
-      { label: 'Home', href: '/home', icon: FiGrid },
+      { label: homeHref === '/home' ? 'Admin Dashboard' : 'Dashboard', href: homeHref, icon: FiGrid },
     ];
     if (canSeeAllEmployees(userRole) || userRole === 'manager' || LEGACY_ROLE_MAP[userRole] === 'manager') {
       items.push({ label: 'People', href: '/employees', icon: FiUsers });
     } else {
       items.push({ label: 'Me', href: '/employees?view=self', icon: FiUser });
     }
+    return items;
+  }, [userRole]);
+
+  const rightNavItems = useMemo(() => {
+    const items: { label: string; href: string; icon: typeof FiGrid }[] = [];
     if (canRoleAccessModule(userRole, 'recruitment')) {
       items.push({ label: 'Recruit', href: '/recruitment', icon: FiBriefcase });
-      items.push({ label: 'AI Interview', href: '/ai-interview', icon: FiCpu });
+    } else if (canRoleAccessModule(userRole, 'attendance')) {
+      items.push({ label: 'Attend', href: '/attendance', icon: FiClock });
     }
     items.push({ label: 'More', href: '#more', icon: FiMoreHorizontal });
-    return items;
+    return items.slice(0, 2);
   }, [userRole]);
 
   // Filter sections based on user role
@@ -93,7 +105,7 @@ export default function DashboardLayout({
           }
           // 3. No moduleKey and no roles → admin-only for safety
           if (!item.moduleKey && !item.roles) {
-            return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
+            return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(r));
           }
           return true;
         }),
@@ -309,10 +321,35 @@ export default function DashboardLayout({
             </div>
           </div>
         )}
-        <main className="flex-1 overflow-y-auto p-3 pb-20">{children}</main>
+        <main className="flex-1 overflow-y-auto p-3 pb-24">{children}</main>
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 safe-area-bottom">
-          <div className="flex items-center justify-around h-14">
-            {mobileNavItems.map((item) => {
+          {/* Task 153 — PhonePe-style dock: the AI Assistant is a raised violet
+              circle at the CENTER of the footer icons. Tapping it opens the
+              same closable violet AI bot panel as the web app (NOT the chat
+              hub page). */}
+          <div className="flex items-stretch justify-around h-14">
+            {leftNavItems.map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+              const Icon = item.icon;
+              return (
+                <button key={item.label} onClick={() => router.push(item.href)} className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-green-500' : 'text-slate-400 hover:text-slate-600'}`}>
+                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
+                  <span className={`text-[9px] font-semibold tracking-wide ${isActive ? 'text-green-500' : ''}`}>{item.label}</span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent(AI_ASSISTANT_TOGGLE_EVENT))}
+              className="relative flex flex-col items-center justify-end flex-1 h-full pb-1"
+              aria-label="AI Assistant"
+              title="AI Assistant"
+            >
+              <span className="-mt-8 mb-0.5 w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 shadow-lg shadow-violet-500/50 ring-4 ring-white flex items-center justify-center text-white">
+                <FiCpu className="w-6 h-6" />
+              </span>
+              <span className="text-[9px] font-bold tracking-wide text-violet-600 leading-none">AI Assistant</span>
+            </button>
+            {rightNavItems.map((item) => {
               const isActive = item.href === '#more' ? false : pathname === item.href || pathname?.startsWith(item.href + '/');
               const Icon = item.icon;
               return (
@@ -324,6 +361,9 @@ export default function DashboardLayout({
             })}
           </div>
         </nav>
+        {/* Task 153 — the violet AI bot panel, opened from the footer's raised
+            center button (hideFab: no duplicate floating bot on mobile). */}
+        <FloatingAIAssistant hideFab />
       </div>
     );
   }
@@ -335,6 +375,9 @@ export default function DashboardLayout({
       <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
       <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '12px 16px', fontSize: '14px' } }} />
       <NotificationPopup />
+      {/* Task 152/153 — floating closable AI bot on every dashboard page
+          (per-page dismissal: navigating or reloading always brings it back) */}
+      <FloatingAIAssistant />
 
       {/* LEFT SIDEBAR */}
       <Sidebar

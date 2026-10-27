@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getChatContext } from '@/lib/chat-permissions';
 
 /**
  * GET /api/collaboration/chat/rooms
@@ -20,7 +21,10 @@ export async function GET(request: NextRequest) {
     const rooms = await db.chatRoom.findMany({
       where: {
         isActive: true,
-        members: { some: { userId: employee.id } },
+        // Task 122 — rooms the member hid via "delete direct chat" stay out
+        // of the list until a new message resurfaces them (messages POST
+        // clears the flag).
+        members: { some: { userId: employee.id, isHidden: false } },
       },
       include: {
         members: {
@@ -73,6 +77,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const db = await getDb(request);
+  const platformDb = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -91,6 +96,20 @@ export async function POST(request: NextRequest) {
 
     const creator = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!creator) return NextResponse.json({ error: 'Employee profile not found' }, { status: 404 });
+
+    // ── Task 122: chat governance ─────────────────────────────────────────
+    // Direct chats stay open to everyone. Group / project / team rooms can
+    // only be created by chat managers (HR/tenant admins by default; plus
+    // the custom manager list when enabled in Collaboration Settings).
+    if (roomType !== 'direct') {
+      const ctx = await getChatContext(request, db, platformDb, decoded, creator.id);
+      if (!ctx.permissions.canCreateGroup) {
+        return NextResponse.json(
+          { error: 'Only HR/tenant admins (or selected chat managers) can create group chats' },
+          { status: 403 },
+        );
+      }
+    }
 
     // For direct chats: check if a room already exists with exactly these 2 members
     if (roomType === 'direct' && memberIds.length === 1) {
@@ -112,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // REQ-6.2: Tenant Admin controls who can create announcement channels
-    if (isAnnouncement && !['super_admin', 'tenant_admin', 'admin'].includes(decoded.role)) {
+    if (isAnnouncement && !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Only admins can create announcement channels' }, { status: 403 });
     }
 

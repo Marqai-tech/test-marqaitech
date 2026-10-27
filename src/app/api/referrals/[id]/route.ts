@@ -69,7 +69,7 @@ export async function GET(
 
     // Authorization: referrer or HR/admin roles only.
     const role = String(decoded.role || '').toLowerCase();
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
     // Need to look up the employee for this user to compare IDs.
     const callerEmployee = await db.employee.findFirst({
       where: { userId: decoded.userId as string },
@@ -156,7 +156,7 @@ export async function PATCH(
     }
 
     const role = String(decoded.role || '').toLowerCase();
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
     const callerEmployee = await db.employee.findFirst({
       where: { userId: decoded.userId as string },
       select: { id: true },
@@ -326,7 +326,7 @@ export async function DELETE(
     }
 
     const role = String(decoded.role || '').toLowerCase();
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
     const callerEmployee = await db.employee.findFirst({
       where: { userId: decoded.userId as string },
       select: { id: true },

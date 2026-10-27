@@ -5,28 +5,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiMail, FiArrowLeft, FiSend, FiCheckCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { validateEmail } from '@/lib/validators';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleEmailChange = (value: string) => {
-    setEmail(value);
-    if (emailError) setEmailError('');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // BUG_004 fix: client-side email format validation. Rejects "abc", "abc@",
-    // "abc@.com", "@gmail.com" before the request is sent.
-    const emailCheck = validateEmail(email);
-    if (!emailCheck.valid) {
-      setEmailError(emailCheck.error || 'Invalid email format');
-      toast.error(emailCheck.error || 'Invalid email format');
+    if (!email) {
+      toast.error('Please enter your email address');
       return;
     }
     setSubmitting(true);
@@ -41,8 +30,6 @@ export default function ForgotPasswordPage() {
         setSubmitted(true);
         toast.success('Reset link sent (if the email exists in our system)');
       } else {
-        // BUG_004 fix: surface server-side format errors clearly
-        setEmailError(data.error || 'Invalid email format');
         toast.error(data.error || 'Failed to send reset link');
       }
     } catch (err) {
@@ -75,8 +62,8 @@ export default function ForgotPasswordPage() {
                   <FiCheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="font-medium mb-1">Reset link sent</p>
-                    <p className="text-xs">If an account with <strong>{email}</strong> exists, you&apos;ll receive an email with a password reset link. The link is valid for 30 minutes.</p>
-                    <p className="text-xs mt-2 text-emerald-700">Didn&apos;t get the email? Check your spam folder, then <button type="button" onClick={() => setSubmitted(false)} className="underline font-medium">try again</button>.</p>
+                    <p className="text-xs">If an account with <strong>{email}</strong> exists, you\'ll receive an email with a password reset link. The link is valid for 30 minutes.</p>
+                    <p className="text-xs mt-2 text-emerald-700">Didn\'t get the email? Check your spam folder, then <button type="button" onClick={() => setSubmitted(false)} className="underline font-medium">try again</button>.</p>
                   </div>
                 </div>
               </div>
@@ -101,22 +88,13 @@ export default function ForgotPasswordPage() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={e => handleEmailChange(e.target.value)}
+                    onChange={e => setEmail(e.target.value)}
                     placeholder="you@company.com"
                     required
                     autoFocus
-                    aria-invalid={!!emailError}
-                    aria-describedby={emailError ? 'email-error' : undefined}
-                    className={`w-full pl-11 pr-4 py-3 rounded-lg border text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 ${
-                      emailError ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
-                    }`}
+                    className="w-full pl-11 pr-4 py-3 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                   />
                 </div>
-                {emailError && (
-                  <p id="email-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    <span aria-hidden>⚠</span> {emailError}
-                  </p>
-                )}
               </div>
               <button
                 type="submit"

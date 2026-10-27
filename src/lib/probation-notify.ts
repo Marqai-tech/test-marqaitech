@@ -175,16 +175,16 @@ export async function resolveProbationTierRecipients(
           const mgr = await db.employee.findUnique({ where: { id: emp.reportingManagerId }, select: { userId: true } });
           if (mgr?.userId) ids.add(mgr.userId);
         }
-      } else if (tier?.approverType === 'tenant_admin') {
-        const admins = await db.user.findMany({ where: { role: { in: ['super_admin', 'tenant_admin'] }, status: 'active' }, select: { id: true }, take: 20 });
+      } else if ((tier?.approverType === 'tenant_admin' || tier?.approverType === 'ceo')) {
+        const admins = await db.user.findMany({ where: { role: { in: ['super_admin', 'tenant_admin', 'ceo'] }, status: 'active' }, select: { id: true }, take: 20 });
         admins.forEach((a: { id: string }) => ids.add(a.id));
       } else {
         // hr_admin / finance / anything else — resolve by role family
         const roleMap: Record<string, string[]> = {
-          hr_admin: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin'],
+          hr_admin: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin', 'ceo'],
           finance: ['finance', 'finance_admin'],
         };
-        const roles = roleMap[tier?.approverType] || ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin'];
+        const roles = roleMap[tier?.approverType] || ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin', 'ceo'];
         const users = await db.user.findMany({ where: { role: { in: roles }, status: 'active' }, select: { id: true }, take: 20 });
         users.forEach((u: { id: string }) => ids.add(u.id));
       }
@@ -193,7 +193,7 @@ export async function resolveProbationTierRecipients(
 
   if (!ids.size) {
     try {
-      const users = await db.user.findMany({ where: { role: { in: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin'] }, status: 'active' }, select: { id: true }, take: 20 });
+      const users = await db.user.findMany({ where: { role: { in: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin', 'ceo'] }, status: 'active' }, select: { id: true }, take: 20 });
       users.forEach((u: { id: string }) => ids.add(u.id));
     } catch { /* nothing else we can do */ }
   }

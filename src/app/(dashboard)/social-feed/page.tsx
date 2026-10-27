@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
+import { openDocumentInNewTab } from '@/lib/document-viewer';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
@@ -28,7 +30,11 @@ import {
   FiCoffee,
   FiBriefcase,
   FiLoader,
+  FiLock,
 } from 'react-icons/fi';
+
+// Task 139 — attachment pick helpers (image/file → dataURL ≤3MB)
+const FEED_EMOJIS = ['😀', '🎉', '👏', '🙌', '🔥', '❤️', '🎂', '🏆', '✅', '💡', '🚀', '😊', '🥳', '💪', '☕', '🌟', '📢', '🎯', '🙏', '😍', '🤝', '😅', '😎', '🔔'];
 
 /* ── Auth headers helper ── */
 function getAuthHeaders() {
@@ -62,7 +68,8 @@ interface Post {
   tags?: string[];
   likes: number;
   comments: number;
-  shares: number;
+    shares: number;
+    attachments?: Array<{ type: string; url: string; name?: string }>;
   isLiked?: boolean;
   isPinned?: boolean;
   type: 'announcement' | 'achievement' | 'birthday' | 'welcome' | 'policy' | 'event' | 'general';
@@ -206,7 +213,7 @@ function formatTimeAgo(dateStr: string): string {
 /* ── Map API SocialPost → UI Post ── */
 function mapApiPostToPost(sp: SocialPost): Post {
   const authorName = `${sp.author?.firstName || ''} ${sp.author?.lastName || ''}`.trim() || 'Unknown';
-  const authorRole = sp.author?.designation?.name || 'Employee';
+  const authorRole = (sp.author?.designation as { name?: string; title?: string } | undefined)?.title || (sp.author?.designation as { name?: string; title?: string } | undefined)?.name || 'Employee';
   const authorInitials = initialsForName(sp.author?.firstName || '', sp.author?.lastName || '');
   const authorGradient = gradientForName(authorName);
 
@@ -223,7 +230,8 @@ function mapApiPostToPost(sp: SocialPost): Post {
     likes: sp.likesCount || 0,
     comments: sp.commentsCount || 0,
     shares: sp.sharesCount || 0,
-    isLiked: false,
+    attachments: Array.isArray(sp.attachments) ? sp.attachments : [],
+    isLiked: false, // Task 138 — overridden with the server's isLikedByMe in fetchPosts
     isPinned: sp.isPinned,
     type: postType,
     commentList: (sp.comments || []).map((c: SocialComment) => {
@@ -283,6 +291,27 @@ export default function SocialFeedPage() {
   const [composerText, setComposerText] = useState('');
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  // Task 138 — feed governance: only HR/Admin (or enabled employees) may RAISE feeds
+  const [canCreate, setCanCreate] = useState(false);
+  // Task 139 — composer attachments + emoji popover
+  const [composerAttachments, setComposerAttachments] = useState<Array<{ type: string; url: string; name?: string }>>([]);
+  const [modalAttachments, setModalAttachments] = useState<Array<{ type: string; url: string; name?: string }>>([]);
+  const [showEmoji, setShowEmoji] = useState<'composer' | 'modal' | null>(null);
+  const composerImageRef = useRef<HTMLInputElement>(null);
+  const composerFileRef = useRef<HTMLInputElement>(null);
+  const modalImageRef = useRef<HTMLInputElement>(null);
+  const modalFileRef = useRef<HTMLInputElement>(null);
+
+  // Task 139 — read an image/file into a dataURL attachment (≤3MB)
+  const pickFeedFile = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'file', setter: React.Dispatch<React.SetStateAction<Array<{ type: string; url: string; name?: string }>>>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { toast.error('Attachment must be under 3MB'); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => setter((prev) => [...prev.slice(0, 3), { type, url: String(reader.result), name: file.name }]);
+    reader.readAsDataURL(file);
+  };
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
 
   /* ── Fetch posts from API ── */
@@ -293,7 +322,13 @@ export default function SocialFeedPage() {
       if (!res.ok) throw new Error('Failed to fetch posts');
       const data = await res.json();
       const apiPosts: SocialPost[] = data.posts || [];
-      setPosts(apiPosts.filter((p: SocialPost) => p.isActive !== false).map(mapApiPostToPost));
+      // Task 138 — the API now reports whether this login may raise feeds and
+      // which posts the caller already liked (no more phantom like-state).
+      setCanCreate(Boolean(data.canCreate));
+      setPosts(apiPosts.filter((p: SocialPost) => p.isActive !== false).map((sp: SocialPost & { isLikedByMe?: boolean }) => ({
+        ...mapApiPostToPost(sp),
+        isLiked: Boolean(sp.isLikedByMe),
+      })));
     } catch (err) {
       console.error('fetchPosts error:', err);
       setPosts([]);
@@ -475,8 +510,12 @@ export default function SocialFeedPage() {
       commentList: [],
     };
     // Optimistic: add to top
+    newPost.attachments = (composerAttachments.length ? composerAttachments : modalAttachments);
     setPosts(prev => [newPost, ...prev]);
     setComposerText('');
+    setComposerAttachments([]);
+    setModalAttachments([]);
+    setShowEmoji(null);
     setShowCreatePostModal(false);
 
     try {
@@ -487,6 +526,7 @@ export default function SocialFeedPage() {
           content: newPost.content,
           postType: 'general',
           companyId: selectedCompanyId || undefined,
+          attachments: (composerAttachments.length ? composerAttachments : modalAttachments) || undefined,
         }),
       });
       if (res.ok) {
@@ -530,12 +570,18 @@ export default function SocialFeedPage() {
             <p className="text-sm text-thb-text-secondary">Stay connected with your team and company updates</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowCreatePostModal(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
-        >
-          <FiPlus className="w-4 h-4" /> Create Post
-        </button>
+        {canCreate ? (
+          <button
+            onClick={() => setShowCreatePostModal(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <FiPlus className="w-4 h-4" /> Create Post
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-medium text-thb-text-secondary">
+            <FiLock className="w-3.5 h-3.5" /> Respond-only — HR/Admin can enable feed creation in Collaboration → Settings
+          </span>
+        )}
       </div>
 
       {/* ── Main Content Grid ── */}
@@ -610,8 +656,8 @@ export default function SocialFeedPage() {
 
         {/* ── MAIN FEED ── */}
         <div className="space-y-5 min-w-0">
-          {/* Post Composer */}
-          <div className="bg-thb-card-bg rounded-xl border border-thb-border p-4">
+          {/* Post Composer — Task 138: hidden unless the governance allows this login to raise feeds */}
+          <div className={`bg-thb-card-bg rounded-xl border border-thb-border p-4 ${canCreate ? '' : 'hidden'}`}>
             <div className="flex items-start gap-3">
               <AvatarCircle initials={currentUserInitials} gradient={currentUserGradient} size="md" />
               <div className="flex-1 min-w-0">
@@ -621,17 +667,37 @@ export default function SocialFeedPage() {
                   placeholder="Share something with your team..."
                   className="w-full min-h-[80px] px-4 py-3 rounded-xl border border-thb-border bg-slate-50/50 text-sm text-thb-text-primary placeholder:text-thb-text-muted resize-none focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-300 transition-all"
                 />
+                {/* Task 139 — attached previews */}
+                {composerAttachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {composerAttachments.map((a, ai) => (
+                      <span key={ai} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[11px] text-slate-600">
+                        {a.type === 'image' ? <FiImage className="w-3 h-3" /> : <FiPaperclip className="w-3 h-3" />} {a.name || (a.type === 'image' ? 'Image' : 'File')}
+                        <button onClick={() => setComposerAttachments((prev) => prev.filter((_, i) => i !== ai))} className="text-red-400 hover:text-red-600"><FiX className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {showEmoji === 'composer' && (
+                  <div className="absolute z-20 mt-2 p-2 rounded-xl border border-thb-border bg-white shadow-lg grid grid-cols-8 gap-1 w-64">
+                    {FEED_EMOJIS.map((em) => (
+                      <button key={em} onClick={() => { setComposerText((t) => t + em); setShowEmoji(null); }} className="p-1 text-lg hover:bg-slate-100 rounded">{em}</button>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-center justify-between mt-3">
-                  <div className="flex items-center gap-1">
-                    <button className="p-2 rounded-lg text-thb-text-muted hover:text-green-600 hover:bg-green-50 transition-all" title="Add image">
+                  <div className="flex items-center gap-1 relative">
+                    <button onClick={() => composerImageRef.current?.click()} className="p-2 rounded-lg text-thb-text-muted hover:text-green-600 hover:bg-green-50 transition-all" title="Add image">
                       <FiImage className="w-4 h-4" />
                     </button>
-                    <button className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-all" title="Add emoji">
+                    <input ref={composerImageRef} type="file" accept="image/*" className="hidden" onChange={(e) => { pickFeedFile(e, 'image', setComposerAttachments); }} />
+                    <button onClick={() => setShowEmoji(showEmoji === 'composer' ? null : 'composer')} className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-all" title="Add emoji">
                       <FiSmile className="w-4 h-4" />
                     </button>
-                    <button className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Attach file">
+                    <button onClick={() => composerFileRef.current?.click()} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Attach file">
                       <FiPaperclip className="w-4 h-4" />
                     </button>
+                    <input ref={composerFileRef} type="file" accept=".pdf,image/jpeg,image/png,.doc,.docx" className="hidden" onChange={(e) => { pickFeedFile(e, 'file', setComposerAttachments); }} />
                   </div>
                   <button
                     onClick={handleCreatePost}
@@ -696,9 +762,21 @@ export default function SocialFeedPage() {
                   <p className="text-sm text-thb-text-primary leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
                   {/* Image / Gradient Card */}
-                  {post.imageGradient && (
-                    <div className={`mt-3 rounded-xl bg-gradient-to-br ${post.imageGradient} p-6 min-h-[120px] flex items-center justify-center`}>
-                      <p className="text-white font-bold text-center text-base sm:text-lg drop-shadow-md">{post.imageLabel}</p>
+                  {/* Task 139 — real attachments (image previews + file chips) */}
+                  {(post.attachments || []).length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {(post.attachments || []).filter((a) => a?.url).map((a, ai) => (
+                        a.type === 'image' ? (
+                          <button key={ai} type="button" onClick={() => openDocumentInNewTab(a.url, a.name)} className="block w-full">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={a.url} alt={a.name || 'attachment'} className="max-h-80 w-full object-cover rounded-xl border border-thb-border" />
+                          </button>
+                        ) : (
+                          <button key={ai} type="button" onClick={() => openDocumentInNewTab(a.url, a.name)} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-thb-border bg-slate-50 text-xs font-medium text-thb-text-secondary hover:bg-slate-100">
+                            <FiPaperclip className="w-3.5 h-3.5" /> {a.name || 'Attachment'} · open
+                          </button>
+                        )
+                      ))}
                     </div>
                   )}
 
@@ -1000,20 +1078,37 @@ export default function SocialFeedPage() {
                 className="w-full min-h-[150px] mt-4 px-4 py-3 rounded-xl border border-thb-border bg-slate-50/50 text-sm text-thb-text-primary placeholder:text-thb-text-muted resize-none focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-300 transition-all"
                 autoFocus
               />
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-thb-border">
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-green-50 hover:text-green-600 transition-all">
-                  <FiImage className="w-3.5 h-3.5" /> Photo
-                </button>
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-teal-50 hover:text-teal-600 transition-all">
-                  <FiSmile className="w-3.5 h-3.5" /> Emoji
-                </button>
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-emerald-50 hover:text-emerald-600 transition-all">
-                  <FiPaperclip className="w-3.5 h-3.5" /> File
-                </button>
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-orange-50 hover:text-orange-600 transition-all">
-                  <FiBriefcase className="w-3.5 h-3.5" /> Tag
-                </button>
-              </div>
+                {/* Task 139 — working Photo / Emoji / File buttons */}
+                {modalAttachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {modalAttachments.map((a, ai) => (
+                      <span key={ai} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[11px] text-slate-600">
+                        {a.type === 'image' ? <FiImage className="w-3 h-3" /> : <FiPaperclip className="w-3 h-3" />} {a.name || (a.type === 'image' ? 'Image' : 'File')}
+                        <button onClick={() => setModalAttachments((prev) => prev.filter((_, i) => i !== ai))} className="text-red-400 hover:text-red-600"><FiX className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {showEmoji === 'modal' && (
+                  <div className="p-2 rounded-xl border border-thb-border bg-white shadow-lg grid grid-cols-8 gap-1 w-64">
+                    {FEED_EMOJIS.map((em) => (
+                      <button key={em} onClick={() => { setComposerText((t) => t + em); setShowEmoji(null); }} className="p-1 text-lg hover:bg-slate-100 rounded">{em}</button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => modalImageRef.current?.click()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-thb-border text-xs text-thb-text-secondary hover:bg-slate-50 transition-all">
+                    <FiImage className="w-3.5 h-3.5" /> Photo
+                  </button>
+                  <input ref={modalImageRef} type="file" accept="image/*" className="hidden" onChange={(e) => { pickFeedFile(e, 'image', setModalAttachments); }} />
+                  <button onClick={() => setShowEmoji(showEmoji === 'modal' ? null : 'modal')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-thb-border text-xs text-thb-text-secondary hover:bg-slate-50 transition-all">
+                    <FiSmile className="w-3.5 h-3.5" /> Emoji
+                  </button>
+                  <button onClick={() => modalFileRef.current?.click()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-thb-border text-xs text-thb-text-secondary hover:bg-slate-50 transition-all">
+                    <FiPaperclip className="w-3.5 h-3.5" /> File
+                  </button>
+                  <input ref={modalFileRef} type="file" accept=".pdf,image/jpeg,image/png,.doc,.docx" className="hidden" onChange={(e) => { pickFeedFile(e, 'file', setModalAttachments); }} />
+                </div>
             </div>
             <div className="p-5 pt-0">
               <button

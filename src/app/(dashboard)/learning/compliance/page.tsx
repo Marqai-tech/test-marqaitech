@@ -20,7 +20,7 @@ const CATS = ['POSH', 'CYBERSECURITY', 'SAFETY', 'DATA_PRIVACY', 'HEALTHCARE', '
 
 export default function CompliancePage() {
   const user = useAuthStore((s) => s.user);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager'].includes(user?.role || '');
   const [reqs, setReqs] = useState<Requirement[]>([]);
   const [matrix, setMatrix] = useState<MatrixRow[]>([]);
   const [departments, setDepartments] = useState<{ name: string; compliancePct: number; employees: number }[]>([]);

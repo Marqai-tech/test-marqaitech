@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     const userPayload = decoded as Record<string, unknown>;
     const userRole = userPayload.role as string;
 
-    if (!userRole || !['super_admin', 'tenant_admin'].includes(userRole)) {
+    if (!userRole || !['super_admin', 'tenant_admin', 'ceo'].includes(userRole)) {
       return fail('Forbidden: requires tenant_admin or super_admin role', 403);
     }
 
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     if (!tenant) return fail(`Tenant with slug or domain "${tenantSlug}" not found in the platform database`, 404);
 
     // If the user is a tenant_admin, they can only clean their own tenant
-    if (userRole === 'tenant_admin' && userPayload.tenantId !== tenant.id) {
+    if ((userRole === 'tenant_admin' || userRole === 'ceo') && userPayload.tenantId !== tenant.id) {
       return fail('Forbidden: tenant_admin can only clean their own tenant', 403);
     }
 
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
     const adminUsers = await db.user.findMany({
       where: {
         tenantId,
-        role: { in: ['super_admin', 'tenant_admin'] },
+        role: { in: ['super_admin', 'tenant_admin', 'ceo'] },
         status: 'active',
       },
       select: { id: true, email: true, role: true },

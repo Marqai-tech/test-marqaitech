@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
       if (tenantId) {
         // Notify tenant admins about the new application
         const tenantAdmins = await db.user.findMany({
-          where: { tenantId, role: { in: ['tenant_admin', 'recruiter'] } },
+          where: { tenantId, role: { in: ['tenant_admin', 'ceo', 'recruiter'] } },
           select: { id: true },
         });
         if (tenantAdmins.length > 0) {

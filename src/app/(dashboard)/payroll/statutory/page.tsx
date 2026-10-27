@@ -204,7 +204,7 @@ const emptyForm = {
 export default function StatutoryComponentsPage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [components, setComponents] = useState<StatutoryComponent[]>([]);
   const [loading, setLoading] = useState(true);

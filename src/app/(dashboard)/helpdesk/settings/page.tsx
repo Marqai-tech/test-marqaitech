@@ -38,7 +38,7 @@ const DEFAULTS: Settings = {
 
 export default function SupportSettingsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'tenant_admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

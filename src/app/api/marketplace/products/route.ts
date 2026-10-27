@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    if (!['super_admin', 'tenant_admin'].includes((decoded.role as string) || '')) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes((decoded.role as string) || '')) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     const body = await request.json();
     const { sku, name, description, category, providerName, publicPrice, corporatePrice, currency, allowedBuckets, imageUrl, fulfillmentMode, quantityLimitPerQuarter } = body;
     if (!sku || !name || !category || !providerName || !publicPrice || !corporatePrice) return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders() });

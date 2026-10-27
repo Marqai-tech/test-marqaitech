@@ -1,9 +1,14 @@
 'use client';
 
 /**
- * Employee Module Dashboard
+ * Employee Module Dashboard — SmartHR template style
  * ─────────────────────────
  * A dedicated dashboard for the Employee module, distinct from the Employee List page.
+ * Task 155: restyled to match the Employee Dashboard UI view (/dashboard) —
+ * shared SmartHR widgets (PageBreadcrumbs gradient banner, Panel, StatCard,
+ * MiniStatTile, QuickLinkGrid) and the royal #3A57C4 / violet #6C4FD6 /
+ * orange #FF9B44 palette. Page heading renamed from "Module Dashboard" to
+ * "Dashboard" so the right side pane matches the sidebar label.
  * Shows role-based content:
  *   - All Employees: Summary stats, headcount trends, department distribution, recent updates
  *   - Admin/HR: Full analytics, compliance indicators, lifecycle tracking
@@ -14,7 +19,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  FiUsers, FiUserPlus, FiUserCheck, FiUserX, FiClock,
+  FiUsers, FiUserPlus, FiUserCheck, FiUserX, FiUser, FiClock,
   FiTrendingUp, FiTrendingDown, FiBarChart2, FiPieChart,
   FiCalendar, FiAlertCircle, FiArrowRight, FiGrid,
   FiBriefcase, FiMapPin, FiActivity, FiCheckCircle, FiInfo,
@@ -26,6 +31,13 @@ import toast from 'react-hot-toast';
 import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import SocialFeedsSection from '@/components/employees/SocialFeedsSection';
+/* Task 155 — shared SmartHR widgets: the exact same building blocks the
+   Employee Dashboard UI view (/dashboard) uses, so both pages look alike. */
+import {
+  PageBreadcrumbs, DateChip, Panel, StatCard, MiniStatTile,
+  QuickLinkGrid, SkeletonBlock, StatSkeleton,
+} from '@/components/dashboard/smarthr-widgets';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -67,6 +79,7 @@ interface LifecycleMetric {
   icon: React.ComponentType<{ className?: string }>;
   color: string;
   bgColor: string;
+  ring: string;
   route: string;
 }
 
@@ -120,11 +133,12 @@ export default function EmployeeDashboardPage() {
   const [tenureDist, setTenureDist] = useState<TenureBucket[]>([]);
   const [tenureCounted, setTenureCounted] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'updates'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'feeds' | 'analytics' | 'updates'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   // Role-based permissions
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(userRole);
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'hr_admin'].includes(userRole);
   const isManager = userRole === 'manager' || isAdmin;
   const canViewSalary = isAdmin;
   const canViewFullDetails = isManager;
@@ -457,13 +471,13 @@ export default function EmployeeDashboardPage() {
   /* ── Lifecycle metrics ── */
   const lifecycleMetrics: LifecycleMetric[] = useMemo(() => {
     const base: LifecycleMetric[] = [
-      { label: 'On Probation', count: lifecycleCounts.onProbation, icon: FiClock, color: 'text-amber-600', bgColor: 'bg-amber-50', route: '/employees/probation' },
-      { label: 'Transfers', count: lifecycleCounts.transfers, icon: FiRefreshCw, color: 'text-green-600', bgColor: 'bg-green-50', route: '/employees/transfer' },
-      { label: 'Resignations', count: lifecycleCounts.resignations, icon: FiFileText, color: 'text-red-600', bgColor: 'bg-red-50', route: '/employees/resignation' },
-      { label: 'Terminations', count: lifecycleCounts.terminations, icon: FiUserX, color: 'text-orange-600', bgColor: 'bg-orange-50', route: '/employees/termination' },
+      { label: 'On Probation', count: lifecycleCounts.onProbation, icon: FiClock, color: 'text-amber-600', bgColor: 'bg-amber-50', ring: 'ring-amber-100', route: '/employees/probation' },
+      { label: 'Transfers', count: lifecycleCounts.transfers, icon: FiRefreshCw, color: 'text-green-600', bgColor: 'bg-green-50', ring: 'ring-green-100', route: '/employees/transfer' },
+      { label: 'Resignations', count: lifecycleCounts.resignations, icon: FiFileText, color: 'text-red-600', bgColor: 'bg-red-50', ring: 'ring-red-100', route: '/employees/resignation' },
+      { label: 'Terminations', count: lifecycleCounts.terminations, icon: FiUserX, color: 'text-orange-600', bgColor: 'bg-orange-50', ring: 'ring-orange-100', route: '/employees/termination' },
     ];
     if (isAdmin) {
-      base.push({ label: 'Rejoin Cases', count: lifecycleCounts.rejoins, icon: FiUserCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-50', route: '/employees/rejoin' });
+      base.push({ label: 'Rejoin Cases', count: lifecycleCounts.rejoins, icon: FiUserCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-50', ring: 'ring-emerald-100', route: '/employees/rejoin' });
     }
     return base;
   }, [isAdmin, lifecycleCounts]);
@@ -478,59 +492,55 @@ export default function EmployeeDashboardPage() {
     status_change: { icon: FiActivity, color: 'text-slate-600', bgColor: 'bg-slate-50' },
   };
 
-  /* ── Loading State ── */
+  /* ── Loading State — SmartHR skeleton pattern (same as /dashboard) ── */
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 bg-slate-200 rounded w-64" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="thb-card p-5 h-28" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="thb-card p-5 h-64 lg:col-span-2" />
-          <div className="thb-card p-5 h-64" />
+      <div>
+        <PageBreadcrumbs title="Dashboard" trail={['Employee', 'Dashboard']} right={<DateChip value={todayChip} />} />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <StatSkeleton key={i} />)}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <SkeletonBlock className="h-64 rounded-2xl" />
+            <SkeletonBlock className="h-64 rounded-2xl lg:col-span-2" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiUsers className="w-6 h-6 text-green-500" />
-            Module Dashboard
-          </h1>
-          <p className="text-sm text-thb-text-secondary mt-1">
-            {isAdmin ? 'Organization-wide employee overview, analytics, and lifecycle tracking'
-              : isManager ? 'Your team overview, employee analytics, and pending actions'
-              : 'Your employment details, team information, and pending actions'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchDashboardData}
-            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
-            title="Refresh data"
-          >
-            <FiRefreshCw className="w-4 h-4" />
-          </button>
-          {isAdmin && (
+    <div>
+      {/* ── Header — SmartHR gradient breadcrumb banner (Task 155: renamed
+          from "Module Dashboard" to "Dashboard"; same band as /dashboard) ── */}
+      <PageBreadcrumbs
+        title="Dashboard"
+        trail={['Employee', 'Dashboard']}
+        right={
+          <>
+            <DateChip value={todayChip} />
             <button
-              onClick={() => router.push('/employees/add')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-sm shadow-green-500/20"
+              onClick={fetchDashboardData}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-300 shadow-sm transition-all"
+              title="Refresh data"
             >
-              <FiUserPlus className="w-4 h-4" />
-              Add Employee
+              <FiRefreshCw className="w-4 h-4" />
             </button>
-          )}
-        </div>
-      </div>
+            {isAdmin && (
+              <button
+                onClick={() => router.push('/employees/add')}
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FF7A3D] text-white text-sm font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/45 transition-all"
+              >
+                <FiUserPlus className="w-4 h-4" />
+                Add Employee
+              </button>
+            )}
+          </>
+        }
+      />
 
+      <div className="space-y-6">
       {/* ── Tab Navigation ── */}
       {/* Task 88: the Analytics tab is company-wide HR analytics — hidden
           from employee & manager logins per requirement ("Remove the
@@ -539,6 +549,8 @@ export default function EmployeeDashboardPage() {
       <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
         {[
           { key: 'overview' as const, label: 'Overview', icon: FiGrid },
+          // Task 138 — Social Feeds right after the Overview.
+          { key: 'feeds' as const, label: 'Social Feeds', icon: FiUsers },
           ...(isAdmin ? [{ key: 'analytics' as const, label: 'Analytics', icon: FiBarChart2 }] : []),
           { key: 'updates' as const, label: 'Updates', icon: FiActivity },
         ].map(tab => {
@@ -549,8 +561,8 @@ export default function EmployeeDashboardPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.key
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-thb-text-secondary hover:text-thb-text-primary'
+                  ? 'bg-white text-[#3A57C4] shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -583,73 +595,70 @@ export default function EmployeeDashboardPage() {
               </button>
             </div>
           )}
-          {/* ── KPI Cards ── */}
+          {/* ── KPI stat tiles — shared SmartHR StatCard (white card, colourful
+              top accent bar, round pastel icon — same as /dashboard) ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              icon={<FiUsers className="w-5 h-5" />}
               label="Total Employees"
               value={stats?.totalEmployees ?? 0}
-              trend={{ value: stats?.newHiresThisMonth ?? 0, label: 'new this month', up: true }}
-              gradient="from-green-500 to-emerald-600"
+              sub={`${stats?.newHiresThisMonth ?? 0} new this month`}
+              icon={<FiUsers className="w-5 h-5" />}
+              bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+              ring="ring-[#3A57C4]/20"
             />
             <StatCard
-              icon={<FiUserCheck className="w-5 h-5" />}
               label="Active"
               value={stats?.activeEmployees ?? 0}
-              trend={{ value: stats?.totalEmployees ? Math.round((stats.activeEmployees / stats.totalEmployees) * 100) : 0, label: '% of total', up: true }}
-              gradient="from-emerald-500 to-teal-600"
+              sub={stats?.totalEmployees ? `${Math.round((stats.activeEmployees / stats.totalEmployees) * 100)}% of total` : '—'}
+              icon={<FiUserCheck className="w-5 h-5" />}
+              bg="bg-emerald-50 text-emerald-600"
+              ring="ring-emerald-100"
             />
             <StatCard
-              icon={<FiClock className="w-5 h-5" />}
               label="On Leave"
               value={stats?.onLeaveEmployees ?? 0}
-              trend={{ value: stats?.totalEmployees ? Math.round((stats.onLeaveEmployees / stats.totalEmployees) * 100) : 0, label: '% of total', up: false }}
-              gradient="from-amber-500 to-orange-600"
+              sub={stats?.totalEmployees ? `${Math.round((stats.onLeaveEmployees / stats.totalEmployees) * 100)}% of total` : '—'}
+              icon={<FiClock className="w-5 h-5" />}
+              bg="bg-amber-50 text-amber-600"
+              ring="ring-amber-100"
             />
             <StatCard
-              icon={<FiUserX className="w-5 h-5" />}
               label="Exits This Month"
               value={stats?.exitsThisMonth ?? 0}
-              trend={{ value: stats?.newHiresThisMonth ?? 0, label: 'hired vs exited', up: (stats?.newHiresThisMonth ?? 0) > (stats?.exitsThisMonth ?? 0) }}
-              gradient="from-red-500 to-pink-600"
+              sub={(stats?.newHiresThisMonth ?? 0) >= (stats?.exitsThisMonth ?? 0) ? `${stats?.newHiresThisMonth ?? 0} hires vs exits` : 'hires behind exits'}
+              icon={<FiUserX className="w-5 h-5" />}
+              bg="bg-rose-50 text-rose-600"
+              ring="ring-rose-100"
             />
           </div>
 
           {/* ── Quick Actions + Department Distribution ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Quick Actions */}
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiTarget className="w-4 h-4 text-green-500" />
-                Quick Actions
-              </h3>
-              <div className="space-y-2">
-                {isAdmin && (
-                  <QuickAction label="Add New Employee" icon={FiUserPlus} route="/employees/add" color="text-green-600" bgColor="bg-green-50" />
-                )}
-                <QuickAction label="View Employee List" icon={FiUsers} route="/employees" color="text-emerald-600" bgColor="bg-emerald-50" />
-                <QuickAction label="Org Chart" icon={FiLayers} route="/org-chart" color="text-teal-600" bgColor="bg-teal-50" />
-                {isAdmin && (
-                  <>
-                    <QuickAction label="Probation Tracking" icon={FiClock} route="/employees/probation" color="text-amber-600" bgColor="bg-amber-50" />
-                    <QuickAction label="Transfer Management" icon={FiRefreshCw} route="/employees/transfer" color="text-cyan-600" bgColor="bg-cyan-50" />
-                  </>
-                )}
-                {isManager && (
-                  <QuickAction label="Resignation Portal" icon={FiFileText} route="/employees/resignation" color="text-red-600" bgColor="bg-red-50" />
-                )}
-              </div>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Quick Actions — template pastel tiles (same pattern as /dashboard) */}
+            <Panel title="Quick Actions" icon={<FiTarget className="w-4 h-4" />} accent="text-[#6C4FD6]">
+              <QuickLinkGrid
+                links={[
+                  ...(isAdmin ? [{ label: 'Add New Employee', icon: <FiUserPlus className="w-5 h-5" />, href: '/employees/add', bg: 'from-[#10B981] to-[#14B8A6]', shadow: '' }] : []),
+                  // Bug 4 fix: Employee login sees "Update Profile" instead of "View Employee List"
+                  ...(isAdmin ? [{ label: 'View Employee List', icon: <FiUsers className="w-5 h-5" />, href: '/employees', bg: 'from-[#3A57C4] to-[#4C51D6]', shadow: '' }] : [{ label: 'Update Profile', icon: <FiUser className="w-5 h-5" />, href: '/my-profile', bg: 'from-[#3A57C4] to-[#4C51D6]', shadow: '' }]),
+                  { label: 'Org Chart', icon: <FiLayers className="w-5 h-5" />, href: '/org-chart', bg: 'from-[#6C4FD6] to-[#3A57C4]', shadow: '' },
+                  ...(isAdmin ? [
+                    { label: 'Probation Tracking', icon: <FiClock className="w-5 h-5" />, href: '/employees/probation', bg: 'from-amber-400 to-orange-500', shadow: '' },
+                    { label: 'Transfer Management', icon: <FiRefreshCw className="w-5 h-5" />, href: '/employees/transfer', bg: 'from-cyan-400 to-sky-500', shadow: '' },
+                  ] : []),
+                  ...(isManager ? [{ label: 'Resignation Portal', icon: <FiFileText className="w-5 h-5" />, href: '/employees/resignation', bg: 'from-rose-400 to-pink-500', shadow: '' }] : []),
+                ]}
+              />
+            </Panel>
 
             {/* Department Distribution */}
-            <div className="thb-card p-5 lg:col-span-2">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiBriefcase className="w-4 h-4 text-emerald-500" />
-                  Department Distribution
-                </h3>
-                <span className="text-xs text-thb-text-secondary">{departments.length} departments</span>
-              </div>
+            <div className="lg:col-span-2">
+              <Panel
+                title="Department Distribution"
+                icon={<FiBriefcase className="w-4 h-4" />}
+                accent="text-[#10B981]"
+                action={<span className="text-xs text-slate-500">{departments.length} departments</span>}
+              >
 
               {departments.length > 0 ? (
                 <div className="space-y-3">
@@ -659,75 +668,70 @@ export default function EmployeeDashboardPage() {
                     return (
                       <div key={dept.name} className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${dept.color} flex-shrink-0`} />
-                        <span className="text-xs text-thb-text-secondary w-28 truncate flex-shrink-0">{dept.name}</span>
+                        <span className="text-xs text-slate-500 w-28 truncate flex-shrink-0">{dept.name}</span>
                         <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
                           <div
                             className={`h-full rounded-full ${dept.color} transition-all duration-500`}
                             style={{ width: `${widthPercent}%` }}
                           />
                         </div>
-                        <span className="text-xs font-semibold text-thb-text-primary w-8 text-right flex-shrink-0">{dept.count}</span>
+                        <span className="text-xs font-semibold text-slate-900 w-8 text-right flex-shrink-0">{dept.count}</span>
                       </div>
                     );
                   })}
                   {departments.length > 8 && (
-                    <p className="text-xs text-thb-text-secondary text-center mt-2">
+                    <p className="text-xs text-slate-500 text-center mt-2">
                       +{departments.length - 8} more departments
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-thb-text-secondary">
+                <div className="flex flex-col items-center justify-center py-8 text-slate-400">
                   <FiBriefcase className="w-8 h-8 mb-2 opacity-40" />
                   <p className="text-sm">No department data available</p>
                   <p className="text-xs mt-1">Add employees with department assignments to see distribution</p>
                 </div>
               )}
+              </Panel>
             </div>
           </div>
 
-          {/* ── Lifecycle Cards ── */}
+          {/* ── Employee Lifecycle — SmartHR mini stat tiles ── */}
           {isManager && (
-            <div>
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
-                <FiActivity className="w-4 h-4 text-teal-500" />
-                Employee Lifecycle
-              </h3>
+            <Panel title="Employee Lifecycle" icon={<FiActivity className="w-4 h-4" />} accent="text-[#FF9B44]">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {lifecycleMetrics.map(metric => {
                   const Icon = metric.icon;
                   return (
-                    <button
+                    <MiniStatTile
                       key={metric.label}
-                      onClick={() => router.push(metric.route)}
-                      className="thb-card p-4 hover:shadow-md transition-all group text-left"
-                    >
-                      <div className={`w-9 h-9 rounded-lg ${metric.bgColor} flex items-center justify-center mb-2`}>
-                        <Icon className={`w-4.5 h-4.5 ${metric.color}`} />
-                      </div>
-                      <p className="text-lg font-bold text-thb-text-primary">{metric.count}</p>
-                      <p className="text-xs text-thb-text-secondary group-hover:text-green-600 transition-colors">{metric.label}</p>
-                    </button>
+                      label={metric.label}
+                      value={metric.count}
+                      icon={<Icon className="w-4 h-4" />}
+                      bg={`${metric.bgColor} ${metric.color}`}
+                      ring={metric.ring}
+                      href={metric.route}
+                    />
                   );
                 })}
               </div>
-            </div>
+            </Panel>
           )}
 
           {/* ── Recent Updates Preview ── */}
-          <div className="thb-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
-                <FiActivity className="w-4 h-4 text-amber-500" />
-                Recent Employee Updates
-              </h3>
+          <Panel
+            title="Recent Employee Updates"
+            icon={<FiActivity className="w-4 h-4" />}
+            accent="text-[#FFC107]"
+            action={
               <button
                 onClick={() => setActiveTab('updates')}
-                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium transition-colors"
+                className="flex items-center gap-1 text-xs font-semibold text-[#3A57C4] hover:text-[#2C43A3] transition-colors"
               >
                 View All <FiArrowRight className="w-3 h-3" />
               </button>
-            </div>
+            }
+          >
             <div className="space-y-3">
               {recentUpdates.slice(0, 5).map((update, idx) => {
                 const config = updateTypeConfig[update.type] || updateTypeConfig.status_change;
@@ -738,24 +742,34 @@ export default function EmployeeDashboardPage() {
                       <Icon className={`w-4 h-4 ${config.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-thb-text-primary truncate">{update.employeeName}</p>
-                      <p className="text-xs text-thb-text-secondary">{update.details} &middot; {update.department}</p>
+                      <p className="text-sm font-medium text-slate-900 truncate">{update.employeeName}</p>
+                      <p className="text-xs text-slate-500">{update.details} &middot; {update.department}</p>
                     </div>
-                    <span className="text-xs text-thb-text-secondary flex-shrink-0">
+                    <span className="text-xs text-slate-500 flex-shrink-0">
                       {update.date ? new Date(update.date).toLocaleDateString() : '—'}
                     </span>
                   </div>
                 );
               })}
               {recentUpdates.length === 0 && (
-                <div className="text-center py-8 text-thb-text-secondary">
+                <div className="text-center py-8 text-slate-400">
                   <FiActivity className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">No recent updates</p>
                 </div>
               )}
             </div>
-          </div>
+          </Panel>
+
+          {/* Task 138 — Social Feeds preview right after the Overview content */}
+          <SocialFeedsSection variant="compact" onViewAll={() => setActiveTab('feeds')} />
         </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          SOCIAL FEEDS TAB (Task 138 — right after Overview)
+         ══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'feeds' && (
+        <SocialFeedsSection variant="full" />
       )}
 
       {/* ══════════════════════════════════════════════════════════════
@@ -764,11 +778,7 @@ export default function EmployeeDashboardPage() {
       {isAdmin && activeTab === 'analytics' && (
         <>
           {/* Headcount Trend */}
-          <div className="thb-card p-5">
-            <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-              <FiTrendingUp className="w-4 h-4 text-green-500" />
-              Headcount Trend
-            </h3>
+          <Panel title="Headcount Trend" icon={<FiTrendingUp className="w-4 h-4" />} accent="text-[#3A57C4]">
             {headcountTrend.length > 0 ? (
               <div className="space-y-3">
                 {headcountTrend.map((m, idx) => {
@@ -776,17 +786,17 @@ export default function EmployeeDashboardPage() {
                   const barWidth = (m.headcount / maxHC) * 100;
                   return (
                     <div key={m.month} className="flex items-center gap-3">
-                      <span className="text-xs font-medium text-thb-text-secondary w-8 flex-shrink-0">{m.month}</span>
+                      <span className="text-xs font-medium text-slate-500 w-8 flex-shrink-0">{m.month}</span>
                       <div className="flex-1 flex items-center gap-2">
                         <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
+                            className="h-full rounded-full bg-gradient-to-r from-[#3A57C4] to-[#6C4FD6] transition-all duration-500"
                             style={{ width: `${barWidth}%` }}
                           />
                         </div>
-                        <span className="text-xs font-semibold text-thb-text-primary w-8 text-right">{m.headcount}</span>
+                        <span className="text-xs font-semibold text-slate-900 w-8 text-right">{m.headcount}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] text-thb-text-secondary w-20 flex-shrink-0 justify-end">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500 w-20 flex-shrink-0 justify-end">
                         <span className="text-emerald-600">+{m.joins}</span>
                         <span className="text-red-500">-{m.exits}</span>
                       </div>
@@ -795,20 +805,16 @@ export default function EmployeeDashboardPage() {
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 text-thb-text-secondary">
+              <div className="text-center py-8 text-slate-400">
                 <FiBarChart2 className="w-8 h-8 mx-auto mb-2 opacity-40" />
                 <p className="text-sm">No trend data available</p>
               </div>
             )}
-          </div>
+          </Panel>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Gender Distribution */}
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiHeart className="w-4 h-4 text-pink-500" />
-                Gender Distribution
-              </h3>
+            <Panel title="Gender Distribution" icon={<FiHeart className="w-4 h-4" />} accent="text-pink-500">
               {stats && (stats.genderRatio.male + stats.genderRatio.female + stats.genderRatio.other) > 0 ? (
                 <div className="space-y-4">
                   {[
@@ -821,7 +827,7 @@ export default function EmployeeDashboardPage() {
                     return (
                       <div key={g.label} className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${g.color} flex-shrink-0`} />
-                        <span className="text-xs text-thb-text-secondary w-12 flex-shrink-0">{g.label}</span>
+                        <span className="text-xs text-slate-500 w-12 flex-shrink-0">{g.label}</span>
                         <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
                           <div className={`h-full rounded-full ${g.color} transition-all duration-500`} style={{ width: `${pct}%` }} />
                         </div>
@@ -831,19 +837,15 @@ export default function EmployeeDashboardPage() {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-thb-text-secondary">
+                <div className="text-center py-8 text-slate-400">
                   <FiUsers className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">Gender data not available</p>
                 </div>
               )}
-            </div>
+            </Panel>
 
             {/* Key Metrics */}
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiBarChart2 className="w-4 h-4 text-emerald-500" />
-                Key Metrics
-              </h3>
+            <Panel title="Key Metrics" icon={<FiBarChart2 className="w-4 h-4" />} accent="text-emerald-500">
               <div className="grid grid-cols-2 gap-4">
                 <MetricBox
                   label="Avg Tenure"
@@ -878,15 +880,11 @@ export default function EmployeeDashboardPage() {
                   bgColor="bg-teal-50"
                 />
               </div>
-            </div>
+            </Panel>
           </div>
 
           {/* Tenure Distribution */}
-          <div className="thb-card p-5">
-            <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-              <FiCalendar className="w-4 h-4 text-teal-500" />
-              Tenure Overview
-            </h3>
+          <Panel title="Tenure Overview" icon={<FiCalendar className="w-4 h-4" />} accent="text-teal-500">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {tenureDist.length > 0 ? tenureDist.map(t => {
                 const pct = tenureCounted > 0 ? Math.round((t.count / tenureCounted) * 100) : 0;
@@ -906,12 +904,12 @@ export default function EmployeeDashboardPage() {
                 ))
               )}
             </div>
-            <p className="text-xs text-thb-text-secondary mt-3 text-center">
+            <p className="text-xs text-slate-500 mt-3 text-center">
               {tenureCounted > 0
                 ? `Calculated from date of joining for ${tenureCounted} employee${tenureCounted === 1 ? '' : 's'} with joining dates on record.`
                 : 'No employee joining dates on record yet — add employees with their date of joining to see the tenure breakdown.'}
             </p>
-          </div>
+          </Panel>
         </>
       )}
 
@@ -923,28 +921,30 @@ export default function EmployeeDashboardPage() {
           {/* Search & Filter */}
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-sm">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-secondary" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
                 placeholder="Search updates by name or department..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary placeholder:text-thb-text-secondary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 transition-all"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3A57C4]/20 focus:border-[#3A57C4] transition-all"
               />
             </div>
           </div>
 
-          {/* Updates List */}
-          <div className="thb-card overflow-hidden">
-            <div className="px-5 py-3 border-b border-thb-border flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
-                <FiActivity className="w-4 h-4 text-amber-500" />
+          {/* Updates List — Panel-style white card, edge-to-edge rows */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-[#FFC107]/20 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <FiActivity className="w-4 h-4" />
+                </span>
                 All Employee Updates
               </h3>
-              <span className="text-xs text-thb-text-secondary">{recentUpdates.length} updates</span>
+              <span className="text-xs text-slate-500">{recentUpdates.length} updates</span>
             </div>
 
-            <div className="divide-y divide-thb-border">
+            <div className="divide-y divide-slate-100">
               {recentUpdates
                 .filter(u =>
                   !searchQuery ||
@@ -966,16 +966,16 @@ export default function EmployeeDashboardPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-thb-text-primary truncate">{update.employeeName}</p>
-                          <span className="text-[10px] font-mono text-thb-text-secondary bg-slate-100 px-1.5 py-0.5 rounded">{update.employeeId}</span>
+                          <p className="text-sm font-medium text-slate-900 truncate">{update.employeeName}</p>
+                          <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{update.employeeId}</span>
                         </div>
-                        <p className="text-xs text-thb-text-secondary mt-0.5">{update.details} &middot; {update.department}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{update.details} &middot; {update.department}</p>
                       </div>
                       <div className="flex-shrink-0 text-right">
-                        <p className="text-xs text-thb-text-secondary">
+                        <p className="text-xs text-slate-500">
                           {update.date ? new Date(update.date).toLocaleDateString() : '—'}
                         </p>
-                        <p className="text-[10px] text-thb-text-secondary">
+                        <p className="text-[10px] text-slate-400">
                           {update.date ? new Date(update.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </p>
                       </div>
@@ -988,7 +988,7 @@ export default function EmployeeDashboardPage() {
                 u.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 u.department.toLowerCase().includes(searchQuery.toLowerCase())
               ).length === 0 && (
-                <div className="px-5 py-12 text-center text-thb-text-secondary">
+                <div className="px-5 py-12 text-center text-slate-400">
                   <FiActivity className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">{searchQuery ? 'No updates match your search' : 'No employee updates yet'}</p>
                   <p className="text-xs mt-1">Updates will appear as employees join, transfer, or change status</p>
@@ -998,65 +998,15 @@ export default function EmployeeDashboardPage() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
 
 /* ── Sub-Components ── */
-
-function StatCard({ icon, label, value, trend, gradient }: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  trend?: { value: number; label: string; up: boolean };
-  gradient: string;
-}) {
-  return (
-    <div className="thb-card overflow-hidden">
-      <div className={`bg-gradient-to-br ${gradient} p-4 text-white`}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="opacity-90">{icon}</span>
-          {trend && (
-            <span className="flex items-center gap-1 text-xs opacity-80">
-              {trend.up ? <FiTrendingUp className="w-3 h-3" /> : <FiTrendingDown className="w-3 h-3" />}
-              {trend.value}
-            </span>
-          )}
-        </div>
-        <p className="text-2xl font-bold">{value.toLocaleString()}</p>
-        <p className="text-xs opacity-80 mt-0.5">{label}</p>
-      </div>
-      {trend && (
-        <div className="px-4 py-2 bg-white">
-          <p className="text-xs text-thb-text-secondary">{trend.label}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function QuickAction({ label, icon, route, color, bgColor }: {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  route: string;
-  color: string;
-  bgColor: string;
-}) {
-  const router = useRouter();
-  const Icon = icon;
-  return (
-    <button
-      onClick={() => router.push(route)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all group text-left"
-    >
-      <div className={`w-8 h-8 rounded-lg ${bgColor} flex items-center justify-center flex-shrink-0`}>
-        <Icon className={`w-4 h-4 ${color}`} />
-      </div>
-      <span className="text-sm text-thb-text-primary group-hover:text-green-600 transition-colors flex-1">{label}</span>
-      <FiArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-green-500 transition-colors flex-shrink-0" />
-    </button>
-  );
-}
+/* Task 155 — the local StatCard and QuickAction were replaced by the shared
+   SmartHR widgets (StatCard / QuickLinkGrid from smarthr-widgets), so this
+   page renders exactly like the Employee Dashboard UI view. */
 
 function MetricBox({ label, value, icon, color, bgColor, suffix }: {
   label: string;
@@ -1068,13 +1018,13 @@ function MetricBox({ label, value, icon, color, bgColor, suffix }: {
 }) {
   const Icon = icon;
   return (
-    <div className={`rounded-lg ${bgColor} p-4`}>
+    <div className={`rounded-xl ${bgColor} p-4`}>
       <div className="flex items-center gap-2 mb-2">
         <Icon className={`w-4 h-4 ${color}`} />
-        <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
+        <span className="text-xs font-medium text-slate-500">{label}</span>
       </div>
       <p className={`text-xl font-bold ${color}`}>{value}</p>
-      {suffix && <p className="text-xs text-thb-text-secondary mt-0.5">{suffix}</p>}
+      {suffix && <p className="text-xs text-slate-500 mt-0.5">{suffix}</p>}
     </div>
   );
 }

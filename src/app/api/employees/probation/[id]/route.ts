@@ -3,8 +3,7 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
 import { applyFinalProbationDecision, appendProbationHistory, cleanProbationComment, parseProbationData, validateEffectiveDate } from '@/lib/probation-workflow';
-import { createNotification } from '@/lib/notifications';
-import { sendTenantEmail } from '@/lib/notification-channels';
+import { createNotification, sendNotificationEmail } from '@/lib/notifications';
 
 function corsHeaders() {
   return {
@@ -264,7 +263,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // Determine current workflow stage
     const currentStage = probationData.workflowStage || 'hr_review';
-    const isMDAdmin = ['super_admin', 'tenant_admin'].includes(userRole);
+    const isMDAdmin = ['super_admin', 'tenant_admin', 'ceo'].includes(userRole);
     const isHRAdmin = ['admin', 'company_hr_admin', 'hr_admin', 'manager'].includes(userRole) || isMDAdmin;
 
     // ─── Configurable approval chain (EmployeeWorkflowConfig, workflowType='probation_confirmation') ───
@@ -356,13 +355,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         for (const uid of nextResolved.userIds) {
           const title = 'Approval Required – Probation Extension';
           const message = `${actor?.name || 'HR'} recommended extending ${empName}'s probation until ${proposedEnd.toLocaleDateString('en-IN')}. Your decision is required.`;
-          await createNotification({ tenantId: String((decoded as any).tenantId), userId: uid, title, message, type: 'workflow', category: 'performance', link: '/employees/probation' }).catch(() => null);
+          const extNotif = await createNotification({ tenantId: String((decoded as any).tenantId), userId: uid, title, message, type: 'workflow', category: 'performance', link: '/employees/probation' }).catch(() => null);
           const approver = await db.user.findUnique({ where: { id: uid }, select: { email: true } }).catch(() => null);
-          if (approver?.email) await sendTenantEmail(db, String((decoded as any).tenantId), {
-            to: approver.email,
-            subject: title,
-            html: `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`,
-          }).catch(() => null);
+          if (approver?.email && extNotif?.id) await sendNotificationEmail(db, String((decoded as any).tenantId), extNotif, approver.email, title, `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`).catch(() => null);
 
         // ─── Task 93: route the next-step notification through the
         // Notification Center (in-app + email, duplicate-guarded). An HR
@@ -441,16 +436,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
       // ─── Task 93: apply the configured employee-status outcome and gate
       // the employee-facing outcome notification on its SUCCESS. ───
+      // Task 160: added RAW SQL fallback (same pattern as Task 159) so
+      // schema-drift tenant DBs don't silently fail the status update.
       let employeeStatusApplied = false;
       if (actionRule?.employeeStatus) {
         try {
-          await db.employee.update({
-            where: { id: existing.employeeId },
-            data: { employeeStatus: actionRule.employeeStatus, status: actionRule.employeeStatus },
-          });
-          employeeStatusApplied = true;
+          try {
+            await db.employee.update({
+              where: { id: existing.employeeId },
+              data: { employeeStatus: actionRule.employeeStatus, status: actionRule.employeeStatus },
+            });
+            employeeStatusApplied = true;
+          } catch (prismaErr) {
+            console.warn('[Probation PATCH] Prisma employee.update failed, trying RAW SQL fallback:', prismaErr instanceof Error ? prismaErr.message : prismaErr);
+            await db.$executeRawUnsafe(
+              `UPDATE "Employee" SET "employeeStatus" = $1, "status" = $2, "updatedAt" = NOW() WHERE "id" = $3`,
+              actionRule.employeeStatus, actionRule.employeeStatus, existing.employeeId,
+            );
+            employeeStatusApplied = true;
+          }
         } catch (statusErr) {
-          console.warn('[Probation PATCH] employee status update failed:', statusErr);
+          console.warn('[Probation PATCH] employee status update failed (both Prisma + RAW SQL):', statusErr);
         }
       }
 
@@ -564,7 +570,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       // Notify HR admins (tenant DB users) that the decision is final
       try {
         const hrAdmins = await db.user.findMany({
-          where: { role: { in: ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin'] }, status: 'active' },
+          where: { role: { in: ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin', 'ceo'] }, status: 'active' },
           select: { id: true },
         }).catch(() => []);
         const decisionLabel = newDecision === 'confirm' ? 'Confirmed' : newDecision === 'extend' ? 'Extended' : 'Terminated';
@@ -643,7 +649,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const platformDb = getPlatformDb();
         const mdAdmins = await platformDb.user.findMany({
           where: {
-            role: { in: ['super_admin', 'tenant_admin'] },
+            role: { in: ['super_admin', 'tenant_admin', 'ceo'] },
             status: 'active',
           },
           select: { id: true, email: true, name: true },
@@ -736,12 +742,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
 
       // ─── If approved (confirmed), update employee's employeeStatus to 'confirmed' ───
+      // Task 160: added RAW SQL fallback (same pattern as Task 159).
       if (action === 'approve') {
         try {
-          await db.employee.update({
-            where: { id: (review as any).employeeId },
-            data: { employeeStatus: 'confirmed' },
-          }).catch(() => null);
+          try {
+            await db.employee.update({
+              where: { id: (review as any).employeeId },
+              data: { employeeStatus: 'confirmed' },
+            });
+          } catch (prismaErr) {
+            console.warn('[Probation PATCH Stage-2] Prisma failed, trying RAW SQL fallback:', prismaErr instanceof Error ? prismaErr.message : prismaErr);
+            await db.$executeRawUnsafe(
+              `UPDATE "Employee" SET "employeeStatus" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+              'confirmed', (review as any).employeeId,
+            );
+          }
         } catch { /* non-critical */ }
       }
 
@@ -824,7 +839,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     // Only HR/Admin can delete
     const userRole = (decoded.role as string) || 'employee';
-    if (!['super_admin', 'tenant_admin', 'admin', 'company_hr_admin', 'hr_admin'].includes(userRole.toLowerCase())) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'company_hr_admin', 'hr_admin'].includes(userRole.toLowerCase())) {
       return NextResponse.json({ error: 'Only HR/Admin can delete probation reviews' }, { status: 403, headers: corsHeaders() });
     }
 

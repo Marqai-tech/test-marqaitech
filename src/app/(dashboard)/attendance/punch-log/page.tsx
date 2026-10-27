@@ -127,7 +127,7 @@ const EVENT_META: Record<string, { label: string; icon: React.ReactNode; color: 
 export default function PunchLogPage() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
 
   const [events, setEvents] = useState<PunchEvent[]>([]);
   const [days, setDays] = useState<DaySummary[]>([]);

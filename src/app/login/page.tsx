@@ -18,16 +18,9 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import '@/lib/token-storage';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { NATIVE_APP_RELEASE, SHELL_APP_RELEASE } from '@/lib/app-version';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
-
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
-  prompt(): Promise<void>;
-}
+import { homeHrefForRole } from '@/lib/roleAccess';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,7 +31,6 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
-  const [showMobileApp, setShowMobileApp] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<{ name: string; slug: string; logo?: string | null } | null>(null);
   const [loginMode, setLoginMode] = useState<'user' | 'candidate'>('user');
   // Candidate login state
@@ -50,10 +42,6 @@ export default function LoginPage() {
   const [candidateTab, setCandidateTab] = useState<'password' | 'otp'>('password');
   const [candidateStep, setCandidateStep] = useState<'request' | 'verify'>('request');
   const [candidateDevOtp, setCandidateDevOtp] = useState<string | null>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isAndroid, setIsAndroid] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
   const [showDemoLogins, setShowDemoLogins] = useState(false);
   const [isDemoSite, setIsDemoSite] = useState(false);
   const [isPlatformSite, setIsPlatformSite] = useState(false);
@@ -87,15 +75,15 @@ export default function LoginPage() {
 
   // Detect site type and load appropriate credentials
   // Four site types:
-  // 1. Demo site (nexus-hrms-mu.vercel.app) — has sample data with demo credentials
+  // 1. Demo site (nexus-hrms-mu.vercel.app / nexus-hrms-demo.vercel.app test link) — sample data with demo credentials
   // 2. Platform/main site (3boxeshrms.com) — super admin login for tenant management
   // 3. Tenant/client sites (*.3boxeshrms.com) — actual client data, branded login
   // 4. Unknown — generic login form
   useEffect(() => {
     const hostname = window.location.hostname;
     setIsDemoSite(
-      hostname === 'test-marqaitech-ontt.vercel.app' ||
       hostname === 'nexus-hrms-mu.vercel.app' ||
+      hostname === 'nexus-hrms-demo.vercel.app' ||
       hostname === '3boxes-hrms-mu.vercel.app' ||
       hostname === 'test.3boxeshrms.com'
     );
@@ -122,38 +110,6 @@ export default function LoginPage() {
       setDemoLoading(false);
     }
   };
-
-  // Detect platform and PWA install capability
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: boolean }).MSStream);
-    setIsAndroid(/Android/.test(ua));
-
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    setIsStandalone(standalone);
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handlePWAInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
-    try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        toast.success('3Boxes HRMS app installed successfully!');
-        setDeferredPrompt(null);
-      }
-    } catch (err) {
-      console.error('Install error:', err);
-    }
-  }, [deferredPrompt]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,12 +152,13 @@ export default function LoginPage() {
         toast.success('Welcome back! Redirecting...');
         // Redirect based on role:
         // Super admins land on the platform management dashboard in every environment.
-        // All other roles → /home (tenant dashboard)
+        // Admin roles → /home (Admin Dashboard) · everyone else (employees,
+        // managers, self-service) → /dashboard (Employee Dashboard) directly.
         const { user } = useAuthStore.getState();
         if (user?.role === 'super_admin') {
           router.push('/super-admin');
         } else {
-          router.push('/home');
+          router.push(homeHrefForRole(user?.role));
         }
       }
     } catch (err: unknown) {
@@ -349,243 +306,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
-      {/* ===== LEFT PANEL — Branding & Features ===== */}
-      <div className="hidden lg:flex lg:w-[55%] xl:w-[58%] relative flex-col justify-between">
-        {/* Deep gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0B1120] via-[#0F2D1A] to-[#0F2E1A]" />
-
-        {/* Animated mesh pattern */}
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }} />
-
-        {/* Glowing orbs */}
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-green-500/15 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-15%] left-[-5%] w-[400px] h-[400px] bg-emerald-500/15 rounded-full blur-[100px]" />
-        <div className="absolute top-[40%] left-[30%] w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[80px]" />
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between h-full p-10 xl:p-14">
-          {/* Top — Logo & Brand */}
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              {tenantInfo?.logo ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-16 h-16 rounded-xl object-contain bg-white p-2" />
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                      {tenantInfo.name}
-                    </h1>
-                    <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
-                      Powered by 3Boxes <span className="text-green-400">HRMS</span>
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-16 h-16 rounded-xl object-contain bg-white p-2" />
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                      3Boxes <span className="text-green-400">HRMS</span>
-                    </h1>
-                    <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
-                      {isPlatformSite ? 'Super Admin &middot; Platform Control' : 'People \u00b7 Process \u00b7 Technology'}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Center — Hero messaging */}
-          <div className="max-w-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.08] mb-6">
-              <span className={`w-1.5 h-1.5 rounded-full ${isPlatformSite ? 'bg-emerald-400 animate-pulse' : 'bg-emerald-400 animate-pulse-subtle'}`} />
-              <span className="text-[11px] text-emerald-300 font-semibold tracking-wide">
-                {isPlatformSite ? 'PLATFORM CONTROL CENTER' : 'AI-POWERED PLATFORM'}
-              </span>
-              {isPlatformSite && (
-                <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.5 rounded-full tracking-wider">
-                  LIVE
+    <div className="min-h-screen bg-white flex">
+      {/* ════════════════ LEFT — LOGIN FORM (Atconic split layout) ════════════════ */}
+      <div className="w-full lg:w-[44%] xl:w-[42%] flex flex-col justify-center px-6 sm:px-10 xl:px-14 py-8 lg:py-10">
+        <div className="w-full max-w-md mx-auto">
+          {/* Brand row */}
+          <div className="flex items-center gap-2.5 mb-8">
+            {tenantInfo?.logo ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-10 h-10 rounded-xl object-contain ring-1 ring-slate-200" />
+                <span className="text-xl font-extrabold text-[#16254E] tracking-tight truncate">{tenantInfo.name}</span>
+              </>
+            ) : (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-10 h-10 rounded-xl object-contain ring-1 ring-slate-200" />
+                <span className="text-xl font-extrabold text-[#16254E] tracking-tight">
+                  3Boxes <span className="text-emerald-500">HRMS</span>
                 </span>
-              )}
-              {isDemoSite && (
-                <span className="text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded-full tracking-wider">
-                  DEMO
-                </span>
-              )}
-            </div>
-
-            <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-[1.1] mb-6">
-              {isPlatformSite ? (
-                <>
-                  Manage All
-                  <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400">
-                    Tenants & Operations
-                  </span>
-                </>
-              ) : (
-                <>
-                  Transform Your
-                  <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400">
-                    HR Operations
-                  </span>
-                </>
-              )}
-            </h2>
-
-            <p className="text-slate-300/80 text-base leading-relaxed mb-10 max-w-md">
-              {isPlatformSite
-                ? 'The central platform control center for managing all tenants, approving trial registrations, controlling subscriptions, and overseeing the entire 3Boxes HRMS ecosystem. Only live production data — no demo or dummy data.'
-                : 'The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Group.'
-              }
-            </p>
-
-            {/* Three Pillars — Different for Super Admin */}
-            <div className="grid grid-cols-3 gap-4 mb-10">
-              {isPlatformSite ? (
-                <>
-                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
-                      <FiUsers className="w-5 h-5 text-green-400" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Tenants</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">View, configure, and manage all tenant organizations</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
-                      <FiUserCheck className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Approvals</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Trial registration, domain, and subscription approvals</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
-                      <FiCreditCard className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Subscriptions</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Plan management, billing, and renewal cycle control</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
-                      <FiUsers className="w-5 h-5 text-green-400" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-1">People</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Employee lifecycle, engagement & growth management</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
-                      <FiSettings className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Process</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Automated workflows, compliance & approvals</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
-                      <FiCpu className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Technology</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">AI interviews, analytics & smart automation</p>
-                  </div>
-                </>
-              )}
-            </div>
+              </>
+            )}
           </div>
 
-          {/* Bottom — Social proof & Trust */}
-          <div>
-            <div className="flex items-center gap-6 mb-6">
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
-                  {['bg-green-500', 'bg-emerald-500', 'bg-green-500', 'bg-amber-500'].map((c, i) => (
-                    <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-[#0F1D3A] flex items-center justify-center text-[10px] font-bold text-white`}>
-                      {['SK', 'AP', 'MJ', 'RK'][i]}
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-white">2,500+ Companies</p>
-                  <p className="text-[10px] text-slate-400">Trust 3Boxes HRMS</p>
-                </div>
-              </div>
-              <div className="h-8 w-px bg-white/10" />
-              <div className="flex items-center gap-1.5">
-                {[...Array(5)].map((_, i) => (
-                  <FiStar key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                ))}
-                <span className="text-xs font-semibold text-white ml-1">4.9/5</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <FiShield className="w-3.5 h-3.5 text-slate-400" />
-                SOC 2 Compliant
-              </span>
-              <span className="flex items-center gap-1.5">
-                <FiGlobe className="w-3.5 h-3.5 text-slate-400" />
-                GDPR Ready
-              </span>
-              <span className="flex items-center gap-1.5">
-                <FiZap className="w-3.5 h-3.5 text-slate-400" />
-                99.9% Uptime
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ===== RIGHT PANEL — Login Form ===== */}
-      <div className="w-full lg:w-[45%] xl:w-[42%] flex items-center justify-center bg-white relative">
-        {/* Subtle pattern for right panel */}
-        <div className="absolute inset-0 opacity-[0.015]" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, #10B981 1px, transparent 0)`,
-          backgroundSize: '24px 24px',
-        }} />
-
-        <div className="relative z-10 w-full max-w-md px-8 py-10">
-          {/* Mobile-only brand header */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center gap-2.5 mb-3">
-              {tenantInfo?.logo ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-12 h-12 rounded-lg object-contain bg-white p-1.5" />
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                    <span className="gradient-text">{tenantInfo.name}</span>
-                  </h1>
-                </>
-              ) : (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-12 h-12 rounded-lg object-contain bg-white p-1.5" />
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                    <span className="gradient-text">3Boxes</span>
-                    <span className="text-green-500 ml-1 text-lg font-extrabold">HRMS</span>
-                  </h1>
-                </>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
-              People &middot; Process &middot; Technology
-            </p>
-          </div>
-
-          {/* Mode Toggle: HR/Admin vs Candidate — HIDDEN on platform site (super admin only) */}
+          {/* Mode Toggle: HR/Admin vs Candidate — HIDDEN on platform site */}
           {!isPlatformSite && (
           <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
             <button
               onClick={() => setLoginMode('user')}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                loginMode === 'user' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                loginMode === 'user' ? 'bg-white text-[#16254E] shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
@@ -595,7 +345,7 @@ export default function LoginPage() {
             <button
               onClick={() => setLoginMode('candidate')}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                loginMode === 'candidate' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                loginMode === 'candidate' ? 'bg-white text-[#16254E] shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
@@ -605,61 +355,59 @@ export default function LoginPage() {
           </div>
           )}
 
-          {/* Form header */}
-          <div className="mb-8">
-            {isPlatformSite && !tenantInfo && (
-              <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white">
-                    <FiShield className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">3Boxes HRMS Super Admin</p>
-                    <p className="text-[10px] text-slate-400">Platform Control Center</p>
-                  </div>
+          {/* Tenant / Super Admin banners */}
+          {isPlatformSite && !tenantInfo && (
+            <div className="mb-5 p-3 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#16254E] to-[#2A3B6E] flex items-center justify-center text-white">
+                  <FiShield className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">3Boxes HRMS Super Admin</p>
+                  <p className="text-[10px] text-slate-400">Platform Control Center</p>
                 </div>
               </div>
-            )}
-            {tenantInfo && !isPlatformSite && (
-              <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100">
-                <div className="flex items-center gap-2.5">
-                  {tenantInfo.logo ? (
-                    <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-10 h-10 rounded-lg object-contain bg-white p-1" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-                      {tenantInfo.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{tenantInfo.name}</p>
-                    <p className="text-[10px] text-slate-400">Organization Portal</p>
+            </div>
+          )}
+          {tenantInfo && !isPlatformSite && (
+            <div className="mb-5 p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100">
+              <div className="flex items-center gap-2.5">
+                {tenantInfo.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-9 h-9 rounded-lg object-contain bg-white p-1" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                    {tenantInfo.name.charAt(0).toUpperCase()}
                   </div>
+                )}
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{tenantInfo.name}</p>
+                  <p className="text-[10px] text-slate-400">Organization Portal</p>
                 </div>
               </div>
-            )}
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">
-              {isPlatformSite ? 'Super Admin Login' : loginMode === 'user' ? 'Welcome back' : 'Candidate Portal'}
-            </h2>
-            <p className="text-sm text-slate-500">
-              {isPlatformSite
-                ? 'Manage all tenants, approve trials, and control subscriptions'
-                : loginMode === 'user'
-                  ? tenantInfo
-                    ? `Sign in to ${tenantInfo.name} to continue`
-                    : 'Sign in to your account to continue'
-                  : 'Track your applications, optimize your resume, and find matching jobs'}
-            </p>
-            {/* LIVE mode indicator under Super Admin Login header */}
-            {isPlatformSite && (
-              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-semibold text-emerald-700">LIVE PRODUCTION</span>
-                <span className="text-[9px] text-emerald-600">— Real data only</span>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Error Message */}
+          {/* Headline — reference image 1 */}
+          <h1 className="text-[28px] sm:text-[32px] font-extrabold text-[#16254E] tracking-tight leading-tight mb-2">
+            {isPlatformSite && !tenantInfo ? 'Welcome Back, Super Admin' : loginMode === 'user' ? 'Welcome Back' : 'Candidate Login'}
+          </h1>
+          <p className="text-[13px] sm:text-sm text-slate-500 leading-relaxed mb-4">
+            {isPlatformSite && !tenantInfo
+              ? 'Manage all tenants, approve trials, and control subscriptions.'
+              : loginMode === 'user'
+                ? "Today is a new day. It's your day. You shape it. Sign in to start managing your projects."
+                : 'Track your applications, optimize your resume, and find matching jobs.'}
+          </p>
+          {isPlatformSite && (
+            <div className="mb-5 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-semibold text-emerald-700">LIVE PRODUCTION</span>
+              <span className="text-[9px] text-emerald-600">— Real data only</span>
+            </div>
+          )}
+
+          {/* Error messages */}
           {error && loginMode === 'user' && (
             <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200/80 animate-slide-in-down">
               <p className="text-sm text-red-700 font-medium">{error}</p>
@@ -674,10 +422,9 @@ export default function LoginPage() {
           {/* ─── CANDIDATE LOGIN FORM ─── */}
           {loginMode === 'candidate' && !isPlatformSite && (
             <div className="space-y-5">
-              {/* Candidate Email */}
               <div>
                 <label htmlFor="candidate-email" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Email Address
+                  Email
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -691,8 +438,8 @@ export default function LoginPage() {
                       setCandidateEmail(e.target.value);
                       if (candidateError) setCandidateError('');
                     }}
-                    placeholder="you@example.com"
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
+                    placeholder="Example@email.com"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/15 focus:border-[#2F6FED] transition-all text-sm"
                     autoComplete="email"
                     disabled={isSubmitting}
                   />
@@ -700,12 +447,11 @@ export default function LoginPage() {
                 <p className="text-[11px] text-slate-400 mt-1.5">Use the email you applied with.</p>
               </div>
 
-              {/* Candidate Tab Toggle: Password / OTP */}
               <div className="flex rounded-lg bg-slate-100 p-1">
                 <button
                   onClick={() => setCandidateTab('password')}
                   className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    candidateTab === 'password' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500'
+                    candidateTab === 'password' ? 'bg-white text-[#16254E] shadow-sm' : 'text-slate-500'
                   }`}
                 >
                   Password
@@ -713,7 +459,7 @@ export default function LoginPage() {
                 <button
                   onClick={() => setCandidateTab('otp')}
                   className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    candidateTab === 'otp' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500'
+                    candidateTab === 'otp' ? 'bg-white text-[#16254E] shadow-sm' : 'text-slate-500'
                   }`}
                 >
                   OTP
@@ -722,7 +468,6 @@ export default function LoginPage() {
 
               {candidateTab === 'password' ? (
                 <>
-                  {/* Candidate Password */}
                   <div>
                     <label htmlFor="candidate-password" className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Password
@@ -739,8 +484,8 @@ export default function LoginPage() {
                           setCandidatePassword(e.target.value);
                           if (candidateError) setCandidateError('');
                         }}
-                        placeholder="Enter your password"
-                        className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
+                        placeholder="At least 8 characters"
+                        className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/15 focus:border-[#2F6FED] transition-all text-sm"
                         autoComplete="current-password"
                         disabled={isSubmitting}
                         onKeyDown={(e) => e.key === 'Enter' && handleCandidateLoginPassword()}
@@ -758,7 +503,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleCandidateLoginPassword}
                     disabled={isSubmitting || !candidateEmail || !candidatePassword}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-xl hover:from-green-600 hover:to-teal-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-[#16254E] text-white font-semibold text-sm shadow-lg shadow-[#16254E]/20 hover:bg-[#1F3268] focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <>
@@ -773,7 +518,7 @@ export default function LoginPage() {
                     )}
                   </button>
                   <div className="text-center">
-                    <Link href="/candidate-portal/forgot-password" className="text-xs text-emerald-500 hover:text-green-700 hover:underline">
+                    <Link href="/candidate-portal/forgot-password" className="text-xs font-semibold text-slate-600 hover:text-[#2F6FED] hover:underline">
                       Forgot password?
                     </Link>
                   </div>
@@ -785,7 +530,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={handleCandidateRequestOtp}
                       disabled={isSubmitting || !candidateEmail}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                      className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-[#16254E] text-white font-semibold text-sm shadow-lg shadow-[#16254E]/20 hover:bg-[#1F3268] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                     >
                       {isSubmitting ? (
                         <>
@@ -817,7 +562,7 @@ export default function LoginPage() {
                             value={candidateOtp}
                             onChange={(e) => setCandidateOtp(e.target.value.replace(/\D/g, ''))}
                             placeholder="123456"
-                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 tracking-[0.5em] font-mono text-sm"
+                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/15 focus:border-[#2F6FED] tracking-[0.5em] font-mono text-sm"
                             onKeyDown={(e) => e.key === 'Enter' && handleCandidateVerifyOtp()}
                             disabled={isSubmitting}
                           />
@@ -842,7 +587,7 @@ export default function LoginPage() {
                         type="button"
                         onClick={handleCandidateVerifyOtp}
                         disabled={isSubmitting || candidateOtp.length !== 6}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-semibold text-sm shadow-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-[#16254E] text-white font-semibold text-sm shadow-lg hover:bg-[#1F3268] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                       >
                         {isSubmitting ? 'Verifying...' : <>Verify & Continue <FiArrowRight className="h-4 w-4" /></>}
                       </button>
@@ -881,10 +626,10 @@ export default function LoginPage() {
           {/* ─── HR/ADMIN LOGIN FORM ─── */}
           {(loginMode === 'user' || isPlatformSite) && (
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Field */}
+            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Email Address or Employee ID <span className="text-red-500 font-bold">*</span>
+                Email{!isPlatformSite ? ' or Employee ID' : ''} <span className="text-red-500 font-bold">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -898,22 +643,22 @@ export default function LoginPage() {
                     setEmail(e.target.value);
                     if (error) setError('');
                   }}
-                  placeholder={isPlatformSite ? "superadmin@3boxeshrms.com" : "you@company.com or EMP12345"}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
+                  placeholder="Example@email.com"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/15 focus:border-[#2F6FED] transition-all text-sm"
                   autoComplete="email"
                   disabled={isSubmitting}
                 />
               </div>
             </div>
 
-            {/* Password Field */}
+            {/* Password + Forgot password (right-aligned, per reference image) */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
                   Password <span className="text-red-500 font-bold">*</span>
                 </label>
-                <Link href="/forgot-password" className="text-xs font-medium text-green-500 hover:text-green-700 transition-colors hover:underline">
-                  Forgot password?
+                <Link href="/forgot-password" className="text-xs font-semibold text-slate-600 hover:text-[#2F6FED] transition-colors hover:underline">
+                  Forgot Password?
                 </Link>
               </div>
               <div className="relative">
@@ -928,8 +673,8 @@ export default function LoginPage() {
                     setPassword(e.target.value);
                     if (error) setError('');
                   }}
-                  placeholder="Enter your password"
-                  className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
+                  placeholder="At least 8 characters"
+                  className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/15 focus:border-[#2F6FED] transition-all text-sm"
                   autoComplete="current-password"
                   disabled={isSubmitting}
                 />
@@ -947,7 +692,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me — hidden on platform site (super admin) */}
+            {/* Remember me — hidden on platform site */}
             {!isPlatformSite && (
             <div className="flex items-center gap-2">
               <input
@@ -955,19 +700,19 @@ export default function LoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
+                className="w-4 h-4 rounded border-slate-300 text-[#2F6FED] focus:ring-[#2F6FED]/20"
               />
               <label htmlFor="remember" className="text-sm text-slate-500">
-                Keep me signed in for 30 days in this tab
+                Keep me signed in for 30 days
               </label>
             </div>
             )}
 
-            {/* Submit Button */}
+            {/* Sign In — deep-ink button per reference image */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-600 text-white font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:from-green-600 hover:via-emerald-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-[#16254E] text-white font-semibold text-sm shadow-lg shadow-[#16254E]/20 hover:bg-[#1F3268] focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/40 focus:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
@@ -985,7 +730,7 @@ export default function LoginPage() {
               )}
             </button>
 
-            {/* Demo Login Credentials — shown ONLY on demo site (nexus-hrms-mu.vercel.app), NOT on platform or tenant subdomains */}
+            {/* Demo Login Credentials — demo site ONLY */}
             {isDemoSite && !tenantInfo && (
             <div className="mt-4 w-full rounded-xl border border-amber-200/60 bg-gradient-to-r from-amber-50/50 to-orange-50/50 overflow-hidden">
               <button
@@ -1012,15 +757,12 @@ export default function LoginPage() {
               {showDemoLogins && (
                 <div className="px-4 pb-3 space-y-2">
                   <p className="text-[10px] text-slate-500 mb-2">Click any role to auto-fill credentials.</p>
-                  
                   {demoLoading && (
                     <div className="flex items-center gap-2 py-2">
                       <FiRefreshCw className="w-3 h-3 animate-spin text-amber-500" />
                       <span className="text-[10px] text-slate-400">Loading credentials...</span>
                     </div>
                   )}
-
-                  {/* Demo Site — show ONLY super admins + tenant admins with company details */}
                   {demoCredentials?.site === 'demo' && (
                     <>
                       <p className="text-[10px] font-semibold text-slate-600 mt-1 px-1">Super Admins</p>
@@ -1040,9 +782,7 @@ export default function LoginPage() {
                             <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.functionalRole}</p>
                             <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
                           </div>
-                          <span className="text-[8px] font-medium bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                            Super Admin
-                          </span>
+                          <span className="text-[8px] font-medium bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Super Admin</span>
                         </button>
                       ))}
                       <p className="text-[10px] font-semibold text-slate-600 mt-2 px-1">Tenant Admins</p>
@@ -1062,9 +802,7 @@ export default function LoginPage() {
                             <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.tenant}</p>
                             <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
                           </div>
-                          <span className="text-[8px] font-medium bg-green-100 text-green-600 px-1.5 py-0.5 rounded">
-                            Tenant Admin
-                          </span>
+                          <span className="text-[8px] font-medium bg-green-100 text-green-600 px-1.5 py-0.5 rounded">Tenant Admin</span>
                         </button>
                       ))}
                       {demoCredentials.employees?.length > 0 && (
@@ -1086,17 +824,13 @@ export default function LoginPage() {
                                 <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.name}</p>
                                 <p className="text-[9px] text-slate-400 truncate">{u.email}{u.department ? ` · ${u.department}` : ''}</p>
                               </div>
-                              <span className="text-[8px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
-                                Employee
-                              </span>
+                              <span className="text-[8px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Employee</span>
                             </button>
                           ))}
                         </>
                       )}
                     </>
                   )}
-
-                  {/* Fallback if no API response yet — only super admin + tenant admins */}
                   {!demoCredentials && !demoLoading && (
                     <div className="space-y-1.5">
                       <button
@@ -1138,10 +872,9 @@ export default function LoginPage() {
             </div>
             )}
 
-            {/* Super Admin capabilities + LIVE MODE indicator — shown ONLY on platform site (3boxeshrms.com) */}
+            {/* Super Admin capabilities — platform site ONLY */}
             {isPlatformSite && !tenantInfo && (
             <div className="mt-4 w-full rounded-xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50/80 to-green-50/50 overflow-hidden">
-              {/* LIVE PRODUCTION badge */}
               <div className="px-4 py-2 bg-emerald-600/10 border-b border-emerald-200/40 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-[10px] font-bold text-emerald-700 tracking-wide uppercase">Live Production Environment</span>
@@ -1163,217 +896,72 @@ export default function LoginPage() {
               </div>
             </div>
             )}
-
-            {/* Job Portal / Career Link — hidden on platform site (super admin) */}
-            {!isPlatformSite && (
-            <Link
-              href="/careers"
-              className="group block w-full mt-4 px-4 py-3 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/60 to-emerald-50/60 hover:from-green-50 hover:to-emerald-50 hover:border-green-200 transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white flex-shrink-0">
-                  <FiBriefcase className="w-4 h-4" />
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-bold text-slate-900 group-hover:text-green-700 transition-colors">
-                    Looking for a job? Browse Openings
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                    Candidates (registered or not) can view roles &amp; apply with resume — no account needed
-                  </p>
-                </div>
-                <FiArrowRight className="w-4 h-4 text-green-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </Link>
-            )}
-
-            {/* Free Trial Registration Link — shown ONLY on demo site, NOT on platform or tenant subdomains */}
-            {!tenantInfo && !isPlatformSite && (
-            <Link
-              href="/register"
-              className="group block w-full mt-3 px-4 py-3 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/60 to-emerald-50/60 hover:from-green-50 hover:to-emerald-50 hover:border-green-200 transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white flex-shrink-0">
-                  <FiZap className="w-4 h-4" />
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-bold text-slate-900 group-hover:text-green-700 transition-colors">
-                    New Company? Start Free Trial
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                    15-day free trial — no credit card required. Explore all features.
-                  </p>
-                </div>
-                <FiArrowRight className="w-4 h-4 text-green-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </Link>
-            )}
           </form>
           )}
 
-          {/* Mobile App Download — Native Flutter App + PWA */}
+          {/* Or divider + Sign up + Social logins (per reference image) */}
           {!isPlatformSite && (
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setShowMobileApp(!showMobileApp)}
-              className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-emerald-200 hover:border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50/70 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
-                  <FiSmartphone className="w-5 h-5 text-white" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-slate-800">Get the 3Boxes HRMS App</p>
-                  <p className="text-[11px] text-emerald-600 font-medium">Native Android & iOS · Free download</p>
-                </div>
-              </div>
-              {showMobileApp ? (
-                <FiChevronUp className="w-5 h-5 text-emerald-500 group-hover:text-emerald-600" />
+          <div className="mt-7">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs text-slate-400 font-medium">Or</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+            <p className="text-center text-sm text-slate-500 mb-4">
+              Don&apos;t you have an account?{' '}
+              {tenantInfo ? (
+                <button
+                  type="button"
+                  onClick={() => toast('Please contact your HR administrator to get an account.', { icon: 'ℹ️' })}
+                  className="font-bold text-[#16254E] hover:underline"
+                >
+                  Sign up
+                </button>
               ) : (
-                <FiChevronDown className="w-5 h-5 text-emerald-500 group-hover:text-emerald-600" />
+                <Link href="/register" className="font-bold text-[#16254E] hover:underline">
+                  Sign up
+                </Link>
               )}
-            </button>
-
-            {showMobileApp && (
-              <div className="mt-4 space-y-3 animate-slide-in-down">
-                {/* Native App Download Buttons */}
-                <div className="space-y-2.5">
-                  {/* Android APK Download */}
-                  <a
-                    href="/downloads/"
-                    download
-                    className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-green-700 transition-all"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
-                        <path d="M17.523 15.341a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64zm-10.246 0a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64z" fill="white"/>
-                        <path d="M7.414 14.166l-2.548 1.506a.64.64 0 01-.876-.228.64.64 0 01.228-.876l2.548-1.506a.64.64 0 01.876.228.64.64 0 01-.228.876zm9.172 0a.64.64 0 01.228-.876l2.548-1.506a.64.64 0 01.876.228.64.64 0 01-.228.876l-2.548 1.506a.64.64 0 01-.876-.228z" fill="white"/>
-                        <path d="M7.988 10.348l-2.66-4.56a.64.64 0 01.228-.876.64.64 0 01.876.228l2.66 4.56a.64.64 0 01-.228.876.64.64 0 01-.876-.228zm8.024 0a.64.64 0 01-.876.228.64.64 0 01-.228-.876l2.66-4.56a.64.64 0 01.876-.228.64.64 0 01-.228.876z" fill="white"/>
-                        <path d="M12 2.5c-.354 0-.64.287-.64.64v5.12c0 .354.287.64.64.64s.64-.287.64-.64V3.14c0-.354-.287-.64-.64-.64z" fill="white"/>
-                        <rect x="6.64" y="9.38" width="10.72" height="6.82" rx="1.5" fill="white" opacity="0.3"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold">Download for Android</p>
-                      <p className="text-[11px] text-white/80">APK file · Direct install · v1.0.0</p>
-                    </div>
-                    <FiDownload className="w-5 h-5 shrink-0" />
-                  </a>
-
-                  {/* iOS - Coming Soon */}
-                  <div className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-white opacity-90">
-                    <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
-                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83" fill="white"/>
-                        <path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="white"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold">iOS App</p>
-                      <p className="text-[11px] text-white/70">Coming soon on App Store</p>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">SOON</span>
-                  </div>
-                </div>
-
-                {/* PWA Install option */}
-                {deferredPrompt && !isStandalone && (
-                  <div className="pt-1">
-                    <p className="text-[11px] text-slate-400 mb-2 flex items-center gap-1">
-                      <span className="w-full h-px bg-slate-200 flex-1" />
-                      <span className="px-2">or install as web app</span>
-                      <span className="w-full h-px bg-slate-200 flex-1" />
-                    </p>
-                    <button
-                      onClick={handlePWAInstall}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-all"
-                    >
-                      <FiDownload className="w-4 h-4" />
-                      Install PWA (Web App)
-                    </button>
-                  </div>
-                )}
-
-                {/* App Features */}
-                <div className="pt-2">
-                  <p className="text-[11px] font-semibold text-slate-600 mb-2">App Features</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50/50">
-                      <FiZap className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                      <p className="text-[10px] font-medium text-slate-700">Native Performance</p>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50/50">
-                      <FiWifi className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <p className="text-[10px] font-medium text-slate-700">Offline Mode</p>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-violet-50/50">
-                      <FiRefreshCw className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-                      <p className="text-[10px] font-medium text-slate-700">Auto Updates</p>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50/50">
-                      <FiShield className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <p className="text-[10px] font-medium text-slate-700">Secure & Encrypted</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Install instructions */}
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <p className="text-[11px] font-semibold text-slate-600 mb-1.5">How to install (Android)</p>
-                  <ol className="text-[10px] text-slate-500 space-y-1 list-decimal list-inside">
-                    <li>Tap <strong>&quot;Download for Android&quot;</strong> above</li>
-                    <li>Open the downloaded APK file</li>
-                    <li>Allow installation from unknown sources if prompted</li>
-                    <li>Tap <strong>&quot;Install&quot;</strong> and open the app</li>
-                  </ol>
-                </div>
-              </div>
-            )}
+            </p>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => toast('Google sign-in is coming soon — use your email and password for now.', { icon: '🔒' })}
+                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
+              >
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18A10.96 10.96 0 001 12c0 1.77.43 3.45 1.18 4.94l3.66-2.84z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                </svg>
+                Sign in with Google
+              </button>
+              <button
+                type="button"
+                onClick={() => toast('Facebook sign-in is coming soon — use your email and password for now.', { icon: '🔒' })}
+                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
+              >
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="#1877F2" />
+                  <path d="M15.54 12.7h-2.28v7.3h-3.02v-7.3H8.5v-2.56h1.74V8.55c0-1.99 1.2-3.09 3.0-3.09.86 0 1.76.15 1.76.15v1.94h-.99c-.98 0-1.28.6-1.28 1.23v1.36h2.17l-.36 2.56z" fill="white"/>
+                </svg>
+                Sign in with Facebook
+              </button>
+            </div>
           </div>
           )}
 
-
-          {/* Third-Party Job Portals */}
-          {loginMode === 'candidate' && (
-            <div className="mt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <FiGlobe className="w-4 h-4 text-slate-500" />
-                <h3 className="text-sm font-semibold text-slate-700">Explore Opportunities</h3>
-              </div>
-              <p className="text-xs text-slate-400 mb-3">Browse jobs across top portals</p>
-              <div className="grid grid-cols-2 gap-2">
-                <a href="https://www.linkedin.com/jobs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
-                  <div className="w-8 h-8 rounded-lg bg-[#0A66C2] flex items-center justify-center text-white text-[10px] font-bold shrink-0">in</div>
-                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">LinkedIn</p><p className="text-[10px] text-slate-400">Professional network</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
-                </a>
-                <a href="https://www.naukri.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
-                  <div className="w-8 h-8 rounded-lg bg-[#4A90D9] flex items-center justify-center text-white text-[10px] font-bold shrink-0">N</div>
-                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Naukri</p><p className="text-[10px] text-slate-400">India&apos;s #1 job site</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
-                </a>
-                <a href="https://www.indeed.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
-                  <div className="w-8 h-8 rounded-lg bg-[#2557A7] flex items-center justify-center text-white text-[10px] font-bold shrink-0">IN</div>
-                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Indeed</p><p className="text-[10px] text-slate-400">Global job search</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
-                </a>
-                <a href="https://www.glassdoor.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
-                  <div className="w-8 h-8 rounded-lg bg-[#0CAA41] flex items-center justify-center text-white text-[10px] font-bold shrink-0">G</div>
-                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Glassdoor</p><p className="text-[10px] text-slate-400">Reviews &amp; jobs</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
-                </a>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5 mt-2">
-                <a href="https://www.monster.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors text-[11px] text-slate-500 hover:text-slate-700">Monster <FiExternalLink className="w-2.5 h-2.5" /></a>
-                <a href="https://www.foundit.in" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors text-[11px] text-slate-500 hover:text-slate-700">Foundit <FiExternalLink className="w-2.5 h-2.5" /></a>
-              </div>
+          {/* Quick options (mobile app · careers · trial · job portals) — MOBILE ONLY here below the form; desktop shows them inside the right-hand pane */}
+          {!isPlatformSite && (
+            <div className="lg:hidden mt-7">
+              <LoginQuickOptions loginMode={loginMode} />
             </div>
           )}
+
           {/* Footer */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <div className="flex items-center justify-between">
+          <div className="mt-7 pt-5 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
               <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                 <HiShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                 Enterprise-grade security
@@ -1385,6 +973,351 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* ════════════════ RIGHT — "Smarter HR Starts Here" illustration card ════════════════ */}
+      <div className="hidden lg:flex lg:w-[56%] xl:w-[58%] items-stretch p-5 xl:p-8">
+        <div className="relative w-full rounded-[32px] bg-gradient-to-br from-[#D8E9FA] via-[#E7F1FC] to-[#CBE2F6] overflow-hidden flex flex-col p-8 xl:p-10">
+          {/* Product logo badge — 3Boxes HRMS mark on the right-hand pane (Task 157) */}
+          <div className="absolute top-6 right-6 xl:top-8 xl:right-8 z-20">
+            <div className="flex items-center gap-2.5 pl-2.5 pr-4 py-2 rounded-2xl bg-white/85 backdrop-blur shadow-lg shadow-[#16254E]/10 ring-1 ring-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-9 h-9 rounded-lg object-contain" />
+              <div className="leading-tight">
+                <p className="text-[13px] font-extrabold text-[#16254E]">3Boxes <span className="text-emerald-500">HRMS</span></p>
+                <p className="text-[9px] font-medium text-slate-500">Manage People. Empower Growth.</p>
+              </div>
+            </div>
+          </div>
+          {/* Decorative blobs */}
+          <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-white/40 blur-2xl" />
+          <div className="absolute top-1/3 -left-20 w-64 h-64 rounded-full bg-[#A9CBF0]/40 blur-2xl" />
+          <div className="absolute bottom-[-6rem] right-[10%] w-72 h-72 rounded-full bg-white/30 blur-2xl" />
+
+          <div className="relative z-10">
+            <h2 className="text-3xl xl:text-[40px] font-extrabold text-[#16254E] tracking-tight leading-tight">
+              Smarter HR<br />Starts Here
+            </h2>
+            <p className="mt-4 text-sm xl:text-[15px] text-slate-600 max-w-md leading-relaxed">
+              Monitor employee performance, manage HR processes, and get a centralized HR dashboard — people, payroll, attendance and projects in one place.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              {[
+                { label: 'Employee Performance', icon: FiTrendingUp },
+                { label: 'HR Processes', icon: FiSettings },
+                { label: 'Central Dashboard', icon: FiGrid },
+              ].map((chip) => (
+                <span key={chip.label} className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/80 backdrop-blur text-xs font-semibold text-[#16254E] shadow-sm ring-1 ring-white">
+                  <chip.icon className="w-3.5 h-3.5 text-[#2F6FED]" />
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Flat illustration — three colleagues around a desk with laptop */}
+          <div className="relative z-10 flex-1 flex items-end justify-center pt-6">
+            <svg viewBox="0 0 560 330" className="w-full max-w-[480px] h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="280" cy="312" rx="250" ry="14" fill="#16254E" opacity="0.07" />
+              {/* floating stat card left */}
+              <g>
+                <rect x="34" y="52" width="128" height="82" rx="14" fill="white" stroke="#D7E6F6" />
+                <circle cx="60" cy="78" r="11" fill="#7FAEF3" />
+                <rect x="80" y="70" width="64" height="8" rx="4" fill="#C9DCF2" />
+                <rect x="80" y="84" width="42" height="6" rx="3" fill="#E4EFFB" />
+                <rect x="52" y="104" width="92" height="7" rx="3.5" fill="#E4EFFB" />
+                <rect x="52" y="117" width="60" height="6" rx="3" fill="#EEF5FD" />
+              </g>
+              {/* floating card right */}
+              <g>
+                <rect x="404" y="40" width="118" height="76" rx="14" fill="white" stroke="#D7E6F6" />
+                <rect x="422" y="58" width="50" height="9" rx="4.5" fill="#2F6FED" />
+                <rect x="422" y="74" width="82" height="6" rx="3" fill="#E4EFFB" />
+                <rect x="422" y="86" width="58" height="6" rx="3" fill="#EEF5FD" />
+                <circle cx="502" cy="62" r="9" fill="#9CCBf5" />
+              </g>
+              {/* plant */}
+              <g>
+                <rect x="492" y="238" width="34" height="40" rx="8" fill="#2F6FED" opacity="0.85" />
+                <path d="M509 238c0-18-10-26-18-30 2 14 6 22 18 30z" fill="#3E8E5A" />
+                <path d="M509 238c0-20 8-30 18-34-2 16-6 26-18 34z" fill="#57B379" />
+              </g>
+              {/* desk */}
+              <rect x="70" y="238" width="420" height="12" rx="6" fill="#2F6FED" />
+              <rect x="96" y="250" width="12" height="56" rx="5" fill="#275ECE" />
+              <rect x="452" y="250" width="12" height="56" rx="5" fill="#275ECE" />
+              {/* laptop */}
+              <g>
+                <rect x="238" y="176" width="88" height="56" rx="7" fill="#16254E" />
+                <rect x="245" y="183" width="74" height="42" rx="4" fill="#3B82F6" opacity="0.9" />
+                {/* 3Boxes HRMS mini logo on the laptop screen (Task 157) */}
+                <g transform="translate(265, 191) scale(1.1)">
+                  <rect x="0" y="0" width="9" height="9" rx="2" fill="#059669" />
+                  <rect x="11" y="0" width="9" height="9" rx="2" fill="#10B981" />
+                  <rect x="22" y="0" width="9" height="9" rx="2" fill="#22C55E" />
+                </g>
+                <rect x="252" y="205" width="10" height="14" rx="2" fill="white" opacity="0.85" />
+                <rect x="268" y="196" width="10" height="23" rx="2" fill="white" opacity="0.65" />
+                <rect x="284" y="190" width="10" height="29" rx="2" fill="white" opacity="0.85" />
+                <rect x="300" y="200" width="10" height="19" rx="2" fill="white" opacity="0.55" />
+                <rect x="226" y="230" width="112" height="9" rx="4.5" fill="#16254E" />
+              </g>
+              {/* coffee cup */}
+              <g>
+                <rect x="352" y="216" width="20" height="22" rx="4" fill="white" stroke="#C9DCF2" strokeWidth="2" />
+                <path d="M372 221h6a5 5 0 010 10h-6" stroke="#C9DCF2" strokeWidth="2.5" fill="none" />
+              </g>
+              {/* person left */}
+              <g>
+                <circle cx="140" cy="128" r="24" fill="#F2B48C" />
+                <path d="M116 124c0-16 11-26 24-26s24 10 24 26c-6-8-14-11-24-11s-18 3-24 11z" fill="#16254E" />
+                <path d="M104 238v-52c0-20 16-34 36-34s36 14 36 34v52h-16v-34h-40v34h-16z" fill="#2F6FED" />
+                <rect x="120" y="196" width="40" height="10" rx="5" fill="#1F56C6" />
+              </g>
+              {/* person center-right (behind laptop) */}
+              <g>
+                <circle cx="330" cy="108" r="26" fill="#E9A97C" />
+                <path d="M304 104c0-17 12-28 26-28s26 11 26 28c-7-9-15-12-26-12s-19 3-26 12z" fill="#3A2B22" />
+                <path d="M292 238v-58c0-21 17-36 38-36s38 15 38 36v58h-17v-36h-42v36h-17z" fill="#7FAEF3" />
+              </g>
+              {/* person right */}
+              <g>
+                <circle cx="446" cy="132" r="23" fill="#F2B48C" />
+                <path d="M424 130c2-15 11-24 22-24s21 9 22 24c-6-7-13-10-22-10s-16 3-22 10z" fill="#6B4A32" />
+                <circle cx="446" cy="112" r="3.5" fill="#F6C261" />
+                <path d="M412 238v-48c0-19 15-32 34-32s34 13 34 32v48h-15v-32h-38v32h-15z" fill="#16254E" />
+              </g>
+              {/* papers on desk */}
+              <rect x="160" y="228" width="52" height="8" rx="4" fill="white" stroke="#D7E6F6" />
+              <rect x="398" y="228" width="44" height="8" rx="4" fill="white" stroke="#D7E6F6" />
+            </svg>
+          </div>
+
+          {/* 3-step infographic strip */}
+          <div className="relative z-10 mt-5 grid grid-cols-3 gap-2.5">
+            {[
+              { title: 'Sign in', sub: 'One secure workspace', icon: FiMail },
+              { title: 'Add your people', sub: 'Invite in one click', icon: FiUsers },
+              { title: 'Go live', sub: 'HR running in minutes', icon: FiZap },
+            ].map((step, i) => (
+              <div key={step.title} className="relative bg-white/75 backdrop-blur rounded-2xl ring-1 ring-white p-3 text-center shadow-sm">
+                <span className="absolute top-2 right-2.5 text-[10px] font-extrabold text-[#2F6FED]/40">0{i + 1}</span>
+                <div className="w-9 h-9 mx-auto rounded-xl bg-gradient-to-br from-[#2F6FED] to-[#6C9BF5] flex items-center justify-center shadow-md shadow-[#2F6FED]/25">
+                  <step.icon className="w-4 h-4 text-white" />
+                </div>
+                <p className="text-[11px] font-bold text-[#16254E] mt-2 leading-tight">{step.title}</p>
+                <p className="text-[9.5px] text-slate-500 mt-0.5 leading-tight">{step.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick options — app download · careers · trial · job portals (moved from the left column) */}
+          {!isPlatformSite && (
+            <div className="relative z-10 mt-4">
+              <LoginQuickOptions loginMode={loginMode} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LoginQuickOptions — compact infographic option cards (mobile app download,
+   careers, free trial, job portals). Rendered INSIDE the right-hand
+   illustration pane on desktop and below the form on mobile (lg:hidden), so
+   the left login column stays short and matches the reference format.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
+  const [showAppInfo, setShowAppInfo] = useState(false);
+
+  return (
+    <div className="w-full space-y-3">
+      {/* Row 1 — Get the app · Browse openings */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Mobile app — direct NATIVE APK download (recommended edition) */}
+        <a
+          href={NATIVE_APP_RELEASE.apkUrl}
+          download
+          className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(16,122,87,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden"
+        >
+          <div className="absolute -right-7 -top-9 w-24 h-24 rounded-full bg-emerald-100/60 group-hover:scale-125 transition-transform duration-300" />
+          <div className="absolute right-3 top-3 flex items-end gap-0.5 opacity-70">
+            <span className="w-1.5 h-2 rounded-sm bg-emerald-300" />
+            <span className="w-1.5 h-3.5 rounded-sm bg-emerald-400" />
+            <span className="w-1.5 h-5 rounded-sm bg-emerald-500" />
+          </div>
+          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+              <path d="M17.523 15.341a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64zm-10.246 0a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64z" fill="white"/>
+              <path d="M7.414 14.166l-2.548 1.506a.64.64 0 01-.876-.228.64.64 0 01.228-.876l2.548-1.506a.64.64 0 01.876.228.64.64 0 01-.228.876zm9.172 0a.64.64 0 01.228-.876l2.548-1.506a.64.64 0 01.876.228.64.64 0 01-.228.876l-2.548 1.506a.64.64 0 01-.876-.228z" fill="white"/>
+              <path d="M7.988 10.348l-2.66-4.56a.64.64 0 01.228-.876.64.64 0 01.876.228l2.66 4.56a.64.64 0 01-.228.876.64.64 0 01-.876-.228zm8.024 0a.64.64 0 01-.876.228.64.64 0 01-.228-.876l2.66-4.56a.64.64 0 01.876-.228.64.64 0 01-.228.876z" fill="white"/>
+              <path d="M12 2.5c-.354 0-.64.287-.64.64v5.12c0 .354.287.64.64.64s.64-.287.64-.64V3.14c0-.354-.287-.64-.64-.64z" fill="white"/>
+              <rect x="6.64" y="9.38" width="10.72" height="6.82" rx="1.5" fill="white" opacity="0.3"/>
+            </svg>
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">Get the Mobile App</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Native Android · v{NATIVE_APP_RELEASE.versionName} · AI Assistant dock</p>
+          </div>
+          <FiDownload className="relative w-4 h-4 text-emerald-500 shrink-0 group-hover:translate-y-0.5 transition-transform" />
+        </a>
+
+        {/* Careers */}
+        <Link
+          href="/careers"
+          className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(13,128,110,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden"
+        >
+          <div className="absolute -right-7 -top-9 w-24 h-24 rounded-full bg-teal-100/60 group-hover:scale-125 transition-transform duration-300" />
+          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-teal-500/30 shrink-0">
+            <FiBriefcase className="w-5 h-5 text-white" />
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 group-hover:text-teal-700 transition-colors">Browse Openings</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Apply with resume — no account needed</p>
+          </div>
+          <FiArrowRight className="relative w-4 h-4 text-teal-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
+
+      {/* Row 2 — Lite WebView edition (SEPARATE download option) + Free trial */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Lite WebView-shell app — separate download so users can pick their edition */}
+        <a
+          href={SHELL_APP_RELEASE.apkUrl}
+          download
+          className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(2,132,199,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden"
+        >
+          <div className="absolute -right-7 -top-9 w-24 h-24 rounded-full bg-sky-100/60 group-hover:scale-125 transition-transform duration-300" />
+          <div className="absolute right-3 top-3 flex items-end gap-0.5 opacity-70">
+            <span className="w-1.5 h-2 rounded-sm bg-sky-300" />
+            <span className="w-1.5 h-3.5 rounded-sm bg-sky-400" />
+            <span className="w-1.5 h-5 rounded-sm bg-sky-500" />
+          </div>
+          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/30 shrink-0">
+            <FiGlobe className="w-5 h-5 text-white" />
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 group-hover:text-sky-700 transition-colors">Lite App (WebView)</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">v{SHELL_APP_RELEASE.versionName} · renders the live web workspace</p>
+          </div>
+          <FiDownload className="relative w-4 h-4 text-sky-500 shrink-0 group-hover:translate-y-0.5 transition-transform" />
+        </a>
+
+        {/* Free trial */}
+        <Link
+          href="/register"
+          className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(109,40,217,0.35)] hover:-translate-y-0.5 transition-all overflow-hidden"
+        >
+          <div className="absolute -right-7 -top-9 w-24 h-24 rounded-full bg-violet-100/60 group-hover:scale-125 transition-transform duration-300" />
+          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/30 shrink-0">
+            <FiZap className="w-5 h-5 text-white" />
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 group-hover:text-violet-700 transition-colors">New Company? Start Free Trial</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">15-day trial — no credit card required</p>
+          </div>
+          <FiArrowRight className="relative w-4 h-4 text-violet-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
+
+      {/* App details & install guide — collapsible so the pane stays compact */}
+      <button
+        type="button"
+        onClick={() => setShowAppInfo(!showAppInfo)}
+        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/60 hover:bg-white/85 ring-1 ring-white transition-all text-left"
+      >
+        <span className="flex items-center gap-2 text-xs font-bold text-[#16254E]">
+          <FiSmartphone className="w-3.5 h-3.5 text-[#2F6FED]" />
+          App details &amp; install guide
+        </span>
+        {showAppInfo ? <FiChevronUp className="w-4 h-4 text-slate-400" /> : <FiChevronDown className="w-4 h-4 text-slate-400" />}
+      </button>
+      {showAppInfo && (
+        <div className="space-y-3 animate-slide-in-down">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <a
+              href={NATIVE_APP_RELEASE.apkUrl}
+              download
+              className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md shadow-emerald-500/20 hover:from-emerald-600 hover:to-green-700 transition-all"
+            >
+              <FiDownload className="w-4 h-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold">Native App APK</p>
+                <p className="text-[10px] text-white/80">v{NATIVE_APP_RELEASE.versionName} ({NATIVE_APP_RELEASE.versionCode})</p>
+              </div>
+            </a>
+            <a
+              href={SHELL_APP_RELEASE.apkUrl}
+              download
+              className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20 hover:from-sky-600 hover:to-blue-700 transition-all"
+            >
+              <FiDownload className="w-4 h-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold">Lite App APK</p>
+                <p className="text-[10px] text-white/80">v{SHELL_APP_RELEASE.versionName} ({SHELL_APP_RELEASE.versionCode})</p>
+              </div>
+            </a>
+            <a
+              href="/downloads/"
+              className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-600 hover:to-slate-700 transition-all"
+            >
+              <FiSmartphone className="w-4 h-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold">iOS App</p>
+                <p className="text-[10px] text-white/70">Download center</p>
+              </div>
+            </a>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { icon: FiZap, label: 'Native Performance', tone: 'bg-indigo-50/80 text-indigo-500' },
+              { icon: FiWifi, label: 'Offline Mode', tone: 'bg-emerald-50/80 text-emerald-500' },
+              { icon: FiRefreshCw, label: 'Auto Updates', tone: 'bg-violet-50/80 text-violet-500' },
+              { icon: FiShield, label: 'Secure & Encrypted', tone: 'bg-amber-50/80 text-amber-500' },
+            ].map((f) => (
+              <div key={f.label} className="flex items-center gap-2 p-2 rounded-lg bg-white/80 ring-1 ring-white">
+                <f.icon className={`w-3.5 h-3.5 shrink-0 ${f.tone.split(' ')[1]}`} />
+                <p className="text-[10px] font-medium text-slate-700">{f.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="p-3 rounded-xl bg-white/80 ring-1 ring-white">
+            <p className="text-[11px] font-semibold text-slate-600 mb-1.5">How to install (Android)</p>
+            <ol className="text-[10px] text-slate-500 space-y-1 list-decimal list-inside">
+              <li>Pick an edition — <strong>Native App</strong> (full experience + AI dock) or <strong>Lite App</strong> (renders the live web)</li>
+              <li>Tap its <strong>APK</strong> button above to download</li>
+              <li>Open the downloaded file (e.g. <em>…-v{NATIVE_APP_RELEASE.versionName}.apk</em>)</li>
+              <li>Allow installation from unknown sources if prompted</li>
+              <li>Tap <strong>&quot;Install&quot;</strong> — both editions share the same app signature, so either installs right over the other and you can switch any time</li>
+              <li>Sign in — the app auto-detects your company workspace</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {/* Job portals — candidate mode only */}
+      {loginMode === 'candidate' && (
+        <div>
+          <p className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+            <FiGlobe className="w-3.5 h-3.5" /> Explore Opportunities
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { href: 'https://www.linkedin.com/jobs', badge: 'in', name: 'LinkedIn', sub: 'Professional network', bg: 'bg-[#0A66C2]' },
+              { href: 'https://www.naukri.com', badge: 'N', name: 'Naukri', sub: "India's #1 job site", bg: 'bg-[#4A90D9]' },
+              { href: 'https://www.indeed.com', badge: 'IN', name: 'Indeed', sub: 'Global job search', bg: 'bg-[#2557A7]' },
+              { href: 'https://www.glassdoor.com', badge: 'G', name: 'Glassdoor', sub: 'Reviews & jobs', bg: 'bg-[#0CAA41]' },
+            ].map((p) => (
+              <a key={p.name} href={p.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/90 ring-1 ring-white hover:ring-emerald-200 hover:bg-white transition-all group">
+                <div className={`w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center text-white text-[10px] font-bold shrink-0`}>{p.badge}</div>
+                <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">{p.name}</p><p className="text-[10px] text-slate-400 truncate">{p.sub}</p></div>
+                <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-emerald-500 ml-auto shrink-0" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

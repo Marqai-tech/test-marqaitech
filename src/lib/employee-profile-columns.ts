@@ -8,13 +8,17 @@ export const EXTRA_PROFILE_KEYS = [
   'hasDisability', 'disabilityDetails', 'isOnMedication', 'medicationDetails',
   'hasHadSurgery', 'surgeryDetails', 'emergencyMedicalCondition',
   'primaryPhysicianName', 'primaryPhysicianPhone', 'healthInsuranceProvider', 'healthInsurancePolicyNo',
-  'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1',
-  'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
-  'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
+  'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1', 'previousEmployer1Logo',
+  'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2', 'previousEmployer2Logo',
+  'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3', 'previousEmployer3Logo',
   'totalExperience',
   'pfNumber', 'pfUAN', 'pfNomineeName', 'pfNomineeRelation', 'pfNomineePercentage',
   'esiNumber', 'esiDispensary', 'esiNomineeName', 'esiNomineeRelation',
   'professionalTaxNumber', 'lwfNumber',
+  // Task 137 — interests chips (comma-separated) captured in the Personal tab
+  'interests',
+  // Bug 6/8: Skills + Achievements stored as JSON strings
+  'skillsJson', 'achievementsJson',
 ] as const;
 
 const EMPLOYEE_WRITE_COLUMNS: { name: string; ddl: string }[] = [
@@ -72,6 +76,7 @@ const EMPLOYEE_WRITE_COLUMNS: { name: string; ddl: string }[] = [
   { name: 'previousDuration3', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousDuration3" TEXT` },
   { name: 'previousReason3', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousReason3" TEXT` },
   { name: 'totalExperience', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "totalExperience" TEXT` },
+  { name: 'interests', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "interests" TEXT` },
   { name: 'pfNumber', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfNumber" TEXT` },
   { name: 'pfUAN', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfUAN" TEXT` },
   { name: 'pfNomineeName', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfNomineeName" TEXT` },
@@ -99,6 +104,28 @@ const EMPLOYEE_WRITE_COLUMNS: { name: string; ddl: string }[] = [
   { name: 'credentialsStatus', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'` },
   { name: 'credentialsInvitedAt', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)` },
   { name: 'credentialsInvitedBy', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT` },
+  // Bug 6/8: Skills + Achievements JSON columns
+  { name: 'skillsJson', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "skillsJson" TEXT` },
+  { name: 'achievementsJson', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "achievementsJson" TEXT` },
+  // Bug 10 fix: kycVerification + other Prisma-schema columns that may be
+  // missing from the tenant DB, causing P2022 on create/findUnique.
+  { name: 'kycVerification', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "kycVerification" TEXT` },
+  { name: 'avatarPending', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatarPending" TEXT` },
+  { name: 'avatarPendingAt', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatarPendingAt" TIMESTAMP(3)` },
+  { name: 'avatarPendingStatus', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatarPendingStatus" TEXT` },
+  { name: 'originalBirthday', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "originalBirthday" TIMESTAMP(3)` },
+  { name: 'interests', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "interests" TEXT` },
+  { name: 'wfhPreApproved', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "wfhPreApproved" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'mobileCheckInEnabled', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "mobileCheckInEnabled" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'webCheckInEnabled', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "webCheckInEnabled" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'holidayWeekendPunchEnabled', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "holidayWeekendPunchEnabled" BOOLEAN NOT NULL DEFAULT false` },
+  // Additional Prisma-schema columns that may be missing
+  { name: 'kycVerifiedAt', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "kycVerifiedAt" TIMESTAMP(3)` },
+  { name: 'timezone', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "timezone" TEXT` },
+  { name: 'defaultWeeklyHours', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "defaultWeeklyHours" INTEGER` },
+  { name: 'previousEmployer1Logo', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousEmployer1Logo" TEXT` },
+  { name: 'previousEmployer2Logo', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousEmployer2Logo" TEXT` },
+  { name: 'previousEmployer3Logo', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousEmployer3Logo" TEXT` },
 ];
 
 const extraReady = new WeakMap<object, Promise<void>>();

@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     const requestedTenantId = searchParams.get('tenantId');
     const host = request.headers.get('host') || '';
     const ctxCacheKey = `${role}:${requestedTenantId || callerTenantId || ''}:${host}`;
-    if (role === 'super_admin' || role === 'tenant_admin') {
+    if (role === 'super_admin' || (role === 'tenant_admin' || role === 'ceo')) {
       const hit = contextResponseCache.get(ctxCacheKey);
       if (hit && Date.now() - hit.at < CONTEXT_CACHE_MS) {
         return NextResponse.json(hit.body, {
@@ -101,13 +101,13 @@ export async function GET(request: Request) {
 
     // Super admin / tenant admin never use Employee rows. Opening getDb() first
     // was an extra Neon hop on every header load (measured /api/me/context TTFB 4273ms).
-    const db = ['super_admin', 'tenant_admin'].includes(role)
+    const db = ['super_admin', 'tenant_admin', 'ceo'].includes(role)
       ? getPlatformDb()
       : await getDb(request);
 
     // Super admin / tenant admin are not employees. Skip the Employee lookup
     // on the header context call (this was ~1 extra Neon hop on every page).
-    const employee = ['super_admin', 'tenant_admin'].includes(role)
+    const employee = ['super_admin', 'tenant_admin', 'ceo'].includes(role)
       ? null
       : await safe(
       'employee.findFirst',
@@ -139,7 +139,7 @@ export async function GET(request: Request) {
 
     // For non-admin roles, try to find ownCompanyId from EmployeeCompanyMapping
     // if it wasn't set from the Employee record directly.
-    if (!ownCompanyId && !['super_admin', 'tenant_admin'].includes(role)) {
+    if (!ownCompanyId && !['super_admin', 'tenant_admin', 'ceo'].includes(role)) {
       // Try by userId-linked employee first
       let employeeIdForMapping = employee?.id || null;
 
@@ -215,7 +215,7 @@ export async function GET(request: Request) {
     // Resolve the employee ID for company mapping lookup.
     // If employee was found by userId, use that. Otherwise try by email.
     let resolvedEmployeeId: string | null = employee?.id || null;
-    if (!resolvedEmployeeId && !['super_admin', 'tenant_admin'].includes(role) && decoded.email) {
+    if (!resolvedEmployeeId && !['super_admin', 'tenant_admin', 'ceo'].includes(role) && decoded.email) {
       const employeeByEmail = await safe(
         'employee.findFirst(emailForMapping)',
         () => db.employee.findFirst({
@@ -329,7 +329,7 @@ export async function GET(request: Request) {
         availableCompanyGroups = groups;
         availableCompanies = companies;
       }
-    } else if (role === 'tenant_admin') {
+    } else if ((role === 'tenant_admin' || role === 'ceo')) {
       // Tenant admin: scope to own tenant only
       if (callerTenantId) {
         // AUTO-HEAL: Ensure the tenant has at least one default group company.
@@ -377,7 +377,7 @@ export async function GET(request: Request) {
     }
     // For all other roles, look up EmployeeCompanyMapping records so employees
     // who are mapped to multiple companies can switch between them.
-    if (!['super_admin', 'tenant_admin'].includes(role) && resolvedEmployeeId) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(role) && resolvedEmployeeId) {
       const mappings = await safe(
         'employeeCompanyMapping.findMany',
         () => db.employeeCompanyMapping.findMany({
@@ -463,7 +463,7 @@ export async function GET(request: Request) {
       used: number;
       remaining: number | null;
     } | null = null;
-    if (callerTenant && (role === 'tenant_admin' || role === 'super_admin')) {
+    if (callerTenant && ((role === 'tenant_admin' || role === 'ceo') || role === 'super_admin')) {
       const usedCompanies = availableCompanies.length;
       tenantQuota = {
         maxCompanies: callerTenant.maxCompaniesAllowed,
@@ -625,7 +625,7 @@ export async function GET(request: Request) {
       availableCompanies: finalAvailableCompanies,
       mappedCompanies: finalMappedCompanies,
     };
-    if (role === 'super_admin' || role === 'tenant_admin') {
+    if (role === 'super_admin' || (role === 'tenant_admin' || role === 'ceo')) {
       contextResponseCache.set(ctxCacheKey, { at: Date.now(), body });
     }
     return NextResponse.json(body, { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } });

@@ -13,15 +13,12 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  FiArrowLeft, FiPlus, FiRefreshCw, FiCheck, FiX, FiInbox, FiSend, FiClock, FiCheckCircle, FiXCircle, FiChevronDown,
+  FiArrowLeft, FiPlus, FiRefreshCw, FiCheck, FiX, FiInbox, FiSend, FiClock, FiCheckCircle, FiXCircle, FiChevronDown, FiUserCheck, FiZap,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { getToken } from '@/lib/token-storage';
-import {
-  validateEmail, validatePhone, validateZipCode,
-} from '@/lib/validators';
 
 function getAuthHeaders() {
   const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
@@ -30,18 +27,18 @@ function getAuthHeaders() {
 
 // Editable fields (matches the API's FIELD_SENSITIVITY classification)
 const REQUESTABLE_FIELDS: { field: string; label: string; category: string }[] = [
-  { field: 'phone', label: 'Phone Number', category: 'Contact (approval required)' },
-  { field: 'address', label: 'Address', category: 'Contact (approval required)' },
-  { field: 'city', label: 'City', category: 'Contact (approval required)' },
-  { field: 'state', label: 'State', category: 'Contact (approval required)' },
-  { field: 'zipCode', label: 'ZIP Code', category: 'Contact (approval required)' },
-  { field: 'country', label: 'Country', category: 'Contact (approval required)' },
-  { field: 'personalEmail', label: 'Personal Email', category: 'Contact (approval required)' },
-  { field: 'emergencyContactName', label: 'Emergency Contact Name', category: 'Contact (approval required)' },
-  { field: 'emergencyContactPhone', label: 'Emergency Contact Phone', category: 'Contact (approval required)' },
-  { field: 'firstName', label: 'First Name', category: 'Personal (approval required)' },
-  { field: 'lastName', label: 'Last Name', category: 'Personal (approval required)' },
-  { field: 'dateOfBirth', label: 'Date of Birth', category: 'Personal (approval required)' },
+  { field: 'phone', label: 'Phone Number', category: 'Contact (applies directly)' },
+  { field: 'address', label: 'Address', category: 'Contact (applies directly)' },
+  { field: 'city', label: 'City', category: 'Contact (applies directly)' },
+  { field: 'state', label: 'State', category: 'Contact (applies directly)' },
+  { field: 'zipCode', label: 'ZIP Code', category: 'Contact (applies directly)' },
+  { field: 'country', label: 'Country', category: 'Contact (applies directly)' },
+  { field: 'personalEmail', label: 'Personal Email', category: 'Contact (applies directly)' },
+  { field: 'emergencyContactName', label: 'Emergency Contact Name', category: 'Contact (applies directly)' },
+  { field: 'emergencyContactPhone', label: 'Emergency Contact Phone', category: 'Contact (applies directly)' },
+  // Task 139 — firstName / lastName / dateOfBirth are LOCKED for self-service
+  // (direct AND request) — contact HR/Admin. Original Birthday is requestable.
+  { field: 'originalBirthday', label: 'Original Birthday (birthday wishes)', category: 'Personal (approval required)' },
   { field: 'gender', label: 'Gender', category: 'Personal (approval required)' },
   { field: 'maritalStatus', label: 'Marital Status', category: 'Personal (approval required)' },
   { field: 'nationality', label: 'Nationality', category: 'Personal (approval required)' },
@@ -52,23 +49,6 @@ const REQUESTABLE_FIELDS: { field: string; label: string; category: string }[] =
   { field: 'aadhaarNumber', label: 'Aadhaar Number', category: 'KYC (approval required)' },
   { field: 'taxId', label: 'Tax ID', category: 'KYC (approval required)' },
 ];
-
-// BUG_044 fix: capitalise status labels so the UI shows "Pending" instead
-// of "pending". Used for both the request status badge and the approval-step
-// status text.
-function prettyStatus(status: string): string {
-  if (!status) return '';
-  const map: Record<string, string> = {
-    pending: 'Pending',
-    approved: 'Approved',
-    applied: 'Applied',
-    rejected: 'Rejected',
-    cancelled: 'Cancelled',
-    skipped: 'Skipped',
-    in_progress: 'In Progress',
-  };
-  return map[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
-}
 
 interface ApprovalStep { id: string; tier: number; approverType: string; approverName?: string; status: string; comments?: string | null; actedAt?: string | null }
 interface UpdateRequest {
@@ -90,13 +70,36 @@ function statusBadge(status: string) {
   return map[status] || 'thb-badge thb-badge-info';
 }
 
-function RequestCard({ r, canAct, onAct, canCancel, onCancel }: {
-  r: UpdateRequest;
-  canAct: boolean;
-  onAct: (id: string, action: 'approve' | 'reject') => void;
-  canCancel: boolean;
-  onCancel: (id: string) => void;
-}) {
+// Task 158 — human-readable view for SECTION payloads (Experience /
+// Achievements / Documents / Verification / Health) on the approval cards.
+const SECTION_FIELDS = new Set(['experience', 'achievements', 'documents', 'verification', 'health']);
+function SectionPayloadView({ section, value, current }: { section: string; value?: string; current?: string }) {
+  const pretty = (raw?: string): string => {
+    if (!raw) return '—';
+    try {
+      const parsed = JSON.parse(raw);
+      if (section === 'verification' || section === 'health') {
+        const obj = section === 'verification' ? parsed : (parsed.current ?? parsed);
+        return Object.entries(obj || {}).map(([k, v]) => `${k}: ${String(v ?? '—')}`).join(' | ') || '—';
+      }
+      const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
+      if (!entries.length) return 'No entries';
+      return entries.map((e: Record<string, unknown>, i: number) => {
+        if (section === 'experience') return `${i + 1}. ${e.company} — ${e.designation} (${String(e.startDate).slice(0, 10)} → ${e.isCurrent ? 'current' : String(e.endDate).slice(0, 10)})`;
+        if (section === 'achievements') return `${i + 1}. ${e.title}${e.issuer ? ` (${e.issuer})` : ''}`;
+        return `${i + 1}. ${e.name} (${e.type})`;
+      }).join('\n');
+    } catch { return raw.slice(0, 200); }
+  };
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
+      <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary whitespace-pre-line line-clamp-4">{pretty(current)}</span></div>
+      <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium whitespace-pre-line">{pretty(value)}</span></div>
+    </div>
+  );
+}
+
+function RequestCard({ r, canAct, onAct }: { r: UpdateRequest; canAct: boolean; onAct: (id: string, action: 'approve' | 'reject') => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="thb-card p-4">
@@ -109,15 +112,18 @@ function RequestCard({ r, canAct, onAct, canCancel, onCancel }: {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* BUG_044 fix: capitalised status label */}
-          <span className={statusBadge(r.status)}>{prettyStatus(r.status)}</span>
+          <span className={statusBadge(r.status)}>{r.status}</span>
           <button onClick={() => setOpen(!open)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><FiChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} /></button>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
-        <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary break-all">{r.oldValue || '—'}</span></div>
-        <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium break-all">{r.newValue || '—'}</span></div>
-      </div>
+      {SECTION_FIELDS.has(r.fieldName) ? (
+        <SectionPayloadView section={r.fieldName} value={r.newValue} current={r.oldValue} />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
+          <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary break-all">{r.oldValue || '—'}</span></div>
+          <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium break-all">{r.newValue || '—'}</span></div>
+        </div>
+      )}
       {r.reason && <p className="text-[11px] text-thb-text-muted mt-2"><span className="font-medium">Reason:</span> {r.reason}</p>}
 
       {open && (
@@ -126,156 +132,128 @@ function RequestCard({ r, canAct, onAct, canCancel, onCancel }: {
             <div key={s.id} className="flex items-center justify-between gap-2 text-[11px]">
               <span className="text-thb-text-secondary">Tier {s.tier} · {s.approverName || s.approverType}</span>
               <span className={s.status === 'approved' ? 'text-emerald-600' : s.status === 'rejected' ? 'text-red-500' : s.status === 'pending' ? 'text-amber-600' : 'text-slate-400'}>
-                {/* BUG_044 fix: capitalised step status */}
-                {prettyStatus(s.status)}{s.actedAt ? ` · ${new Date(s.actedAt).toLocaleDateString()}` : ''}{s.comments ? ` · "${s.comments}"` : ''}
+                {s.status}{s.actedAt ? ` · ${new Date(s.actedAt).toLocaleDateString()}` : ''}{s.comments ? ` · "${s.comments}"` : ''}
               </span>
             </div>
           ))}
         </div>
       )}
 
-      <div className="flex items-center gap-2 mt-3 flex-wrap">
-        {/* BUG_052 fix: tenant admins (and other admin roles) can approve /
-            reject ANY pending request — not just the ones where they're the
-            explicitly-assigned current-tier approver. Previously the Approve /
-            Reject buttons only showed in the 'inbox' scope, which only lists
-            requests where approverUserId = current user. Admins opening the
-            'All Requests' tab saw pending requests with no action buttons. */}
-        {canAct && r.status === 'pending' && (
-          <>
-            <button onClick={() => onAct(r.id, 'approve')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"><FiCheck className="w-3.5 h-3.5" /> Approve</button>
-            <button onClick={() => onAct(r.id, 'reject')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100"><FiX className="w-3.5 h-3.5" /> Reject</button>
-          </>
-        )}
-        {/* BUG_057 fix: Cancel option for pending requests. Shown to the
-            request owner (scope === 'mine') OR to admins viewing any
-            pending request. After cancel, the request is marked as
-            'cancelled' and disappears from approval queues. */}
-        {canCancel && r.status === 'pending' && (
-          <button
-            onClick={() => onCancel(r.id)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium hover:bg-slate-200"
-            title="Cancel this request"
-          >
-            <FiX className="w-3.5 h-3.5" /> Cancel Request
-          </button>
-        )}
-      </div>
+      {canAct && r.status === 'pending' && (
+        <div className="flex items-center gap-2 mt-3">
+          <button onClick={() => onAct(r.id, 'approve')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"><FiCheck className="w-3.5 h-3.5" /> Approve</button>
+          <button onClick={() => onAct(r.id, 'reject')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100"><FiX className="w-3.5 h-3.5" /> Reject</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Task 139 — profile-photo approval queue (HR/Admin confirm employee photos)
+function PhotoApprovals() {
+  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/employees/avatar-approvals', { headers: getAuthHeaders() });
+      const data = await res.json();
+      setRows(data.pending || []);
+    } catch { /* keep empty */ } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const act = async (employeeId: string, action: 'approve' | 'reject') => {
+    let comment = '';
+    if (action === 'approve') comment = window.prompt('Note for the employee? (optional)') || '';
+    else {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        comment = window.prompt('Rejection reason (required):') || '';
+        if (comment.trim()) break;
+        if (window.confirm('A rejection reason is required. Cancel?')) return;
+      }
+    }
+    try {
+      const res = await fetch('/api/employees/avatar-approvals', {
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ employeeId, action, comment: comment || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(`Photo ${action}d — the employee has been notified`);
+      void load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-thb-text-muted">Profile photos submitted by employees. Nothing goes public until you confirm — approving replaces the current photo; rejecting keeps it.</p>
+      {loading ? (
+        <div className="py-10 text-center text-sm text-thb-text-muted">Loading…</div>
+      ) : rows.length === 0 ? (
+        <div className="py-10 text-center text-sm text-thb-text-muted">No photos waiting for approval.</div>
+      ) : (
+        rows.map((r) => (
+          <div key={String(r.employeeId)} className="flex items-center gap-3 p-3.5 rounded-xl border border-thb-border bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={String(r.pendingAvatar)} alt={String(r.name)} className="w-12 h-12 rounded-full object-cover border-2 border-amber-300" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-thb-text-primary truncate">{String(r.name)}{r.employeeCode ? ` · ${String(r.employeeCode)}` : ''}</p>
+              <p className="text-xs text-thb-text-muted truncate">{String(r.designation || r.department || r.email || '')}</p>
+              <p className="text-[11px] text-amber-600">Submitted {r.submittedAt ? new Date(String(r.submittedAt)).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'recently'}</p>
+            </div>
+            <button onClick={() => act(String(r.employeeId), 'approve')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600">Approve</button>
+            <button onClick={() => act(String(r.employeeId), 'reject')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 text-xs font-semibold hover:bg-red-100">Reject</button>
+          </div>
+        ))
+      )}
     </div>
   );
 }
 
 function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(user?.role || '');
   const [employees, setEmployees] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [employeeId, setEmployeeId] = useState('');
   const [field, setField] = useState('');
   const [newValue, setNewValue] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
-  // BUG_046/047/048/049/054/055 fix: live validation errors for the new value.
-  const [valueError, setValueError] = useState('');
-  // BUG_056 fix: reason max length with live counter.
-  const REASON_MAX = 500;
+  const { user: authUser } = useAuthStore();
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(authUser?.role || '');
 
   useEffect(() => {
     (async () => {
       try {
+        // Task 139 — employees can only raise changes for THEMSELVES (the
+        // picker showed every employee in the tenant). Admins keep the picker.
+        if (!isAdmin) {
+          const me = await fetch('/api/users/profile', { headers: getAuthHeaders() }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+          const emp = (me?.employee || {}) as Record<string, unknown>;
+          const own = { id: String(emp.id || ''), name: `${String(emp.firstName || '')} ${String(emp.lastName || '')}`.trim() || 'My profile', code: String(emp.employeeId || '') };
+          setEmployees(own.id ? [own] : []);
+          setEmployeeId(own.id);
+          return;
+        }
         const res = await fetch('/api/employees?limit=500', { headers: getAuthHeaders() });
         const data = await res.json();
         const list = (data.employees || data.data || []) as Array<{ id: string; firstName?: string; lastName?: string; employeeId?: string }>;
         const mapped = list.map((e) => ({ id: e.id, name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unnamed', code: e.employeeId || '' }));
         setEmployees(mapped);
-        // BUG_045 fix: for non-admin employees, auto-fill and lock the
-        // Employee field to their own record. Don't show the dropdown at all
-        // — the test report flagged the dropdown as unnecessary for self-
-        // service. Admins still get the dropdown so they can submit on
-        // behalf of an employee.
-        if (!isAdmin) {
-          const me = list.find((e) => e.id && mapped.some(m => m.id === e.id));
-          // We don't have a direct "is this me" check from the list — but the
-          // backend enforces ownership, so we send an empty employeeId and
-          // let the API resolve it from the JWT. The dropdown is hidden.
-          if (me) setEmployeeId(me.id);
-        }
+        if (mapped.length === 1) setEmployeeId(mapped[0].id);
       } catch { /* ignore */ }
     })();
-  }, [isAdmin]);
-
-  // BUG_046/047/048/049/054/055 fix: validate newValue based on the selected
-  // field. Phone must be exactly 10 digits, ZIP must be exactly 6 digits,
-  // personalEmail must pass RFC-style validation. Reject script tags /
-  // HTML / blank input with a clear inline error before submitting.
-  const validateNewValue = (fieldName: string, value: string): string => {
-    const trimmed = value.trim();
-    if (!trimmed) return 'New value is required';
-    if (fieldName === 'phone' || fieldName === 'emergencyContactPhone') {
-      const phoneCheck = validatePhone(trimmed);
-      if (!phoneCheck.valid) return phoneCheck.error || 'Enter a valid 10-digit phone number';
-    }
-    if (fieldName === 'zipCode' || fieldName === 'currentZipCode') {
-      const pinCheck = validateZipCode(trimmed);
-      if (!pinCheck.valid) return pinCheck.error || 'Enter a valid 6-digit PIN code';
-    }
-    if (fieldName === 'personalEmail') {
-      const emailCheck = validateEmail(trimmed);
-      if (!emailCheck.valid) return emailCheck.error || 'Invalid email format';
-    }
-    if (fieldName === 'dateOfBirth') {
-      const d = new Date(trimmed);
-      if (Number.isNaN(d.getTime())) return 'Invalid date';
-      // BUG_040 fix: DOB cannot be a future date, and the employee must be
-      // at least 16 years old (minimum working age in India).
-      const now = new Date();
-      if (d.getTime() > now.getTime()) return 'Date of birth cannot be a future date';
-      const ageMs = now.getTime() - d.getTime();
-      const ageYears = ageMs / (1000 * 60 * 60 * 24 * 365.25);
-      if (ageYears < 16) return 'Employee must be at least 16 years old';
-      if (ageYears > 100) return 'Date of birth is unrealistic';
-    }
-    // BUG_055 fix: XSS guard — reject values that contain <script> or other
-    // HTML tags. The server-side sanitizer also strips these, but surfacing
-    // the error client-side gives the user immediate feedback.
-    if (/<\s*(script|iframe|object|embed|link|style|meta|img[^>]*onerror)/i.test(trimmed)) {
-      return 'HTML/script tags are not allowed in this field';
-    }
-    if (/[<>]/.test(trimmed) && /script|onerror|onload|javascript:/i.test(trimmed)) {
-      return 'Invalid input — special characters are not allowed';
-    }
-    return '';
-  };
-
-  const handleValueChange = (value: string) => {
-    setNewValue(value);
-    if (field) setValueError(validateNewValue(field, value));
-  };
-
-  const handleFieldChange = (newField: string) => {
-    setField(newField);
-    if (newValue) setValueError(validateNewValue(newField, newValue));
-  };
+  }, []);
 
   const submit = async () => {
-    if (!employeeId && isAdmin) { toast.error('Please select an employee'); return; }
-    if (!field) { toast.error('Please select a field'); return; }
-    const err = validateNewValue(field, newValue);
-    if (err) { setValueError(err); toast.error(err); return; }
-    // BUG_056 fix: cap reason length client-side (server also caps via
-    // sanitizeMultiLineText(_, 500)).
-    const trimmedReason = reason.trim().slice(0, REASON_MAX);
+    if (!employeeId || !field || !newValue.trim()) { toast.error('Employee, field, and new value are required'); return; }
     setSaving(true);
     try {
       const res = await fetch('/api/employees/update-requests', {
         method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({
-          // Non-admins send their own employeeId (or empty — the API
-          // resolves it from the JWT). Admins must explicitly pick.
-          employeeId: employeeId || undefined,
-          fieldName: field,
-          newValue: newValue.trim(),
-          reason: trimmedReason || undefined,
-        }),
+        body: JSON.stringify({ employeeId, fieldName: field, newValue: newValue.trim(), reason: reason || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit');
@@ -293,28 +271,20 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-thb-border"><h3 className="font-semibold text-sm">Request Profile Change</h3><button onClick={onClose}><FiX className="w-5 h-5 text-slate-400" /></button></div>
         <div className="p-5 space-y-3">
-          {/* BUG_045 fix: hide the Employee dropdown for non-admin employees.
-              They can only submit changes for their own profile, so the
-              dropdown is unnecessary — the API resolves employeeId from the
-              JWT. Admins still get the dropdown so they can submit on
-              behalf of an employee. */}
-          {isAdmin ? (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Employee *</label>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Employee *</label>
+            {isAdmin ? (
               <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                <option value="">Select employee…</option>
-                {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.code ? ` · ${e.code}` : ''}</option>)}
+              <option value="">Select employee…</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.code ? ` · ${e.code}` : ''}</option>)}
               </select>
-            </div>
-          ) : (
-            <div className="px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-600 border border-slate-200">
-              <span className="font-medium">Submitting for:</span> Myself
-              <p className="text-[10px] text-slate-400 mt-0.5">Self-service requests are submitted on your own behalf.</p>
-            </div>
-          )}
+            ) : (
+              <input type="text" value="Your own profile" disabled className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-500" />
+            )}
+          </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Field *</label>
-            <select value={field} onChange={(e) => handleFieldChange(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+            <select value={field} onChange={(e) => setField(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
               <option value="">Select field…</option>
               {groups.map((g) => (
                 <optgroup key={g} label={g}>
@@ -323,47 +293,11 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">New Value *</label>
-            <input
-              value={newValue}
-              onChange={(e) => handleValueChange(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg text-sm ${valueError ? 'border-red-300 bg-red-50/30' : 'border-slate-200'}`}
-              type={field === 'dateOfBirth' ? 'date' : 'text'}
-            />
-            {/* BUG_046/047/048/049/054/055 fix: inline validation message */}
-            {valueError && <p className="mt-1 text-[11px] text-red-600 flex items-center gap-1"><FiX className="w-3 h-3" /> {valueError}</p>}
-            {field === 'phone' && !valueError && <p className="mt-1 text-[10px] text-slate-400">Must be a valid 10-digit Indian mobile number (starts with 6, 7, 8 or 9).</p>}
-            {field === 'zipCode' && !valueError && <p className="mt-1 text-[10px] text-slate-400">Must be a 6-digit numeric PIN code.</p>}
-            {field === 'personalEmail' && !valueError && <p className="mt-1 text-[10px] text-slate-400">Must be a valid email format (e.g., name@domain.com).</p>}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center justify-between">
-              <span>Reason</span>
-              {/* BUG_056 fix: live character counter on the Reason field */}
-              <span className={`text-[10px] font-normal ${reason.length > REASON_MAX ? 'text-red-500' : 'text-slate-400'}`}>{reason.length}/{REASON_MAX}</span>
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value.slice(0, REASON_MAX + 50))}
-              rows={2}
-              className={`w-full px-3 py-2 border rounded-lg text-sm ${reason.length > REASON_MAX ? 'border-red-300' : 'border-slate-200'}`}
-              placeholder="Optional — explain why this change is needed"
-            />
-            {reason.length > REASON_MAX && <p className="mt-1 text-[11px] text-red-600">Reason is too long (max {REASON_MAX} characters).</p>}
-          </div>
-          <p className="text-[10px] text-slate-400">All profile changes route through the configured HR approval chain. The profile is updated only after an approver approves the request.</p>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">New Value *</label><input value={newValue} onChange={(e) => setNewValue(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Reason</label><textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+          <p className="text-[10px] text-slate-400">Low-risk contact fields apply immediately. High-risk fields (personal / financial / KYC) route through the configured approval chain.</p>
         </div>
-        <div className="flex justify-end gap-3 px-5 py-4 border-t">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Cancel</button>
-          <button
-            onClick={submit}
-            disabled={saving || !!valueError || !field || !newValue.trim() || (reason.length > REASON_MAX)}
-            className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-          >
-            {saving ? 'Submitting…' : 'Submit Request'}
-          </button>
-        </div>
+        <div className="flex justify-end gap-3 px-5 py-4 border-t"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Cancel</button><button onClick={submit} disabled={saving} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{saving ? 'Submitting…' : 'Submit Request'}</button></div>
       </div>
     </div>
   );
@@ -372,17 +306,14 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 export default function UpdateRequestsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(user?.role || '');
-  // BUG_043 fix: default tab for a non-approver employee is 'mine' (My
-  // Requests), not 'inbox' (My Approvals). An employee who is not an
-  // approver has nothing in their inbox, so defaulting to 'inbox' shows an
-  // empty "Nothing is waiting for your approval right now" screen — confusing.
-  const [scope, setScope] = useState<'mine' | 'inbox' | 'all'>(isAdmin ? 'inbox' : 'mine');
+  const [scope, setScope] = useState<'mine' | 'inbox' | 'all' | 'photos'>('inbox');
   const [requests, setRequests] = useState<UpdateRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(user?.role || '');
 
-  const load = useCallback(async (s: 'mine' | 'inbox' | 'all') => {
+  const load = useCallback(async (s: 'mine' | 'inbox' | 'all' | 'photos') => {
+    if (s === 'photos') return; // photo tab has its own data loader
     setLoading(true);
     try {
       const res = await fetch(`/api/employees/update-requests?scope=${s}`, { headers: getAuthHeaders() });
@@ -391,7 +322,7 @@ export default function UpdateRequestsPage() {
     } catch { toast.error('Failed to load requests'); } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(scope); }, [scope, load]);
+  useEffect(() => { if (scope !== 'photos') load(scope); }, [scope, load]);
 
   const act = async (id: string, action: 'approve' | 'reject') => {
     // Task 88 (spec rule 4): a rejection reason is MANDATORY — the employee
@@ -421,30 +352,11 @@ export default function UpdateRequestsPage() {
     }
   };
 
-  // BUG_057 fix: cancel handler. Calls the same PATCH endpoint with
-  // action: 'cancel'. The endpoint already supports this — we just needed
-  // a UI affordance. Owner can cancel their own pending requests; admins
-  // can cancel any pending request.
-  const cancelRequest = async (id: string) => {
-    if (!window.confirm('Cancel this request? The change will not be applied.')) return;
-    try {
-      const res = await fetch(`/api/employees/update-requests/${id}`, {
-        method: 'PATCH', headers: getAuthHeaders(),
-        body: JSON.stringify({ action: 'cancel' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      toast.success(data.message || 'Request cancelled');
-      load(scope);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed');
-    }
-  };
-
-  const tabs: { key: 'mine' | 'inbox' | 'all'; label: string; icon: React.ReactNode }[] = [
+  const tabs: { key: 'mine' | 'inbox' | 'all' | 'photos'; label: string; icon: React.ReactNode }[] = [
     { key: 'inbox', label: 'My Approvals', icon: <FiInbox className="w-3.5 h-3.5" /> },
     { key: 'mine', label: 'My Requests', icon: <FiSend className="w-3.5 h-3.5" /> },
     ...(isAdmin ? [{ key: 'all' as const, label: 'All Requests', icon: <FiClock className="w-3.5 h-3.5" /> }] : []),
+    ...(isAdmin ? [{ key: 'photos' as const, label: 'Photo Approvals', icon: <FiUserCheck className="w-3.5 h-3.5" /> }] : []),
   ];
 
   return (
@@ -463,6 +375,16 @@ export default function UpdateRequestsPage() {
         </div>
       </div>
 
+      {/* Task 139 — self-service tips */}
+      {scope === 'mine' && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-900 space-y-1">
+          <p className="font-bold flex items-center gap-1.5"><FiZap className="w-3.5 h-3.5" /> Tips — what you can change yourself</p>
+          <p><span className="font-semibold">Direct (no approval):</span> phone, personal email, addresses, emergency contacts, interests, technical skills, experience entries, achievements, family details — edit them on My Profile and they save immediately.</p>
+          <p><span className="font-semibold">Needs HR/Admin approval:</span> the "Request Change" fields below (bank, KYC, gender, marital status, nationality, Original Birthday…) plus your profile photo (Employee → Update Requests → Photo Approvals is where HR confirms it).</p>
+          <p><span className="font-semibold">Locked:</span> first name, last name and Date of Birth — contact HR/Admin to change these.</p>
+        </div>
+      )}
+
       <div className="flex gap-2">
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setScope(t.key)} className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium ${scope === t.key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
@@ -471,7 +393,9 @@ export default function UpdateRequestsPage() {
         ))}
       </div>
 
-      {loading ? (
+      {scope === 'photos' ? (
+        <PhotoApprovals />
+      ) : loading ? (
         <p className="text-sm text-thb-text-muted py-10 text-center">Loading…</p>
       ) : requests.length === 0 ? (
         <div className="thb-card p-10 text-center">
@@ -481,21 +405,7 @@ export default function UpdateRequestsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {requests.map((r) => (
-            <RequestCard
-              key={r.id}
-              r={r}
-              // BUG_052 fix: admins can approve/reject from any tab. The
-              // API already allows this — we just needed to surface the
-              // action buttons in the 'all' and 'mine' scopes too.
-              canAct={scope === 'inbox' || (isAdmin && r.status === 'pending')}
-              onAct={act}
-              // BUG_057 fix: cancel available to the owner (scope === 'mine')
-              // or to admins on any pending request.
-              canCancel={scope === 'mine' || isAdmin}
-              onCancel={cancelRequest}
-            />
-          ))}
+          {requests.map((r) => <RequestCard key={r.id} r={r} canAct={scope === 'inbox'} onAct={act} />)}
         </div>
       )}
 

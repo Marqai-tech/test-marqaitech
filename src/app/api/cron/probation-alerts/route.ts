@@ -121,7 +121,7 @@ export async function GET(request: Request) {
         // Get all admin/HR users from the platform DB
         const adminUsers = await platformDb.user.findMany({
           where: {
-            role: { in: ['super_admin', 'tenant_admin', 'admin', 'company_hr_admin', 'hr_admin'] },
+            role: { in: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'company_hr_admin', 'hr_admin'] },
             status: 'active',
           },
           select: { id: true, email: true, name: true, role: true, tenantId: true },

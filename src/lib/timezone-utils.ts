@@ -152,11 +152,17 @@ function naiveDayStart(d: Date): Date {
  *   2. Branch's `timezone` field (if model has it)
  *   3. Company's `timezone` field (if model has it)
  *   4. Tenant's `timezone` field
- *   5. UTC fallback
+ *   5. App default (Asia/Kolkata — IST)
  *
  * We accept loosely-typed inputs because the Employee/Branch/Company/Tenant
  * models may or may not have a `timezone` column yet. The caller passes
  * whatever it has.
+ *
+ * Task 162: the final fallback is now IST, not UTC. The workforce is
+ * India-centric; when no timezone is configured anywhere, day bucketing
+ * previously snapped to UTC midnight which split business days at
+ * 05:30 IST and made biometric punches land on the wrong day / fail
+ * shift validation.
  */
 export function resolveTimezone(records: Array<Record<string, unknown> | null | undefined>): string {
   for (const r of records) {
@@ -173,5 +179,98 @@ export function resolveTimezone(records: Array<Record<string, unknown> | null | 
       }
     }
   }
-  return 'UTC';
+  return APP_TIMEZONE;
+}
+
+/** The app's business timezone (Task 162): attendance days are IST days. */
+export const APP_TIMEZONE = 'Asia/Kolkata';
+
+/**
+ * Task 162: convert a local calendar day key ("YYYY-MM-DD") into the UTC
+ * instant of MIDNIGHT in the business timezone — the canonical Attendance
+ * day key. This is the writer-side counterpart of localDayStartFor: where
+ * localDayStartFor buckets a punch instant, dayKeyToIstStart buckets a
+ * calendar date directly (e.g. regularize/auto-present/manual punch paths
+ * that receive "2026-10-26" from the client).
+ *
+ * A Noon-UTC probe is used because 12:00Z is always inside the same IST
+ * day (17:30 IST), so formatToParts can never roll the date backwards.
+ */
+export function dayKeyToIstStart(dateKey: string, tz: string = APP_TIMEZONE): Date {
+  const probe = new Date(`${dateKey}T12:00:00.000Z`);
+  if (isNaN(probe.getTime())) return new Date(`${dateKey}T00:00:00.000Z`);
+  return localDayStartFor(probe, tz);
+}
+
+/**
+ * Task 162: the local day key ("YYYY-MM-DD" in the business timezone) for
+ * a stored Attendance.date / punch instant. Handles BOTH legacy storage
+ * conventions found in production:
+ *   - UTC midnight of the local day ("…T00:00:00.000Z") → that UTC date
+ *   - Business-timezone midnight ("…T18:30:00.000Z" for IST) → the local date
+ * Mirrors the client-side recordDateKey() helper so server and UI agree on
+ * which business day a row belongs to.
+ */
+export function attendanceDayKeyOf(value: Date | string, tz: string = APP_TIMEZONE): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return String(value).slice(0, 10);
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+    return d.toISOString().slice(0, 10);
+  }
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * Task 162: parse a timestamp coming from a device / vendor payload.
+ * Strings that already carry an explicit offset ("…Z", "+05:30") are
+ * parsed as-is. NAIVE strings ("2026-10-26 09:14", "2026-10-26T09:14:22",
+ * "26/10/2026 09:14") are interpreted as business-timezone WALL time —
+ * previously `new Date(naive)` used the SERVER's timezone (UTC on
+ * Vercel), shifting every IST punch by +5h30m and breaking late/shift
+ * validation and day bucketing.
+ */
+export function parseDeviceTimestamp(value: unknown, tz: string = APP_TIMEZONE): Date | null {
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  // Already offset-qualified → the instant is unambiguous
+  if (/[zZ]$/.test(raw) || /[+-]\d{2}:?\d{2}$/.test(raw)) {
+    const d = new Date(raw.replace(' ', 'T'));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // ISO-like naive: YYYY-MM-DD[ T]HH:mm[:ss[.mmm]]
+  const iso = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d{1,3})?$/.exec(raw);
+  if (iso) {
+    const [, y, mo, d, h, mi, s = '0'] = iso;
+    return wallTimeToUtc(Number(y), Number(mo), Number(d), Number(h), Number(mi), Number(s), tz);
+  }
+  // Vendor style: DD/MM/YYYY HH:mm[:ss[.mmm]]
+  const dmy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d{1,3})?$/.exec(raw);
+  if (dmy) {
+    const [, d, mo, y, h, mi, s = '0'] = dmy;
+    return wallTimeToUtc(Number(y), Number(mo), Number(d), Number(h), Number(mi), Number(s), tz);
+  }
+  const fallback = new Date(raw);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
+/** Business-timezone wall clock → true UTC instant. */
+function wallTimeToUtc(year: number, month: number, day: number, hour: number, minute: number, second: number, tz: string): Date {
+  const guessAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    }).formatToParts(new Date(guessAsUtc));
+    const p = (type: string) => Number(parts.find((item) => item.type === type)?.value);
+    const representedAsUtc = Date.UTC(p('year'), p('month') - 1, p('day'), p('hour') % 24, p('minute'), p('second'));
+    return new Date(guessAsUtc - (representedAsUtc - guessAsUtc));
+  } catch {
+    return new Date(guessAsUtc);
+  }
 }

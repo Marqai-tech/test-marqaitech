@@ -22,7 +22,7 @@ const CATEGORIES = ['onboarding', 'compliance', 'role_transition', 'promotion', 
 
 export default function LearningPathsPage() {
   const user = useAuthStore((s) => s.user);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager'].includes(user?.role || '');
   const [paths, setPaths] = useState<LPath[]>([]);
   const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(true);

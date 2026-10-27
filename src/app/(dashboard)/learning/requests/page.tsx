@@ -20,7 +20,7 @@ interface TReq {
 
 export default function CourseRequestsPage() {
   const user = useAuthStore((s) => s.user);
-  const isApprover = ['super_admin', 'tenant_admin', 'admin', 'hr_manager', 'manager'].includes(user?.role || '');
+  const isApprover = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager', 'manager'].includes(user?.role || '');
   const [rows, setRows] = useState<TReq[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

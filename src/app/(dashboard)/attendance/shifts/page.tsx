@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { FiClock, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiMoon, FiSun, FiAlertTriangle, FiSettings } from 'react-icons/fi'
+import { useState, useEffect, useCallback } from 'react'
+import { FiClock, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiMoon, FiSun, FiAlertTriangle, FiSettings, FiUserCheck } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtTime, getStatusBadge } from '@/components/company/useCompanyData'
 import { ShiftRecord } from '@/components/company/useCompanyData'
@@ -22,7 +22,7 @@ function TableWrapper({ title, icon, count, children }: { title: string; icon: R
   )
 }
 
-const TH = ({ children }: { children: React.ReactNode }) => <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider border-b border-thb-border bg-slate-50/50">{children}</th>
+const TH = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <th className={`text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider border-b border-thb-border bg-slate-50/50 ${className}`}>{children}</th>
 const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
 export default function ShiftsPage() {
@@ -40,6 +40,44 @@ export default function ShiftsPage() {
   const [deleteName, setDeleteName] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  // Task 133 — per-employee shift assignments
+  interface AssignmentRecord {
+    id: string; employeeId: string; startDate: string;
+    shiftName?: string; startTime?: string; endTime?: string;
+    empCode?: string; firstName?: string; lastName?: string;
+  }
+  const [assignments, setAssignments] = useState<AssignmentRecord[]>([])
+  const [loadingAssignments, setLoadingAssignments] = useState(false)
+  const [employeeOptions, setEmployeeOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [assignEmployeeId, setAssignEmployeeId] = useState('')
+  const [assignShiftId, setAssignShiftId] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
+  const fetchAssignments = useCallback(async () => {
+    setLoadingAssignments(true)
+    try {
+      const res = await apiFetch<{ assignments: AssignmentRecord[] }>('/api/shifts/assignments')
+      setAssignments(res.assignments || [])
+    } catch {
+      /* table may not exist on older tenants yet */
+    } finally {
+      setLoadingAssignments(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchAssignments()
+    // Employee picker options (active employees, current company scope)
+    ;(async () => {
+      try {
+        const cid = companyId ? `&companyId=${companyId}` : ''
+        const res = await apiFetch<{ employees?: Array<{ id: string; firstName: string; lastName: string; employeeId: string }>; data?: Array<{ id: string; firstName: string; lastName: string; employeeId: string }> }>(`/api/employees?limit=500&status=active${cid}`)
+        const list = res.employees || res.data || []
+        setEmployeeOptions(list.map(e => ({ id: e.id, label: `${e.firstName} ${e.lastName} (${e.employeeId})` })))
+      } catch { /* non-fatal */ }
+    })()
+  }, [fetchAssignments, companyId])
 
   const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400'
   const q = search.toLowerCase()
@@ -59,6 +97,31 @@ export default function ShiftsPage() {
   const openEdit = (r: ShiftRecord) => { setEditingId(r.id); setForm(getFormFromRecord(r)); setShowForm(true); setViewingRecord(null); setDeleteConfirmId(null) }
   const openView = (r: ShiftRecord) => { setViewingRecord(r); setShowForm(false); setDeleteConfirmId(null) }
   const handleCancelForm = () => { setShowForm(false); setEditingId(null); setForm({}) }
+
+  const handleAssign = async () => {
+    if (!assignEmployeeId || !assignShiftId) { toast.error('Select both an employee and a shift'); return }
+    setAssigning(true)
+    try {
+      const res = await apiFetch<{ message?: string }>('/api/shifts/assignments', { method: 'POST', body: JSON.stringify({ employeeId: assignEmployeeId, shiftId: assignShiftId }) })
+      toast.success(res.message || 'Shift assigned')
+      setAssignEmployeeId(''); setAssignShiftId('')
+      fetchAssignments()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to assign shift')
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const handleUnassign = async (assignmentId: string) => {
+    try {
+      await apiFetch(`/api/shifts/assignments?assignmentId=${assignmentId}`, { method: 'DELETE' })
+      toast.success('Shift assignment removed')
+      fetchAssignments()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to remove assignment')
+    }
+  }
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -248,6 +311,51 @@ export default function ShiftsPage() {
           </tbody>
         </TableWrapper>
       )}
+
+      {/* Task 133 — Shift Assignments (per-employee shift) */}
+      <TableWrapper title="Shift Assignments" icon={<FiUserCheck className="w-4 h-4 text-teal-500" />} count={assignments.length}>
+        <thead><tr><TH>Employee</TH><TH>Shift</TH><TH>Window</TH><TH>Assigned Since</TH><TH className="text-right">Actions</TH></tr></thead>
+        <tbody>
+          <tr className="bg-slate-50/50">
+            <td colSpan={5} className="px-4 py-3">
+              {isAdmin ? (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <select value={assignEmployeeId} onChange={e => setAssignEmployeeId(e.target.value)} className={inputClass + ' sm:max-w-xs'}>
+                    <option value="">Select employee…</option>
+                    {employeeOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </select>
+                  <select value={assignShiftId} onChange={e => setAssignShiftId(e.target.value)} className={inputClass + ' sm:max-w-xs'}>
+                    <option value="">Select shift…</option>
+                    {shifts.filter(s => s.status === 'active').map(s => <option key={s.id} value={s.id}>{s.name} ({fmtTime(s.startTime)}–{fmtTime(s.endTime)})</option>)}
+                  </select>
+                  <button onClick={handleAssign} disabled={assigning} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors whitespace-nowrap">
+                    <FiUserCheck className="w-4 h-4" /> {assigning ? 'Assigning…' : 'Assign Shift'}
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs text-thb-text-muted">Admins can assign a shift to an employee here.</span>
+              )}
+            </td>
+          </tr>
+          {loadingAssignments ? (
+            <tr><td colSpan={5} className="px-4 py-10 text-center"><FiSettings className="w-7 h-7 animate-spin text-teal-400 mx-auto" /></td></tr>
+          ) : assignments.length === 0 ? (
+            <tr><td colSpan={5} className="px-4 py-10 text-center"><FiUserCheck className="w-9 h-9 text-thb-text-muted mx-auto mb-2" /><p className="text-thb-text-secondary text-sm">No shift assignments yet — employees follow the company default policy.</p></td></tr>
+          ) : assignments.map(a => (
+            <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+              <TD className="font-medium text-thb-text-primary">{a.firstName} {a.lastName} <span className="text-xs text-thb-text-muted">({a.empCode})</span></TD>
+              <TD>{a.shiftName || '—'}</TD>
+              <TD>{a.startTime && a.endTime ? `${fmtTime(a.startTime)} – ${fmtTime(a.endTime)}` : '—'}</TD>
+              <TD>{a.startDate ? new Date(a.startDate).toLocaleDateString() : '—'}</TD>
+              <TD className="text-right">
+                {isAdmin && (
+                  <button onClick={() => handleUnassign(a.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Remove assignment"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                )}
+              </TD>
+            </tr>
+          ))}
+        </tbody>
+      </TableWrapper>
     </div>
   )
 }

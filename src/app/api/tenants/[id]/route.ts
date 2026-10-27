@@ -4,6 +4,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 import { getHiddenSlugsForRequest } from '@/lib/tenant-filter';
+import { invalidateTenantBrandingCache } from '@/lib/tenant-branding';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
 
@@ -296,10 +297,10 @@ export async function PATCH(
     //  - tenant_admin can update ONLY their own tenant, and only a limited
     //    field set (name, domain, country, currency, timezone, logo).
     //    They CANNOT change plan, status, or maxCompaniesAllowed.
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo')) {
       return NextResponse.json({ error: 'Only super admins or tenant admins can update tenants' }, { status: 403, headers: corsHeaders() });
     }
-    if (userRole === 'tenant_admin' && callerTenantId !== id) {
+    if ((userRole === 'tenant_admin' || userRole === 'ceo') && callerTenantId !== id) {
       return NextResponse.json({ error: 'Tenant admins can only update their own tenant' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -307,20 +308,67 @@ export async function PATCH(
     const { status, name, domain, plan, country, currency, timezone, logo, maxCompaniesAllowed } = body;
     // Extended platform fields (super_admin only, same guard as plan/status).
     const { language, baseCurrency, dataRegion, subscriptionSeats, subscriptionStorage } = body;
+    // REQ 5: tenant branding fields (logo + brand colors). Both tenant_admin
+    // and super_admin can set these on their own tenant — they affect email
+    // branding only, no security implication. Validated as hex colors.
+    const { brandColor, accentColor } = body;
 
     const existingTenant = await getPlatformDb().tenant.findUnique({ where: { id } });
     if (!existingTenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // ─── Task 109: TENANT LINK PROTECTION ────────────────────────────────
+    // The tenant link (workspace subdomain derived from the slug + optional
+    // custom domain) decides which login URL, database and user directory a
+    // company resolves to. Changing it can redirect every employee's sign-in.
+    // Per GOVERNANCE.md §2:
+    //   • the slug (subdomain identity) is IMMUTABLE through this API for
+    //     everyone — a slug migration is a manual, super-admin-only operation;
+    //   • the custom domain can ONLY be changed by a super admin (that role
+    //     IS the required permission). Tenant admins are rejected with
+    //     TENANT_LINK_LOCKED and must ask the super admin;
+    //   • every successful link change is audited and broadcast (notification
+    //     + email) to all super admins and the tenant's admins below.
+    if (typeof body.slug === 'string' && body.slug && body.slug !== existingTenant.slug) {
+      return NextResponse.json({
+        error: 'Tenant links are locked: the workspace subdomain cannot be changed. Raise a super-admin change request (GOVERNANCE.md) if the workspace address must move.',
+        code: 'TENANT_LINK_LOCKED',
+      }, { status: 403, headers: corsHeaders() });
+    }
+    const domainProvided = Object.prototype.hasOwnProperty.call(body, 'domain');
+    const nextDomain = domainProvided ? (typeof domain === 'string' && domain.trim() ? domain.trim() : null) : undefined;
+    const domainChanged = domainProvided && (nextDomain ?? null) !== (existingTenant.domain ?? null);
+    if (domainChanged && userRole !== 'super_admin') {
+      return NextResponse.json({
+        error: 'Tenant links can only be changed with super-admin permission. Please ask your super admin to update the workspace address (governance-controlled — GOVERNANCE.md).',
+        code: 'TENANT_LINK_LOCKED',
+      }, { status: 403, headers: corsHeaders() });
+    }
+
     const updateData: Record<string, unknown> = {};
     // For tenant_admin: only allow a limited subset of fields.
     if (name !== undefined) updateData.name = name;
-    if (domain !== undefined) updateData.domain = domain;
+    if (domainProvided) updateData.domain = nextDomain;
     if (country !== undefined) updateData.country = country;
     if (currency !== undefined) updateData.currency = currency;
     if (timezone !== undefined) updateData.timezone = timezone;
     if (logo !== undefined) updateData.logo = logo;
+    // REQ 5: validate hex colors before persisting. Null/empty clears the field.
+    if (brandColor !== undefined) {
+      const v = (brandColor === null || brandColor === '') ? null : String(brandColor).trim();
+      if (v !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+        return NextResponse.json({ error: 'brandColor must be a valid hex color (e.g. #065f46)' }, { status: 400, headers: corsHeaders() });
+      }
+      updateData.brandColor = v;
+    }
+    if (accentColor !== undefined) {
+      const v = (accentColor === null || accentColor === '') ? null : String(accentColor).trim();
+      if (v !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+        return NextResponse.json({ error: 'accentColor must be a valid hex color (e.g. #10b981)' }, { status: 400, headers: corsHeaders() });
+      }
+      updateData.accentColor = v;
+    }
 
     // Super-admin-only fields: plan, status, maxCompaniesAllowed + extended
     // platform fields (language / baseCurrency / dataRegion / seat & storage caps).
@@ -365,6 +413,64 @@ export async function PATCH(
       }
       throw err;
     });
+
+    // ─── Task 109: broadcast tenant-link changes (super-admin path) ──────
+    // Every successful workspace-address change is loudly announced to ALL
+    // super admins and the tenant's own admins, and emailed to the super
+    // admins, so the platform owner is always aware a tenant link moved.
+    if (domainChanged) {
+      const fromDomain = existingTenant.domain ?? '(none)';
+      const toDomain = nextDomain ?? '(none)';
+      const linkMsg = `Tenant link changed for "${existingTenant.name}" (${existingTenant.slug}): custom domain "${fromDomain}" → "${toDomain}" by ${decoded.email || decoded.userId}.`;
+      try {
+        const platformDb2 = getPlatformDb();
+        const supers = await platformDb2.user.findMany({
+          where: { role: 'super_admin' },
+          select: { id: true, email: true },
+        }).catch(() => []);
+        const tenantAdmins = await db.user.findMany({
+          where: { tenantId: id, role: 'tenant_admin' },
+          select: { id: true },
+        }).catch(() => []);
+        const recipients = [
+          ...supers.map((u: { id: string }) => u.id),
+          ...tenantAdmins.map((u: { id: string }) => u.id),
+        ].filter(Boolean);
+        if (recipients.length) {
+          await platformDb2.notification.createMany({
+            data: recipients.map((userId: string) => ({
+              tenantId: id,
+              userId,
+              title: 'Tenant link changed',
+              message: linkMsg,
+              type: 'warning',
+              category: 'system',
+              link: '/super-admin/tenant-management',
+            })),
+          }).catch(() => null);
+        }
+        const { sendEmail } = await import('@/lib/email');
+        const superEmails = supers.map((u: { email?: string | null }) => u.email).filter((e): e is string => Boolean(e));
+        if (superEmails.length) {
+          await sendEmail({
+            to: superEmails,
+            subject: `[Tenant Link Change] ${existingTenant.name} (${existingTenant.slug})`,
+            html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto">
+  <h2 style="color:#b45309;margin:0 0 12px">Tenant link changed</h2>
+  <p style="color:#334155;font-size:14px;line-height:1.6">${linkMsg}</p>
+  <p style="color:#64748b;font-size:13px">Tenant links are governance-controlled (GOVERNANCE.md §2). If you did not authorize this, suspend the tenant and audit the super-admin change-request trail.</p>
+</div>`,
+          }).catch(() => null);
+        }
+      } catch (linkErr) {
+        console.warn('[tenants/[id]] link-change broadcast failed (non-fatal):', linkErr);
+      }
+    }
+
+    // REQ 5: invalidate the in-process tenant branding cache so subsequent
+    // email dispatches pick up the new colors/logo immediately. Without this,
+    // a 60s stale cache would persist after a branding update.
+    try { invalidateTenantBrandingCache(id); } catch { /* non-fatal */ }
 
     // Notify tenant admin of status changes. Tenant admin users live in the
     // target tenant's own database when it has one (fallback = platform DB

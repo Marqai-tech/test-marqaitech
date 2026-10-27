@@ -11,6 +11,7 @@ import {
   FiSearch,
   FiFilter,
   FiCheck,
+  FiClock,
   FiUserCheck,
   FiLink,
   FiGrid, FiFileText, FiSettings, FiBarChart2,
@@ -20,6 +21,9 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+/* Task 156-b — shared SmartHR widgets (white StatCards + Panels); the shell
+   now renders the SmartHR gradient banner itself. */
+import { Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 
 /* ── Types ── */
 interface OnboardingTask {
@@ -92,6 +96,11 @@ function getCategoryBadge(category: string) {
     it_setup: 'bg-teal-50 text-teal-700 thb-badge',
     training: 'bg-amber-50 text-amber-700 thb-badge',
     compliance: 'bg-rose-50 text-rose-700 thb-badge',
+    hr_docs: 'bg-indigo-50 text-indigo-700 thb-badge',
+    introduction: 'bg-cyan-50 text-cyan-700 thb-badge',
+    buddy_setup: 'bg-pink-50 text-pink-700 thb-badge',
+    payroll_setup: 'bg-emerald-50 text-emerald-700 thb-badge',
+    project_allocation: 'bg-violet-50 text-violet-700 thb-badge',
   };
   const labels: Record<string, string> = {
     general: 'General',
@@ -99,6 +108,11 @@ function getCategoryBadge(category: string) {
     it_setup: 'IT Setup',
     training: 'Training',
     compliance: 'Compliance',
+    hr_docs: 'HR Docs',
+    introduction: 'Introduction',
+    buddy_setup: 'Buddy Setup',
+    payroll_setup: 'Payroll Setup',
+    project_allocation: 'Project Allocation',
   };
   return { className: map[category] || 'thb-badge thb-badge-info', label: labels[category] || category };
 }
@@ -182,6 +196,8 @@ function OnboardingPageContent() {
     <ModuleDashboardShell
       moduleKey="onboarding"
       moduleLabel="Onboarding"
+      title="Onboarding Dashboard"
+      trail={['Onboarding', 'Dashboard']}
       moduleIcon={<FiUserPlus className="w-5 h-5 text-white" />}
       gradientColor="from-emerald-500 to-teal-600"
       tabs={onboardingTabs}
@@ -205,7 +221,7 @@ export default function OnboardingPage() {
 /* ── Component ── */
 function OnboardingContent() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [tasks, setTasks] = useState<OnboardingTask[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -442,27 +458,28 @@ function OnboardingContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiUserPlus className="w-6 h-6 text-emerald-500" />
-            Onboarding
-          </h1>
-          <p className="text-thb-text-secondary mt-1">Manage onboarding tasks for new employees</p>
-        </div>
-        {isAdmin && (
-          <div className="flex items-center gap-2">
-            <Link href="/onboarding/templates" className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+      {isAdmin && (
+        <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/onboarding/templates"
+              className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm text-xs font-semibold rounded-lg px-3 py-2 transition-colors"
+            >
               Templates
             </Link>
-            <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleShowAddForm}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all"
+            >
               <FiPlus className="w-4 h-4" />
               Add Task
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Module Tips */}
       <ModuleTips
@@ -482,24 +499,40 @@ function OnboardingContent() {
         userRole={user?.role}
       />
 
-      {/* Summary Cards */}
+      {/* Summary Cards — shared SmartHR StatCard (Task 156-b) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="thb-card p-4">
-          <p className="text-xs font-medium text-thb-text-secondary">Total Tasks</p>
-          <p className="text-xl font-bold text-thb-text-primary mt-1">{totalTasks}</p>
-        </div>
-        <div className="thb-card p-4">
-          <p className="text-xs font-medium text-thb-text-secondary">Pending</p>
-          <p className="text-xl font-bold text-amber-600 mt-1">{pendingCount}</p>
-        </div>
-        <div className="thb-card p-4">
-          <p className="text-xs font-medium text-thb-text-secondary">In Progress</p>
-          <p className="text-xl font-bold text-cyan-600 mt-1">{inProgressCount}</p>
-        </div>
-        <div className="thb-card p-4">
-          <p className="text-xs font-medium text-thb-text-secondary">Completed</p>
-          <p className="text-xl font-bold text-emerald-600 mt-1">{completedCount}</p>
-        </div>
+        <StatCard
+          label="Total Tasks"
+          value={totalTasks}
+          sub="All onboarding tasks"
+          icon={<FiGrid className="w-5 h-5" />}
+          bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+          ring="ring-[#3A57C4]/20"
+        />
+        <StatCard
+          label="Pending"
+          value={pendingCount}
+          sub="Awaiting completion"
+          icon={<FiClock className="w-5 h-5" />}
+          bg="bg-[#FF9B44]/15 text-[#FF9B44]"
+          ring="ring-[#FF9B44]/20"
+        />
+        <StatCard
+          label="In Progress"
+          value={inProgressCount}
+          sub="Currently being worked on"
+          icon={<FiEdit2 className="w-5 h-5" />}
+          bg="bg-[#009EFB]/10 text-[#009EFB]"
+          ring="ring-[#009EFB]/20"
+        />
+        <StatCard
+          label="Completed"
+          value={completedCount}
+          sub="Marked as done"
+          icon={<FiCheck className="w-5 h-5" />}
+          bg="bg-[#10B981]/10 text-[#10B981]"
+          ring="ring-[#10B981]/20"
+        />
       </div>
 
       {/* Search & Filters */}
@@ -688,16 +721,21 @@ function OnboardingContent() {
         </div>
       )}
 
-      {/* Onboarding Progress Dashboard */}
+      {/* Onboarding Progress Dashboard — SmartHR Panel (Task 156-b) */}
       {progress.rows.length > 0 && (
-        <div className="thb-card p-5">
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2"><FiBarChart2 className="w-4 h-4 text-emerald-500" /> Onboarding Progress</h3>
-              <p className="text-xs text-thb-text-muted mt-0.5">Real-time completion for every new hire — {progress.summary.avgCompletion}% average, {progress.summary.overdueTasks} overdue task(s)</p>
-            </div>
-            <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">{progress.summary.fullyComplete}/{progress.summary.newHires} fully onboarded</span>
-          </div>
+        <Panel
+          title="Onboarding Progress"
+          icon={<FiBarChart2 className="w-4 h-4" />}
+          accent="text-[#10B981]"
+          action={
+            <span className="text-[10px] px-2 py-1 rounded-full bg-[#10B981]/10 text-[#10B981] font-medium">
+              {progress.summary.fullyComplete}/{progress.summary.newHires} fully onboarded
+            </span>
+          }
+        >
+          <p className="text-xs text-slate-400 -mt-2 mb-4">
+            Real-time completion for every new hire — {progress.summary.avgCompletion}% average, {progress.summary.overdueTasks} overdue task(s)
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {progress.rows.slice(0, 8).map((r) => (
               <div key={r.employeeId} className="rounded-lg border border-thb-border p-3">
@@ -714,11 +752,15 @@ function OnboardingContent() {
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
       )}
 
-      {/* Tasks Table */}
-      <div className="thb-card overflow-hidden">
+      {/* Tasks Table — SmartHR Panel (Task 156-b) */}
+      <Panel
+        title="Onboarding Tasks"
+        icon={<FiFileText className="w-4 h-4" />}
+        accent="text-[#3A57C4]"
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -837,7 +879,7 @@ function OnboardingContent() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

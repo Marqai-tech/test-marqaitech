@@ -63,7 +63,7 @@ export async function PUT(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const role = (decoded as any).role;
-    if (!['tenant_admin', 'super_admin', 'admin'].includes(role)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Only administrators can modify the project delivery workflow' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -128,7 +128,7 @@ export async function DELETE(request: Request) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const role = (decoded as any).role;
-    if (!['tenant_admin', 'super_admin', 'admin'].includes(role)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Only administrators can reset the workflow configuration' }, { status: 403, headers: corsHeaders() });
     }
     const { searchParams } = new URL(request.url);

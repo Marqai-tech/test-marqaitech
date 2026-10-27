@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
     // Only admins can run audit verification
     const role = (decoded as any).role as string | undefined;
-    if (!role || !['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!role || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
 

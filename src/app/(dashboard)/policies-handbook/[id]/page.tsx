@@ -135,7 +135,7 @@ export default function PolicyViewerPage() {
     <div className="space-y-5">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-thb-text-muted flex-wrap">
-        <Link href="/home" className="flex items-center gap-1 hover:text-teal-600 transition-colors"><FiHome className="w-3.5 h-3.5" /> Home</Link>
+        <Link href="/dashboard" className="flex items-center gap-1 hover:text-teal-600 transition-colors"><FiHome className="w-3.5 h-3.5" /> Dashboard</Link>
         <FiChevronRight className="w-3.5 h-3.5" />
         <Link href="/policies-handbook" className="hover:text-teal-600 transition-colors">Policies &amp; Handbook</Link>
         <FiChevronRight className="w-3.5 h-3.5" />

@@ -1,0 +1,75 @@
+/* 3Boxes HRMS Mobile App — SOP & Training deck (15 slides, 1280x720) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --bg: #f7faf8;
+  --bg-card: #ffffff;
+  --primary: #123527;
+  --primary-soft: #1e4a36;
+  --accent: #1f7a4d;
+  --accent-2: #4a9a6a;
+  --accent-tint: #e2f2e8;
+  --stripe: #f0f7f2;
+  --border: #d7e6dc;
+  --text: #22312a;
+  --muted: #5c6f66;
+  --warn-bg: #fdf3e3;
+  --warn-text: #a06a1a;
+  --lock-bg: #f6e8e8;
+  --lock-text: #a04a4a;
+
+  --font-heading: 'Inter', 'Noto Sans SC', sans-serif;
+  --font-body: 'Inter', 'Noto Sans SC', sans-serif;
+  --font-num: 'Inter', sans-serif;
+
+  --fs-display: 58px;
+  --fs-h1: 36px;
+  --fs-h2: 24px;
+  --fs-h3: 17px;
+  --fs-body: 14.5px;
+  --fs-small: 12.5px;
+  --fs-micro: 10.5px;
+}
+
+.slide {
+  width: 1280px; height: 720px; overflow: hidden;
+  background: var(--bg);
+  font-family: var(--font-body);
+  color: var(--text);
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Kicker chip (small uppercase label) */
+.kicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-micro); font-weight: 800; letter-spacing: 2.4px;
+  text-transform: uppercase; color: var(--accent);
+}
+.kicker::before { content: ''; width: 22px; height: 3px; border-radius: 2px; background: var(--accent-2); }
+
+/* Card surface */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; box-shadow: 0 1px 4px rgba(18,53,39,0.05);
+}
+
+/* Step number badge */
+.stepnum {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800;
+}
+
+/* Status pills */
+.pill {
+  display: inline-block; padding: 4px 12px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.pill-yes { background: var(--accent-tint); color: var(--accent); }
+.pill-no { background: var(--lock-bg); color: var(--lock-text); }
+.pill-rev { background: var(--warn-bg); color: var(--warn-text); }
+
+/* Divider accent bar */
+.bar { width: 46px; height: 4px; border-radius: 2px; background: var(--accent-2); }

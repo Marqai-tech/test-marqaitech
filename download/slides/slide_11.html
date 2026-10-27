@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Profile — What You Can Change — 3Boxes HRMS Mobile App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;background:#f7faf8;overflow:hidden;}
+  .pill-rev{color:#8a5a14;}
+  .h-title{font-family:var(--font-heading);font-size:34px;line-height:1.14;font-weight:800;letter-spacing:-0.9px;color:var(--primary);}
+  .tier-label{font-size:10px;font-weight:800;letter-spacing:1.6px;color:var(--muted);}
+  .sec-label{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);}
+  .field-row{display:flex;align-items:center;gap:9px;}
+  .field-row .material-icons{font-size:16px;color:var(--accent);flex-shrink:0;}
+  .field-row p{margin:0;font-size:13.5px;font-weight:600;color:var(--primary);line-height:1.35;}
+  .flow-row{display:flex;gap:8px;}
+  .flow-row .material-icons{font-size:16px;color:var(--accent-2);margin-top:2px;flex-shrink:0;}
+  .flow-row p{margin:0;font-size:13.5px;line-height:1.5;color:var(--muted);}
+  .flow-row b{color:var(--primary);font-weight:700;}
+  .pinned{margin-top:auto;border-top:1px dashed var(--border);padding-top:10px;display:flex;gap:8px;align-items:flex-start;}
+  .pinned .material-icons{font-size:16px;color:var(--accent);flex-shrink:0;margin-top:1px;}
+  .pinned p{margin:0;font-size:12.5px;line-height:1.45;color:var(--muted);}
+  .pinned b{color:var(--primary);font-weight:700;}
+  .locked-chip{display:flex;align-items:center;gap:10px;background:var(--stripe);border:1px solid var(--border);border-radius:9px;padding:8px 12px;}
+  .locked-chip .material-icons{font-size:15px;color:var(--lock-text);}
+  .locked-chip span{font-size:13px;font-weight:600;color:var(--muted);}
+  .also-item{display:flex;gap:8px;align-items:flex-start;}
+  .also-item .material-icons{font-size:16px;color:var(--accent);margin-top:1px;flex-shrink:0;}
+  .also-item p{margin:0;font-size:11.5px;line-height:1.4;color:var(--muted);}
+  .also-item b{color:var(--primary);font-weight:700;}
+  .dotgrid{background-image:radial-gradient(rgba(18,53,39,0.10) 1.3px, transparent 1.3px);background-size:18px 18px;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px 44px;display:flex;flex-direction:column;">
+
+  <div data-decor aria-hidden="true" class="dotgrid" style="position:absolute;top:52px;right:64px;width:190px;height:60px;opacity:.55;"></div>
+  <div data-decor aria-hidden="true" style="position:absolute;top:-130px;right:-130px;width:320px;height:320px;border-radius:50%;border:44px solid rgba(74,154,106,0.09);"></div>
+
+  <header style="position:relative;z-index:1;">
+    <div class="kicker">My Profile</div>
+    <h1 class="h-title" style="margin:10px 0 0;">Self-service with guardrails — know your three tiers</h1>
+  </header>
+
+  <!-- Three comparison cards -->
+  <section style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:18px;position:relative;z-index:1;">
+
+    <!-- TIER 1 — EDIT DIRECTLY -->
+    <div class="card" style="display:flex;flex-direction:column;padding:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="pill pill-yes">Edit directly</span>
+        <span class="tier-label">TIER 01</span>
+      </div>
+      <div class="sec-label" style="margin-top:14px;">Fields you can edit</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:9px;">
+        <div class="field-row"><i class="material-icons">check_circle</i><p>Phone</p></div>
+        <div class="field-row"><i class="material-icons">check_circle</i><p>Personal email</p></div>
+        <div class="field-row"><i class="material-icons">check_circle</i><p>Current &amp; permanent address</p></div>
+        <div class="field-row"><i class="material-icons">check_circle</i><p>Emergency contacts</p></div>
+        <div class="field-row"><i class="material-icons">check_circle</i><p>Blood group</p></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:13px;border-top:1px dashed var(--border);padding-top:12px;">
+        <i class="material-icons" style="font-size:16px;color:var(--accent);">bolt</i>
+        <p style="margin:0;font-size:13.5px;font-weight:700;color:var(--primary);">Saves immediately.</p>
+      </div>
+      <div class="pinned">
+        <i class="material-icons">notifications_active</i>
+        <p>HR/Admin automatically get an <b>in-app notification AND an email</b> with field, old and new values.</p>
+      </div>
+    </div>
+
+    <!-- TIER 2 — HR/ADMIN APPROVAL -->
+    <div class="card" style="display:flex;flex-direction:column;padding:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="pill pill-rev">HR/Admin approval</span>
+        <span class="tier-label">TIER 02</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:11px;margin-top:14px;">
+        <div style="width:34px;height:34px;border-radius:10px;background:var(--accent-tint);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="material-icons" style="font-size:19px;color:var(--accent);">photo_camera</i>
+        </div>
+        <div style="font-size:15px;font-weight:800;color:var(--primary);">Profile photo</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
+        <div class="flow-row"><i class="material-icons">hourglass_empty</i><p>Upload parks in a <b>pending state</b>; colleagues keep seeing the <b>current photo</b>.</p></div>
+        <div class="flow-row"><i class="material-icons">rate_review</i><p>HR/Admin review in the <b>Photo Approvals</b> queue.</p></div>
+        <div class="flow-row"><i class="material-icons">rule</i><p><b>Approve</b> publishes, <b>reject</b> returns a reason.</p></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:13px;flex-wrap:nowrap;">
+        <span class="pill pill-rev">Pending</span>
+        <i class="material-icons" aria-hidden="true" style="font-size:14px;color:#9db3a8;">arrow_forward</i>
+        <span class="pill pill-yes">Approved</span>
+        <span aria-hidden="true" style="font-size:11px;font-weight:800;color:var(--muted);">/</span>
+        <span class="pill pill-no">Rejected</span>
+      </div>
+      <div class="pinned">
+        <i class="material-icons">notifications_active</i>
+        <p><b>You are notified either way.</b></p>
+      </div>
+    </div>
+
+    <!-- TIER 3 — LOCKED -->
+    <div class="card" style="display:flex;flex-direction:column;padding:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="pill pill-no">Locked</span>
+        <span class="tier-label">TIER 03</span>
+      </div>
+      <div class="sec-label" style="margin-top:14px;">Identity fields</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:9px;">
+        <div class="locked-chip"><i class="material-icons">lock</i><span>Date of birth</span></div>
+        <div class="locked-chip"><i class="material-icons">lock</i><span>First name</span></div>
+        <div class="locked-chip"><i class="material-icons">lock</i><span>Last name</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+        <i class="material-icons" style="font-size:16px;color:var(--muted);">visibility_off</i>
+        <p style="margin:0;font-size:12.5px;line-height:1.45;color:var(--muted);">Fields render <b style="color:var(--primary);">disabled</b> on mobile and web.</p>
+      </div>
+      <div class="pinned">
+        <i class="material-icons">support_agent</i>
+        <p>Wrong identity data → raise with <b>HR/Admin</b> who correct it from the <b>employee module</b>.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Also inside My Profile -->
+  <section class="card" style="margin-top:16px;padding:14px 20px;position:relative;z-index:1;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:30px;height:30px;border-radius:9px;background:var(--accent-tint);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="material-icons" style="font-size:17px;color:var(--accent);">person</i>
+      </div>
+      <div style="font-size:15.5px;font-weight:800;letter-spacing:-0.2px;color:var(--primary);">Also inside My Profile</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 14px;margin-top:10px;">
+      <div class="also-item"><i class="material-icons">loyalty</i><p><b>Interests</b> chips</p></div>
+      <div class="also-item"><i class="material-icons">psychology</i><p><b>Technical skills</b> with level &amp; years</p></div>
+      <div class="also-item" style="grid-column:span 2;"><i class="material-icons">business_center</i><p><b>Experience per company</b> with multiple work domains, logo, category &amp; level, and letters (offer / relieving / experience / appraisal)</p></div>
+      <div class="also-item"><i class="material-icons">emoji_events</i><p><b>Achievements</b></p></div>
+      <div class="also-item"><i class="material-icons">health_and_safety</i><p><b>Insurance &amp; family</b> details</p></div>
+      <div class="also-item"><i class="material-icons">cake</i><p><b>Original birthday</b> (celebrations date — can differ from official DOB)</p></div>
+      <div class="also-item"><i class="material-icons">description</i><p><b>Documents &amp; assigned policies</b> with View + Download</p></div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

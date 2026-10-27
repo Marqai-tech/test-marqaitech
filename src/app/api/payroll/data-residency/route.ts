@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     // Only super_admin / tenant_admin can set residency policy
-    if (!['super_admin', 'tenant_admin'].includes(decoded.role as string)) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(decoded.role as string)) {
       return Response.json({ error: 'Only super_admin or tenant_admin can configure data residency' }, { status: 403, headers: corsHeaders });
     }
 

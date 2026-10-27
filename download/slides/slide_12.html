@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>For HR / Admin — Mobile Management</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html, body { margin:0; padding:0; background:#f7faf8; }
+  .s10 { padding:52px 56px 0; display:flex; flex-direction:column; }
+  .s10 .title { font-family:var(--font-heading); font-size:34px; font-weight:800; letter-spacing:-0.6px; color:var(--primary); margin-top:9px; line-height:1.15; }
+  .ghost { position:absolute; top:22px; right:46px; font-family:var(--font-heading); font-weight:900; font-size:104px; letter-spacing:-2px; color:rgba(18,53,39,0.05); pointer-events:none; user-select:none; }
+  .role-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-top:22px; height:340px; }
+  .role-card { padding:18px 15px 14px; display:flex; flex-direction:column; }
+  .icon-badge { width:42px; height:42px; border-radius:12px; background:var(--accent-tint); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .icon-badge .material-icons { font-size:24px; color:var(--accent); }
+  .role-card h3 { font-family:var(--font-heading); font-size:15px; font-weight:800; color:var(--primary); margin-top:12px; letter-spacing:-0.2px; }
+  .role-card .tbar { width:26px; height:3px; border-radius:2px; background:var(--accent-2); margin-top:7px; }
+  .role-card ul { list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .role-card li { position:relative; padding-left:13px; font-size:11.4px; line-height:1.4; color:var(--text); }
+  .role-card li::before { content:''; position:absolute; left:0; top:6px; width:6px; height:6px; border-radius:2px; background:var(--accent-2); }
+  .routine { margin-top:16px; border-left:4px solid var(--accent); padding:19px 26px 21px; }
+  .routine-label { font-size:11px; font-weight:800; letter-spacing:2.2px; text-transform:uppercase; color:var(--accent); }
+  .routine-steps { display:flex; align-items:flex-start; gap:12px; margin-top:13px; }
+  .rstep { flex:1; display:flex; align-items:flex-start; gap:9px; }
+  .rnum { width:21px; height:21px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .rstep p { margin:0; font-size:12px; line-height:1.4; color:var(--text); font-weight:500; }
+  .rarrow { font-size:19px; color:var(--accent-2); margin-top:2px; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="slide s10">
+  <div class="ghost" data-decor aria-hidden="true">HR/ADMIN</div>
+
+  <div style="position:relative;">
+    <span class="kicker">FOR HR / ADMIN</span>
+    <h1 class="title">Run the organisation from the same app</h1>
+  </div>
+
+  <div class="role-grid">
+    <div class="card role-card">
+      <div class="icon-badge"><i class="material-icons">people_alt</i></div>
+      <h3>Employee Management</h3>
+      <div class="tbar" data-decor aria-hidden="true"></div>
+      <ul>
+        <li>Directory &amp; list with total experience per employee</li>
+        <li>Guided multi-step Add Employee form with the same mandatory-field rules as web</li>
+        <li>Employee documents with download</li>
+        <li>Aadhaar QR verification from the verification tab</li>
+      </ul>
+    </div>
+
+    <div class="card role-card">
+      <div class="icon-badge"><i class="material-icons">verified_user</i></div>
+      <h3>Photo Approvals</h3>
+      <div class="tbar" data-decor aria-hidden="true"></div>
+      <ul>
+        <li>Review submissions in the queue</li>
+        <li>Approve publishes the new photo</li>
+        <li>Reject requires a reason</li>
+        <li>The employee is notified automatically</li>
+      </ul>
+    </div>
+
+    <div class="card role-card">
+      <div class="icon-badge"><i class="material-icons">headset_mic</i></div>
+      <h3>Help Desk Ops</h3>
+      <div class="tbar" data-decor aria-hidden="true"></div>
+      <ul>
+        <li>All tenant tickets in one queue</li>
+        <li>Reply in threads from the phone</li>
+        <li>Change ticket status on the go</li>
+        <li>Same ticketing system as web Support &amp; AI</li>
+      </ul>
+    </div>
+
+    <div class="card role-card">
+      <div class="icon-badge"><i class="material-icons">bar_chart</i></div>
+      <h3>Reports</h3>
+      <div class="tbar" data-decor aria-hidden="true"></div>
+      <ul>
+        <li>Leave, attendance, employees &amp; projects reports</li>
+        <li>The web admin dashboard's reports, formatted for the phone</li>
+      </ul>
+    </div>
+
+    <div class="card role-card">
+      <div class="icon-badge"><i class="material-icons">groups</i></div>
+      <h3>Team Attendance</h3>
+      <div class="tbar" data-decor aria-hidden="true"></div>
+      <ul>
+        <li>Day view of present / on leave / missing punches</li>
+        <li>Daily status entry for supervisors</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card routine">
+    <div class="routine-label">Recommended routine</div>
+    <div class="routine-steps">
+      <div class="rstep"><span class="rnum">1</span><p>Review Team Attendance every morning</p></div>
+      <i class="material-icons rarrow" data-decor aria-hidden="true">arrow_forward</i>
+      <div class="rstep"><span class="rnum">2</span><p>Clear pending leave approvals before lunch</p></div>
+      <i class="material-icons rarrow" data-decor aria-hidden="true">arrow_forward</i>
+      <div class="rstep"><span class="rnum">3</span><p>Skim Reports weekly to catch trends (rising regularisations, unused leave)</p></div>
+      <i class="material-icons rarrow" data-decor aria-hidden="true">arrow_forward</i>
+      <div class="rstep"><span class="rnum">4</span><p>Keep every employee's Original Birthday filled so month-long birthday celebrations and the automatic greeting fire correctly</p></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

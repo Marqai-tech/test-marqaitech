@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    if (!['super_admin', 'tenant_admin'].includes(decoded.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

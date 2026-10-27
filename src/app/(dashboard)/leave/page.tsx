@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import {
   FiCalendar, FiPlus, FiCheck, FiX, FiClock,
-  FiMessageSquare, FiAlertCircle, FiGrid, FiFileText, FiEye,
-  FiShield, FiSearch, FiUserCheck, FiUserX, FiUserPlus,
-  FiChevronRight, FiEdit2, FiTrash2, FiDownload,
-  FiUser, FiRefreshCw, FiFilter, FiDatabase,
+  FiAlertCircle, FiGrid, FiFileText, FiEye,
+  FiSearch, FiUserCheck, FiUserX,
+  FiDownload,
+  FiRefreshCw, FiDatabase,
+  FiActivity, FiCoffee, FiLayers,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { sanitizeSearch } from '@/lib/validators';
@@ -16,6 +17,9 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientDemoMode } from '@/lib/site-mode';
 import ApproverChainPreview from '@/components/ApproverChainPreview';
 import { getLeaveCategory, normalizeLeaveBalances } from '@/lib/leave-balance-rules';
+/* Task 156-a — shared SmartHR widgets: same gradient banner + white stat
+   cards / panels as the Employee module dashboard restyle (Task 155). */
+import { PageBreadcrumbs, DateChip, Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 
 /* ── Types ── */
 interface LeaveRequest {
@@ -133,10 +137,9 @@ const initialForm = {
 
 /* ── Component ── */
 function LeavePageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
 
   // Task 66: read URL params for auto-open form + self-view filtering
   const actionParam = searchParams.get('action'); // 'apply' → auto-open the form
@@ -458,6 +461,8 @@ function LeavePageContent() {
   // BUG FIX: block past dates in the apply form (client-side guard — the
   // server enforces the same rule authoritatively).
   const todayStr = new Date().toLocaleDateString('en-CA');
+  // SmartHR banner date chip
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const handleApply = async () => {
     if (!form.leaveTypeId || !form.startDate || !form.endDate) {
@@ -590,6 +595,34 @@ function LeavePageContent() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
 
+  /* ── Task 157 — SmartHR leaves template: Total Present = workforce minus
+   * employees on approved leave covering TODAY (distinct employees). ── */
+  const [workforceTotal, setWorkforceTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isAdmin) return;
+    (async () => {
+      try {
+        const sq = scopeQuery();
+        const res = await fetch(`/api/employees?limit=1&status=active${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), cache: 'no-store' });
+        if (!res.ok) return;
+        const d = await res.json();
+        setWorkforceTotal(d?.stats?.active ?? d?.stats?.total ?? d?.pagination?.total ?? 0);
+      } catch { /* non-fatal — card falls back to '—' */ }
+    })();
+  }, [isAdmin, scopeQuery, selectedTenantId]);
+  const onLeaveToday = new Set(
+    leaveRequests
+      .filter(l => l.status === 'approved')
+      .filter(l => {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        return new Date(l.startDate) <= today && today <= new Date(l.endDate);
+      })
+      .map(l => l.employeeId)
+  ).size;
+  // Template header totals (employee view): sum of own balances
+  const balanceTotal = leaveBalances.reduce((s, lb) => s + (isActiveProbation(employee) ? 0 : lb.total), 0);
+  const balanceRemaining = leaveBalances.reduce((s, lb) => s + (isActiveProbation(employee) ? 0 : lb.remaining), 0);
+
   /* Filtered leaves for table */
   const filteredLeaves = leaveRequests.filter(lr => {
     if (searchQuery) {
@@ -612,143 +645,113 @@ function LeavePageContent() {
           <p className="mt-1 text-sm text-emerald-700">All leave balances, including the applicable maternity or paternity leave, are zero during probation. Loss of Pay (LOP) requests require prior approval.</p>
         </div>
       )}
-      {/* Breadcrumb Header - SmartHR Style */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 mb-1">{viewParam === 'self' ? 'My Leave Applications' : 'Leaves'}</h2>
-          <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-            <button onClick={() => router.push('/')} className="hover:text-green-600 transition-colors">Home</button>
-            <span>/</span>
-            <button onClick={() => router.push('/leave')} className="hover:text-green-600 transition-colors">Leave</button>
-            <span>/</span>
-            <span className="text-slate-700 font-medium">{viewParam === 'self' ? 'My Applications' : 'Leaves Admin'}</span>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+      {/* ── Header — SmartHR gradient breadcrumb banner (Task 156-a) ── */}
+      <PageBreadcrumbs
+        title={viewParam === 'self' ? 'My Leave Applications' : 'Leave Dashboard'}
+        trail={['Leave', 'Dashboard']}
+        right={
+          <>
+            <DateChip value={todayChip} />
+            <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors">
               <FiDownload className="w-3.5 h-3.5" /> CSV
             </button>
-            <button onClick={handleExportExcel} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+            <button onClick={handleExportExcel} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors">
               <FiDownload className="w-3.5 h-3.5" /> Excel
             </button>
-            <button onClick={handleExportPDF} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+            <button onClick={handleExportPDF} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors">
               <FiDownload className="w-3.5 h-3.5" /> PDF
             </button>
-          </div>
-          {isClientDemoMode() && (
-          <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
-            {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
-            {seeding ? 'Seeding...' : 'Seed Sample Data'}
-          </button>
-          )}
-          <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
-            <FiPlus className="w-4 h-4" />
-            Add Leave
-          </button>
-        </div>
-      </div>
+            {isClientDemoMode() && (
+              <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 disabled:opacity-50 transition-colors">
+                {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
+                {seeding ? 'Seeding...' : 'Seed Sample Data'}
+              </button>
+            )}
+            <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
+              <FiPlus className="w-4 h-4" />
+              Add Leave
+            </button>
+          </>
+        }
+      />
 
-      {/* ── Stat Cards (SmartHR Style) ── */}
+      {/* ── Stat Cards — SmartHR leaves template (Task 157): Total Present is
+          workforce minus employees on approved leave covering today ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Present */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-emerald-50/30">
-          <div className="flex items-center overflow-hidden">
-            <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0">
-              <FiUserCheck className="w-5 h-5" />
-            </div>
-            <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">Total Present</p>
-              <h4 className="text-2xl font-bold text-emerald-600">{leaveRequests.length > 0 ? leaveRequests.filter(l => l.status !== 'approved' || l.employeeId === employee?.id).length : 0}</h4>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">
-            <FiUserCheck className="w-3 h-3" /> Present
-          </span>
-        </div>
-
-        {/* Planned Leaves */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-pink-50 to-pink-50/30">
-          <div className="flex items-center overflow-hidden">
-            <div className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center text-white flex-shrink-0">
-              <FiCalendar className="w-5 h-5" />
-            </div>
-            <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">Planned Leaves</p>
-              <h4 className="text-2xl font-bold text-pink-600">{approvedThisMonth}</h4>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pink-50 text-pink-700">
-            <FiCalendar className="w-3 h-3" /> Approved
-          </span>
-        </div>
-
-        {/* Unplanned/Absent */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-amber-50 to-amber-50/30">
-          <div className="flex items-center overflow-hidden">
-            <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center text-white flex-shrink-0">
-              <FiUserX className="w-5 h-5" />
-            </div>
-            <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">Unplanned Leaves</p>
-              <h4 className="text-2xl font-bold text-amber-600">{rejectedThisMonth}</h4>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700">
-            <FiAlertCircle className="w-3 h-3" /> Rejected
-          </span>
-        </div>
-
-        {/* Pending Requests */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-green-50 to-green-50/30">
-          <div className="flex items-center overflow-hidden">
-            <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white flex-shrink-0">
-              <FiClock className="w-5 h-5" />
-            </div>
-            <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">Pending Requests</p>
-              <h4 className="text-2xl font-bold text-green-600">{pendingCount}</h4>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700">
-            <FiClock className="w-3 h-3" /> Pending
-          </span>
-        </div>
+        <StatCard
+          label="Total Present"
+          value={isAdmin && workforceTotal != null && workforceTotal > 0 ? `${Math.max(0, workforceTotal - onLeaveToday)}/${workforceTotal}` : '—'}
+          sub={isAdmin && workforceTotal != null && workforceTotal > 0 ? `${onLeaveToday} on approved leave today` : 'Present workforce today'}
+          icon={<FiUserCheck className="w-5 h-5" />}
+          bg="bg-[#10B981]/10 text-[#10B981]"
+          ring="ring-[#10B981]/20"
+        />
+        <StatCard
+          label="Planned Leaves"
+          value={approvedThisMonth}
+          sub="Approved"
+          icon={<FiCalendar className="w-5 h-5" />}
+          bg="bg-[#FF9B44]/10 text-[#FF9B44]"
+          ring="ring-[#FF9B44]/20"
+        />
+        <StatCard
+          label="Unplanned Leaves"
+          value={rejectedThisMonth}
+          sub="Rejected"
+          icon={<FiUserX className="w-5 h-5" />}
+          bg="bg-[#F43F5E]/10 text-[#F43F5E]"
+          ring="ring-[#F43F5E]/20"
+        />
+        <StatCard
+          label="Pending Requests"
+          value={pendingCount}
+          sub="Pending"
+          icon={<FiClock className="w-5 h-5" />}
+          bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+          ring="ring-[#3A57C4]/20"
+        />
       </div>
 
-      {/* ── Leave Balance Cards ── */}
+      {/* ── Leave Balance Cards — SmartHR leaves-employee template (Task 157):
+          big remaining number + "Remaining Leaves" subline per type ── */}
       {leaveBalances.length > 0 && (
+        <Panel title="Leave Balance" icon={<FiGrid className="w-4 h-4" />} accent="text-[#10B981]" action={
+          (!isAdmin || viewParam === 'self') ? (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-slate-600">Total Leaves : <strong className="text-slate-800">{balanceTotal}</strong></span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700">Total Remaining Leaves : <strong>{balanceRemaining}</strong></span>
+            </div>
+          ) : undefined
+        }>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
           {leaveBalances.slice().sort((a, b) => {
             const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave', 'loss of pay'];
             return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
-          }).map(lb => {
+          }).map((lb, idx) => {
             const usedPct = lb.total > 0 ? (lb.used / lb.total) * 100 : 0;
             const barColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
               const blocked = isActiveProbation(employee);
               const isLop = /loss of pay|lop/i.test(`${lb.leaveType.name} ${lb.leaveType.code}`);
+              const accents = ['from-[#3A57C4] to-[#6C9BF5]', 'from-[#10B981] to-[#34D399]', 'from-[#FF9B44] to-[#FFC107]', 'from-[#6C4FD6] to-[#9F7AEA]'];
+              const tileIcons = [FiCalendar, FiActivity, FiCoffee, FiLayers];
+              const TileIcon = tileIcons[idx % tileIcons.length];
               return (
               <React.Fragment key={lb.id}>
-              <div className="bg-white rounded-xl border border-slate-200 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold text-slate-800">{lb.leaveType.name}</h4>
-                  <span className="text-[10px] font-mono text-slate-400">{lb.leaveType.code}</span>
+              <div className="relative bg-white rounded-xl border border-slate-200 p-4 overflow-hidden hover:shadow-md transition-shadow">
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${accents[idx % accents.length]} opacity-80`} />
+                <div className="flex items-start justify-between mb-2">
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-slate-800 truncate">{lb.leaveType.name}</h4>
+                    <span className="text-[10px] font-mono text-slate-400">{lb.leaveType.code}</span>
+                  </div>
+                  <span className="w-10 h-10 rounded-full bg-slate-50 ring-1 ring-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                    <TileIcon className="w-5 h-5" />
+                  </span>
                 </div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-emerald-600">{blocked ? 0 : lb.remaining}</p>
-                    <p className="text-[9px] text-slate-400">Left</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-amber-600">{blocked ? 0 : lb.used}</p>
-                    <p className="text-[9px] text-slate-400">Used</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-slate-500">{blocked ? 0 : lb.total}</p>
-                    <p className="text-[9px] text-slate-400">Total</p>
-                  </div>
-                </div>
-                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <p className="text-3xl font-extrabold text-slate-900 leading-none">{blocked ? 0 : lb.remaining}</p>
+                <p className="text-xs text-slate-500 mt-2">Remaining Leaves : <span className="font-bold text-slate-700">{blocked ? 0 : lb.remaining}</span></p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Used : {blocked ? 0 : lb.used} · Total : {blocked ? 0 : lb.total}</p>
+                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-3">
                   <div className={`h-full ${barColor} rounded-full transition-all duration-500`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                 </div>
               </div>
@@ -757,20 +760,22 @@ function LeavePageContent() {
             );
           })}
         </div>
+        </Panel>
       )}
 
-      {/* ── Apply Leave Form (Inline) ── */}
+      {/* ── Apply Leave Form (Inline) — SmartHR Panel (Task 156-a) ── */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-green-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-green-100 bg-green-50/50">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <FiPlus className="w-4 h-4 text-green-600" /> Apply Leave
-            </h3>
-            <button onClick={handleCancelForm} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+        <Panel
+          title="Apply Leave"
+          icon={<FiPlus className="w-4 h-4" />}
+          accent="text-[#FF9B44]"
+          action={
+            <button onClick={handleCancelForm} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Close form">
               <FiX className="w-4 h-4" />
             </button>
-          </div>
-          <div className="p-5 space-y-4">
+          }
+        >
+          <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
@@ -859,15 +864,15 @@ function LeavePageContent() {
                   {submitting ? 'Submitting...' : 'Add Leave'}
                 </button>
               </div>
-            </div>
           </div>
+        </Panel>
       )}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {/* Card Header with Filters */}
-        <div className="p-4 border-b border-slate-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h5 className="text-sm font-semibold text-slate-800">Leave List</h5>
-            <div className="flex items-center gap-2 flex-wrap">
+      <Panel
+        title="Leave List"
+        icon={<FiFileText className="w-4 h-4" />}
+        accent="text-[#3A57C4]"
+        action={
+          <div className="flex items-center gap-2 flex-wrap">
               {/* Date Range */}
               <div className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600">
                 <FiCalendar className="w-3.5 h-3.5 text-slate-400" />
@@ -896,9 +901,9 @@ function LeavePageContent() {
                 <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(sanitizeSearch(e.target.value))} placeholder="Search employee..." className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-green-500/20" />
               </div>
-            </div>
           </div>
-        </div>
+        }
+      >
 
         {/* Table */}
         <div className="overflow-x-auto">
@@ -1058,12 +1063,12 @@ function LeavePageContent() {
             <span>Showing {filteredLeaves.length} of {leaveRequests.length} entries</span>
             <div className="flex items-center gap-1">
               <button className="px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 transition-colors">Previous</button>
-              <button className="px-2.5 py-1 rounded bg-green-600 text-white">1</button>
+              <button className="px-2.5 py-1 rounded bg-[#3A57C4] text-white">1</button>
               <button className="px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 transition-colors">Next</button>
             </div>
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* ─── View Leave Application Modal ─── */}
       {viewTarget && (

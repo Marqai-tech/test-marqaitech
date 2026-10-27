@@ -43,8 +43,10 @@ export async function GET(request: NextRequest) {
 
     // Apply data-scope filtering
     if (scope.scope === 'self' && scope.ownEmployeeId) {
-      // Employee: only their own payslips
+      // Employee: only their own payslips — and only once the payroll manager
+      // RELEASED them (Task 130). Unreleased months stay invisible to staff.
       where.employeeId = scope.ownEmployeeId;
+      where.releasedAt = { not: null };
     } else if (scope.scope === 'team' && scope.visibleEmployeeIds.length > 0) {
       // Manager: own + direct reports' payslips
       where.employeeId = { in: scope.visibleEmployeeIds };
@@ -176,6 +178,7 @@ export async function POST(request: NextRequest) {
         tax: payroll.tax,
         professionalTax: payroll.professionalTax,
         otherDeductions: payroll.otherDeductions,
+        lop: payroll.lopDeduction,
         totalDeductions: payroll.totalDeductions,
       },
       netPay: payroll.netSalary,

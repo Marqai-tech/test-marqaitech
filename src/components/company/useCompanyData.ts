@@ -51,11 +51,11 @@ export function useCompanyData(opts?: { modules?: Array<'companies' | 'branches'
   const modules = opts?.modules ?? ['companies', 'branches', 'departments', 'designations', 'shifts', 'holidays', 'policies']
   const moduleKey = modules.join(',')
   const { user } = useAuthStore()
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '')
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '')
   const { selectedTenantId, selectedGroupId, selectedCompanyId, hydrated, hydrate, availableCompanyGroups } = useCompanyContextStore()
   const userRole = (user?.role || 'employee').toLowerCase()
   const isSuperAdmin = userRole === 'super_admin'
-  const isTenantAdmin = userRole === 'tenant_admin'
+  const isTenantAdmin = (userRole === 'tenant_admin' || userRole === 'ceo')
 
   const [companies, setCompanies] = useState<CompanyRecord[]>([])
   const [branches, setBranches] = useState<BranchRecord[]>([])

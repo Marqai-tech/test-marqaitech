@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HR Help Desk, Announcements &amp; Quick Links</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:#f7faf8;}
+  .material-icons{line-height:1;}
+  .icon-sq{width:34px;height:34px;border-radius:9px;background:var(--accent-tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .stepnum{width:30px;height:30px;font-size:14px;}
+  .newchip{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:var(--accent-tint);color:var(--accent);font-size:11.5px;font-weight:800;letter-spacing:.4px;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:46px 64px;display:flex;flex-direction:column;">
+
+  <header>
+    <div class="kicker">NEW MODULES &amp; NAVIGATION</div>
+    <h1 style="margin:8px 0 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;color:var(--primary);">HR Help Desk, Quick Links &amp; announcements — all connected</h1>
+  </header>
+
+  <div class="flex" style="gap:22px;margin-top:20px;flex:1;min-height:0;">
+
+    <!-- LEFT: HR Help Desk -->
+    <div class="flex flex-col" style="flex:1.35;gap:11px;">
+      <div><span class="newchip"><i class="material-icons" style="font-size:14px;">headset_mic</i> NEW · CONNECTED TO WEB SUPPORT &amp; AI</span></div>
+      <div class="card flex items-start" style="flex:1;padding:13px 18px;gap:13px;align-items:center;">
+        <div class="stepnum">1</div>
+        <p style="margin:0;font-size:12.8px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Open HR Help Desk</b> from the module grid, Quick Links or the drawer — live Open / In Progress / Resolved counters on top.</p>
+      </div>
+      <div class="card flex items-start" style="flex:1;padding:13px 18px;gap:13px;align-items:center;">
+        <div class="stepnum">2</div>
+        <p style="margin:0;font-size:12.8px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Tap Raise Ticket</b> — pick a category (HR, Payroll, IT / Login, Attendance, Leave, Documents, Policy) and priority, add subject + description, submit.</p>
+      </div>
+      <div class="card flex items-start" style="flex:1;padding:13px 18px;gap:13px;align-items:center;">
+        <div class="stepnum">3</div>
+        <p style="margin:0;font-size:12.8px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">It lands in the web Help Desk queue instantly</b> (ticket number TK-XXXX) — HR/Admin are notified and reply from web or mobile.</p>
+      </div>
+      <div class="card flex items-start" style="flex:1;padding:13px 18px;gap:13px;align-items:center;">
+        <div class="stepnum">4</div>
+        <p style="margin:0;font-size:12.8px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Track &amp; reply in the thread</b> — one ticket system behind both surfaces: Open → In Progress → Resolved → Closed. Employees see only their own tickets; admins see all.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: quick links + announcements + roles -->
+    <div class="flex flex-col" style="flex:1;gap:11px;">
+      <div class="card" style="padding:14px 18px;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">link</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">Quick Links row</div>
+        </div>
+        <p style="margin:8px 0 0;font-size:12.2px;line-height:1.5;color:var(--muted);">Circular one-tap shortcuts under This Month: <b style="color:var(--primary);">Requests · Directory · Payslips · Documents · Help Desk · Feeds · Reports* · Att. Report</b> (*HR/Admin).</p>
+      </div>
+      <div class="card" style="padding:14px 18px;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">campaign</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">Announcements &amp; Feeds</div>
+        </div>
+        <p style="margin:8px 0 0;font-size:12.2px;line-height:1.5;color:var(--muted);">The rotating banner opens a full list of HR/Admin pinned and announcement posts — read them and <b style="color:var(--primary);">like</b> from the app; comments and composing stay on the web feeds per governance.</p>
+      </div>
+      <div class="card" style="padding:14px 18px;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">forum</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">Chat everywhere</div>
+        </div>
+        <p style="margin:8px 0 0;font-size:12.2px;line-height:1.5;color:var(--muted);">A floating <b style="color:var(--primary);">chat button</b> on the mobile Home and on the <b style="color:var(--primary);">web dashboard</b> opens Collaboration Chat — project rooms for work talk, team rooms for anything else.</p>
+      </div>
+      <div class="card" style="padding:12px 18px;">
+        <p style="margin:0;font-size:11.6px;line-height:1.5;color:var(--muted);"><b style="color:var(--primary);">Remember:</b> the APK update to v1.6.6 comes from the web login page — install it over v1.6.5, no uninstall needed.</p>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

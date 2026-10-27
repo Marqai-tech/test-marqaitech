@@ -7,6 +7,7 @@ import { invalidateMeCacheForUser } from '@/lib/me-response-cache';
 import { canEditEmployeeRecords } from '@/lib/roleAccess';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
 import { EXTRA_PROFILE_KEYS, ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
+import { replaceEmployeeExperience, replaceEmployeeSkills, replaceEmployeeDependents, replaceEmployeeAchievements } from '@/lib/employee-row-collections';
 import type { PrismaClient } from '@prisma/client';
 
 function corsHeaders() {
@@ -49,6 +50,27 @@ async function validateReportingManagerChange(
     });
   } catch {
     return { ok: false, error: 'Reporting manager lookup failed', status: 500 };
+  }
+
+  // ─── Cross-DB fallback (Task 157 pattern) ───
+  // The tenant DB's Prisma client may fail to find the manager if the row
+  // actually lives in the platform DB (super_admin / cross-tenant scenario)
+  // or if the tenant DB connection is flaky. Retry via raw SQL on the
+  // platform DB before declaring "not found".
+  if (!manager) {
+    try {
+      const platformDb = getPlatformDb();
+      const rows = await platformDb.$queryRawUnsafe(
+        `SELECT "id", "firstName", "lastName", "email", "userId", "status", "companyId"
+         FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+        newManagerId,
+      ) as Array<{ id: string; firstName: string; lastName: string; email: string; userId: string | null; status: string; companyId: string | null }>;
+      if (rows && rows.length > 0) {
+        manager = rows[0];
+      }
+    } catch (crossDbErr) {
+      console.warn('[Employee PUT] cross-DB reporting manager lookup failed:', crossDbErr instanceof Error ? crossDbErr.message : crossDbErr);
+    }
   }
 
   if (!manager) return { ok: false, error: 'Selected reporting manager was not found', status: 400 };
@@ -204,8 +226,28 @@ async function saveEmployeeProfileExtras(db: PrismaClient, employeeId: string, b
   let i = 1;
   for (const [col, key] of map) {
     if (body[key] !== undefined) {
+      // Bug 6/8: skills + achievements come in as arrays — serialize to JSON
+      let val: unknown = body[key];
+      if (key === 'skills' || key === 'skillsJson') {
+        if (Array.isArray(body[key])) {
+          val = (body[key] as unknown[]).length > 0 ? JSON.stringify(body[key]) : null;
+          sets.push(`"skillsJson" = $${i++}`);
+          params.push(val);
+          continue;
+        }
+        if (key === 'skills') continue;
+      }
+      if (key === 'achievements' || key === 'achievementsJson') {
+        if (Array.isArray(body[key])) {
+          val = (body[key] as unknown[]).length > 0 ? JSON.stringify(body[key]) : null;
+          sets.push(`"achievementsJson" = $${i++}`);
+          params.push(val);
+          continue;
+        }
+        if (key === 'achievements') continue;
+      }
       sets.push(`"${col}" = $${i++}`);
-      params.push(body[key] || null);
+      params.push(val || null);
     }
   }
   if (sets.length === 0) return;
@@ -269,6 +311,11 @@ async function fetchOptionalRelations(db: PrismaClient, employeeId: string, comp
     ['dependents', () => db.dependent.findMany({ where: { employeeId } })],
     ['qualifications', () => db.qualification.findMany({ where: { employeeId } })],
     ['experiences', () => db.experience.findMany({ where: { employeeId } })],
+    ['achievements', () => {
+      try {
+        return (db as any).employeeAchievement?.findMany?.({ where: { employeeId }, orderBy: { createdAt: 'desc' } }) ?? [];
+      } catch { return []; }
+    }],
     ['skills', () => {
       try {
         return (db as any).employeeSkill?.findMany?.({ where: { employeeId } }) ?? [];
@@ -302,6 +349,42 @@ async function fetchOptionalRelations(db: PrismaClient, employeeId: string, comp
     })
   );
 
+  // Fallback: if reportingManager wasn't loaded by Prisma's include (which
+  // happens when findUnique with coreInclude fails and findEmployee returns a
+  // bare raw-SQL row), resolve it here via a RAW SQL JOIN so the View Details
+  // page always shows the assigned manager. Only set the key when a manager
+  // is actually found, so we never overwrite a valid Prisma-loaded null with
+  // a stale value or vice versa.
+  if (result.reportingManager === undefined) {
+    try {
+      const mgrRows = await db.$queryRawUnsafe(
+        `SELECT m.id, m."firstName", m."lastName", m."employeeId",
+                d.title AS "designationTitle"
+         FROM "Employee" e
+         LEFT JOIN "Employee" m ON m.id = e."reportingManagerId"
+         LEFT JOIN "Designation" d ON d.id = m."designationId"
+         WHERE e.id = $1
+         LIMIT 1`,
+        employeeId,
+      ) as Array<{ id: string; firstName: string; lastName: string; employeeId: string; designationTitle: string | null }>;
+      const mgr = mgrRows?.[0];
+      if (mgr?.id) {
+        result.reportingManager = {
+          id: mgr.id,
+          firstName: mgr.firstName,
+          lastName: mgr.lastName,
+          employeeId: mgr.employeeId,
+          designation: mgr.designationTitle ? { title: mgr.designationTitle } : null,
+        };
+      } else {
+        result.reportingManager = null;
+      }
+    } catch (err) {
+      console.warn(`[Employee GET] Failed to fetch reportingManager for ${employeeId}:`, err instanceof Error ? err.message : err);
+      // Leave undefined so the caller's existing value (if any) is preserved.
+    }
+  }
+
   return result;
 }
 
@@ -309,39 +392,73 @@ async function fetchOptionalRelations(db: PrismaClient, employeeId: string, comp
  * Resolve an employee ID to the actual database record.
  * Tries: 1) by CUID id → 2) by employeeId (e.g. "EMP001") → 3) by email
  */
-async function findEmployee(db: PrismaClient, id: string) {
-  // Strategy 1: by database id (CUID)
+async function findEmployee(db: PrismaClient, id: string, request?: Request): Promise<any> {
+  // Strategy 0: RAW SQL lookup by id (bypasses Prisma relation errors)
+  // /api/users/profile uses this same RAW SQL approach and successfully finds
+  // employees that Prisma findUnique with include: coreInclude fails to find.
   try {
-    const emp = await db.employee.findUnique({
-      where: { id },
-      include: coreInclude,
-    });
-    if (emp) return emp;
-  } catch (err) {
-    console.warn(`[Employee GET] findUnique by id failed, trying fallback:`, err instanceof Error ? err.message : err);
-  }
+    const rows = await db.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "id" = $1 LIMIT 1`, id) as any[];
+    if (rows && rows.length > 0) {
+      const emp = rows[0];
+      try {
+        const full = await db.employee.findUnique({ where: { id }, include: coreInclude });
+        if (full) return full;
+      } catch { return emp; }
+    }
+  } catch { /* continue */ }
 
-  // Strategy 2: by employeeId (business key like "EMP001")
+  // Strategy 1: by employeeId — RAW SQL
   try {
-    const emp = await db.employee.findUnique({
-      where: { employeeId: id },
-      include: coreInclude,
-    });
-    if (emp) return emp;
-  } catch {
-    // continue
-  }
+    const rows = await db.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "employeeId" = $1 LIMIT 1`, id) as any[];
+    if (rows && rows.length > 0) {
+      const emp = rows[0];
+      try {
+        const full = await db.employee.findUnique({ where: { employeeId: id }, include: coreInclude });
+        if (full) return full;
+      } catch { return emp; }
+    }
+  } catch { /* continue */ }
 
-  // Strategy 3: by email
+  // Strategy 2: by email — RAW SQL (case-insensitive)
   try {
-    const emp = await db.employee.findFirst({
-      where: { email: { equals: id, mode: 'insensitive' } },
-      include: coreInclude,
-    });
-    if (emp) return emp;
-  } catch {
-    // continue
-  }
+    const rows = await db.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE LOWER("email") = LOWER($1) LIMIT 1`, id) as any[];
+    if (rows && rows.length > 0) {
+      const emp = rows[0];
+      try {
+        const full = await db.employee.findFirst({ where: { email: { equals: id, mode: 'insensitive' } }, include: coreInclude });
+        if (full) return full;
+      } catch { return emp; }
+    }
+  } catch { /* continue */ }
+
+  // Strategy 3: cross-DB fallback using RAW SQL
+  try {
+    const { getPlatformDb, getDbForTenant } = await import('@/lib/tenant-db');
+    const platformDb = getPlatformDb();
+
+    // 3a. Platform DB
+    try {
+      const rows = await platformDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "id" = $1 LIMIT 1`, id) as any[];
+      if (rows && rows.length > 0) {
+        console.log(`[Employee GET] Found ${id} in platform DB via RAW SQL`);
+        return rows[0];
+      }
+    } catch { /* continue */ }
+
+    // 3b. Every tenant DB
+    const tenants = await platformDb.tenant.findMany({ select: { id: true, slug: true } });
+    for (const t of tenants) {
+      if (!t.slug) continue;
+      try {
+        const tDb = await getDbForTenant(t.slug);
+        const rows = await tDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "id" = $1 LIMIT 1`, id) as any[];
+        if (rows && rows.length > 0) {
+          console.log(`[Employee GET] Found ${id} in tenant DB "${t.slug}" via RAW SQL`);
+          return rows[0];
+        }
+      } catch { /* skip */ }
+    }
+  } catch { /* import failed */ }
 
   return null;
 }
@@ -352,6 +469,16 @@ export async function GET(
 ) {
   const db = await getDb(request);
   try {
+    // Task 110 SECURITY: require a valid token — this endpoint exposes the
+    // full employee profile (contacts, bank-adjacent fields, documents).
+    // The avatar photo route stays separate; web and mobile clients always
+    // send their Bearer token for data calls.
+    const __gateToken = getTokenFromHeaders(request);
+    const __gateDecoded = __gateToken ? await verifyToken(__gateToken).catch(() => null) : null;
+    if (!__gateDecoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
 
@@ -359,7 +486,7 @@ export async function GET(
 
     try {
       // Step 1: Find the core employee record
-      let employee = await findEmployee(db, id);
+      let employee = await findEmployee(db, id, request);
 
       if (!employee) {
         console.log(`[Employee GET] Employee not found after all strategies for: ${id}`);
@@ -423,11 +550,8 @@ export async function PUT(
         return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
       }
 
-      // Try to find employee by id first, then by employeeId
-      let existingEmployee = await db.employee.findUnique({ where: { id } });
-      if (!existingEmployee) {
-        existingEmployee = await db.employee.findUnique({ where: { employeeId: id } });
-      }
+      // Try to find employee using cross-DB fallback (same as GET)
+      let existingEmployee = await findEmployee(db, id, request);
 
       if (!existingEmployee) {
         return NextResponse.json(
@@ -459,7 +583,7 @@ export async function PUT(
 
       const {
         firstName, lastName, email, personalEmail, phone, departmentId, designationId,
-        branchId, companyId, dateOfJoining, dateOfBirth, gender, maritalStatus,
+        branchId, companyId, dateOfJoining, dateOfBirth, originalBirthday, gender, maritalStatus,
         nationality, address, city, state, zipCode, country, bloodGroup,
         emergencyContactName, emergencyContactPhone, emergencyContactRelation,
         currentAddress, currentCity, currentState, currentZipCode, currentCountry, bankName, bankAccountNo,
@@ -476,7 +600,7 @@ export async function PUT(
       // cannot be bypassed by removing a disabled attribute in the browser.
       if (employeeId !== undefined && employeeId !== existingEmployee.employeeId) {
         const callerRole = String(decoded.role || '');
-        const adminRoles = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
+        const adminRoles = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
         if (!adminRoles.includes(callerRole)) {
           return NextResponse.json(
             { error: 'Employee ID cannot be changed from employee self-service' },
@@ -496,13 +620,26 @@ export async function PUT(
       if (employeeStatus !== undefined) updateData.employeeStatus = employeeStatus;
       if (employeeType !== undefined) updateData.employeeType = employeeType;
       // Task 76: explicit management designation — boolean normalize (accepts true/false/'true')
-      if (isManagement !== undefined) updateData.isManagement = isManagement === true || isManagement === 'true';
+      // Bug 10 fix: don't put isManagement in Prisma update payload — apply via raw SQL
+      // after the main update so a missing column doesn't P2022 the whole PUT.
+      const isManagementValue = isManagement === true || isManagement === 'true';
       if (departmentId !== undefined) updateData.departmentId = departmentId || undefined;
       if (designationId !== undefined) updateData.designationId = designationId || undefined;
       if (branchId !== undefined) updateData.branchId = branchId || null;
       if (companyId !== undefined) updateData.companyId = companyId || null;
       if (dateOfJoining !== undefined) updateData.dateOfJoining = new Date(dateOfJoining);
       if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+      // Task 136 — REAL birth date for birthday celebrations (dateOfBirth stays
+      // the official 'as per records' date).
+      // Task 138 — when the caller didn't send originalBirthday but the record
+      // has none and a DOB is present/being set, auto-take the DOB (HR/Employee
+      // can edit Original Birthday any time later).
+      if (originalBirthday !== undefined) {
+        updateData.originalBirthday = originalBirthday ? new Date(originalBirthday) : null;
+      } else if (!existingEmployee.originalBirthday && (updateData.dateOfBirth !== undefined || existingEmployee.dateOfBirth)) {
+        const dobVal = updateData.dateOfBirth !== undefined ? updateData.dateOfBirth : existingEmployee.dateOfBirth;
+        if (dobVal) updateData.originalBirthday = dobVal as Date;
+      }
       if (gender !== undefined) updateData.gender = gender;
       if (maritalStatus !== undefined) updateData.maritalStatus = maritalStatus;
       if (nationality !== undefined) updateData.nationality = nationality;
@@ -522,8 +659,53 @@ export async function PUT(
       if (taxId !== undefined) updateData.taxId = taxId;
       if (salary !== undefined) updateData.salary = salary;
       if (salaryCurrency !== undefined) updateData.salaryCurrency = salaryCurrency;
-      if (avatar !== undefined) updateData.avatar = avatar || null;
+      // Task 163: photo uploads from admin/HR also go through the avatarPending
+      // approval flow — NOT directly to avatar. This ensures the photo appears
+      // in the Photo Approvals tab and the All Requests tab before going live.
+      // Photo REMOVAL (avatar === null) stays a direct action.
+      if (avatar !== undefined && avatar !== null) {
+        // Park the new photo in avatarPending — do NOT update avatar directly.
+        // The admin who uploaded it can still approve it from the Photo Approvals
+        // tab (or another admin can). This keeps the flow consistent.
+        try {
+          await db.$executeRawUnsafe(
+            `UPDATE "Employee" SET "avatarPending" = $1, "avatarPendingAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $2`,
+            avatar, actualId,
+          );
+          // Cancel any existing pending photo request, then create a new one
+          try {
+            await db.$executeRawUnsafe(
+              `UPDATE "EmployeeUpdateRequest" SET "status" = 'cancelled', "updatedAt" = NOW()
+               WHERE "employeeId" = $1 AND "fieldName" = 'profilePhoto' AND "status" = 'pending'`,
+              actualId,
+            );
+            const reqId = `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            await db.$executeRawUnsafe(
+              `INSERT INTO "EmployeeUpdateRequest"
+               ("id", "employeeId", "fieldName", "fieldLabel", "category", "oldValue", "newValue", "reason", "status", "currentTier", "requestedById", "requestedAt", "createdAt", "updatedAt")
+               VALUES ($1, $2, 'profilePhoto', 'Profile Photo', 'personal', $3, $4, $5, 'pending', 0, $6, NOW(), NOW(), NOW())`,
+              reqId, actualId,
+              existingEmployee.avatar ? 'Existing photo' : 'No photo',
+              'New photo submitted by HR/Admin',
+              'Profile photo uploaded by HR/Admin — pending approval',
+              String(decoded.userId || ''),
+            );
+          } catch {}
+        } catch (photoParkErr) {
+          console.warn('[Employee PUT] Failed to park photo in avatarPending:', photoParkErr instanceof Error ? photoParkErr.message : photoParkErr);
+        }
+        // Do NOT add avatar to updateData — it should not be updated directly.
+      } else if (avatar === null) {
+        // Photo removal — direct action (no approval needed)
+        if (avatar !== undefined) updateData.avatar = null;
+      }
       if (status !== undefined) updateData.status = status;
+      // Task 128 — keep employeeStatus in sync with terminal employment
+      // statuses: a terminated/resigned employee must never keep displaying
+      // 'probation'/'confirmed' in any client (web or mobile).
+      if (status !== undefined && ['terminated', 'resigned'].includes(status) && employeeStatus === undefined) {
+        updateData.employeeStatus = status;
+      }
       // Policy ids exist on Employee. UAN and health-history fields are on the
       // form but not on the Employee model; writing them makes Prisma reject
       // the whole update with "Failed to update employee".
@@ -543,13 +725,78 @@ export async function PUT(
         newManagerForNotify = check.manager;
       }
 
-      const employee = await db.employee.update({
-        where: { id: actualId },
-        data: updateData,
-        include: coreInclude,
-      });
+      // Use RAW SQL UPDATE — bypasses Prisma relation errors (P2022/P2009)
+      // that cause 'Failed to update employee' on some DB schemas.
+      const setClauses: string[] = [];
+      const setValues: any[] = [];
+      let paramIdx = 1;
+      for (const [key, value] of Object.entries(updateData)) {
+        if (value === undefined) continue;
+        setClauses.push(`"${key}" = $${paramIdx++}`);
+        setValues.push(value instanceof Date ? value : (typeof value === 'boolean' || typeof value === 'number' ? value : (value === null ? null : String(value))));
+      }
+      if (setClauses.length > 0) {
+        setValues.push(actualId);
+        const updateSql = `UPDATE "Employee" SET ${setClauses.join(', ')} WHERE "id" = $${paramIdx}`;
+        try {
+          await db.$executeRawUnsafe(updateSql, ...setValues);
+        } catch (updateErr) {
+          // Cross-DB fallback: try platform DB then every tenant DB
+          console.warn('[Employee PUT] Update failed on initial DB, trying cross-DB:', updateErr instanceof Error ? updateErr.message : String(updateErr));
+          const { getPlatformDb, getDbForTenant } = await import('@/lib/tenant-db');
+          const platformDb = getPlatformDb();
+          let updated = false;
+          try { await platformDb.$executeRawUnsafe(updateSql, ...setValues); updated = true; } catch { /* continue */ }
+          if (!updated) {
+            const tenants = await platformDb.tenant.findMany({ select: { id: true, slug: true } });
+            for (const t of tenants) {
+              if (!t.slug) continue;
+              try {
+                const tDb = await getDbForTenant(t.slug);
+                await tDb.$executeRawUnsafe(updateSql, ...setValues);
+                updated = true;
+                break;
+              } catch { /* skip */ }
+            }
+          }
+          if (!updated) throw updateErr;
+        }
+      }
+
       await ensureEmployeeProfileColumns(db);
       await saveEmployeeProfileExtras(db, actualId, body as Record<string, unknown>);
+      // Bug 10 fix: apply isManagement via raw SQL so a missing column doesn't
+      // fail the entire PUT.
+      if (isManagement !== undefined) {
+        try {
+          await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "isManagement" BOOLEAN NOT NULL DEFAULT false`);
+          await db.$executeRawUnsafe(`UPDATE "Employee" SET "isManagement" = $1 WHERE "id" = $2`, isManagementValue, actualId);
+        } catch (e) {
+          console.warn('[Employee PUT] isManagement raw SQL update failed:', e);
+        }
+      }
+
+      // Reload the employee for the response — use findEmployee (RAW SQL)
+      const employee = await findEmployee(db, actualId, request);
+
+      // Task 137 — structured row collections (replace-all with the submitted list)
+      try {
+        if (Array.isArray(body.experiences)) {
+          await replaceEmployeeExperience(db as unknown as Record<string, any>, actualId, body.experiences);
+        }
+        if (Array.isArray(body.skills)) {
+          await replaceEmployeeSkills(db as unknown as Record<string, any>, actualId, body.skills);
+        }
+        if (Array.isArray(body.dependents)) {
+          await replaceEmployeeDependents(db as unknown as Record<string, any>, actualId, body.dependents);
+        }
+        if (Array.isArray(body.achievements)) {
+          await replaceEmployeeAchievements(db as unknown as Record<string, any>, actualId, body.achievements);
+        }
+      } catch (rowsErr) {
+        console.warn('[Employee PUT] experience/skill/dependent/achievement rows update failed:', rowsErr);
+      }
+
       const extrasAfterSave = await loadEmployeeProfileExtras(db, actualId);
       Object.assign(employee, extrasAfterSave);
 
@@ -574,6 +821,7 @@ export async function PUT(
           firstName:           { label: 'First Name',            category: 'personal' },
           lastName:            { label: 'Last Name',              category: 'personal' },
           dateOfBirth:         { label: 'Date of Birth',          category: 'personal' },
+          originalBirthday:    { label: 'Original Birthday',      category: 'personal' },
           gender:              { label: 'Gender',                 category: 'personal' },
           maritalStatus:       { label: 'Marital Status',        category: 'personal' },
           nationality:         { label: 'Nationality',           category: 'personal' },
@@ -753,9 +1001,12 @@ export async function PUT(
         }
       }
 
-      if (avatar !== undefined && employee.userId) {
+      // Task 163: only sync avatar to User account for REMOVAL (null).
+      // New uploads are parked in avatarPending and must NOT sync to User.avatar
+      // until approved.
+      if (avatar === null && employee.userId) {
         try {
-          const avatarValue = avatar || null;
+          const avatarValue = null;
           await db.user.update({
             where: { id: employee.userId },
             data: { avatar: avatarValue },
@@ -774,7 +1025,9 @@ export async function PUT(
       // ─── Update User role if provided ───
       if (role !== undefined && employee.userId) {
         try {
-          const effectiveRole = role || 'employee';
+          // Task 129 — no explicit role: Management designees default to the new
+          // 'ceo' role (full tenant-admin access), everyone else to 'employee'.
+          const effectiveRole = role || (employee.isManagement ? 'ceo' : 'employee');
           console.log(`[Employee PUT] Updating role for user ${employee.userId} to: ${effectiveRole}`);
           await db.user.update({
             where: { id: employee.userId },
@@ -982,7 +1235,7 @@ export async function PATCH(
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
     const callerRole = (decoded.role as string) || '';
-    const adminRoles = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
+    const adminRoles = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
     if (!adminRoles.includes(callerRole)) {
       return NextResponse.json({ error: 'Only admins can update the reporting manager' }, { status: 403, headers: corsHeaders() });
     }
@@ -1074,7 +1327,10 @@ export async function DELETE(
 
       const employee = await db.employee.update({
         where: { id: actualId },
-        data: { status: 'terminated' },
+        // Task 128 — termination must also sync employeeStatus: leaving the
+        // old value (e.g. 'probation') behind made the mobile app show
+        // "Probation" for terminated employees.
+        data: { status: 'terminated', employeeStatus: 'terminated' },
       });
 
       try {

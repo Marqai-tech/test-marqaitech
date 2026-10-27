@@ -169,7 +169,7 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const role = decoded.role as string;
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role)) {
       return NextResponse.json(
         { error: 'Only admins can configure the leave workflow' },
         { status: 403, headers: corsHeaders() },
@@ -207,7 +207,7 @@ export async function POST(request: Request) {
           { status: 400, headers: corsHeaders() },
         );
       }
-      const validTypes = ['reporting_manager', 'department_head', 'hr_admin', 'tenant_admin', 'specific_user', 'specific_employee'];
+      const validTypes = ['reporting_manager', 'department_head', 'hr_admin', 'tenant_admin', 'ceo', 'specific_user', 'specific_employee'];
       if (!validTypes.includes(tier.approverType)) {
         return NextResponse.json(
           { error: `Invalid approverType: ${tier.approverType}. Must be one of: ${validTypes.join(', ')}` },

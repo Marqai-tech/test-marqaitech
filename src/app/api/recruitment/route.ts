@@ -353,7 +353,7 @@ export async function POST(request: Request) {
         const tenantIdRec = decodedRec.tenantId as string;
         if (tenantIdRec) {
           const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
-          const recruiterIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          const recruiterIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
           await dispatchNotification({
             tenantId: tenantIdRec,
             module: 'recruitment',
@@ -457,7 +457,7 @@ export async function POST(request: Request) {
     const hrAdmins = await db.user.findMany({
       where: {
         tenantId: decodedRec.tenantId as string,
-        role: { in: ['super_admin', 'tenant_admin', 'admin'] },
+        role: { in: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
       },
     });
 

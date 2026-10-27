@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         const tenantId = (decoded as Record<string, unknown>).tenantId as string | undefined;
         if (tenantId) {
           const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
-          const hrIds = await resolveRoleRecipients(db, ['hr_admin', 'admin', 'payroll_admin', 'tenant_admin'], 10);
+          const hrIds = await resolveRoleRecipients(db, ['hr_admin', 'admin', 'payroll_admin', 'tenant_admin', 'ceo'], 10);
           const empUser = await db.employee.findUnique({ where: { id: body.employeeId }, select: { userId: true, firstName: true, lastName: true } });
           const recipients = [...hrIds.map((pid: string) => ({ userId: pid }))];
           if (empUser?.userId) recipients.push({ userId: empUser.userId });

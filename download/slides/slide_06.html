@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Attendance SOP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:#f7faf8;}
+  .material-icons{line-height:1;}
+  .icon-sq{width:34px;height:34px;border-radius:9px;background:var(--accent-tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .card-title{font-size:15.5px;font-weight:800;color:var(--primary);}
+  .step-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 4px rgba(18,53,39,0.05);padding:16px 14px;display:flex;flex-direction:column;gap:9px;position:relative;flex:1;}
+  .step-badge{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;}
+  .step-label{font-size:13.5px;font-weight:800;color:var(--primary);}
+  .step-desc{font-size:11.6px;line-height:1.5;color:var(--muted);margin:0;}
+  .tl-arrow{color:var(--accent-2);font-size:20px;font-weight:800;align-self:center;flex-shrink:0;}
+  .bullet{font-size:12.3px;line-height:1.5;color:var(--muted);}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--accent-2);flex-shrink:0;margin-top:7px;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px;display:flex;flex-direction:column;">
+
+  <header>
+    <div class="kicker">ATTENDANCE SOP</div>
+    <h1 style="margin:8px 0 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;color:var(--primary);">Punch with GPS — regularise the misses</h1>
+  </header>
+
+  <!-- 4-step timeline -->
+  <div class="flex" style="gap:10px;margin-top:22px;">
+    <div class="step-card">
+      <div class="flex items-center justify-between">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">location_on</i></div>
+        <span class="step-badge">1</span>
+      </div>
+      <div class="step-label">Enable location</div>
+      <p class="step-desc">GPS must be ON before punching; keep device time automatic.</p>
+    </div>
+    <span class="tl-arrow">→</span>
+    <div class="step-card">
+      <div class="flex items-center justify-between">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">login</i></div>
+        <span class="step-badge">2</span>
+      </div>
+      <div class="step-label">Check In</div>
+      <p class="step-desc">From Home quick card or Attendance module; the card shows today's status and hours so far.</p>
+    </div>
+    <span class="tl-arrow">→</span>
+    <div class="step-card">
+      <div class="flex items-center justify-between">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">free_breakfast</i></div>
+        <span class="step-badge">3</span>
+      </div>
+      <div class="step-label">Breaks</div>
+      <p class="step-desc">Start Break when stepping away, End Break on return; windows count into worked hours.</p>
+    </div>
+    <span class="tl-arrow">→</span>
+    <div class="step-card">
+      <div class="flex items-center justify-between">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">logout</i></div>
+        <span class="step-badge">4</span>
+      </div>
+      <div class="step-label">Check Out</div>
+      <p class="step-desc">At shift end; in/out, breaks and total hours complete the day.</p>
+    </div>
+  </div>
+
+  <!-- two cards -->
+  <div class="grid grid-cols-2" style="gap:16px;margin-top:16px;">
+    <div class="card" style="padding:16px 20px;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">history</i></div>
+        <div class="card-title">Forgot to punch?</div>
+      </div>
+      <ul style="margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">do <b style="color:var(--primary);">not double-punch</b> — raise a regularisation request from the Attendance module with the correct in/out times</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">manager and HR approve; attendance is corrected at the source</span></li>
+      </ul>
+    </div>
+    <div class="card" style="padding:16px 20px;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">gps_off</i></div>
+        <div class="card-title">If GPS fails</div>
+      </div>
+      <ul style="margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">enable <b style="color:var(--primary);">Location permission</b> for the app, remove any mock/fake-GPS app</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">retry near a window or open space; the app blocks spoofed locations</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- HR/Admin card -->
+  <div class="card" style="margin-top:14px;border-left:4px solid var(--accent);padding:15px 20px;display:flex;align-items:flex-start;gap:14px;">
+    <div class="icon-sq" style="width:38px;height:38px;"><i class="material-icons" style="font-size:21px;">groups</i></div>
+    <div>
+      <div class="card-title">For HR / Admin</div>
+      <p style="margin:6px 0 0;font-size:12.4px;line-height:1.55;color:var(--muted);"><b style="color:var(--primary);">Team Attendance</b> shows who is present / on leave / missing punches, with daily status entry; the <b style="color:var(--primary);">Reports</b> module adds attendance and leave reports — review it first thing every morning.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

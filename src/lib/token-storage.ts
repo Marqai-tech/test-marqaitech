@@ -38,7 +38,15 @@ function rawRemove(key: string): void {
 
 export function isRememberMe(): boolean {
   if (typeof window === 'undefined') return false;
-  try { return window.sessionStorage.getItem(REMEMBER_KEY) === '1'; } catch { return false; }
+  try {
+    // Session flag first (per-tab), then the DURABLE real-localStorage backup
+    // written at remember-me login — after a browser restart the sessionStorage
+    // flag is gone but the backup still proves this is a remember-me session
+    // (Task 137: the idle-lock honours this so "keep me signed in" actually
+    // keeps the tab signed in).
+    if (window.sessionStorage.getItem(REMEMBER_KEY) === '1') return true;
+    return rawGet(REMEMBER_KEY) === '1' && Boolean(rawGet(TOKEN_KEY) || window.sessionStorage.getItem(TOKEN_KEY));
+  } catch { return false; }
 }
 
 export function setRememberMe(enabled: boolean): void {

@@ -19,6 +19,8 @@
  */
 
 import type { PrismaClient } from '@/generated/prisma/client';
+import { attendanceDayWindow, canonicalAttendanceDate, findAttendanceForLocalDay } from '@/lib/attendance-day';
+import { attendanceDayKeyOf, parseDeviceTimestamp } from '@/lib/timezone-utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -26,13 +28,15 @@ export type AttendanceRequestType =
   | 'REGULARIZATION'
   | 'WFH'
   | 'HOURLY_PERMISSION'
-  | 'GATE_PASS';
+  | 'GATE_PASS'
+  | 'HOLIDAY_WORK';
 
 export const REQUEST_TYPES: AttendanceRequestType[] = [
   'REGULARIZATION',
   'WFH',
   'HOURLY_PERMISSION',
   'GATE_PASS',
+  'HOLIDAY_WORK',
 ];
 
 export const REQUEST_TYPE_LABELS: Record<AttendanceRequestType, string> = {
@@ -40,6 +44,7 @@ export const REQUEST_TYPE_LABELS: Record<AttendanceRequestType, string> = {
   WFH: 'Work From Home',
   HOURLY_PERMISSION: 'Hourly Permission / Short Leave',
   GATE_PASS: 'Gate Pass & OUT Request',
+  HOLIDAY_WORK: 'Holiday / Weekend Work',
 };
 
 export type ActorType =
@@ -228,6 +233,19 @@ export const DEFAULT_WORKFLOW_CONFIGS: Record<AttendanceRequestType, WorkflowCon
       L(1, 'reporting_manager', 'Reporting Manager', 48, 'auto_escalate'),
       L(2, 'hr_admin', 'HR Administrator', 24, 'auto_approve', { field: 'gatePassType', op: 'eq', value: 'official' }),
       L(3, 'security', 'Security (Turnstile QR)', 0, 'none'),
+    ],
+  },
+  // 5. Holiday / Weekend Work (Task 109)
+  //    Working on a holiday or weekend requires admin / immediate-approver
+  //    pre-approval BEFORE the employee can punch from the mobile app or web.
+  //    L1 immediate approver (reporting manager; escalates to HR when none)
+  //    → L2 HR confirms. Without an approved request the punch API rejects
+  //    remote punches on holidays/weekends (code HOLIDAY_WORK_APPROVAL_REQUIRED).
+  HOLIDAY_WORK: {
+    rules: { ...DEFAULT_RULES, windowDays: 10, monthlyCap: 6 },
+    levels: [
+      L(1, 'reporting_manager', 'Reporting Manager / Immediate Approver', 24, 'auto_escalate'),
+      L(2, 'hr_admin', 'HR Administrator', 24, 'auto_approve'),
     ],
   },
 };
@@ -546,7 +564,7 @@ export async function resolveActorForLevel(
         return head?.userId || null;
       }
       case 'hr_admin': {
-        const roles = ['admin', 'hr_admin', 'tenant_admin'];
+        const roles = ['admin', 'hr_admin', 'tenant_admin', 'ceo'];
         let reportingManagerUserId: string | null = null;
         if (emp.reportingManagerId) {
           const manager = await db.employee.findUnique({
@@ -589,7 +607,7 @@ export async function resolveActorForLevel(
       case 'vp_director': {
         // Highest authority available: tenant admin, then any admin
         const vp = await db.user.findFirst({
-          where: { role: { in: ['tenant_admin', 'admin', 'super_admin'] }, status: 'active' },
+          where: { role: { in: ['tenant_admin', 'ceo', 'admin', 'super_admin'] }, status: 'active' },
           orderBy: { createdAt: 'asc' },
           select: { id: true },
         });
@@ -598,7 +616,7 @@ export async function resolveActorForLevel(
       case 'security': {
         // Security desk user, then IT admin, then any admin (gate verification)
         const sec = await db.user.findFirst({
-          where: { role: { in: ['security', 'it_admin', 'admin', 'tenant_admin'] }, status: 'active' },
+          where: { role: { in: ['security', 'it_admin', 'admin', 'tenant_admin', 'ceo'] }, status: 'active' },
           orderBy: { createdAt: 'asc' },
           select: { id: true },
         });
@@ -708,10 +726,15 @@ async function getShiftDefaults(db: PrismaClient, employeeId: string): Promise<{
   return { start: '10:00', end: '18:30' };
 }
 
-function atTime(date: Date, hhmm: string): Date {
+/** Task 162: IST wall-clock time for a business-day key (server-safe —
+ * the old atTime() used setHours which is the SERVER's timezone, UTC on
+ * Vercel, so "18:30" became 00:00 IST the next day). */
+function atTimeIst(dateKey: string, hhmm: string): Date {
+  const parsed = parseDeviceTimestamp(`${dateKey}T${hhmm}:00`);
+  if (parsed) return parsed;
   const [h, m] = hhmm.split(':').map(Number);
-  const d = new Date(date);
-  d.setHours(h || 0, m || 0, 0, 0);
+  const d = new Date(`${dateKey}T00:00:00.000Z`);
+  d.setUTCHours(h || 0, m || 0, 0, 0);
   return d;
 }
 
@@ -731,35 +754,46 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
   try {
     if (request.requestType === 'REGULARIZATION') {
       // Update the biometric/attendance database for payroll processing
-      const date = new Date(request.startDate);
+      // Task 162: resolve the row through the dual-convention day window so
+      // approved punches merge into the EXISTING (biometric IST-midnight)
+      // row instead of creating a shadow UTC-midnight duplicate.
+      const dateKey = attendanceDayKeyOf(request.startDate);
       const reqTime = payload.requestedTime ? new Date(String(payload.requestedTime)) : null;
       const punchType = String(payload.punchType || 'check_in');
-      const existing = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date } });
+      const existing = await findAttendanceForLocalDay(db, request.employeeId, dateKey);
       const patch: Record<string, unknown> = { status: 'present' };
       if (reqTime) {
         if (punchType === 'check_in') { patch.checkIn = reqTime; if (existing?.checkOut) patch.workHours = (existing.checkOut.getTime() - reqTime.getTime()) / 3600000; }
         else { patch.checkOut = reqTime; if (existing?.checkIn) patch.workHours = (reqTime.getTime() - existing.checkIn.getTime()) / 3600000; }
       }
       if (existing) await db.attendance.update({ where: { id: existing.id }, data: patch });
-      else await db.attendance.create({ data: { employeeId: request.employeeId, date, ...patch } as any });
+      else await db.attendance.create({ data: { employeeId: request.employeeId, date: canonicalAttendanceDate(dateKey), ...patch } as any });
       actions.push(`Attendance record updated (${punchType} → ${reqTime?.toLocaleString?.() || 'requested time'}) for payroll`);
     } else if (request.requestType === 'WFH') {
       // Mark each covered day as "Present - WFH"
+      // Task 162: iterate IST business-day keys, reuse the dual-convention
+      // row, and stamp punch times at IST wall clock.
       const shift = await getShiftDefaults(db, request.employeeId);
       let days = 0;
-      const end = request.endDate || request.startDate;
-      for (const d = new Date(request.startDate); d <= end; d.setDate(d.getDate() + 1)) {
-        const date = new Date(d);
-        const existing = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date } });
-        const data = {
-          employeeId: request.employeeId, date,
-          checkIn: atTime(date, shift.start), checkOut: atTime(date, shift.end),
-          status: 'wfh', notes: 'Work From Home (approved)',
-        };
-        if (existing) await db.attendance.update({ where: { id: existing.id }, data: { status: 'wfh', notes: 'Work From Home (approved)' } });
-        else await db.attendance.create({ data: data as any });
+      const startKey = attendanceDayKeyOf(request.startDate);
+      const endKey = attendanceDayKeyOf(request.endDate || request.startDate);
+      let cursor = new Date(`${startKey}T00:00:00.000Z`);
+      const last = new Date(`${endKey}T00:00:00.000Z`);
+      while (cursor <= last) {
+        const dayKey = cursor.toISOString().slice(0, 10);
+        const existing = await findAttendanceForLocalDay(db, request.employeeId, dayKey);
+        if (existing) {
+          await db.attendance.update({ where: { id: existing.id }, data: { status: 'wfh', notes: 'Work From Home (approved)', checkIn: existing.checkIn || atTimeIst(dayKey, shift.start), checkOut: existing.checkOut || atTimeIst(dayKey, shift.end) } });
+        } else {
+          await db.attendance.create({ data: {
+            employeeId: request.employeeId, date: canonicalAttendanceDate(dayKey),
+            checkIn: atTimeIst(dayKey, shift.start), checkOut: atTimeIst(dayKey, shift.end),
+            status: 'wfh', notes: 'Work From Home (approved)',
+          } as any });
+        }
         days++;
         if (days > 90) break; // safety
+        cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
       }
       actions.push(`${days} day(s) marked "Present - WFH" and pushed to the team calendar`);
     } else if (request.requestType === 'HOURLY_PERMISSION') {
@@ -777,7 +811,8 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
             update: { hours: overtime.estimatedHours, reason: overtime.reason, status: 'approved', approvedBy: 'workflow', approvedAt },
             create: { employeeId: request.employeeId, date: overtime.date, hours: overtime.estimatedHours, rateType: 'HOURLY_RATE', rate: 0, amount: 0, reason: overtime.reason, status: 'approved', approvedBy: 'workflow', approvedAt },
           }).catch(() => null);
-          const attendance = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date: { gte: new Date(new Date(overtime.date).setHours(0, 0, 0, 0)), lt: new Date(new Date(overtime.date).setHours(24, 0, 0, 0)) } }, select: { id: true, overtime: true } }).catch(() => null);
+          const attDayKey = attendanceDayKeyOf(overtime.date);
+          const attendance = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date: attendanceDayWindow(attDayKey) }, select: { id: true, overtime: true } }).catch(() => null);
           if (attendance) await db.attendance.update({ where: { id: attendance.id }, data: { overtime: Math.max(Number(attendance.overtime || 0), Number(overtime.estimatedHours || 0)) } }).catch(() => null);
           actions.push(`Overtime of ${overtime.estimatedHours}h approved and reflected in Attendance`);
         }
@@ -792,14 +827,15 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
       // Adjust required check-out time + cumulative auto-deduction
       const hours = Number(payload.hours || 0);
       const shift = await getShiftDefaults(db, request.employeeId);
-      const date = new Date(request.startDate);
-      const existing = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date } });
-      const adjusted = atTime(date, shift.end);
+      const permDayKey = attendanceDayKeyOf(request.startDate);
+      const existing = await findAttendanceForLocalDay<{ id: string }>(db, request.employeeId, permDayKey);
+      const adjusted = atTimeIst(permDayKey, shift.end);
       adjusted.setMinutes(adjusted.getMinutes() + Math.round(hours * 60));
-      if (existing) await db.attendance.update({ where: { id: existing.id }, data: { notes: `Permission ${hours}h (approved) — adjusted check-out ${adjusted.toLocaleTimeString()}` } });
+      if (existing) await db.attendance.update({ where: { id: existing.id }, data: { notes: `Permission ${hours}h (approved) — adjusted check-out ${adjusted.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}` } });
       // Cumulative monthly hours
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+      const permDate = new Date(`${permDayKey}T00:00:00.000Z`);
+      const monthStart = new Date(Date.UTC(permDate.getUTCFullYear(), permDate.getUTCMonth(), 1));
+      const monthEnd = new Date(Date.UTC(permDate.getUTCFullYear(), permDate.getUTCMonth() + 1, 0, 23, 59, 59));
       const approvedPerms = await db.attendanceRequest.findMany({
         where: { employeeId: request.employeeId, requestType: 'HOURLY_PERMISSION', status: 'approved', startDate: { gte: monthStart, lte: monthEnd } },
         select: { payload: true },
@@ -813,7 +849,7 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
       const deductDays = rules?.autoDeductLeaveDays ?? DEFAULT_WORKFLOW_CONFIGS.HOURLY_PERMISSION.rules.autoDeductLeaveDays;
       if (threshold > 0 && totalHours > threshold && deductDays > 0) {
         const bal = await (db as any).leaveBalance?.findFirst({
-          where: { employeeId: request.employeeId, year: date.getFullYear() },
+          where: { employeeId: request.employeeId, year: permDate.getUTCFullYear() },
           orderBy: { id: 'asc' },
           include: { leaveType: { select: { name: true, code: true, paid: true } } },
         });

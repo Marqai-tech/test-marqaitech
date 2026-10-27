@@ -38,7 +38,7 @@ const DEFAULTS: Record<string, any> = {
 
 export default function RecruitmentSettingsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [settings, setSettings] = useState<Record<string, any>>(DEFAULTS);
   const [loading, setLoading] = useState(true);

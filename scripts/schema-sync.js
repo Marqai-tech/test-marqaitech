@@ -1029,6 +1029,22 @@ async function main() {
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "approvedBy" TEXT`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3)`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "comments" TEXT`,
+    // ─── Regularization Spec v1.0 audit-trail columns (06 Oct 2026) — re-run v2 ───
+    // Spec §3, §4: separate "Submitted By" (who submitted) from "Requested For"
+    // (employeeId above). `source` distinguishes HR-proxy from self-submission.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedById" TEXT`,
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedByRole" TEXT`,
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL DEFAULT 'employee'`,
+    // Spec §3: "Existing Punch-in/out" snapshot at submission time.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchIn" TIMESTAMP(3)`,
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchOut" TIMESTAMP(3)`,
+    // Spec §3: "Requested Punch-out" for the "Both" request type.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "requestedPunchOut" TIMESTAMP(3)`,
+    // Spec §3: separate "Action Date & Time" for approve vs reject.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "rejectedAt" TIMESTAMP(3)`,
+    // Spec §3: indexes for provenance queries.
+    `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_source_idx" ON "AttendanceRegularization"("source")`,
+    `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_submittedById_idx" ON "AttendanceRegularization"("submittedById")`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AttendanceRegularization" DROP CONSTRAINT IF EXISTS "AttendanceRegularization_employeeId_fkey"`,

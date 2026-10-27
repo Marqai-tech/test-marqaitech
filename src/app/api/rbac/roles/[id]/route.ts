@@ -139,7 +139,7 @@ export async function PUT(
     }
 
     // Only super_admin and tenant_admin can update roles
-    if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+    if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to update roles' },
         { status: 403, headers: corsHeaders() }
@@ -162,7 +162,7 @@ export async function PUT(
     }
 
     // Tenant admin can only update roles within their tenant
-    if (user.role === 'tenant_admin') {
+    if ((user.role === 'tenant_admin' || user.role === 'ceo')) {
       if (existingRole.tenantId !== user.tenantId && existingRole.tenantId !== null) {
         return NextResponse.json(
           { error: 'Cannot update roles outside your tenant' },
@@ -235,7 +235,7 @@ export async function PATCH(
     }
 
     // Only super_admin and tenant_admin can update roles
-    if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+    if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to update roles' },
         { status: 403, headers: corsHeaders() }
@@ -258,7 +258,7 @@ export async function PATCH(
     }
 
     // Tenant admin can only update roles within their tenant
-    if (user.role === 'tenant_admin') {
+    if ((user.role === 'tenant_admin' || user.role === 'ceo')) {
       if (existingRole.tenantId !== user.tenantId && existingRole.tenantId !== null) {
         return NextResponse.json(
           { error: 'Cannot update roles outside your tenant' },
@@ -331,7 +331,7 @@ export async function DELETE(
     }
 
     // Only super_admin and tenant_admin can delete roles
-    if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+    if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to delete roles' },
         { status: 403, headers: corsHeaders() }
@@ -367,7 +367,7 @@ export async function DELETE(
     }
 
     // Tenant admin can only delete roles within their tenant
-    if (user.role === 'tenant_admin') {
+    if ((user.role === 'tenant_admin' || user.role === 'ceo')) {
       if (existingRole.tenantId !== user.tenantId && existingRole.tenantId !== null) {
         return NextResponse.json(
           { error: 'Cannot delete roles outside your tenant' },

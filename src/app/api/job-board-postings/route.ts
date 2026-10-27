@@ -209,7 +209,7 @@ export async function POST(request: Request) {
         const hrAdmins = await db.user.findMany({
           where: {
             tenantId: decoded.tenantId as string,
-            role: { in: ['super_admin', 'tenant_admin', 'admin'] },
+            role: { in: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
           },
         });
         for (const admin of hrAdmins) {

@@ -4,10 +4,15 @@ import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCompanyData } from '@/components/company/useCompanyData';
 import {
-  FiBriefcase, FiGrid, FiDatabase, FiSettings, FiFileText,
+  FiBriefcase, FiDatabase, FiSettings, FiFileText,
   FiHome, FiMapPin, FiAward, FiLayers,
   FiArrowRight
 } from 'react-icons/fi';
+/* Task 156e — shared SmartHR widgets: same gradient banner / stat tiles /
+   panels as the Employee Module Dashboard (Task 155 gold standard). */
+import {
+  PageBreadcrumbs, DateChip, Panel, MiniStatTile, StatSkeleton,
+} from '@/components/dashboard/smarthr-widgets';
 
 function CompanyDashboardContent() {
   const { companies, branches, departments, designations, loading } = useCompanyData({
@@ -15,11 +20,11 @@ function CompanyDashboardContent() {
   });
 
   const stats = [
-    { label: 'Companies', value: companies.length, icon: <FiHome className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50', href: '/company/companies' },
-    { label: 'Branches', value: branches.length, icon: <FiMapPin className="w-4 h-4" />, color: 'text-green-500 bg-green-50', href: '/company/branches' },
-    { label: 'Departments', value: departments.length, icon: <FiBriefcase className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50', href: '/company/departments' },
-    { label: 'Designations', value: designations.length, icon: <FiAward className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/company/designations' },
-    { label: 'Grades', value: [...new Set(designations.map(d => d.level))].length, icon: <FiLayers className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/company/grades' },
+    { label: 'Companies', value: companies.length, icon: <FiHome className="w-4 h-4" />, bg: 'bg-[#3A57C4]/10 text-[#3A57C4]', ring: 'ring-[#3A57C4]/20', href: '/company/companies' },
+    { label: 'Branches', value: branches.length, icon: <FiMapPin className="w-4 h-4" />, bg: 'bg-[#10B981]/10 text-[#10B981]', ring: 'ring-[#10B981]/20', href: '/company/branches' },
+    { label: 'Departments', value: departments.length, icon: <FiBriefcase className="w-4 h-4" />, bg: 'bg-[#FF9B44]/15 text-[#FF9B44]', ring: 'ring-[#FF9B44]/25', href: '/company/departments' },
+    { label: 'Designations', value: designations.length, icon: <FiAward className="w-4 h-4" />, bg: 'bg-[#009EFB]/10 text-[#009EFB]', ring: 'ring-[#009EFB]/20', href: '/company/designations' },
+    { label: 'Grades', value: [...new Set(designations.map(d => d.level))].length, icon: <FiLayers className="w-4 h-4" />, bg: 'bg-[#6C4FD6]/10 text-[#6C4FD6]', ring: 'ring-[#6C4FD6]/20', href: '/company/grades' },
   ];
 
   const masterLinks = [
@@ -36,58 +41,43 @@ function CompanyDashboardContent() {
 
   const isLoading = loading.companies || loading.branches || loading.departments;
 
+  /* Header chip date — same pattern as the Employee Module Dashboard banner */
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
   return (
     <div className="space-y-8">
-      {/* Module Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md">
-          <FiBriefcase className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-thb-text-primary">Company Management</h1>
-          <p className="text-sm text-thb-text-secondary">Manage your company structure, masters, settings, and reports</p>
-        </div>
-      </div>
+      {/* Module Header — SmartHR gradient breadcrumb banner (title matches
+          the sidebar label "Company Dashboard") */}
+      <PageBreadcrumbs
+        title="Company Dashboard"
+        trail={['Company', 'Dashboard']}
+        right={<DateChip value={todayChip} />}
+      />
 
-      {/* Quick Stats */}
+      {/* Quick Stats — shared SmartHR mini stat tiles (round pastel icon +
+          View All link, keeping each tile's original destination) */}
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm animate-pulse">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-slate-100" />
-                <div className="flex-1">
-                  <div className="h-3 bg-slate-100 rounded w-12 mb-1" />
-                  <div className="h-5 bg-slate-100 rounded w-8" />
-                </div>
-              </div>
-            </div>
-          ))}
+          {[1, 2, 3, 4, 5].map((i) => <StatSkeleton key={i} />)}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {stats.map((stat) => (
-            <Link key={stat.label} href={stat.href} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg ${stat.color} flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                  {stat.icon}
-                </div>
-                <div>
-                  <p className="text-[11px] text-thb-text-secondary font-medium">{stat.label}</p>
-                  <p className="text-lg font-bold text-thb-text-primary">{stat.value}</p>
-                </div>
-              </div>
-            </Link>
+            <MiniStatTile
+              key={stat.label}
+              label={stat.label}
+              value={stat.value}
+              icon={stat.icon}
+              bg={stat.bg}
+              ring={stat.ring}
+              href={stat.href}
+            />
           ))}
         </div>
       )}
 
-      {/* Company Masters Section */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <FiDatabase className="w-5 h-5 text-emerald-500" />
-          <h2 className="text-lg font-bold text-thb-text-primary">Company Masters</h2>
-        </div>
+      {/* Company Masters Section — shared SmartHR panel */}
+      <Panel title="Company Masters" icon={<FiDatabase className="w-4 h-4" />} accent="text-[#10B981]">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {masterLinks.map((link) => (
             <Link
@@ -109,14 +99,10 @@ function CompanyDashboardContent() {
             </Link>
           ))}
         </div>
-      </div>
+      </Panel>
 
-      {/* Company Settings & Reports Section */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <FiSettings className="w-5 h-5 text-green-500" />
-          <h2 className="text-lg font-bold text-thb-text-primary">Configuration & Insights</h2>
-        </div>
+      {/* Company Settings & Reports Section — shared SmartHR panel */}
+      <Panel title="Configuration & Insights" icon={<FiSettings className="w-4 h-4" />} accent="text-[#6C4FD6]">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {featureLinks.map((link) => (
             <Link
@@ -142,7 +128,7 @@ function CompanyDashboardContent() {
             </Link>
           ))}
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

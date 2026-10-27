@@ -39,7 +39,7 @@ async function authGuard(request: NextRequest) {
   }
   if (!tenantId) return { error: 'Tenant not found', status: 404 as const };
   const role = ((decoded.role as string) || '').toLowerCase();
-  const isAdmin = ['admin', 'superadmin', 'super_admin', 'tenant_admin', 'hr_admin', 'company_hr_admin', 'hr_manager'].includes(role);
+  const isAdmin = ['admin', 'superadmin', 'super_admin', 'tenant_admin', 'ceo', 'hr_admin', 'company_hr_admin', 'hr_manager'].includes(role);
   return { userId: decoded.userId as string, role, tenantId, isAdmin };
 }
 

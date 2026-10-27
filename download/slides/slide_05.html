@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Home Dashboard Tour</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:#f7faf8;}
+  .material-icons{line-height:1;}
+  .icon-sq{width:32px;height:32px;border-radius:9px;background:var(--accent-tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .card-title{font-size:15.5px;font-weight:800;color:var(--primary);}
+  .tag{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--stripe);border:1px solid var(--border);font-size:10.5px;font-weight:600;color:#33473c;}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--accent-2);flex-shrink:0;margin-top:7px;}
+  .stat-tile{background:var(--stripe);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;padding:0 14px;font-size:13px;font-weight:700;color:var(--primary);}
+  .bullet{font-size:12.2px;line-height:1.5;color:var(--muted);}
+  .ql{display:inline-flex;flex-direction:column;align-items:center;gap:3px;width:66px;}
+  .ql .qi{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;}
+  .ql span.lbl{font-size:9.3px;font-weight:700;color:var(--primary);}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px;display:flex;flex-direction:column;">
+
+  <header>
+    <div class="kicker">HOME DASHBOARD</div>
+    <h1 style="margin:8px 0 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;color:var(--primary);">Your operations hub — banner, chart, quick links, birthdays</h1>
+  </header>
+
+  <div class="grid" style="grid-template-columns:repeat(12,1fr);grid-template-rows:1fr 1fr;gap:14px;flex:1;margin-top:20px;min-height:0;">
+
+    <!-- Punch tabs -->
+    <div class="card col-span-7" style="padding:16px 22px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">flash_on</i></div>
+        <div class="card-title">Punch tabs</div>
+      </div>
+      <div class="flex flex-col justify-around" style="flex:1;margin-top:6px;">
+        <p style="margin:0;font-size:12.8px;line-height:1.45;color:#33473c;"><b style="color:var(--primary);">Check / Break / Leave tabs</b> — fingerprint-style punch buttons; label flips to Check Out while checked in</p>
+        <p style="margin:0;font-size:12.8px;line-height:1.45;color:#33473c;"><b style="color:var(--primary);">Today Time Log</b> — late-in, early-out, break, worked, overtime from today's real row</p>
+        <p style="margin:0;font-size:12.8px;line-height:1.45;color:#33473c;"><b style="color:var(--primary);">This Month</b> — working days with presents / late / absent counts</p>
+      </div>
+    </div>
+
+    <!-- Announcements banner -->
+    <div class="card col-span-5" style="padding:16px 20px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">campaign</i></div>
+        <div class="card-title">Announcements banner</div>
+      </div>
+      <ul style="margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">auto-rotates pinned posts &amp; HR announcements from the company feed</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">tap to open the full Announcements list</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">what HR posts on web reaches every phone in seconds</span></li>
+      </ul>
+    </div>
+
+    <!-- Attendance chart -->
+    <div class="card col-span-5" style="padding:16px 20px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">bar_chart</i></div>
+        <div class="card-title">Last week Attendance</div>
+      </div>
+      <ul style="margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">bar chart of worked hours for the trailing 7 days</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">absent days highlighted in <b style="color:#c24141;">red</b> — self-audit before payroll does</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">quick Monday-morning check of last week's punches</span></li>
+      </ul>
+    </div>
+
+    <!-- Quick links -->
+    <div class="card col-span-7" style="padding:16px 22px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">link</i></div>
+        <div class="card-title">Quick Links rail — one tap to everything</div>
+      </div>
+      <div class="flex items-center" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <div class="ql"><div class="qi" style="background:#FEF3E2;"><i class="material-icons" style="font-size:17px;color:#F5A623;">edit_calendar</i></div><span class="lbl">Requests</span></div>
+        <div class="ql"><div class="qi" style="background:#E9E6FD;"><i class="material-icons" style="font-size:17px;color:#6C8FEF;">people_alt</i></div><span class="lbl">Directory</span></div>
+        <div class="ql"><div class="qi" style="background:#E6F9F2;"><i class="material-icons" style="font-size:17px;color:#34C38F;">request_quote</i></div><span class="lbl">Payslips</span></div>
+        <div class="ql"><div class="qi" style="background:#F1EDFD;"><i class="material-icons" style="font-size:17px;color:#7C6FF0;">folder_shared</i></div><span class="lbl">Documents</span></div>
+        <div class="ql"><div class="qi" style="background:#E8F4FD;"><i class="material-icons" style="font-size:17px;color:#38BDF8;">headset_mic</i></div><span class="lbl">Help Desk</span></div>
+        <div class="ql"><div class="qi" style="background:#FDE7EF;"><i class="material-icons" style="font-size:17px;color:#F278B0;">campaign</i></div><span class="lbl">Feeds</span></div>
+        <div class="ql"><div class="qi" style="background:#FDF3E3;"><i class="material-icons" style="font-size:17px;color:#D97706;">bar_chart</i></div><span class="lbl">Reports*</span></div>
+        <div class="ql"><div class="qi" style="background:#E6F7F6;"><i class="material-icons" style="font-size:17px;color:#0EA5A6;">insert_chart</i></div><span class="lbl">Att. Report</span></div>
+      </div>
+      <p style="margin:auto 0 0;padding-top:8px;font-size:11.5px;line-height:1.4;color:var(--muted);"><span style="color:var(--accent);font-weight:800;">*</span> Reports appears for HR/Admin roles · bottom navigation is now <b style="color:var(--primary);">Home · Chat · Attendance · Profile</b> with a floating chat bubble</p>
+    </div>
+
+    <!-- Birthdays -->
+    <div class="card col-span-5" style="padding:16px 20px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">cake</i></div>
+        <div class="card-title">Birthdays &amp; organization</div>
+      </div>
+      <ul style="margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">celebrants today + upcoming <b style="color:var(--primary);">45 days</b>; hidden when empty</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet"><b style="color:var(--primary);">Send Wishes</b> — instant in-app + email greeting</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">organization card: Total · Active · On Leave · Exits — same numbers for every login</span></li>
+      </ul>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

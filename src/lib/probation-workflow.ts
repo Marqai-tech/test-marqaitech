@@ -1,6 +1,7 @@
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { createNotification } from '@/lib/notifications';
 import { sendTenantEmail } from '@/lib/notification-channels';
+import { buildBrandedEmailForTenant } from '@/lib/tenant-branding';
 
 export type ProbationHistoryEntry = {
   action: string;
@@ -119,6 +120,25 @@ export async function applyFinalProbationDecision(params: {
 
   let letterDocument: any = null;
   let letterEmailHtml = '';
+
+  // Helper: update Employee status with Prisma-first + RAW SQL fallback
+  // (same pattern as Task 159 — tenant DBs with schema drift make
+  // db.employee.update throw, so we fall back to a targeted RAW SQL UPDATE).
+  async function applyEmployeeStatus(empId: string, empStatus: string, status: string) {
+    try {
+      await db.employee.update({
+        where: { id: empId },
+        data: { employeeStatus: empStatus, status },
+      });
+    } catch (prismaErr) {
+      console.warn('[probation-workflow] Prisma employee.update failed, trying RAW SQL fallback:', prismaErr instanceof Error ? prismaErr.message : prismaErr);
+      await db.$executeRawUnsafe(
+        `UPDATE "Employee" SET "employeeStatus" = $1, "status" = $2, "updatedAt" = NOW() WHERE "id" = $3`,
+        empStatus, status, empId,
+      );
+    }
+  }
+
   if (decision === 'confirm') {
     await ensureDocumentWorkflowColumns(db);
     const letter = confirmationLetterText(employee, effectiveDate);
@@ -129,7 +149,7 @@ export async function applyFinalProbationDecision(params: {
     pdf.setFontSize(11);
     pdf.text(pdf.splitTextToSize(letter, 490), 52, 70);
     const fileUrl = pdf.output('datauristring');
-    await db.employee.update({ where: { id: employeeId }, data: { employeeStatus: 'confirmed', status: 'active' } });
+    await applyEmployeeStatus(employeeId, 'confirmed', 'active');
     letterDocument = await db.document.create({
       data: {
         employeeId,
@@ -150,9 +170,9 @@ export async function applyFinalProbationDecision(params: {
     const base = new Date(data.probationStartDate || employee.dateOfJoining);
     base.setMonth(base.getMonth() + Number(data.probationPeriod || 0) + months);
     data.revisedEndDate = base.toISOString();
-    await db.employee.update({ where: { id: employeeId }, data: { employeeStatus: 'probation', status: 'active' } });
+    await applyEmployeeStatus(employeeId, 'probation', 'active');
   } else if (decision === 'terminate') {
-    await db.employee.update({ where: { id: employeeId }, data: { employeeStatus: 'terminated', status: 'terminated' } });
+    await applyEmployeeStatus(employeeId, 'terminated', 'terminated');
     data.payrollEligible = false;
   }
 
@@ -175,11 +195,18 @@ export async function applyFinalProbationDecision(params: {
     : null;
   let emailResult: { success: boolean; error?: string } | null = null;
   if (employee.email) {
-    emailResult = await sendTenantEmail(db, tenantId, {
-      to: employee.email,
-      subject: title,
-      html: `<p>Dear ${name},</p><p>${message}</p>${decision === 'confirm' ? `<p>Your confirmation letter is stored in your employee Documents section.</p>${letterEmailHtml}` : ''}<p>HR Team</p>`,
-    }).catch((error) => ({ success: false, error: error instanceof Error ? error.message : 'Email delivery failed' }));
+    // REQ 5 — wrap the probation-outcome body in the tenant-branded template.
+    const bodyHtml = `<p>Dear ${name},</p><p>${message}</p>${decision === 'confirm' ? `<p>Your confirmation letter is stored in your employee Documents section.</p>${letterEmailHtml}` : ''}<p>HR Team</p>`;
+    try {
+      const html = await buildBrandedEmailForTenant(tenantId, { title, bodyHtml });
+      emailResult = await sendTenantEmail(db, tenantId, {
+        to: employee.email,
+        subject: title,
+        html,
+      }).catch((error) => ({ success: false, error: error instanceof Error ? error.message : 'Email delivery failed' }));
+    } catch (error) {
+      emailResult = { success: false, error: error instanceof Error ? error.message : 'Email build failed' };
+    }
   }
   data.notificationHistory = Array.isArray(data.notificationHistory) ? data.notificationHistory : [];
   data.notificationHistory.push({

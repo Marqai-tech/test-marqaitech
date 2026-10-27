@@ -31,6 +31,7 @@ import {
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip } from 'recharts';
 import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { getDataScope } from '@/lib/roleAccess';
@@ -40,6 +41,9 @@ import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientDemoMode } from '@/lib/site-mode';
+/* Task 156-a — shared SmartHR widgets: same gradient banner + white stat
+   cards / panels as the Employee module dashboard restyle (Task 155). */
+import { PageBreadcrumbs, DateChip, Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 
 /* ── Attendance Tips ── */
 const attendanceTips = [
@@ -234,12 +238,17 @@ function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes =
   return `${hours}h ${mins}m`;
 }
 
-type DashboardBreakPolicy = { startMinutes: number; endMinutes: number; allowanceMinutes: number };
-const DEFAULT_DASHBOARD_BREAK_POLICY: DashboardBreakPolicy = { startMinutes: 810, endMinutes: 870, allowanceMinutes: 60 };
+/* Task 133: per-employee shift start (HH:mm → minutes) when the employee has
+ * a roster-assigned shift; falls back to the tenant-wide cutoff otherwise. */
+function parseHmMinutes(hm: string | undefined): number | null {
+  if (!hm || !/^\d{1,2}:\d{2}$/.test(hm)) return null;
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
 
-function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined, breakIn?: string | null, breakOut?: string | null, policy = DEFAULT_DASHBOARD_BREAK_POLICY): string {
+function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined, breakIn?: string | null, breakOut?: string | null): string {
   if (!checkIn || !checkOut || workHours == null) return '—';
-  const breakMins = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut, policy);
+  const breakMins = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut);
   if (breakMins < 60) return `${breakMins}m`;
   const h = Math.floor(breakMins / 60);
   const m = breakMins % 60;
@@ -252,18 +261,18 @@ function formatBreakMinutes(minutes: number | null | undefined): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-function calculateEffectiveBreakMinutes(checkIn: string, checkOut: string, breakIn?: string | null, breakOut?: string | null, policy = DEFAULT_DASHBOARD_BREAK_POLICY): number {
+function calculateEffectiveBreakMinutes(checkIn: string, checkOut: string, breakIn?: string | null, breakOut?: string | null): number {
   const parts = (value: string) => {
     const formatted = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(value));
     return Number(formatted.find(p => p.type === 'hour')?.value || 0) * 60 + Number(formatted.find(p => p.type === 'minute')?.value || 0);
   };
   const checkInMinutes = parts(checkIn);
   const checkOutMinutes = parts(checkOut);
-  const overlapsOfficialWindow = checkInMinutes < policy.endMinutes && checkOutMinutes > policy.startMinutes;
+  const overlapsOfficialWindow = checkInMinutes < 870 && checkOutMinutes > 810;
   if (!overlapsOfficialWindow) return 0;
-  if (!breakIn || !breakOut) return policy.allowanceMinutes;
+  if (!breakIn || !breakOut) return 60;
   const actual = Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000));
-  return Math.max(policy.allowanceMinutes, actual, Math.max(0, policy.endMinutes - parts(breakIn)));
+  return Math.max(60, actual, Math.max(0, 870 - parts(breakIn)));
 }
 
 function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number {
@@ -277,10 +286,10 @@ function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number
 }
 
 // Dashboard production hours use the fixed one-hour lunch rule.
-function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined, breakIn?: string | null, breakOut?: string | null, policy = DEFAULT_DASHBOARD_BREAK_POLICY): number | null {
-  if (!checkIn || !checkOut || !breakIn || !breakOut) return null;
+function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined, breakIn?: string | null, breakOut?: string | null): number | null {
+  if (!checkIn || !checkOut) return null;
   const spanMinutes = Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 60000));
-  const effectiveBreak = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut, policy);
+  const effectiveBreak = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut);
   return Math.round((Math.max(0, spanMinutes - effectiveBreak) / 60) * 100) / 100;
 }
 
@@ -305,7 +314,10 @@ export default function AttendancePage() {
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   /* ── Active tab ── */
-  const [activeTab, setActiveTab] = useState<'admin' | 'self'>(isAdmin ? 'admin' : 'self');
+  // Task 158: third tab 'adminCalendar' — the month calendar moved out of the
+  // Admin View into its own "Admin Calendar View" tab (sits between Admin View
+  // and My Attendance). Both admin tabs share the same roster fetch.
+  const [activeTab, setActiveTab] = useState<'admin' | 'adminCalendar' | 'self'>(isAdmin ? 'admin' : 'self');
 
   /* ── Admin view state ── */
   const [adminAttendance, setAdminAttendance] = useState<AttendanceRecord[]>([]);
@@ -319,7 +331,9 @@ export default function AttendancePage() {
   const [holidayMap, setHolidayMap] = useState<Map<string, string>>(new Map());
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
   const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
-  const [breakPolicy, setBreakPolicy] = useState<DashboardBreakPolicy>(DEFAULT_DASHBOARD_BREAK_POLICY);
+  // Task 133: per-employee shift overrides (roster-assigned shifts) —
+  // employeeId → { start, end } HH:mm; "Late by" uses the employee's own start.
+  const [shiftWindows, setShiftWindows] = useState<Record<string, { start: string; end: string }>>({});
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -428,6 +442,7 @@ export default function AttendancePage() {
       if (attRes.ok) {
         const data = await attRes.json();
         setAdminAttendance(data.attendance || []);
+        setShiftWindows(data.shiftWindows || {});
       } else {
         setAdminAttendance([]);
       }
@@ -460,15 +475,6 @@ export default function AttendancePage() {
         // Company rule: Late By is always measured after 10:00 AM IST.
         // Do not let legacy 09:00/09:30 policy values override this cutoff.
         setShiftStartMinutes(10 * 60);
-        const parsePolicyTime = (value: unknown, fallback: number) => {
-          const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
-          return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
-        };
-        setBreakPolicy({
-          startMinutes: parsePolicyTime(cfg.breakStartTime, DEFAULT_DASHBOARD_BREAK_POLICY.startMinutes),
-          endMinutes: parsePolicyTime(cfg.breakEndTime, DEFAULT_DASHBOARD_BREAK_POLICY.endMinutes),
-          allowanceMinutes: Number(cfg.breakDurationMinutes) || DEFAULT_DASHBOARD_BREAK_POLICY.allowanceMinutes,
-        });
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
@@ -568,10 +574,10 @@ export default function AttendancePage() {
   /* ── Effects ── */
   useEffect(() => { queueMicrotask(() => fetchEmployee()); }, [fetchEmployee]);
   useEffect(() => { if (employee) queueMicrotask(() => fetchAttendance()); }, [employee, fetchAttendance]);
-  useEffect(() => { if (isAdmin && activeTab === 'admin') queueMicrotask(() => fetchAdminAttendance()); }, [fetchAdminAttendance, activeTab, isAdmin]);
+  useEffect(() => { if (isAdmin && (activeTab === 'admin' || activeTab === 'adminCalendar')) queueMicrotask(() => fetchAdminAttendance()); }, [fetchAdminAttendance, activeTab, isAdmin]);
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (isAdmin && activeTab === 'admin') void fetchAdminAttendance();
+      if (isAdmin && (activeTab === 'admin' || activeTab === 'adminCalendar')) void fetchAdminAttendance();
       else if (employee) void fetchAttendance();
     }, 60_000);
     return () => window.clearInterval(timer);
@@ -593,7 +599,7 @@ export default function AttendancePage() {
    * re-counted when the selected date changes so a fresh check-in shows up
    * after the next navigation/refresh. */
   useEffect(() => {
-    if (!isAdmin || activeTab !== 'admin') return;
+    if (!isAdmin || (activeTab !== 'admin' && activeTab !== 'adminCalendar')) return;
     (async () => {
       try {
         const now = new Date();
@@ -689,6 +695,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -722,6 +729,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -770,6 +778,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -799,6 +808,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -811,10 +821,35 @@ export default function AttendancePage() {
     }
   };
 
+  /* ── Task 108: Remote check-in permissions for the logged-in employee ──
+   * Mobile/web punches are only available with a WFH pre-approval granted
+   * employee-wise by admin/management (Attendance → Remote Check-In).
+   * The punch API enforces this server-side; here we only hide the options
+   * when the flags are known to be off so employees get a clear message
+   * instead of an error toast. Unknown (null) = show buttons and let the
+   * server decide. */
+  const [remotePermissions, setRemotePermissions] = useState<{ wfhPreApproved: boolean; mobileCheckInEnabled: boolean; webCheckInEnabled: boolean } | null>(null);
+  const webCheckInLocked = remotePermissions != null && !remotePermissions.webCheckInEnabled;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/attendance/my-summary', { headers: getAuthHeaders(), cache: 'no-store' });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!cancelled && d?.remotePermissions) setRemotePermissions(d.remotePermissions);
+      } catch { /* non-fatal — server still enforces */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   /* ── Today's status for self view ── */
   // Use the browser's LOCAL calendar day (never toISOString of the current
   // instant — that rolls back a day in timezones ahead of UTC before 05:30)
   const todayStr = localDateKey(new Date());
+  // SmartHR banner date chip
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const todayRecord = attendance.find(a => recordDateKey(a.date) === todayStr);
   const isCheckedIn = !!todayRecord?.checkIn;
   const isCheckedOut = !!todayRecord?.checkOut;
@@ -918,6 +953,22 @@ export default function AttendancePage() {
   const selectedHolidayName = holidayMap.get(selectedDate);
   const selectedHasRecords = adminAttendance.length > 0;
 
+  /* ── Task 157: admin month calendar — every day of the selected month with
+   * its punch count (from monthPunchCounts) + weekend/holiday tinting. ── */
+  const adminCalendarDays = useMemo(() => {
+    const { month, year } = selectedMonth;
+    const startPad = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const days: Array<{ key: string; date: number; count: number; isWeekend: boolean; holiday?: string; isCurrentMonth: boolean }> = [];
+    for (let i = 0; i < startPad; i++) days.push({ key: `pad-${i}`, date: 0, count: 0, isWeekend: false, isCurrentMonth: false });
+    for (let d = 1; d <= totalDays; d++) {
+      const key = `${year}-${pad2(month + 1)}-${pad2(d)}`;
+      const dow = new Date(year, month, d).getDay();
+      days.push({ key, date: d, count: monthPunchCounts.get(key) || 0, isWeekend: weekendDow.includes(dow), holiday: holidayMap.get(key), isCurrentMonth: true });
+    }
+    return days;
+  }, [selectedMonth, monthPunchCounts, weekendDow, holidayMap]);
+
   /* ── Calendar data for selected month ──
    * Keys are built from LOCAL date parts (timezone-safe); days without a
    * punch are derived as weekend / holiday / on-leave / absent. */
@@ -975,7 +1026,7 @@ export default function AttendancePage() {
     const t = new Date(a.checkIn);
     return t.getHours() * 60 + t.getMinutes() > 10 * 60;
   }).length;
-  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut, breakPolicy) || 0), 0);
+  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) || 0), 0);
   const totalOvertime = attendance.reduce((sum, a) => sum + calculateCompanyOvertime(a.checkOut), 0);
 
   /* ── Self table rows: real records + derived month days (weekend/holiday/leave/absent) ── */
@@ -1010,126 +1061,245 @@ export default function AttendancePage() {
     return rows;
   }, [attendance, selectedMonth, holidayMap, approvedLeaves, employee, weekendDow, todayStr]);
 
+  /* ── Task 157: live clock for the SmartHR greeting hero (attendance-employee template) ── */
+  const [nowTick, setNowTick] = useState<Date | null>(null);
+  useEffect(() => {
+    // Deferred first tick (not synchronous) to avoid cascading renders
+    const t0 = window.setTimeout(() => setNowTick(new Date()), 0);
+    const t = window.setInterval(() => setNowTick(new Date()), 15000);
+    return () => { window.clearTimeout(t0); window.clearInterval(t); };
+  }, []);
+  const greeting = (() => {
+    const h = (nowTick || new Date()).getHours();
+    return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+  })();
+  const heroTime = nowTick
+    ? `${nowTick.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}, ${nowTick.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+    : '';
+  const heroFirstName = employee?.firstName || user?.email?.split('@')[0] || 'there';
+
+  /* ── Task 157: template hour stats — Today / Week / Month / Overtime ── */
+  const todayProduction = todayRecord
+    ? (todayRecord.workHours ?? calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut))
+    : null;
+  const weekHours = useMemo(() => {
+    const now = new Date();
+    // Week starts Monday
+    const dow = (now.getDay() + 6) % 7;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    let sum = 0;
+    attendance.forEach(a => {
+      const k = recordDateKey(a.date);
+      const d = new Date(`${k}T00:00:00`);
+      if (d >= monday) sum += calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) || 0;
+    });
+    return sum;
+  }, [attendance]);
+
+  /* ── Task 157: today timeline numbers (template duration tiles) ── */
+  const todaySpanHours = (() => {
+    if (!todayRecord?.checkIn) return null;
+    const inT = new Date(todayRecord.checkIn).getTime();
+    const outT = todayRecord.checkOut ? new Date(todayRecord.checkOut).getTime() : (nowTick ? nowTick.getTime() : inT);
+    return Math.max(0, (outT - inT) / 3600000);
+  })();
+  const todayBreakStr = breakMinutesToday > 0
+    ? `${Math.floor(breakMinutesToday / 60)}h ${String(breakMinutesToday % 60).padStart(2, '0')}m`
+    : hasBreakEnded ? '0h 00m' : null;
+  const todayOt = todayRecord ? calculateCompanyOvertime(todayRecord.checkOut) : 0;
+
   /* ── Format selected date for display ── */
   const formattedSelectedDate = useMemo(() => {
     const d = new Date(selectedDate + 'T00:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   }, [selectedDate]);
 
+  /* ── Task 158: shared Attendance Records panel — rendered by BOTH the Admin
+   * View tab and the new Admin Calendar View tab, so the full table markup
+   * lives in exactly one place. ── */
+  const adminRecordsPanel = (
+    <Panel
+      title="Attendance Records"
+            icon={<FiUsers className="w-4 h-4" />}
+            accent="text-[#3A57C4]"
+            action={<span className="text-xs text-slate-500">{filteredRoster.length} employee{filteredRoster.length !== 1 ? 's' : ''} · Present {stats.totalPresent} · Absent {stats.totalAbsent} · Leave {stats.onLeave} · Late {stats.lateArrivals}</span>}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-thb-border bg-slate-50/60">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check In</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check Out</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Late By</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Prod. Hours</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminLoading ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i} className="border-b border-thb-border/50 animate-pulse">
+                        <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-200" /><div className="space-y-1.5"><div className="h-3 w-24 bg-slate-200 rounded" /><div className="h-2 w-16 bg-slate-100 rounded" /></div></div></td>
+                        <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-14 bg-slate-200 rounded" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-14 bg-slate-200 rounded" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td>
+                      </tr>
+                    ))
+                  ) : filteredRoster.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-16 text-center">
+                        <FiUsers className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                        <p className="text-thb-text-secondary font-medium">No employees match the current filters</p>
+                        <p className="text-sm text-thb-text-muted mt-1">No active employees found for {formattedSelectedDate}</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRoster.map(r => {
+                      const a = r.record;
+                      const statusValue = r.status || 'not_marked';
+                      const statusConfig = getStatusConfig(statusValue);
+                      // Task 133: employees with an assigned shift measure "Late by"
+                      // from THEIR shift start (e.g. 11:00 for MARQ004).
+                      const rowShiftStart = parseHmMinutes(shiftWindows[a?.employeeId || r.emp?.id]?.start) ?? shiftStartMinutes;
+                      const lateBy = a ? calculateLateBy(a.checkIn, rowShiftStart) : '0m';
+                      const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut)) : null;
+                      const breakDur = a?.breakMinutes != null ? formatBreakMinutes(a.breakMinutes) : (a?.checkIn && a?.checkOut ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours, a.breakIn, a.breakOut) : '—');
+                      return (
+                        <tr key={r.key} className="border-b border-thb-border/50 hover:bg-slate-50/80 transition-colors group">
+                          {/* Employee */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                {getInitials(r.emp.firstName, r.emp.lastName)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-thb-text-primary">
+                                  {r.emp.firstName || 'Unknown'} {r.emp.lastName || ''}
+                                </p>
+                                <p className="text-xs text-thb-text-muted">
+                                  {r.emp.employeeId || '—'}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          {/* Status */}
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
+                              {statusConfig.label}
+                            </span>
+                              {productionHours != null && productionHours < 8 && <div className="mt-1 text-[11px] text-amber-700 font-medium">Below 8 hours — regularization required</div>}
+                          </td>
+                          {/* Check In */}
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
+                          {/* Check Out */}
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
+                          {/* Break */}
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{breakDur}</td>
+                          {/* Late By */}
+                          <td className="px-4 py-3">
+                            <span className={`text-sm font-medium ${lateBy !== '0m' ? 'text-red-600' : 'text-thb-text-muted'}`}>
+                              {lateBy !== '0m' ? lateBy : '—'}
+                            </span>
+                          </td>
+                          {/* Production Hours */}
+                          <td className="px-4 py-3">
+                            <span className={`text-sm font-medium ${
+                              productionHours != null
+                                ? productionHours >= 8
+                                  ? 'text-emerald-600'
+                                  : 'text-amber-600'
+                                : 'text-thb-text-muted'
+                            }`}>
+                              {productionHours != null ? formatHoursHm(productionHours) : '—'}
+                            </span>
+                          </td>
+                          {/* Actions */}
+                          <td className="px-4 py-3">
+                            {a && (
+                              <div className="flex items-center gap-2 whitespace-nowrap">
+                                <button
+                                  onClick={() => setDetailRecord(a)}
+                                  className="inline-flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium"
+                                >
+                                  <FiEye className="w-3.5 h-3.5" /> View
+                                </button>
+                                {!isAdmin && <Link href={`/attendance/regularize?date=${encodeURIComponent(recordDateKey(a.date))}`} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Regularize</Link>}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+  );
+
   return (
     <div className="space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiClock className="w-6 h-6 text-cyan-500" />
-            Attendance
-          </h1>
-          <p className="text-thb-text-secondary mt-1">Track & manage employee attendance</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isClientDemoMode() && (
-          <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
-            {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
-            {seeding ? 'Seeding...' : 'Seed Sample Data'}
-          </button>
-          )}
-          {/* Check In / Out buttons — always available */}
-          <button
-            onClick={handleCheckIn}
-            disabled={checkingIn || isCheckedIn}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              isCheckedIn
-                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
-                : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/25 hover:shadow-md'
-            }`}
-          >
-            <FiLogIn className="w-4 h-4" />
-            {checkingIn ? 'Checking...' : isCheckedIn ? '✓ Checked In' : 'Check In'}
-          </button>
-          <button
-            onClick={handleCheckOut}
-            disabled={checkingOut || !isCheckedIn || isCheckedOut}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              !isCheckedIn || isCheckedOut
-                ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
-                : 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-500/25 hover:shadow-md'
-            }`}
-          >
-            <FiLogOut className="w-4 h-4" />
-            {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : 'Check Out'}
-          </button>
-          <label className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-lg bg-white">
-            <input type="checkbox" checked={earlyLogoutEnabled} disabled={!isCheckedIn || isCheckedOut || earlyLogoutEnabled} onChange={e => handleEarlyLogout(e.target.checked)} />
-            Half-Day Leave / Early Checkout
-          </label>
-          {/* Task 57: Break In / Break Out buttons (self-service lunch/tea break) */}
-          {isCheckedIn && (
-            <>
-              <button
-                onClick={handleBreakIn}
-                disabled={breakingIn || isOnBreak || hasBreakEnded}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                  isOnBreak || hasBreakEnded
-                    ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
-                    : 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm shadow-amber-500/25 hover:shadow-md'
-                }`}
-                title="Start a lunch or tea break — break-in time + GPS will be recorded"
-              >
-                <FiCoffee className="w-4 h-4" />
-                {breakingIn ? 'Starting...' : isOnBreak ? 'On Break' : hasBreakEnded ? '✓ Break Done' : 'Break In'}
+      {/* ── Header — SmartHR gradient breadcrumb banner (Task 156-a) ── */}
+      <PageBreadcrumbs
+        title="Attendance Dashboard"
+        trail={['Attendance', 'Dashboard']}
+        right={
+          <>
+            <DateChip value={todayChip} />
+            {isClientDemoMode() && (
+              <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 disabled:opacity-50 transition-colors">
+                {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
+                {seeding ? 'Seeding...' : 'Seed Sample Data'}
               </button>
-              <button
-                onClick={handleBreakOut}
-                disabled={breakingOut || !isOnBreak}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                  !isOnBreak
-                    ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
-                    : 'bg-teal-500 text-white hover:bg-teal-600 shadow-sm shadow-teal-500/25 hover:shadow-md'
-                }`}
-                title="End the current break — break-out time + GPS will be recorded"
-              >
-                <FiCoffee className="w-4 h-4" />
-                {breakingOut ? 'Ending...' : 'Break Out'}
-              </button>
-            </>
-          )}
-          {/* GPS status indicator while capturing */}
-          {gpsStatus && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-slate-500">
-              <FiMapPin className="w-3.5 h-3.5 animate-pulse text-emerald-500" />
-              {gpsStatus}
-            </span>
-          )}
-          {/* Show today's break duration if break ended */}
-          {hasBreakEnded && breakMinutesToday > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
-              <FiCoffee className="w-3.5 h-3.5" />
-              Break: {Math.floor(breakMinutesToday / 60)}h {breakMinutesToday % 60}m
-            </span>
-          )}
-        </div>
-      </div>
+            )}
+            {/* Task 157: punch / break controls relocated to the SmartHR greeting
+                hero card in the self view (attendance-employee template) — the
+                banner now stays a clean title band for both views. */}
+          </>
+        }
+      />
 
-      {/* ── Tab Switcher (Admin / Self View) ── */}
+      {/* ── Tab Switcher (Admin View / Admin Calendar View / My Attendance) ── */}
       {isAdmin && (
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
           <button
             onClick={() => setActiveTab('admin')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === 'admin'
-                ? 'bg-white text-thb-text-primary shadow-sm'
+                ? 'bg-white text-[#3A57C4] shadow-sm'
                 : 'text-thb-text-secondary hover:text-thb-text-primary'
             }`}
           >
             <FiUsers className="w-4 h-4" />
             Admin View
           </button>
+          {/* Task 158: Admin Calendar View — month calendar promoted from the
+              Admin View body into its own tab (between Admin View and My
+              Attendance) so the day roster stays front-and-center there. */}
+          <button
+            onClick={() => setActiveTab('adminCalendar')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'adminCalendar'
+                ? 'bg-white text-[#3A57C4] shadow-sm'
+                : 'text-thb-text-secondary hover:text-thb-text-primary'
+            }`}
+          >
+            <FiCalendar className="w-4 h-4" />
+            Admin Calendar View
+          </button>
           <button
             onClick={() => setActiveTab('self')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === 'self'
-                ? 'bg-white text-thb-text-primary shadow-sm'
+                ? 'bg-white text-[#3A57C4] shadow-sm'
                 : 'text-thb-text-secondary hover:text-thb-text-primary'
             }`}
           >
@@ -1144,41 +1314,19 @@ export default function AttendancePage() {
       {/* ══════════════════════════════════════════════════ */}
       {activeTab === 'admin' && isAdmin && (
         <>
-          {/* ── Stats Row ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon={<FiCheckCircle className="w-5 h-5" />}
-              label="Total Present"
-              value={stats.totalPresent}
-              iconBg="bg-emerald-100"
-              iconColor="text-emerald-600"
-              accent="border-l-emerald-500"
-            />
-            <StatCard
-              icon={<FiXCircle className="w-5 h-5" />}
-              label="Total Absent"
-              value={stats.totalAbsent}
-              iconBg="bg-red-100"
-              iconColor="text-red-600"
-              accent="border-l-red-500"
-            />
-            <StatCard
-              icon={<FiAlertCircle className="w-5 h-5" />}
-              label="Late Arrivals"
-              value={stats.lateArrivals}
-              iconBg="bg-amber-100"
-              iconColor="text-amber-600"
-              accent="border-l-amber-500"
-            />
-            <StatCard
-              icon={<FiCalendar className="w-5 h-5" />}
-              label="On Leave"
-              value={stats.onLeave}
-              iconBg="bg-green-100"
-              iconColor="text-green-600"
-              accent="border-l-green-500"
-            />
-          </div>
+          {/* ── Task 157 — SmartHR attendance-admin template hero:
+              "Attendance Details Today" donut + breakdown rows. Same numbers
+              the old 4 StatCards showed, now graphically. ── */}
+          <AdminTodayHero
+            rosterCount={adminEmployees.length}
+            present={stats.totalPresent - stats.lateArrivals - (adminRoster.filter(r => r.status === 'half_day').length)}
+            late={stats.lateArrivals}
+            absent={stats.totalAbsent}
+            onLeave={stats.onLeave}
+            halfDay={adminRoster.filter(r => r.status === 'half_day').length}
+            loading={adminLoading}
+            dateLabel={formattedSelectedDate}
+          />
 
           {/* ── Filter Bar ── */}
           <div className="thb-card p-4">
@@ -1272,7 +1420,7 @@ export default function AttendancePage() {
               {recentDays.map(d => {
                 const isSelected = selectedDate === d.key;
                 const chipCls = isSelected
-                  ? 'bg-cyan-600 text-white border-cyan-600'
+                  ? 'bg-[#3A57C4] text-white border-[#3A57C4]'
                   : d.kind === 'punches'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                     : d.kind === 'weekend' || d.kind === 'holiday'
@@ -1294,130 +1442,10 @@ export default function AttendancePage() {
             </div>
           </div>
 
-          {/* ── Attendance Table ── */}
-          <div className="thb-card overflow-hidden">
-            <div className="px-6 py-4 border-b border-thb-border flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-thb-text-primary">Attendance Records</h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">{filteredRoster.length} employee{filteredRoster.length !== 1 ? 's' : ''} · Present {stats.totalPresent} · Absent {stats.totalAbsent} · Leave {stats.onLeave} · Late {stats.lateArrivals}</p>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-thb-border bg-slate-50/60">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check In</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check Out</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Late By</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Prod. Hours</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adminLoading ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <tr key={i} className="border-b border-thb-border/50 animate-pulse">
-                        <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-200" /><div className="space-y-1.5"><div className="h-3 w-24 bg-slate-200 rounded" /><div className="h-2 w-16 bg-slate-100 rounded" /></div></div></td>
-                        <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
-                        <td className="px-4 py-3"><div className="h-3 w-14 bg-slate-200 rounded" /></td>
-                        <td className="px-4 py-3"><div className="h-3 w-14 bg-slate-200 rounded" /></td>
-                        <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
-                        <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
-                        <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
-                        <td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td>
-                      </tr>
-                    ))
-                  ) : filteredRoster.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-16 text-center">
-                        <FiUsers className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
-                        <p className="text-thb-text-secondary font-medium">No employees match the current filters</p>
-                        <p className="text-sm text-thb-text-muted mt-1">No active employees found for {formattedSelectedDate}</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRoster.map(r => {
-                      const a = r.record;
-                      const statusValue = r.status || 'not_marked';
-                      const statusConfig = getStatusConfig(statusValue);
-                      const lateBy = a ? calculateLateBy(a.checkIn, shiftStartMinutes) : '0m';
-                      const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut, breakPolicy)) : null;
-                      const breakDur = a?.breakMinutes != null ? formatBreakMinutes(a.breakMinutes) : (a?.checkIn && a?.checkOut ? (a.breakIn && a.breakOut ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours, a.breakIn, a.breakOut, breakPolicy) : 'Required') : '—');
-                      return (
-                        <tr key={r.key} className="border-b border-thb-border/50 hover:bg-slate-50/80 transition-colors group">
-                          {/* Employee */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                {getInitials(r.emp.firstName, r.emp.lastName)}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-thb-text-primary">
-                                  {r.emp.firstName || 'Unknown'} {r.emp.lastName || ''}
-                                </p>
-                                <p className="text-xs text-thb-text-muted">
-                                  {r.emp.employeeId || '—'}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          {/* Status */}
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
-                              {statusConfig.label}
-                            </span>
-                              {productionHours != null && productionHours < 8 && <div className="mt-1 text-[11px] text-amber-700 font-medium">Below 8 hours — regularization required</div>}
-                          </td>
-                          {/* Check In */}
-                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
-                          {/* Check Out */}
-                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                          {/* Break */}
-                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{breakDur}</td>
-                          {/* Late By */}
-                          <td className="px-4 py-3">
-                            <span className={`text-sm font-medium ${lateBy !== '0m' ? 'text-red-600' : 'text-thb-text-muted'}`}>
-                              {lateBy !== '0m' ? lateBy : '—'}
-                            </span>
-                          </td>
-                          {/* Production Hours */}
-                          <td className="px-4 py-3">
-                            <span className={`text-sm font-medium ${
-                              productionHours != null
-                                ? productionHours >= 8
-                                  ? 'text-emerald-600'
-                                  : 'text-amber-600'
-                                : 'text-thb-text-muted'
-                            }`}>
-                              {productionHours != null ? formatHoursHm(productionHours) : '—'}
-                            </span>
-                          </td>
-                          {/* Actions */}
-                          <td className="px-4 py-3">
-                            {a && (
-                              <div className="flex items-center gap-2 whitespace-nowrap">
-                                <button
-                                  onClick={() => setDetailRecord(a)}
-                                  className="inline-flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium"
-                                >
-                                  <FiEye className="w-3.5 h-3.5" /> View
-                                </button>
-                                {!isAdmin && <Link href={`/attendance/regularize?date=${encodeURIComponent(recordDateKey(a.date))}`} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Regularize</Link>}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+
+          {/* ── Attendance Table — SmartHR Panel (Task 156-a) — shared block
+              (Task 158), also rendered by the Admin Calendar View tab ── */}
+          {adminRecordsPanel}
 
           {/* ── Quick Links (admin only) ── */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1448,11 +1476,193 @@ export default function AttendancePage() {
       )}
 
       {/* ══════════════════════════════════════════════════ */}
+      {/* ── ADMIN CALENDAR VIEW (Task 158) ── */}
+      {/* ══════════════════════════════════════════════════ */}
+      {activeTab === 'adminCalendar' && isAdmin && (
+        <>
+          {/* ── Month calendar (moved out of the Admin View): every day of the
+              selected month with its punch count, weekend/holiday tinting;
+              click a day to load its punches into the table below. ── */}
+          <Panel
+            title="Attendance Calendar"
+            icon={<FiCalendar className="w-4 h-4" />}
+            accent="text-[#009EFB]"
+            action={
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigateMonth(-1)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                  <FiChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-sm font-medium text-slate-800 min-w-[140px] text-center">
+                  {monthNames[selectedMonth.month]} {selectedMonth.year}
+                </span>
+                <button onClick={() => navigateMonth(1)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                  <FiChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            }
+          >
+            <div className="grid grid-cols-7 gap-1">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="text-center text-xs font-semibold text-thb-text-muted py-2">{day}</div>
+              ))}
+              {adminCalendarDays.map((day, i) => {
+                if (!day.isCurrentMonth) return <div key={`pad-${i}`} className="aspect-square" />;
+                const isSelected = selectedDate === day.key;
+                const isToday = day.key === todayStr;
+                return (
+                  <button
+                    key={day.key}
+                    onClick={() => setSelectedDate(day.key)}
+                    title={day.holiday ? day.holiday : day.count > 0 ? `${day.count} punches` : undefined}
+                    className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs relative transition-all hover:scale-105 ${
+                      day.holiday ? 'bg-sky-50 text-sky-600' : day.isWeekend ? 'bg-slate-100 text-slate-400' : day.count > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-thb-text-muted'
+                    } ${isSelected ? 'ring-2 ring-[#3A57C4] ring-offset-1' : isToday ? 'ring-1 ring-[#009EFB]/50' : ''}`}
+                  >
+                    <span className={`font-medium ${isSelected ? 'text-[#3A57C4]' : ''}`}>{day.date}</span>
+                    {day.count > 0 && <span className="text-[8px] leading-none mt-0.5 font-bold text-emerald-600">{day.count}</span>}
+                    {day.holiday && day.count === 0 && <span className="text-[8px] leading-none mt-0.5">H</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-thb-border">
+              {[
+                { label: 'Punches recorded', color: 'bg-emerald-100' },
+                { label: 'Weekend', color: 'bg-slate-200' },
+                { label: 'Holiday', color: 'bg-sky-100' },
+                { label: 'Selected day', color: 'bg-white ring-1 ring-[#3A57C4]' },
+              ].map(l => (
+                <div key={l.label} className="flex items-center gap-1.5">
+                  <span className={`w-3 h-3 rounded ${l.color}`} />
+                  <span className="text-xs text-thb-text-muted">{l.label}</span>
+                </div>
+              ))}
+              <span className="text-[11px] text-thb-text-muted ml-auto">Click a day to view its punches below</span>
+            </div>
+          </Panel>
+
+          {/* ── Punches for the selected day (shared records table) ── */}
+          {adminRecordsPanel}
+        </>
+      )}
+
+      {/* ══════════════════════════════════════════════════ */}
       {/* ── SELF VIEW ── */}
       {/* ══════════════════════════════════════════════════ */}
       {activeTab === 'self' && (
         <>
-          {/* ── Today's Quick Stats ── */}
+          {/* ── Task 157 — SmartHR attendance-employee template greeting hero:
+              gradient card with live clock + punch / break controls (relocated
+              from the banner; identical handlers & gating). ── */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#3A57C4] via-[#4A66D6] to-[#6C4FD6] p-6 sm:p-7 text-white shadow-lg shadow-[#3A57C4]/25">
+            <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute bottom-[-4rem] left-1/3 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-5">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">{greeting}, {heroFirstName}</h2>
+                <p className="text-sm text-white/85 mt-1.5 flex items-center gap-2">
+                  <FiClock className="w-4 h-4" />
+                  {heroTime || new Date().toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' })}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/15 ring-1 ring-white/25">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isCheckedIn && !isCheckedOut ? 'bg-emerald-300 animate-pulse' : isCheckedOut ? 'bg-rose-300' : 'bg-white/50'}`} />
+                    {todayRecord ? getStatusConfig(todayRecord.status).label : 'Not Checked In'}
+                  </span>
+                  {isCheckedIn && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/15 ring-1 ring-white/25">
+                      <FiLogIn className="w-3 h-3" /> In {formatTime(todayRecord?.checkIn)}
+                    </span>
+                  )}
+                  {isCheckedOut && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/15 ring-1 ring-white/25">
+                      <FiLogOut className="w-3 h-3" /> Out {formatTime(todayRecord?.checkOut)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Punch controls — Task 108 gating preserved: web check-in needs
+                  a WFH pre-approval; office employees use the biometric device. */}
+              <div className="flex flex-col items-stretch sm:items-end gap-2 shrink-0">
+                {webCheckInLocked ? (
+                  <div className="inline-flex items-center gap-2 px-3 py-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg max-w-xs">
+                    <FiInfo className="w-4 h-4 shrink-0" />
+                    <span>Web check-in is not enabled for your account — please use the office biometric device.</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCheckIn}
+                        disabled={checkingIn || isCheckedIn}
+                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                          isCheckedIn
+                            ? 'bg-white/15 text-white/70 ring-1 ring-white/25 cursor-default'
+                            : 'bg-white text-[#3A57C4] hover:bg-emerald-50 shadow-md hover:shadow-lg'
+                        }`}
+                      >
+                        <FiLogIn className="w-4 h-4" />
+                        {checkingIn ? 'Checking...' : isCheckedIn ? '✓ Checked In' : 'Punch In'}
+                      </button>
+                      <button
+                        onClick={handleCheckOut}
+                        disabled={checkingOut || !isCheckedIn || isCheckedOut}
+                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                          !isCheckedIn || isCheckedOut
+                            ? 'bg-white/10 text-white/40 ring-1 ring-white/15 cursor-not-allowed'
+                            : 'bg-white text-rose-600 hover:bg-rose-50 shadow-md hover:shadow-lg'
+                        }`}
+                      >
+                        <FiLogOut className="w-4 h-4" />
+                        {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : 'Punch Out'}
+                      </button>
+                    </div>
+                    {isCheckedIn && (
+                      <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end">
+                        <button
+                          onClick={handleBreakIn}
+                          disabled={breakingIn || isOnBreak || hasBreakEnded}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            isOnBreak || hasBreakEnded
+                              ? 'bg-white/10 text-white/40 ring-1 ring-white/15 cursor-not-allowed'
+                              : 'bg-white/15 text-white ring-1 ring-white/25 hover:bg-white/25'
+                          }`}
+                          title="Start a lunch or tea break — break-in time + GPS will be recorded"
+                        >
+                          <FiCoffee className="w-3.5 h-3.5" />
+                          {breakingIn ? 'Starting...' : isOnBreak ? 'On Break' : hasBreakEnded ? '✓ Break Done' : 'Break In'}
+                        </button>
+                        <button
+                          onClick={handleBreakOut}
+                          disabled={breakingOut || !isOnBreak}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            !isOnBreak
+                              ? 'bg-white/10 text-white/40 ring-1 ring-white/15 cursor-not-allowed'
+                              : 'bg-white/15 text-white ring-1 ring-white/25 hover:bg-white/25'
+                          }`}
+                          title="End the current break — break-out time + GPS will be recorded"
+                        >
+                          <FiCoffee className="w-3.5 h-3.5" />
+                          {breakingOut ? 'Ending...' : 'Break Out'}
+                        </button>
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white/90 bg-white/10 ring-1 ring-white/20 rounded-lg cursor-pointer">
+                          <input type="checkbox" checked={earlyLogoutEnabled} disabled={!isCheckedIn || isCheckedOut || earlyLogoutEnabled} onChange={e => handleEarlyLogout(e.target.checked)} className="accent-white" />
+                          Half-Day / Early Checkout
+                        </label>
+                      </div>
+                    )}
+                    {gpsStatus && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75">
+                        <FiMapPin className="w-3.5 h-3.5 animate-pulse" /> {gpsStatus}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Missing check-out ── */}
           {todayRecord?.checkIn && !todayRecord.checkOut && (
             <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800" role="alert">
               <FiAlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
@@ -1463,44 +1673,138 @@ export default function AttendancePage() {
               </div>
             </div>
           )}
+          {/* ── Today's Quick Stats — SmartHR attendance-employee template cards
+              (Total Hours Today/Week/Month + Overtime; Task 157) ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              icon={<FiLogIn className="w-5 h-5" />}
-              label="Check In"
-              value={todayRecord?.checkIn ? formatTime(todayRecord.checkIn) : '—'}
-              iconBg="bg-green-100"
-              iconColor="text-green-600"
-              accent="border-l-green-500"
-              isText
-            />
-            <StatCard
-              icon={<FiLogOut className="w-5 h-5" />}
-              label="Check Out"
-              value={todayRecord?.checkOut ? formatTime(todayRecord.checkOut) : '—'}
-              iconBg="bg-red-100"
-              iconColor="text-red-600"
-              accent="border-l-red-500"
-              isText
-            />
-            <StatCard
+              label="Total Hours Today"
+              value={todayProduction != null ? formatHoursHm(todayProduction) : '—'}
+              sub="Production hours today"
               icon={<FiClock className="w-5 h-5" />}
-              label="Work Hours"
-              value={todayRecord && (todayRecord.workHours ?? calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut, breakPolicy)) != null ? formatHoursHm((todayRecord.workHours ?? calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut, breakPolicy)) as number) : '—'}
-              iconBg="bg-emerald-100"
-              iconColor="text-emerald-600"
-              accent="border-l-emerald-500"
-              isText
+              bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+              ring="ring-[#3A57C4]/20"
             />
             <StatCard
+              label="Total Hours Week"
+              value={formatHoursHm(weekHours)}
+              sub="This week (Mon–Sun)"
+              icon={<FiCalendar className="w-5 h-5" />}
+              bg="bg-[#6C4FD6]/10 text-[#6C4FD6]"
+              ring="ring-[#6C4FD6]/20"
+            />
+            <StatCard
+              label="Total Hours Month"
+              value={formatHoursHm(totalHours)}
+              sub={monthNames[selectedMonth.month]}
+              icon={<FiGrid className="w-5 h-5" />}
+              bg="bg-[#10B981]/10 text-[#10B981]"
+              ring="ring-[#10B981]/20"
+            />
+            <StatCard
+              label="Overtime this Month"
+              value={formatHoursHm(totalOvertime)}
+              sub="Company OT after shift hours"
               icon={<FiCheckCircle className="w-5 h-5" />}
-              label="Status"
-              value={todayRecord ? getStatusConfig(todayRecord.status).label : 'Not Checked In'}
-              iconBg="bg-amber-100"
-              iconColor="text-amber-600"
-              accent="border-l-amber-500"
-              isText
+              bg="bg-[#FF9B44]/10 text-[#FF9B44]"
+              ring="ring-[#FF9B44]/20"
             />
           </div>
+
+          {/* ── Task 157 — Today's Timeline (template duration tiles) ── */}
+          <Panel
+            title="Today's Timeline"
+            icon={<FiClock className="w-4 h-4" />}
+            accent="text-[#009EFB]"
+            action={
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                {hasBreakEnded && breakMinutesToday > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                    <FiCoffee className="w-3.5 h-3.5" /> Break {Math.floor(breakMinutesToday / 60)}h {breakMinutesToday % 60}m
+                  </span>
+                )}
+                {gpsStatus && <span className="inline-flex items-center gap-1"><FiMapPin className="w-3.5 h-3.5 animate-pulse text-emerald-500" /> {gpsStatus}</span>}
+              </div>
+            }
+          >
+            {todayRecord?.checkIn ? (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Total Span', value: todaySpanHours != null ? formatHoursHm(todaySpanHours) : '—', dot: 'bg-[#3A57C4]' },
+                    { label: 'Production', value: todayProduction != null ? formatHoursHm(todayProduction) : '—', dot: 'bg-[#10B981]' },
+                    { label: 'Break', value: todayBreakStr ?? '—', dot: 'bg-[#FF9B44]' },
+                    { label: 'Overtime', value: todayOt > 0 ? formatHoursHm(todayOt) : '0h 00m', dot: 'bg-[#6C4FD6]' },
+                  ].map(tile => (
+                    <div key={tile.label} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`w-2 h-2 rounded-full ${tile.dot}`} />
+                        <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">{tile.label}</p>
+                      </div>
+                      <p className="text-xl font-bold text-slate-900">{tile.value}</p>
+                    </div>
+                  ))}
+                </div>
+                {/* Timeline bar — in-office span with the break window carved out */}
+                <div className="mt-5">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
+                    <span>{formatTime(todayRecord.checkIn)}</span>
+                    <span>Now / Punch out</span>
+                    <span>{todayRecord.checkOut ? formatTime(todayRecord.checkOut) : '—'}</span>
+                  </div>
+                  <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden">
+                    {(() => {
+                      const inMin = new Date(todayRecord.checkIn).getHours() * 60 + new Date(todayRecord.checkIn).getMinutes();
+                      const outMin = todayRecord.checkOut
+                        ? new Date(todayRecord.checkOut).getHours() * 60 + new Date(todayRecord.checkOut).getMinutes()
+                        : (nowTick ? nowTick.getHours() * 60 + nowTick.getMinutes() : inMin);
+                      const windowStart = Math.max(0, Math.min(inMin, 1439));
+                      const windowEnd = Math.max(windowStart + 1, Math.min(outMin, 1439));
+                      const span = windowEnd - windowStart;
+                      let breakLeftPct: number | null = null;
+                      let breakWidthPct = 0;
+                      if (todayRecord.breakIn) {
+                        const bIn = new Date(todayRecord.breakIn);
+                        const bOut = todayRecord.breakOut ? new Date(todayRecord.breakOut) : (nowTick || bIn);
+                        const bInMin = Math.max(windowStart, bIn.getHours() * 60 + bIn.getMinutes());
+                        const bOutMin = Math.min(windowEnd, bOut.getHours() * 60 + bOut.getMinutes());
+                        if (bOutMin > bInMin) {
+                          breakLeftPct = ((bInMin - windowStart) / span) * 100;
+                          breakWidthPct = Math.min(100 - breakLeftPct, ((bOutMin - bInMin) / span) * 100);
+                        }
+                      }
+                      return (
+                        <>
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#3A57C4] to-[#10B981]"
+                            style={{ width: '100%' }}
+                          />
+                          {breakLeftPct != null && breakWidthPct > 0 && (
+                            <div
+                              className="absolute inset-y-0 bg-amber-400"
+                              style={{ left: `${breakLeftPct}%`, width: `${breakWidthPct}%` }}
+                              title="Break"
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-[10px] text-slate-500">
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-gradient-to-r from-[#3A57C4] to-[#10B981]" /> In office</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Break</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-3 py-4">
+                <FiClock className="w-8 h-8 text-slate-200" />
+                <div>
+                  <p className="text-sm font-medium text-thb-text-primary">No punches yet today</p>
+                  <p className="text-xs text-thb-text-muted">Your timeline appears here after you punch in{webCheckInLocked ? ' — use the office biometric device' : ''}.</p>
+                </div>
+              </div>
+            )}
+          </Panel>
 
           {/* ── View Toggle ── */}
           <div className="flex items-center justify-between">
@@ -1509,7 +1813,7 @@ export default function AttendancePage() {
                 onClick={() => setViewMode('calendar')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   viewMode === 'calendar'
-                    ? 'bg-white text-thb-text-primary shadow-sm'
+                    ? 'bg-white text-[#3A57C4] shadow-sm'
                     : 'text-thb-text-secondary hover:text-thb-text-primary'
                 }`}
               >
@@ -1520,7 +1824,7 @@ export default function AttendancePage() {
                 onClick={() => setViewMode('table')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   viewMode === 'table'
-                    ? 'bg-white text-thb-text-primary shadow-sm'
+                    ? 'bg-white text-[#3A57C4] shadow-sm'
                     : 'text-thb-text-secondary hover:text-thb-text-primary'
                 }`}
               >
@@ -1550,24 +1854,32 @@ export default function AttendancePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* ── Calendar View ── */}
+          {/* Task 159 fix: sidebar (Monthly Summary / Quick Info / Quick Links)
+              collapsed below the main column on many laptops (viewport < lg
+              1024px — e.g. 125–150% zoom). Two-column layout now starts at md
+              (768px) and the main column is overflow-hardened with min-w-0. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* ── Calendar View — SmartHR Panel (Task 156-a) ── */}
             {viewMode === 'calendar' && (
-              <div className="lg:col-span-2 thb-card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-thb-text-primary">Monthly Calendar</h2>
+              <div className="md:col-span-2 min-w-0">
+              <Panel
+                title="Monthly Calendar"
+                icon={<FiCalendar className="w-4 h-4" />}
+                accent="text-[#009EFB]"
+                action={
                   <div className="flex items-center gap-2">
-                    <button onClick={() => navigateMonth(-1)} className="p-1.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                    <button onClick={() => navigateMonth(-1)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" />
                     </button>
-                    <span className="text-sm font-medium text-thb-text-primary min-w-[140px] text-center">
+                    <span className="text-sm font-medium text-slate-800 min-w-[140px] text-center">
                       {monthNames[selectedMonth.month]} {selectedMonth.year}
                     </span>
-                    <button onClick={() => navigateMonth(1)} className="p-1.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                    <button onClick={() => navigateMonth(1)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
                       <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
+                }
+              >
 
                 <div className="grid grid-cols-7 gap-1">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -1612,15 +1924,14 @@ export default function AttendancePage() {
                     </div>
                   ))}
                 </div>
+              </Panel>
               </div>
             )}
 
-            {/* ── Table View ── */}
+            {/* ── Table View — SmartHR Panel (Task 156-a) ── */}
             {viewMode === 'table' && (
-              <div className="lg:col-span-2 thb-card overflow-hidden">
-                <div className="px-6 py-4 border-b border-thb-border">
-                  <h2 className="text-sm font-semibold text-thb-text-primary">Attendance Records</h2>
-                </div>
+              <div className="md:col-span-2 min-w-0">
+              <Panel title="Attendance Records" icon={<FiList className="w-4 h-4" />} accent="text-[#3A57C4]">
                 <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
                   <table className="w-full">
                     <thead className="sticky top-0 z-10">
@@ -1629,8 +1940,10 @@ export default function AttendancePage() {
                         <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check In</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check Out</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Hours</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">OT</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Late By</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Overtime</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Prod. Hours</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1643,11 +1956,13 @@ export default function AttendancePage() {
                             <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
                             <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
                             <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
+                            <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
+                            <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
                           </tr>
                         ))
                       ) : selfTableRows.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-4 py-12 text-center">
+                          <td colSpan={8} className="px-4 py-12 text-center">
                             <FiClock className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
                             <p className="text-thb-text-secondary font-medium">No attendance records</p>
                             <p className="text-sm text-thb-text-muted mt-1">Check in to start tracking your attendance</p>
@@ -1657,7 +1972,7 @@ export default function AttendancePage() {
                         selfTableRows.map(row => {
                           const a = row.record;
                           const statusConfig = getStatusConfig(row.status || 'not_marked');
-                          const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut, breakPolicy)) : null;
+                          const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut)) : null;
                           const lowHours = productionHours != null && productionHours < 8;
                           return (
                             <tr key={row.key} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
@@ -1671,8 +1986,30 @@ export default function AttendancePage() {
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{productionHours != null ? formatHoursHm(productionHours) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.breakMinutes != null ? formatBreakMinutes(a.breakMinutes) : (a?.checkIn && a?.checkOut ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours, a.breakIn, a.breakOut) : '—')}</td>
+                              <td className="px-4 py-3">
+                                {(() => {
+                                  const rowShiftStart = parseHmMinutes(shiftWindows[a?.employeeId || employee?.id || '']?.start) ?? shiftStartMinutes;
+                                  const lateBy = a ? calculateLateBy(a.checkIn, rowShiftStart) : '0m';
+                                  return (
+                                    <span className={`text-sm font-medium ${lateBy !== '0m' ? 'text-red-600' : 'text-thb-text-muted'}`}>
+                                      {lateBy !== '0m' ? lateBy : '—'}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateCompanyOvertime(a.checkOut) > 0 ? formatHoursHm(calculateCompanyOvertime(a.checkOut)) : '—'}</td>
+                              <td className="px-4 py-3">
+                                <span className={`text-sm font-medium ${
+                                  productionHours != null
+                                    ? productionHours >= 8
+                                      ? 'text-emerald-600'
+                                      : 'text-amber-600'
+                                    : 'text-thb-text-muted'
+                                }`}>
+                                  {productionHours != null ? formatHoursHm(productionHours) : '—'}
+                                </span>
+                              </td>
                             </tr>
                           );
                         })
@@ -1680,23 +2017,22 @@ export default function AttendancePage() {
                     </tbody>
                   </table>
                 </div>
+              </Panel>
               </div>
             )}
 
             {/* ── Sidebar ── */}
             <div className="space-y-4">
-              <div className="thb-card p-6">
-                <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Monthly Summary</h3>
+              <Panel title="Monthly Summary" icon={<FiClock className="w-4 h-4" />} accent="text-[#10B981]">
                 <div className="space-y-4">
                   <SummaryRow label="Present Days" value={`${presentCount}`} color="text-emerald-600" barBg="bg-emerald-100" barFill="bg-emerald-500" pct={Math.min(100, (presentCount / 22) * 100)} />
                   <SummaryRow label="Late Arrivals" value={`${lateCount}`} color="text-amber-600" barBg="bg-amber-100" barFill="bg-amber-500" pct={Math.min(100, (lateCount / 22) * 100)} />
                   <SummaryRow label="Total Hours" value={formatHoursHm(totalHours)} color="text-green-600" barBg="bg-green-100" barFill="bg-green-500" pct={Math.min(100, (totalHours / 176) * 100)} />
                   <SummaryRow label="Overtime" value={formatHoursHm(totalOvertime)} color="text-teal-600" barBg="bg-teal-100" barFill="bg-teal-500" pct={Math.min(100, totalOvertime > 0 ? (totalOvertime / 20) * 100 : 0)} />
                 </div>
-              </div>
+              </Panel>
 
-              <div className="thb-card p-6">
-                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Quick Info</h3>
+              <Panel title="Quick Info" icon={<FiInfo className="w-4 h-4" />} accent="text-[#FF9B44]">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm">
                     <FiCalendar className="w-4 h-4 text-thb-text-muted" />
@@ -1711,7 +2047,7 @@ export default function AttendancePage() {
                     </div>
                   )}
                 </div>
-              </div>
+              </Panel>
 
               {/* Quick Links for self view */}
               <div className="thb-card p-4">
@@ -1776,8 +2112,8 @@ export default function AttendancePage() {
               <DetailField label="Check Out" value={formatTime(detailRecord.checkOut)} />
               <DetailField label="Work Hours" value={formatHoursHm(detailRecord.workHours)} />
               <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? formatHoursHm(detailRecord.overtime) : '—'} />
-              <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? `Late by ${calculateLateBy(detailRecord.checkIn, shiftStartMinutes)}` : 'On time'} />
-              <DetailField label="Break" value={detailRecord.breakMinutes != null ? formatBreakMinutes(detailRecord.breakMinutes) : calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut, breakPolicy)} />
+              <DetailField label="Late By" value={(() => { const dEmpId = detailRecord.employee?.id || (detailRecord as { employeeId?: string }).employeeId || ''; const dStart = parseHmMinutes(shiftWindows[dEmpId]?.start) ?? shiftStartMinutes; const lb = calculateLateBy(detailRecord.checkIn, dStart); return lb !== '0m' ? `Late by ${lb}` : 'On time'; })()} />
+              <DetailField label="Break" value={detailRecord.breakMinutes != null ? formatBreakMinutes(detailRecord.breakMinutes) : calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut)} />
             </div>
 
             {detailRecord.location && (
@@ -1807,26 +2143,92 @@ export default function AttendancePage() {
   );
 }
 
-/* ── Stat Card ── */
-function StatCard({ icon, label, value, iconBg, iconColor, accent, isText }: {
-  icon: React.ReactNode;
-  label: string;
-  value: number | string;
-  iconBg: string;
-  iconColor: string;
-  accent: string;
-  isText?: boolean;
+/* Task 156-a — the local StatCard was replaced by the shared SmartHR StatCard
+   from '@/components/dashboard/smarthr-widgets' (same as /employees/dashboard). */
+
+/* ── Task 157 — SmartHR attendance-admin template hero: "Attendance Details
+   Today" with a donut chart + per-status breakdown rows (mirrors the
+   template's Present / Late Login / Uninformed / Permission / Absent list). ── */
+function AdminTodayHero({ rosterCount, present, late, absent, onLeave, halfDay, loading, dateLabel }: {
+  rosterCount: number;
+  present: number;
+  late: number;
+  absent: number;
+  onLeave: number;
+  halfDay: number;
+  loading: boolean;
+  dateLabel: string;
 }) {
+  const rows = [
+    { label: 'Present', value: present, color: '#10B981', text: 'text-emerald-600', bar: 'bg-emerald-500' },
+    { label: 'Late Login', value: late, color: '#FF9B44', text: 'text-orange-500', bar: 'bg-orange-400' },
+    { label: 'Absent', value: absent, color: '#F43F5E', text: 'text-rose-600', bar: 'bg-rose-500' },
+    { label: 'On Leave', value: onLeave, color: '#3A57C4', text: 'text-[#3A57C4]', bar: 'bg-[#3A57C4]' },
+    { label: 'Half Day', value: halfDay, color: '#6C4FD6', text: 'text-violet-600', bar: 'bg-violet-500' },
+  ];
+  const chartData = rows.filter(r => r.value > 0).map(r => ({ name: r.label, value: r.value, color: r.color }));
+  const denom = Math.max(1, rosterCount || rows.reduce((s, r) => s + r.value, 0));
+
   return (
-    <div className={`thb-card-hover p-4 border-l-4 ${accent} flex items-center gap-4`}>
-      <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center ${iconColor} flex-shrink-0`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-thb-text-secondary truncate">{label}</p>
-        <p className={`text-xl font-bold text-thb-text-primary ${isText ? 'text-lg' : ''}`}>
-          {isText ? value : value}
-        </p>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sm:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+        {/* Left — donut + headline */}
+        <div className="flex items-center gap-5">
+          <div className="relative w-[190px] h-[190px] shrink-0">
+            {loading ? (
+              <div className="w-full h-full rounded-full bg-slate-100 animate-pulse" />
+            ) : chartData.length === 0 ? (
+              <div className="w-full h-full rounded-full border-[18px] border-slate-100 flex items-center justify-center">
+                <span className="text-[10px] text-slate-400 text-center">No data<br />for this day</span>
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={chartData} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="94%" paddingAngle={2} strokeWidth={0}>
+                      {chartData.map(d => <Cell key={d.name} fill={d.color} />)}
+                    </Pie>
+                    <ReTooltip
+                      formatter={(value) => [`${Number(value)} employee${Number(value) !== 1 ? 's' : ''}`, 'Employees']}
+                      contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', fontSize: 12 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-3xl font-extrabold text-slate-900">{present + late + halfDay}</span>
+                  <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Present today</span>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold text-slate-900">Attendance Details Today</h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Data from the {rosterCount} active employee{rosterCount !== 1 ? 's' : ''} for {dateLabel}
+            </p>
+            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100">
+              <FiUsers className="w-3.5 h-3.5 text-[#3A57C4]" />
+              <span className="text-[11px] font-semibold text-slate-600">{rosterCount - (present + late + absent + onLeave + halfDay)} not marked</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right — breakdown rows (template list) */}
+        <div className="space-y-3">
+          {rows.map(r => (
+            <div key={r.label} className="flex items-center gap-3">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: r.color }} />
+              <span className="text-sm text-slate-600 w-24 shrink-0">{r.label}</span>
+              <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${r.bar} transition-all duration-500`}
+                  style={{ width: `${Math.min(100, (r.value / denom) * 100)}%` }}
+                />
+              </div>
+              <span className={`text-sm font-bold w-8 text-right ${r.text}`}>{String(r.value).padStart(2, '0')}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

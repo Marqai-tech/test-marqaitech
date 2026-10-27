@@ -5,6 +5,8 @@ export type AttendanceRulePolicy = AttendanceBreakPolicy & {
   lateMarkAllowancePerMonth: number;
   lateMarkHalfDayOnExceed: boolean;
   productionThresholdMinutes: number;
+  disableAppCheckin: boolean;
+  disableAppCheckout: boolean;
 };
 const DEFAULT_POLICY: AttendanceBreakPolicy = { startMinutes: 810, endMinutes: 870, durationMinutes: 60, mandatory: false, shiftEndMinutes: 1110 };
 const DEFAULT_RULE_POLICY: AttendanceRulePolicy = {
@@ -14,6 +16,8 @@ const DEFAULT_RULE_POLICY: AttendanceRulePolicy = {
   lateMarkAllowancePerMonth: 4,
   lateMarkHalfDayOnExceed: true,
   productionThresholdMinutes: 480,
+  disableAppCheckin: false,
+  disableAppCheckout: false,
 };
 
 function parseTime(value: string | null | undefined, fallback: number) {
@@ -33,7 +37,13 @@ export async function loadAttendanceBreakPolicy(db: any): Promise<AttendanceBrea
 /** Load all punch/late/production rules from AttendancePolicyConfig. */
 export async function loadAttendanceRulePolicy(db: any): Promise<AttendanceRulePolicy> {
   try {
-    const rows = await db.$queryRawUnsafe(`SELECT "shiftStartDefault", "shiftEndDefault", "breakStartTime", "breakEndTime", "breakDurationMinutes", "mandatoryBreakEnabled", "lateGraceMinutes", "lateMarkAllowancePerMonth", "lateMarkHalfDayOnExceed", "overtimeThresholdMinutes", "attendanceRuleScope" FROM "AttendancePolicyConfig" ORDER BY "updatedAt" DESC LIMIT 1`);
+    // Ensure disableAppCheckin / disableAppCheckout columns exist
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "disableAppCheckin" BOOLEAN NOT NULL DEFAULT false`);
+      await db.$executeRawUnsafe(`ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "disableAppCheckout" BOOLEAN NOT NULL DEFAULT false`);
+    } catch { /* column may already exist */ }
+
+    const rows = await db.$queryRawUnsafe(`SELECT "shiftStartDefault", "shiftEndDefault", "breakStartTime", "breakEndTime", "breakDurationMinutes", "mandatoryBreakEnabled", "lateGraceMinutes", "lateMarkAllowancePerMonth", "lateMarkHalfDayOnExceed", "overtimeThresholdMinutes", "attendanceRuleScope", "disableAppCheckin", "disableAppCheckout" FROM "AttendancePolicyConfig" ORDER BY "updatedAt" DESC LIMIT 1`);
     const row = rows?.[0];
     if (!row || row.attendanceRuleScope !== 'marqaitechgroup_only' && row.attendanceRuleScope !== 'all_tenants') return DEFAULT_RULE_POLICY;
     return {
@@ -47,6 +57,8 @@ export async function loadAttendanceRulePolicy(db: any): Promise<AttendanceRuleP
       lateMarkAllowancePerMonth: Number(row.lateMarkAllowancePerMonth ?? DEFAULT_RULE_POLICY.lateMarkAllowancePerMonth),
       lateMarkHalfDayOnExceed: row.lateMarkHalfDayOnExceed ?? DEFAULT_RULE_POLICY.lateMarkHalfDayOnExceed,
       productionThresholdMinutes: Number(row.overtimeThresholdMinutes ?? DEFAULT_RULE_POLICY.productionThresholdMinutes),
+      disableAppCheckin: row.disableAppCheckin ?? false,
+      disableAppCheckout: row.disableAppCheckout ?? false,
     };
   } catch {
     return DEFAULT_RULE_POLICY;
@@ -64,7 +76,18 @@ export function effectiveBreakMinutes(breakIn: Date | null, breakOut: Date | nul
   if (!overlapsOfficialWindow) return 0;
   if (breakIn && breakOut) {
     const actual = Math.max(0, Math.round((breakOut.getTime() - breakIn.getTime()) / 60000));
-    return Math.max(mandatory ? durationMinutes : 0, actual, Math.max(0, endMinutes - attendanceLocalMinutes(breakIn)));
+    // Official break starts at the policy startMinutes (e.g. 13:30) even if
+    // the employee's Break-In punch was late. Example: Break-In 13:37,
+    // Break-Out 14:33 → officialStartToBreakOut = 873 - 810 = 63 minutes.
+    // This ensures the break is counted from the official window start, not
+    // from the actual late Break-In time.
+    const officialStartToBreakOut = Math.max(0, attendanceLocalMinutes(breakOut) - startMinutes);
+    return Math.max(
+      mandatory ? durationMinutes : 0,
+      actual,
+      Math.max(0, endMinutes - attendanceLocalMinutes(breakIn)),
+      officialStartToBreakOut,
+    );
   }
   return mandatory ? durationMinutes : Math.max(0, Math.min(attendanceLocalMinutes(checkOut), endMinutes) - Math.max(attendanceLocalMinutes(checkIn), startMinutes));
 }

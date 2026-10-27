@@ -20,11 +20,47 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     console.log('[DB Push] Starting database schema push...');
 
     const results: string[] = [];
+
+    // ─── Initialize DB clients ───────────────────────────────────────
+    // The platform DB (globalThis.db from @/lib/db) and the tenant DB
+    // (getDb(request) from @/lib/tenant-db) may be DIFFERENT databases.
+    // Schema changes must be applied to BOTH so the tenant's regularize
+    // API (which uses getDb(request)) sees the new columns.
+    const platformDb = getPlatformDb();
+    let tenantDb: any = platformDb;
+    try {
+      tenantDb = await getDb(request);
+    } catch (e) {
+      console.warn('[DB Push] Could not resolve tenant DB — falling back to platform DB:', e instanceof Error ? e.message : e);
+    }
+    const dbTargets: Array<{ name: string; client: any }> = [
+      { name: 'platform', client: platformDb },
+    ];
+    if (tenantDb !== platformDb) {
+      dbTargets.push({ name: 'tenant', client: tenantDb });
+    }
+    results.push(`ℹ️ Applying schema to ${dbTargets.length} database(s): ${dbTargets.map(d => d.name).join(', ')}`);
+
+    // Helper: execute a statement on all DB targets (platform + tenant).
+    // Returns an array of { target, ok, error } results.
+    const execOnAll = async (sql: string): Promise<Array<{ target: string; ok: boolean; error?: string }>> => {
+      const out: Array<{ target: string; ok: boolean; error?: string }> = [];
+      for (const target of dbTargets) {
+        try {
+          await target.client.$executeRawUnsafe(sql);
+          out.push({ target: target.name, ok: true });
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          out.push({ target: target.name, ok: false, error: errMsg });
+        }
+      }
+      return out;
+    };
 
     // First, drop and recreate tables that have WRONG schema (old schema from a different model)
     // PayrollRun had old columns: month, year, status, totalAmount, employeeCount
@@ -1124,6 +1160,22 @@ export async function POST() {
       // so deleting a manager doesn't cascade-delete their reports.
       `ALTER TABLE "Employee" DROP CONSTRAINT IF EXISTS "Employee_reportingManagerId_fkey"`,
       `ALTER TABLE "Employee" ADD CONSTRAINT "Employee_reportingManagerId_fkey" FOREIGN KEY ("reportingManagerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+      // ─── AttendanceRegularization Spec v1.0 audit-trail columns (06 Oct 2026) ───
+      // Spec §3, §4: separate "Submitted By" from "Requested For" (employeeId).
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedById" TEXT`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedByRole" TEXT`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL DEFAULT 'employee'`,
+      // Spec §3: "Existing Punch-in/out" snapshot at submission time.
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchIn" TIMESTAMP(3)`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchOut" TIMESTAMP(3)`,
+      // Spec §3: "Requested Punch-out" for the "Both" request type.
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "requestedPunchOut" TIMESTAMP(3)`,
+      // Spec §3: separate "Action Date & Time" for approve vs reject.
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "rejectedAt" TIMESTAMP(3)`,
+      // Spec §3: indexes for provenance queries.
+      `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_source_idx" ON "AttendanceRegularization"("source")`,
+      `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_submittedById_idx" ON "AttendanceRegularization"("submittedById")`,
     ];
 
     let altersExecuted = 0;
@@ -1131,6 +1183,11 @@ export async function POST() {
       try {
         await db.$executeRawUnsafe(sql);
         altersExecuted++;
+        // Spec v1.0: surface every AttendanceRegularization ALTER result so we
+        // can see exactly which columns were applied.
+        if (sql.includes('AttendanceRegularization')) {
+          results.push(`✅ ALTER OK: ${sql.substring(0, 90)}`);
+        }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         // Column might already exist or constraint might already exist, that's fine
@@ -1138,6 +1195,11 @@ export async function POST() {
           // Log unusual errors
           const desc = sql.substring(0, 80);
           console.log(`[DB Push] ALTER skipped: ${desc} - ${errMsg.substring(0, 100)}`);
+          if (sql.includes('AttendanceRegularization')) {
+            results.push(`❌ ALTER FAIL: ${desc} - ${errMsg.substring(0, 150)}`);
+          }
+        } else if (sql.includes('AttendanceRegularization')) {
+          results.push(`⏭️ ALTER skip (already exists): ${sql.substring(0, 80)}`);
         }
       }
     }
@@ -1228,6 +1290,80 @@ export async function POST() {
     }
     results.push(`✅ Created ${fksCreated} foreign keys`);
 
+    // ─── Spec v1.0: AttendanceRegularization audit-trail columns ──────────
+    // Apply to ALL database targets (platform + tenant) using execOnAll.
+    // This is the CRITICAL section for the Regularization Workflow Spec.
+    const regSpecStatements = [
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedById" TEXT`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedByRole" TEXT`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL DEFAULT 'employee'`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchIn" TIMESTAMP(3)`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchOut" TIMESTAMP(3)`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "requestedPunchOut" TIMESTAMP(3)`,
+      `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "rejectedAt" TIMESTAMP(3)`,
+      `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_source_idx" ON "AttendanceRegularization"("source")`,
+      `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_submittedById_idx" ON "AttendanceRegularization"("submittedById")`,
+    ];
+    results.push(`ℹ️ Applying ${regSpecStatements.length} Regularization Spec v1.0 statements to ${dbTargets.length} database(s)...`);
+    for (const sql of regSpecStatements) {
+      const execResults = await execOnAll(sql);
+      for (const er of execResults) {
+        if (er.ok) {
+          results.push(`✅ [${er.target}] ${sql.substring(0, 80)}`);
+        } else {
+          const msg = er.error || 'unknown';
+          if (msg.includes('already exists') || msg.includes('already has')) {
+            results.push(`⏭️ [${er.target}] skip (exists): ${sql.substring(0, 60)}`);
+          } else {
+            results.push(`❌ [${er.target}] FAIL: ${sql.substring(0, 60)} - ${msg.substring(0, 100)}`);
+          }
+        }
+      }
+    }
+
+    // ─── Hard-delete 17 terminated cleanup employees (one-time) ─────────
+    // These were soft-deleted (status=terminated) via PUT. This section
+    // hard-deletes them from the DB. The DELETE is guarded by status=
+    // 'terminated' so it can NEVER touch active employees. FK constraints
+    // with onDelete: Cascade will clean up related rows automatically.
+    const cleanupEmployeeIds = [
+      'cmee5a1473c373b3d652g0a', // Manoj T (duplicate)
+      'cme4bdd4938eb746e572fgc', // Shardhamma Employee
+      'cme3af3ff9c4bcf279026yq', // Suresh V N
+      'cmvlf7px0000e08jzns30knu5', // Vikram Singh
+      'cmvlf7pj6000b08jzloddccu4', // Sneha Patel
+      'cmvlf7p5a000808jzxfqdqqkg', // Arun Kumar
+      'cmvlf7oro000508jz2diuhbh6', // Priya Reddy
+      'cmvlf7oax000208jzov9z9n77', // Rahul Sharma
+      'cmvksf6ji000q08jm49w4x61r', // Test ITAdmin
+      'cmvksf68z000m08jmpy0pzaii', // Test Finance
+      'cmvksf62a000i08jm7cfo2spn', // Test Employee
+      'cmvksf5vq000e08jm5vm7v47l', // Test Manager
+      'cmvksf5ok000a08jmltcatnp1', // Test HRAdmin
+      'cmuomhflu000004l84mp404ze', // PERF-TEST Audit
+      'cmti7ba62000004kzhzju5ic8', // Sonali Naik
+      'cmth8zaw0000004jl8mewk3jw', // Divya Rani M
+      'cmth5rnge000304l7xec6ovec', // Mallesh Rao N
+      'cmrmrwc0eir6899070e89fd62db', // Vardhani Reddy (removed per user request)
+      'cmvqmx3u1000208jt64z02koa', // TestMgmt User5 (test user)
+    ];
+    results.push(`ℹ️ Hard-deleting ${cleanupEmployeeIds.length} terminated cleanup employees...`);
+    // Build the IN clause with parameterized values to avoid SQL injection.
+    // We use a single DELETE per target DB with a CTE-safe WHERE clause.
+    for (const target of dbTargets) {
+      try {
+        // Delete in chunks to avoid the 100-parameter Postgres limit.
+        // Each id is one parameter; 17 ids is well under the limit.
+        const placeholders = cleanupEmployeeIds.map((_, i) => `$${i + 1}`).join(', ');
+        const sql = `DELETE FROM "Employee" WHERE "id" IN (${placeholders}) AND "status" = 'terminated'`;
+        const deletedCount = await target.client.$executeRawUnsafe(sql, ...cleanupEmployeeIds);
+        results.push(`✅ [${target.name}] Hard-deleted ${deletedCount} terminated employees`);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        results.push(`❌ [${target.name}] Hard-delete failed: ${errMsg.substring(0, 150)}`);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       tablesCreated,
@@ -1245,6 +1381,6 @@ export async function POST() {
   }
 }
 
-export async function GET() {
-  return POST();
+export async function GET(request: Request) {
+  return POST(request);
 }

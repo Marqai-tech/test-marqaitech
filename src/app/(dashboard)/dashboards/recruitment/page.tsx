@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import {
   FiBriefcase, FiFileText, FiCalendar, FiClock,
-  FiUserCheck, FiTrendingUp, FiArrowUp, FiArrowDown,
+  FiUserCheck, FiTrendingUp, FiPieChart,
   FiPlus, FiUsers, FiEye, FiLayers, FiSend,
   FiBarChart2, FiChevronRight, FiVideo, FiPhone,
   FiMapPin, FiStar, FiUserPlus, FiGrid, FiSettings,
@@ -15,6 +15,11 @@ import {
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+/* Task 156-b — shared SmartHR widgets so this module dashboard matches the
+   SmartHR design system (same banner / stat cards / panels as /dashboard). */
+import {
+  Panel, StatCard, StatSkeleton,
+} from '@/components/dashboard/smarthr-widgets';
 
 /* ═══════════════ helpers ═══════════════ */
 
@@ -65,6 +70,17 @@ const INITIAL_STATS = [
   { key: 'avgTimeToHire', label: 'Avg Time-to-Hire', value: 0, trend: 0, suffix: ' days', icon: FiTrendingUp, color: COLORS.violet },
 ];
 
+/* Task 156-b — rotating SmartHR pastel accents for the KPI row
+   (royal → emerald → orange → rose → info → violet), keyed by stat key. */
+const STAT_ACCENTS: Record<string, { bg: string; ring: string }> = {
+  openPositions:       { bg: 'bg-[#3A57C4]/10 text-[#3A57C4]', ring: 'ring-[#3A57C4]/20' },
+  totalApplications:   { bg: 'bg-[#10B981]/10 text-[#10B981]', ring: 'ring-[#10B981]/20' },
+  interviewsScheduled: { bg: 'bg-[#FF9B44]/15 text-[#FF9B44]', ring: 'ring-[#FF9B44]/20' },
+  offersPending:       { bg: 'bg-[#F43F5E]/10 text-[#F43F5E]', ring: 'ring-[#F43F5E]/20' },
+  hiresThisMonth:      { bg: 'bg-[#009EFB]/10 text-[#009EFB]', ring: 'ring-[#009EFB]/20' },
+  avgTimeToHire:       { bg: 'bg-[#6C4FD6]/10 text-[#6C4FD6]', ring: 'ring-[#6C4FD6]/20' },
+};
+
 const QUICK_ACTIONS = [
   { label: 'Post New Job', icon: FiPlus, color: COLORS.indigo, href: '/recruitment' },
   { label: 'Schedule Interview', icon: FiCalendar, color: COLORS.emerald, href: '/recruitment' },
@@ -76,7 +92,8 @@ const QUICK_ACTIONS = [
 
 /* ═══════════════ types ═══════════════ */
 
-interface StatCard {
+/* Renamed StatItem (Task 156-b) — the shared StatCard widget is imported above. */
+interface StatItem {
   key: string;
   label: string;
   value: number;
@@ -113,22 +130,12 @@ interface QuickAction {
 
 /* ═══════════════ skeletons ═══════════════ */
 
-function StatSkeleton() {
-  return (
-    <div className="thb-card p-5 animate-pulse">
-      <div className="flex items-center justify-between mb-3">
-        <div className="w-10 h-10 rounded-xl bg-slate-200" />
-        <div className="w-12 h-4 rounded bg-slate-100" />
-      </div>
-      <div className="w-20 h-7 rounded bg-slate-200 mb-1" />
-      <div className="w-28 h-3 rounded bg-slate-100" />
-    </div>
-  );
-}
+/* Task 156-b — local StatSkeleton removed in favour of the shared widget.
+   Chart / table / list skeletons restyled to the SmartHR white card look. */
 
 function ChartSkeleton({ height = 'h-64' }: { height?: string }) {
   return (
-    <div className={`thb-card p-5 animate-pulse ${height}`}>
+    <div className={`bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse ${height}`}>
       <div className="w-36 h-5 rounded bg-slate-200 mb-4" />
       <div className="flex-1 rounded bg-slate-50" />
     </div>
@@ -137,7 +144,7 @@ function ChartSkeleton({ height = 'h-64' }: { height?: string }) {
 
 function TableSkeleton() {
   return (
-    <div className="thb-card p-5 animate-pulse">
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse">
       <div className="w-40 h-5 rounded bg-slate-200 mb-4" />
       {[...Array(5)].map((_, i) => (
         <div key={i} className="flex gap-4 mb-3">
@@ -153,7 +160,7 @@ function TableSkeleton() {
 
 function ListSkeleton() {
   return (
-    <div className="thb-card p-5 animate-pulse">
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse">
       <div className="w-40 h-5 rounded bg-slate-200 mb-4" />
       {[...Array(5)].map((_, i) => (
         <div key={i} className="flex gap-3 mb-4 items-center">
@@ -291,6 +298,8 @@ function RecruitmentPageContent() {
     <ModuleDashboardShell
       moduleKey="recruitment"
       moduleLabel="Recruitment"
+      title="Recruitment Dashboard"
+      trail={['Recruitment', 'Dashboard']}
       moduleIcon={<FiUserPlus className="w-5 h-5 text-white" />}
       gradientColor="from-teal-500 to-teal-600"
       tabs={recruitmentTabs}
@@ -318,7 +327,7 @@ function RecruitmentContent() {
   const { selectedCompany } = useCompanyContextStore();
 
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<StatCard[]>(INITIAL_STATS.map(s => ({ ...s })));
+  const [stats, setStats] = useState<StatItem[]>(INITIAL_STATS.map(s => ({ ...s })));
   const [pipelineData, setPipelineData] = useState<Array<{ stage: string; count: number }>>([]);
   const [sourceData, setSourceData] = useState<Array<{ name: string; value: number }>>([]);
   const [monthlyTrend, setMonthlyTrend] = useState<Array<{ month: string; applications: number }>>([]);
@@ -391,12 +400,6 @@ function RecruitmentContent() {
     return () => { cancelled = true; };
   }, [selectedCompany?.id, user?.company?.id]);
 
-  /* ─── formatted date ─── */
-  const today = useMemo(() => {
-    const d = new Date();
-    return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  }, []);
-
   /* ─── pipeline conversion rates ─── */
   const pipelineConversion = useMemo(() => {
     if (!pipelineData.length) return [];
@@ -411,69 +414,37 @@ function RecruitmentContent() {
   return (
     <div className="space-y-6 pb-8">
 
-      {/* ═══════ Gradient Hero ═══════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#6366F1] via-[#8B5CF6] to-[#EC4899] p-6 md:p-8 text-white">
-        {/* Decorative elements */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-white/5 blur-xl" />
-        <div className="absolute top-1/2 right-1/3 w-20 h-20 rounded-full bg-white/5 blur-lg" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Recruitment Dashboard</h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-xs font-semibold tracking-wide">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                {companyName}
-              </span>
-            </div>
-            <p className="text-white/70 text-sm md:text-base">{today}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur text-sm">
-              <FiCalendar className="w-4 h-4" />
-              <span>Q1 2026</span>
-            </div>
-            <div className="px-4 py-2 rounded-xl bg-white/15 backdrop-blur text-sm font-medium">
-              3Boxes HRMS
-            </div>
-          </div>
+      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            {companyName}
+          </span>
+          <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 shadow-sm">
+            Q1 2026
+          </span>
         </div>
       </div>
 
-      {/* ═══════ Stat Cards ═══════ */}
+      {/* ═══════ Stat Cards — shared SmartHR StatCard (Task 156-b) ═══════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {loading
           ? [...Array(6)].map((_, i) => <StatSkeleton key={i} />)
           : stats.map((card) => {
               const Icon = card.icon;
               const isPositive = card.trend >= 0;
+              const accent = STAT_ACCENTS[card.key] || STAT_ACCENTS.openPositions;
               return (
-                <div key={card.key} className="thb-card thb-card-hover p-5 group transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: `${card.color}15` }}
-                    >
-                      <Icon className="w-5 h-5" style={{ color: card.color }} />
-                    </div>
-                    <span
-                      className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        isPositive
-                          ? 'bg-emerald-50 text-emerald-600'
-                          : 'bg-red-50 text-red-600'
-                      }`}
-                    >
-                      {isPositive ? <FiArrowUp className="w-3 h-3" /> : <FiArrowDown className="w-3 h-3" />}
-                      {Math.abs(card.trend)}%
-                    </span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-thb-text-primary tracking-tight">
-                    {card.value.toLocaleString()}
-                    {card.suffix && <span className="text-sm font-semibold text-thb-text-secondary ml-0.5">{card.suffix}</span>}
-                  </p>
-                  <p className="text-xs text-thb-text-secondary mt-0.5">{card.label}</p>
-                </div>
+                <StatCard
+                  key={card.key}
+                  label={card.label}
+                  value={`${card.value.toLocaleString()}${card.suffix || ''}`}
+                  sub={`${isPositive ? '+' : '-'}${Math.abs(card.trend)}% trend`}
+                  icon={<Icon className="w-5 h-5" />}
+                  bg={accent.bg}
+                  ring={accent.ring}
+                />
               );
             })}
       </div>
@@ -484,11 +455,12 @@ function RecruitmentContent() {
         {loading ? (
           <ChartSkeleton />
         ) : (
-          <div className="thb-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-thb-text-primary">Recruitment Pipeline</h3>
-              <span className="text-[11px] text-thb-text-muted font-medium">Current Quarter</span>
-            </div>
+          <Panel
+            title="Recruitment Pipeline"
+            icon={<FiBarChart2 className="w-4 h-4" />}
+            accent="text-[#3A57C4]"
+            action={<span className="text-[11px] text-slate-400 font-medium">Current Quarter</span>}
+          >
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={pipelineConversion} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
@@ -514,18 +486,19 @@ function RecruitmentContent() {
                 </div>
               ))}
             </div>
-          </div>
+          </Panel>
         )}
 
         {/* Source Distribution — Pie Chart */}
         {loading ? (
           <ChartSkeleton />
         ) : (
-          <div className="thb-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-thb-text-primary">Source Distribution</h3>
-              <span className="text-[11px] text-thb-text-muted font-medium">All Applications</span>
-            </div>
+          <Panel
+            title="Source Distribution"
+            icon={<FiPieChart className="w-4 h-4" />}
+            accent="text-[#009EFB]"
+            action={<span className="text-[11px] text-slate-400 font-medium">All Applications</span>}
+          >
             <div className="flex items-center gap-6">
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
@@ -564,7 +537,7 @@ function RecruitmentContent() {
                 })}
               </div>
             </div>
-          </div>
+          </Panel>
         )}
       </div>
 
@@ -572,11 +545,12 @@ function RecruitmentContent() {
       {loading ? (
         <ChartSkeleton />
       ) : (
-        <div className="thb-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-thb-text-primary">Monthly Applications Trend</h3>
-            <span className="text-[11px] text-thb-text-muted font-medium">Last 6 Months</span>
-          </div>
+        <Panel
+          title="Monthly Applications Trend"
+          icon={<FiTrendingUp className="w-4 h-4" />}
+          accent="text-[#6C4FD6]"
+          action={<span className="text-[11px] text-slate-400 font-medium">Last 6 Months</span>}
+        >
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={monthlyTrend} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
               <defs>
@@ -601,7 +575,7 @@ function RecruitmentContent() {
               />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+        </Panel>
       )}
 
       {/* ═══════ Recent Applications + Upcoming Interviews ═══════ */}
@@ -611,13 +585,16 @@ function RecruitmentContent() {
           {loading ? (
             <TableSkeleton />
           ) : (
-            <div className="thb-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-thb-text-primary">Recent Applications</h3>
-                <button className="text-xs text-thb-primary font-semibold hover:underline flex items-center gap-1">
+            <Panel
+              title="Recent Applications"
+              icon={<FiFileText className="w-4 h-4" />}
+              accent="text-[#10B981]"
+              action={
+                <button className="text-xs text-[#3A57C4] font-semibold hover:underline flex items-center gap-1">
                   View All <FiChevronRight className="w-3 h-3" />
                 </button>
-              </div>
+              }
+            >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -644,7 +621,7 @@ function RecruitmentContent() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Panel>
           )}
         </div>
 
@@ -653,13 +630,16 @@ function RecruitmentContent() {
           {loading ? (
             <ListSkeleton />
           ) : (
-            <div className="thb-card p-5 h-full">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-thb-text-primary">Upcoming Interviews</h3>
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold">
+            <Panel
+              title="Upcoming Interviews"
+              icon={<FiCalendar className="w-4 h-4" />}
+              accent="text-[#FF9B44]"
+              action={
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#10B981]/10 text-[#10B981] text-[10px] font-bold">
                   {upcomingInterviews.length}
                 </span>
-              </div>
+              }
+            >
               <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
                 {upcomingInterviews.map((interview) => {
                   const dateObj = new Date(interview.date);
@@ -699,14 +679,13 @@ function RecruitmentContent() {
                   );
                 })}
               </div>
-            </div>
+            </Panel>
           )}
         </div>
       </div>
 
       {/* ═══════ Quick Actions ═══════ */}
-      <div className="thb-card p-5">
-        <h3 className="text-sm font-bold text-thb-text-primary mb-4">Quick Actions</h3>
+      <Panel title="Quick Actions" icon={<FiGrid className="w-4 h-4" />} accent="text-[#FFC107]">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {quickActions.map((action) => {
             const Icon = action.icon;
@@ -727,7 +706,7 @@ function RecruitmentContent() {
             );
           })}
         </div>
-      </div>
+      </Panel>
 
       {/* ═══════ Footer ═══════ */}
       <div className="text-center text-[11px] text-thb-text-muted pt-2">

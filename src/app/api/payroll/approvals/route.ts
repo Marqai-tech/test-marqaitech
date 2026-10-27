@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
     // Allow tenant_admin / super_admin / finance_controller as approver roles
     const approverRole = body.approverRole || decoded.role || 'tenant_admin';
-    if (!['tenant_admin', 'super_admin', 'finance_controller'].includes(approverRole)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'finance_controller'].includes(approverRole)) {
       return Response.json({ error: 'Invalid approver role' }, { status: 400, headers: corsHeaders });
     }
 

@@ -38,6 +38,7 @@ export const SELF_SERVICE_ROLE_KEYS = [
 export const ROLE_LEVELS: Record<string, number> = {
   super_admin: 0,
   tenant_admin: 1,
+  ceo: 1, // Task 129 — CEO has the same tenant-level privilege as tenant_admin
   admin: 2,
   manager: 3,
   employee: 4,
@@ -51,57 +52,57 @@ export const ROLE_LEVELS: Record<string, number> = {
  * manager: same self-service modules + team visibility (own + direct reports)
  */
 export const MODULE_ACCESS: Record<string, string[]> = {
-  dashboard: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  employees: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  company: ['super_admin', 'tenant_admin', 'admin'],
-  recruitment: ['super_admin', 'tenant_admin', 'admin'],
-  onboarding: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  attendance: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  leave: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  payroll: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  salary_structures: ['super_admin', 'tenant_admin', 'admin'],
-  performance: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  training: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  learning: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  engagement: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  reports: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  settings: ['super_admin', 'tenant_admin', 'admin'],
-  docs: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  helpdesk: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  assets: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  projects: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  invoices: ['super_admin', 'tenant_admin', 'admin'],
-  expenses: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  travel: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  accounts: ['super_admin', 'tenant_admin', 'admin'],
-  crm: ['super_admin', 'tenant_admin', 'admin'],
-  it_admin_module: ['super_admin', 'tenant_admin', 'admin'],
-  separation: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  grievances: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  dashboard: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  employees: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  company: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  onboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  attendance: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  leave: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  payroll: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  salary_structures: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  performance: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  training: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  learning: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  engagement: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  reports: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  settings: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  docs: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  helpdesk: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  assets: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  projects: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  invoices: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  expenses: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  travel: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  accounts: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  crm: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  it_admin_module: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  separation: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  grievances: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
   super_admin: ['super_admin'],
-  tenant_admin_module: ['super_admin', 'tenant_admin'],
-  rbac: ['super_admin', 'tenant_admin'],
-  workflows: ['super_admin', 'tenant_admin', 'admin'],
-  timesheets: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  documents: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  ai_assistant: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  notifications: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  tenant_admin_module: ['super_admin', 'tenant_admin', 'ceo'],
+  rbac: ['super_admin', 'tenant_admin', 'ceo'],
+  workflows: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  timesheets: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  documents: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  ai_assistant: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  notifications: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   // Collaboration suite (Chat, Calls, Calendar, Email inbox, To Do, Notes,
   // Social Feed, File Manager, Kanban) is available to every role — employees
   // receive mirrored HR notification emails in the internal Email inbox.
   // Admin-only sub-areas (Collaboration Settings, SMTP Email Config,
   // Collaboration Reports) are restricted via per-item `roles` in navData.
-  collaboration: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  requisitions: ['super_admin', 'tenant_admin', 'admin'],
-  offers: ['super_admin', 'tenant_admin', 'admin'],
-  job_portal: ['super_admin', 'tenant_admin', 'admin'],
-  ai_interview: ['super_admin', 'tenant_admin', 'admin'],
-  preboarding: ['super_admin', 'tenant_admin', 'admin'],
-  succession: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  clients: ['super_admin', 'tenant_admin', 'admin'],
-  vendors: ['super_admin', 'tenant_admin', 'admin'],
+  collaboration: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  requisitions: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  offers: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  job_portal: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  ai_interview: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  preboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  succession: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  clients: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  vendors: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
   ai_admin: ['super_admin'],
-  governance: ['super_admin', 'tenant_admin', 'admin'],
+  governance: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
 };
 
 /**
@@ -127,6 +128,14 @@ export const ROLE_ACCESS_DETAILS: Record<string, {
   tenant_admin: {
     label: 'Tenant Admin',
     description: 'Full access within their tenant — manages company RBAC, organization settings, and all HR operations',
+    dashboardAccess: 'full',
+    employeeAccess: 'all',
+    reportAccess: 'all',
+    settingsAccess: 'all',
+  },
+  ceo: {
+    label: 'CEO',
+    description: 'Chief Executive — same access rights as the Tenant Admin: full visibility and management of every module, report and setting within their tenant',
     dashboardAccess: 'full',
     employeeAccess: 'all',
     reportAccess: 'all',
@@ -257,12 +266,27 @@ export function navRoleOrLeastPrivilege(role?: string | null): string {
 /** Platform navigation is independent of the company selected for data. */
 export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey: string, enabledModules?: Set<string>): boolean {
   if (role === 'super_admin' && moduleKey === 'super-admin') return true;
+  // The AI Insights section aggregates analytics from the operational modules
+  // (attendance, payroll, recruitment, …). Tenants provisioned before the
+  // section existed don't have an 'ai-insights' entry in their module
+  // overrides, so derive visibility from the underlying modules instead — the
+  // section shows when ANY of its source modules is enabled.
+  if (moduleKey === 'ai-insights') {
+    if (!enabledModules) return true; // no restrictions = visible
+    return enabledModules.has('ai-insights') ||
+      enabledModules.has('attendance') ||
+      enabledModules.has('payroll') ||
+      enabledModules.has('recruitment') ||
+      enabledModules.has('appraisal') ||
+      enabledModules.has('leave') ||
+      enabledModules.has('project');
+  }
   // The employee self-service module must remain available for employee
   // accounts across tenants, even if a tenant has a stale/incomplete module
   // override. Item-level role checks below still hide HR/admin operations.
   if (
     moduleKey === 'employees' &&
-    ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead', 'employee'].includes(role)
+    ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead', 'employee'].includes(role)
   ) return true;
   return enabledModules ? enabledModules.has(moduleKey) : isModuleEnabledForTenant(tenantSlug, moduleKey);
 }
@@ -270,6 +294,25 @@ export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey:
 /** Super admins land on the platform management dashboard. */
 export function dashboardHrefForRole(role?: string | null): string {
   return role === 'super_admin' ? '/super-admin' : '/dashboard';
+}
+
+/**
+ * Roles that may see and open the ADMIN DASHBOARD (/home) — renamed from
+ * "Home" in Task 163. Employees (self-service roles) never see it: they land
+ * directly on the Employee Dashboard (/dashboard) instead.
+ */
+export const ADMIN_DASHBOARD_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'];
+
+/**
+ * Where should this role land as their home surface?
+ * - Admin roles  → Admin Dashboard (/home)
+ * - Everyone else → Employee Dashboard (/dashboard)
+ * (super_admin still gets redirected to /super-admin by the login flow and
+ * the /dashboard page itself.)
+ */
+export function homeHrefForRole(role?: string | null): string {
+  const r = (role || '').toLowerCase();
+  return ADMIN_DASHBOARD_ROLES.includes(r) ? '/home' : '/dashboard';
 }
 
 /**
@@ -318,8 +361,11 @@ export function getDataScope(role: string): 'all' | 'team' | 'self' {
   const r = role.toLowerCase();
 
   // 'all' scope — full access (includes legacy admin-equivalent roles)
+  // Task 131: 'ceo' is a tenant-admin-equivalent role (Task 129) — without it
+  // every CEO resolved to SELF scope and saw only their own record in the
+  // employee directory, dashboards and every report.
   if ([
-    'super_admin', 'tenant_admin', 'admin',
+    'super_admin', 'tenant_admin', 'ceo', 'admin',
     'company_hr_admin', 'hr_admin', 'hrhead', 'recruitmenthead',
   ].includes(r)) return 'all';
 
@@ -366,21 +412,21 @@ export function getAccessibleModules(role: string): string[] {
  * Check if a role can create/edit content in the docs module.
  */
 export function canManageDocs(role: string): boolean {
-  return ['super_admin', 'admin', 'tenant_admin'].includes(role);
+  return ['super_admin', 'admin', 'tenant_admin', 'ceo'].includes(role);
 }
 
 /**
  * Check if a role can access statutory reports.
  */
 export function canAccessStatutoryReports(role: string): boolean {
-  return ['super_admin', 'tenant_admin', 'admin'].includes(role);
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
 }
 
 /**
  * Check if a role can access AI reports.
  */
 export function canAccessAIReports(role: string): boolean {
-  return ['super_admin', 'tenant_admin', 'admin'].includes(role);
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
 }
 
 /**
@@ -389,17 +435,17 @@ export function canAccessAIReports(role: string): boolean {
 export function canSeeAllEmployees(role: string): boolean {
   const r = (role || '').toLowerCase();
   if (SELF_SERVICE_ROLE_KEYS.includes(r)) return false;
-  return ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(r);
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(r);
 }
 
 /** Employee Settings / company mapping management — not employees or HR-only roles. */
 export function canAccessEmployeeSettings(role?: string | null): boolean {
-  return ['super_admin', 'tenant_admin', 'admin'].includes(role || '');
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role || '');
 }
 
 /** Create or edit another person’s employee record (not view-only). */
 export function canEditEmployeeRecords(role?: string | null): boolean {
-  return ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(role || '');
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(role || '');
 }
 
 /**
@@ -413,6 +459,7 @@ export function canEditEmployeeRecords(role?: string | null): boolean {
 export const LEGACY_ROLE_MAP: Record<string, string> = {
   super_admin: 'super_admin',
   tenant_admin: 'tenant_admin',
+  ceo: 'ceo', // Task 129 — first-class role (NOT degraded to employee)
   hr_admin: 'admin',
   company_hr_admin: 'admin',
   finance_admin: 'employee',
@@ -489,7 +536,8 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/onboarding',
     '/ai-interview',
     '/company',
-    '/org-chart',
+    // Bug 5 fix: '/org-chart' removed from deniedPrefixes — employees should
+    // be able to view the org chart (read-only) so the Quick Action link works.
     '/employees/settings',
   ];
   if (deniedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
@@ -513,14 +561,21 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/training',
     '/learning',
     '/projects',
+    '/project-management',
+    '/collaboration',
+    '/calendar',
+    '/email',
+    '/todo',
+    '/notes',
+    '/social-feed',
+    '/file-manager',
+    '/kanban',
     '/timesheets',
     '/travel',
     '/expenses',
     '/assets',
-    // BUG_035 fix: employees must be able to reach the Grievance page from
-    // the Quick Actions tile. Without this entry, the dashboard layout's
-    // self-service path guard redirects /grievances → /my-profile.
-    '/grievances',
+    // Bug 5 fix: employees must be able to reach the Org Chart page
+    '/org-chart',
   ];
   return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

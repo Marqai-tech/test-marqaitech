@@ -12,8 +12,8 @@ export const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-export const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'admin'];
-export const APPROVER_ROLES = ['super_admin', 'tenant_admin', 'admin', 'manager', 'hr_manager'];
+export const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin'];
+export const APPROVER_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'hr_manager'];
 
 export interface LndAuth {
   db: PrismaClient;

@@ -37,12 +37,47 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {String? dialCode}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
-      final data = await ApiService.login(email, password);
+      // Task 127: dialCode rides along for phone-number logins (digit-only
+      // identity + selected country code → Employee.phone matching server-side).
+      final data = await ApiService.login(email, password, dialCode: dialCode);
+      final user = await ApiService.getStoredUser();
+      // Super admin keeps their original token in memory so the tenant
+      // picker can be re-opened without re-login (web switcher parity).
+      if (user?.role == 'super_admin') {
+        ApiService.superAdminToken = ApiService.token;
+      }
+      _user = user;
+      _isLoggedIn = true;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Whether the current session still carries super-admin powers (either
+  /// logged in as super admin directly, or switched from one this session).
+  bool get isSuperAdminSession =>
+      ApiService.superAdminToken != null || _user?.role == 'super_admin';
+
+  /// Exchange the super-admin session for a tenant_admin session scoped to
+  /// [tenantId]. Persists the new token + user so every module API now
+  /// resolves the tenant DB via the JWT tenantId.
+  Future<bool> switchTenant(String tenantId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await ApiService.switchTenant(tenantId);
       _user = await ApiService.getStoredUser();
       _isLoggedIn = true;
       _isLoading = false;
@@ -53,6 +88,28 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Re-open the tenant directory: point API calls back at the
+  /// super-admin token for the picker's GET /api/tenants call.
+  void beginTenantPick() => ApiService.useSuperAdminToken();
+
+  /// Task 110 — adopt a freshly refreshed identity (name/photo from
+  /// /api/auth/me) so the home header + profile always reflect the server.
+  void adoptUser(UserModel user) {
+    _user = user;
+    _isLoggedIn = true;
+    notifyListeners();
+  }
+
+  /// Task 112 — re-read the stored identity after a self-service profile
+  /// update (photo/phone via PATCH /api/auth/me writes through to storage).
+  Future<void> reloadFromStorage() async {
+    final u = await ApiService.getStoredUser();
+    if (u != null) {
+      _user = u;
+      notifyListeners();
     }
   }
 

@@ -6,6 +6,11 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
+/* Task 156e — shared SmartHR widgets: same gradient banner / stat cards /
+   panels as the Employee Module Dashboard (Task 155 gold standard). */
+import {
+  PageBreadcrumbs, DateChip, Panel, StatCard, StatSkeleton, SkeletonBlock,
+} from '@/components/dashboard/smarthr-widgets';
 
 /* ── Types ── */
 interface KpiData {
@@ -97,6 +102,8 @@ export default function GovernancePage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /* Header chip date — same pattern as the Employee Module Dashboard banner */
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -124,35 +131,35 @@ export default function GovernancePage() {
     }
   }, [token]);
 
-  /* ── KPI cards derived from API data ── */
+  /* ── KPI cards derived from API data (values unchanged — SmartHR StatCard
+        styling with the rotating pastel accent palette) ── */
   const kpiCards = data
     ? [
-        { label: 'Active Workflows', value: String(data.kpis.activeWorkflows), icon: FiGitBranch, color: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
-        { label: 'Policy Documents', value: String(data.kpis.policyDocuments), icon: FiShield, color: 'bg-emerald-50 text-emerald-600', accent: 'bg-emerald-500' },
-        { label: 'Pending Approvals', value: String(data.kpis.pendingApprovals), icon: FiClock, color: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
-        { label: 'Compliance Score', value: `${data.kpis.complianceScore}%`, icon: FiBarChart2, color: 'bg-teal-50 text-teal-600', accent: 'bg-teal-500' },
+        { label: 'Active Workflows', value: String(data.kpis.activeWorkflows), sub: 'Workflow definitions currently active', icon: FiGitBranch, bg: 'bg-[#3A57C4]/10 text-[#3A57C4]', ring: 'ring-[#3A57C4]/20' },
+        { label: 'Policy Documents', value: String(data.kpis.policyDocuments), sub: 'Policies published in the library', icon: FiShield, bg: 'bg-[#10B981]/10 text-[#10B981]', ring: 'ring-[#10B981]/20' },
+        { label: 'Pending Approvals', value: String(data.kpis.pendingApprovals), sub: 'Approvals waiting on action', icon: FiClock, bg: 'bg-[#FF9B44]/15 text-[#FF9B44]', ring: 'ring-[#FF9B44]/25' },
+        { label: 'Compliance Score', value: `${data.kpis.complianceScore}%`, sub: 'Across tracked frameworks', icon: FiBarChart2, bg: 'bg-[#009EFB]/10 text-[#009EFB]', ring: 'ring-[#009EFB]/20' },
       ]
     : [];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-green-50">
-          <FiGrid className="w-5 h-5 text-green-600" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-thb-text-primary">Governance Dashboard</h1>
-          <p className="text-sm text-thb-text-secondary">Track workflows, compliance, and policy management</p>
-        </div>
-      </div>
+      {/* Header — SmartHR gradient breadcrumb banner (Task 156e) */}
+      <PageBreadcrumbs
+        title="Governance Dashboard"
+        trail={['Governance', 'Dashboard']}
+        right={<DateChip value={todayChip} />}
+      />
 
-      {/* Loading State */}
+      {/* Loading State — SmartHR skeleton pattern (same as /dashboard) */}
       {loading && (
-        <div className="flex items-center justify-center py-16">
-          <div className="flex flex-col items-center gap-3">
-            <FiGrid className="w-8 h-8 animate-pulse text-green-400" />
-            <p className="text-sm text-thb-text-muted">Loading governance data...</p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => <StatSkeleton key={i} />)}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SkeletonBlock className="h-64 rounded-2xl" />
+            <SkeletonBlock className="h-64 rounded-2xl" />
           </div>
         </div>
       )}
@@ -174,42 +181,42 @@ export default function GovernancePage() {
       {/* Data Loaded */}
       {!loading && !error && data && (
         <>
-          {/* KPI Cards */}
+          {/* KPI Cards — shared SmartHR StatCard */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {kpiCards.map((kpi) => {
               const Icon = kpi.icon;
               return (
-                <div key={kpi.label} className="thb-card p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${kpi.color}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className={`w-1 h-8 rounded-full ${kpi.accent}`} />
-                  </div>
-                  <p className="text-2xl font-bold text-thb-text-primary">{kpi.value}</p>
-                  <p className="text-xs text-thb-text-muted mt-1">{kpi.label}</p>
-                </div>
+                <StatCard
+                  key={kpi.label}
+                  label={kpi.label}
+                  value={kpi.value}
+                  sub={kpi.sub}
+                  icon={<Icon className="w-5 h-5" />}
+                  bg={kpi.bg}
+                  ring={kpi.ring}
+                />
               );
             })}
           </div>
 
-          {/* Bottom Cards */}
+          {/* Bottom Cards — shared SmartHR panels */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Workflow Activity */}
-            <div className="thb-card overflow-hidden">
-              <div className="px-5 py-4 border-b border-thb-border">
-                <h2 className="font-semibold text-thb-text-primary">Recent Workflow Activity</h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Latest governance workflow updates</p>
-              </div>
+            <Panel
+              title="Recent Workflow Activity"
+              icon={<FiGitBranch className="w-4 h-4" />}
+              accent="text-[#009EFB]"
+              action={<span className="text-xs text-slate-500">Latest governance workflow updates</span>}
+            >
               {data.workflowActivity.length === 0 ? (
-                <div className="px-5 py-10 text-center">
+                <div className="py-10 text-center">
                   <FiGitBranch className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm text-thb-text-muted">No workflow activity yet</p>
                 </div>
               ) : (
-                <div className="divide-y divide-thb-border max-h-96 overflow-y-auto">
+                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
                   {data.workflowActivity.map((wf) => (
-                    <div key={wf.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                    <div key={wf.id} className="flex items-center gap-3 py-3.5 hover:bg-slate-50 transition-colors">
                       {getWorkflowIcon(wf.status)}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-thb-text-primary font-medium truncate">{wf.title}</p>
@@ -222,22 +229,23 @@ export default function GovernancePage() {
                   ))}
                 </div>
               )}
-            </div>
+            </Panel>
 
             {/* Compliance Overview */}
-            <div className="thb-card overflow-hidden">
-              <div className="px-5 py-4 border-b border-thb-border">
-                <h2 className="font-semibold text-thb-text-primary">Compliance Overview</h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Current compliance status across frameworks</p>
-              </div>
+            <Panel
+              title="Compliance Overview"
+              icon={<FiShield className="w-4 h-4" />}
+              accent="text-[#10B981]"
+              action={<span className="text-xs text-slate-500">Current compliance status across frameworks</span>}
+            >
               {data.complianceItems.length === 0 ? (
-                <div className="p-5 py-10 text-center">
+                <div className="py-10 text-center">
                   <FiShield className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm text-thb-text-muted">No compliance data available</p>
                   <p className="text-xs text-thb-text-muted mt-1">Add active policies to see compliance metrics</p>
                 </div>
               ) : (
-                <div className="p-5 space-y-5">
+                <div className="space-y-5">
                   {data.complianceItems.map((item) => (
                     <div key={item.label}>
                       <div className="flex items-center justify-between mb-1.5">
@@ -254,13 +262,17 @@ export default function GovernancePage() {
                   ))}
                 </div>
               )}
-            </div>
+            </Panel>
           </div>
 
           {/* Additional Metrics */}
           {data.metrics && (
-            <div className="thb-card p-5">
-              <h2 className="font-semibold text-thb-text-primary mb-3">Additional Metrics</h2>
+            <Panel
+              title="Additional Metrics"
+              icon={<FiBarChart2 className="w-4 h-4" />}
+              accent="text-[#6C4FD6]"
+              action={<span className="text-xs text-slate-500">Last 30 days vs lifetime counts</span>}
+            >
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="text-center">
                   <p className="text-xl font-bold text-thb-text-primary">{data.metrics.auditLogsLast30Days}</p>
@@ -279,7 +291,7 @@ export default function GovernancePage() {
                   <p className="text-xs text-thb-text-muted mt-1">Completed Instances</p>
                 </div>
               </div>
-            </div>
+            </Panel>
           )}
         </>
       )}

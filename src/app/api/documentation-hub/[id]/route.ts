@@ -59,7 +59,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const userRole = (decoded as Record<string, unknown>).role as string;
 
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(userRole)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(userRole)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 

@@ -290,7 +290,7 @@ const initialAppForm = {
 /* ── Component ── */
 export default function RecruitmentPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -376,7 +376,7 @@ export default function RecruitmentPage() {
   /* ─── WAVE2-A: PII masking policies (REQ-SEC-REC-03) ─── */
   const [piiPolicies, setPiiPolicies] = useState<PiiPolicyEntry[]>([]);
 
-  const isRecruiterOrAdmin = ['super_admin', 'tenant_admin', 'recruiter', 'recruiter_admin'].includes(user?.role || '');
+  const isRecruiterOrAdmin = ['super_admin', 'tenant_admin', 'ceo', 'recruiter', 'recruiter_admin'].includes(user?.role || '');
 
   useEffect(() => {
     let cancelled = false;

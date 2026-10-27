@@ -23,7 +23,7 @@ import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
 
 export interface WorkflowTier {
   tier: number;
-  approverType: 'reporting_manager' | 'department_head' | 'hr_admin' | 'tenant_admin' | 'specific_user' | 'specific_employee';
+  approverType: 'reporting_manager' | 'department_head' | 'hr_admin' | 'tenant_admin' | 'ceo' | 'specific_user' | 'specific_employee';
   approverId?: string | null; // user ID (for specific_user) or employee ID (for specific_employee)
   label?: string;
 }
@@ -187,7 +187,7 @@ export async function resolveApproverForTier(
         });
         return admin?.id || null;
       }
-      case 'tenant_admin': {
+      case 'tenant_admin': case 'ceo': {
         const admin = await db.user.findFirst({
           where: { tenantId, role: 'tenant_admin', status: 'active' },
           select: { id: true },
@@ -577,7 +577,7 @@ export async function canUserApproveCurrentTier(
   tenantId: string,
 ): Promise<boolean> {
   // Super admins and tenant admins can always approve
-  if (userRole === 'super_admin' || userRole === 'tenant_admin') return true;
+  if (userRole === 'super_admin' || (userRole === 'tenant_admin' || userRole === 'ceo')) return true;
 
   // Get the currentApproverId from the leave request
   try {

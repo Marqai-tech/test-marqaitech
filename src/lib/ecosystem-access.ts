@@ -49,7 +49,7 @@ function deny(status: number, error: string): EcosystemAccessDenied {
 }
 
 function isPlatformAdmin(role: string | undefined | null): boolean {
-  return !!role && (role === 'super_admin' || role === 'tenant_admin');
+  return !!role && (role === 'super_admin' || (role === 'tenant_admin' || role === 'ceo'));
 }
 
 /**

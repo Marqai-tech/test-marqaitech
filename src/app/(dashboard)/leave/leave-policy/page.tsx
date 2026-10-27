@@ -143,7 +143,7 @@ function LeavePolicyPageContent() {
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery)
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId)
-  const isRoleAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isRoleAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
   const searchParams = useSearchParams()
   const router = useRouter()
 

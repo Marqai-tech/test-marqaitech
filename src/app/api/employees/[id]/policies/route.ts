@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const userRole = (decoded as Record<string, unknown>).role as string;
 
     // Only admin/HR can update policies
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
       return Response.json({ error: 'Only HR/Admin can update employee policies' }, { status: 403, headers: corsHeaders });
     }
 

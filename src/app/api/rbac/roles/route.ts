@@ -204,7 +204,7 @@ export async function POST(request: Request) {
     }
 
     // Only super_admin and tenant_admin can create roles
-    if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+    if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to create roles' },
         { status: 403, headers: corsHeaders() }

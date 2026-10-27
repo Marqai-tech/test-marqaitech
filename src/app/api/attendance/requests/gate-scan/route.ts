@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if (!['out', 'in'].includes(scanType)) return fail('scanType must be "out" or "in"');
 
     // Security desk / admins only
-    const secRoles = ['security', 'it_admin', 'admin', 'tenant_admin', 'super_admin', 'hr_admin'];
+    const secRoles = ['security', 'it_admin', 'admin', 'tenant_admin', 'ceo', 'super_admin', 'hr_admin'];
     if (!isAdminRole(user.role) && !secRoles.includes(String(user.role))) {
       return fail('Only the security desk can verify gate passes', 403);
     }

@@ -210,7 +210,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // TTFB (measured two overlapping GETs 999ms + 1924ms) and kept the
       // dashboard shell waiting. Background refresh happens on next load.
       get().fetchPermissions();
-      if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+      if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
         void get().fetchUser();
       }
 

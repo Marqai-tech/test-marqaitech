@@ -32,11 +32,11 @@ export async function OPTIONS() {
 }
 
 const VALID_CATEGORIES = ['identification', 'onboarding', 'qualifications', 'financial', 'lifecycle', 'other'];
-const VALID_TYPES = ['offer_letter', 'id_proof', 'contract', 'certificate', 'policy', 'aadhaar', 'pan_card', 'bank_proof', 'passport', 'visa', 'education', 'experience', 'medical', 'other'];
+const VALID_TYPES = ['offer_letter', 'id_proof', 'contract', 'certificate', 'policy', 'aadhaar', 'pan_card', 'bank_proof', 'passport', 'visa', 'education', 'experience', 'resume', 'medical', 'other'];
 const CATEGORY_TYPES: Record<string, string[]> = {
   identification: ['id_proof', 'aadhaar', 'pan_card', 'passport', 'visa'],
   onboarding: ['offer_letter', 'contract', 'policy'],
-  qualifications: ['certificate', 'education', 'experience'],
+  qualifications: ['certificate', 'education', 'experience', 'resume'],
   financial: ['pan_card', 'bank_proof'],
   lifecycle: ['policy', 'medical', 'other'],
   other: ['other'],
@@ -86,16 +86,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // ─── Document Request mode (HR requests a document from employee) ───
     if (action === 'request') {
-      if (!['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(auth.role)) {
+      if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(auth.role)) {
         return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
       }
-      const name = sanitizeMultiLineText(body.name, 200);
+     
       const category = VALID_CATEGORIES.includes(String(body.category)) ? String(body.category) : 'other';
       const type = VALID_TYPES.includes(String(body.type)) ? String(body.type) : 'other';
       const requiredFormat = body.requiredFormat || 'pdf';
       const maxFileSizeMb = Math.max(1, Math.min(50, Number(body.maxFileSizeMb) || 10));
       const description = sanitizeMultiLineText(body.description, 500);
-      if (!name) return NextResponse.json({ error: 'Document name is required' }, { status: 400, headers: corsHeaders() });
+      const name = sanitizeMultiLineText(body.name, 200).replace(/[<>]/g, '') || `${category} - ${type}`;
 
       const doc = await db.document.create({
         data: {
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // ─── Upload mode (employee or admin uploads a document) ───
     // fileUrl is optional: a document entry may represent a physical/offline
     // document (e.g. collected during onboarding) with no digital file yet.
-    const name = sanitizeMultiLineText(body.name, 200).replace(/[<>]/g, '');
+    const name = sanitizeMultiLineText(body.name, 200).replace(/[<>]/g, '') || `${category} - ${type}`;
     const fileUrl = String(body.fileUrl || '');
     const category = VALID_CATEGORIES.includes(String(body.category)) ? String(body.category) : 'other';
     const type = VALID_TYPES.includes(String(body.type)) ? String(body.type) : 'other';

@@ -101,7 +101,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
             }
             // 3. No moduleKey and no roles → default to admin-only for safety
             if (!item.moduleKey && !item.roles) {
-              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
+              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(r));
             }
             return true;
           }
@@ -122,7 +122,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
       }
       if (isSelfServiceRole(userRole) && !item.roles && !isSelfServicePathAllowed(item.href)) return false;
       if (!item.moduleKey && !item.roles) {
-        return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
+        return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(r));
       }
       return true;
     });

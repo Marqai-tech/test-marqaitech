@@ -290,7 +290,7 @@ export default function SetupWizardPage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
   const tenantName = tenant?.name || 'Your Company';
   const tenantId = tenant?.id || user?.tenantId || '';
 

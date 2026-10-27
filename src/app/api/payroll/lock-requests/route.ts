@@ -158,7 +158,7 @@ export async function PATCH(request: NextRequest) {
 
     // Permission check — only super_admin / tenant_admin can approve
     if (body.action === 'approve' || body.action === 'reject') {
-      if (!['super_admin', 'tenant_admin'].includes(decoded.role as string)) {
+      if (!['super_admin', 'tenant_admin', 'ceo'].includes(decoded.role as string)) {
         return Response.json({ error: 'Only super_admin or tenant_admin can approve/reject lock requests' }, { status: 403, headers: corsHeaders });
       }
       if (lockReq.status !== 'PENDING') {

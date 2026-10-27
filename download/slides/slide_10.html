@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HR Help Desk — Support Ticketing</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:#f7faf8;}
+  .material-icons{line-height:1;}
+  .icon-sq{width:34px;height:34px;border-radius:9px;background:var(--accent-tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .stepnum{width:30px;height:30px;font-size:14px;}
+  .flow-arrow{font-size:20px;color:var(--accent-2);font-weight:800;}
+  .flow-box{background:var(--stripe);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12.4px;font-weight:700;color:var(--primary);text-align:center;flex:1;}
+  .bullet{font-size:12.3px;line-height:1.5;color:var(--muted);}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--accent-2);flex-shrink:0;margin-top:7px;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px;display:flex;flex-direction:column;">
+
+  <header class="flex items-end justify-between">
+    <div>
+      <div class="kicker">SUPPORT &amp; TICKETING</div>
+      <h1 style="margin:8px 0 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;color:var(--primary);">HR Help Desk — one ticketing system, phone and web</h1>
+    </div>
+    <span class="pill pill-yes">Connected to web Support &amp; AI</span>
+  </header>
+
+  <div class="flex" style="gap:24px;margin-top:22px;flex:1;min-height:0;">
+
+    <!-- LEFT: 4 numbered steps -->
+    <div class="flex flex-col" style="flex:1.32;gap:12px;">
+      <div class="card flex items-center" style="flex:1;padding:15px 20px;gap:14px;">
+        <div class="stepnum">1</div>
+        <p style="margin:0;font-size:13.2px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Raise a ticket</b> — tap the Help Desk tile in Quick Links, pick a category, write a clear subject and description; HR/Admin are notified instantly.</p>
+      </div>
+      <div class="card flex items-center" style="flex:1;padding:15px 20px;gap:14px;">
+        <div class="stepnum">2</div>
+        <p style="margin:0;font-size:13.2px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Track "My tickets"</b> — live status (open / in progress / resolved / closed); the server enforces self-scope, so nobody sees a colleague's tickets.</p>
+      </div>
+      <div class="card flex items-center" style="flex:1;padding:15px 20px;gap:14px;">
+        <div class="stepnum">3</div>
+        <p style="margin:0;font-size:13.2px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Reply in the thread</b> — open a ticket, read the full conversation and add comments; every reply reaches HR/Admin on web the moment it lands.</p>
+      </div>
+      <div class="card flex items-center" style="flex:1;padding:15px 20px;gap:14px;">
+        <div class="stepnum">4</div>
+        <p style="margin:0;font-size:13.2px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">HR/Admin operations</b> — see all tenant tickets, answer from the phone and change ticket status between meetings, without a laptop.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: flow + hygiene -->
+    <div class="flex flex-col" style="flex:1;gap:12px;">
+      <div class="card" style="padding:16px 20px;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">sync_alt</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">How it syncs</div>
+        </div>
+        <div class="flex items-center" style="gap:8px;margin-top:12px;">
+          <div class="flow-box">Mobile<br><span style="font-weight:600;color:var(--muted);font-size:11px;">raise · reply</span></div>
+          <span class="flow-arrow">⇄</span>
+          <div class="flow-box">Same ticket API<br><span style="font-weight:600;color:var(--muted);font-size:11px;">/api/tickets</span></div>
+          <span class="flow-arrow">⇄</span>
+          <div class="flow-box">Web queue<br><span style="font-weight:600;color:var(--muted);font-size:11px;">Support &amp; AI</span></div>
+        </div>
+        <p style="margin:10px 0 0;font-size:11.8px;line-height:1.45;color:var(--muted);">One queue, two front-ends — start a thread on the phone, finish it on the laptop. Nothing is duplicated.</p>
+      </div>
+
+      <div class="card" style="flex:1;padding:16px 20px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">fact_check</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">Good ticket hygiene</div>
+        </div>
+        <ul style="margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;">
+          <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">one issue per ticket</span></li>
+          <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">descriptive subject — "Payslip September — HRA component wrong" beats "help"</span></li>
+          <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">attach context up front; say it in the thread instead of raising duplicates</span></li>
+          <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">only HR/Admin change status — tracked, searchable, answered faster</span></li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

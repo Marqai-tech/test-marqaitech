@@ -122,7 +122,7 @@ export async function PUT(request: Request) {
     const decodedRec = decoded as unknown as Record<string, any>;
 
     // Only admins can update settings
-    const allowedRoles = ['super_admin', 'tenant_admin', 'admin'];
+    const allowedRoles = ['super_admin', 'tenant_admin', 'ceo', 'admin'];
     if (!allowedRoles.includes(decodedRec.role as string)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }

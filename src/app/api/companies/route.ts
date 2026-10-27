@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
     const role = (decoded.role as string) || 'employee';
     const callerTenantId = decoded.tenantId as string;
 
-    if (!['super_admin', 'tenant_admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(role)) {
       return NextResponse.json({ error: 'Only admins can create companies' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -449,7 +449,7 @@ export async function PUT(req: NextRequest) {
     const role = (decoded.role as string) || 'employee';
     const callerTenantId = decoded.tenantId as string;
 
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -535,7 +535,7 @@ export async function DELETE(req: NextRequest) {
     const role = (decoded.role as string) || 'employee';
     const callerTenantId = decoded.tenantId as string;
 
-    if (!['super_admin', 'tenant_admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(role)) {
       return NextResponse.json({ error: 'Only admins can delete companies' }, { status: 403, headers: corsHeaders() });
     }
 

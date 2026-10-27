@@ -1,0 +1,2025 @@
+{
+  "employees": [
+    {
+      "id": "cmvcat73e000l07ld2zs093fx",
+      "employeeId": "EMP2002E",
+      "firstName": "Priya",
+      "lastName": "T",
+      "email": "employee.demo@3boxeshrms.com",
+      "userId": "cmvcat93w000n07ldrqgyv9ue",
+      "departmentId": "cmtsczl97000h04jsne4lcjip",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": null,
+      "companyId": null,
+      "phone": "9999999102",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-02-10T00:00:00.000Z",
+      "reportingManagerId": "cmvcasxsc000g07ldec98qyxm",
+      "createdAt": "2026-10-17T11:13:35.018Z",
+      "updatedAt": "2026-10-19T04:15:18.216Z",
+      "department": {
+        "id": "cmtsczl97000h04jsne4lcjip",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": null,
+      "user": {
+        "id": "cmvcat93w000n07ldrqgyv9ue",
+        "email": "employee.demo@3boxeshrms.com",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmvcasxsc000g07ldec98qyxm",
+        "firstName": "Ravi",
+        "lastName": "K",
+        "employeeId": "EMP2001M"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmvcasxsc000g07ldec98qyxm",
+      "employeeId": "EMP2001M",
+      "firstName": "Ravi",
+      "lastName": "K",
+      "email": "manager.demo@3boxeshrms.com",
+      "userId": "cmvcaszos000i07ldvskw4pm0",
+      "departmentId": "cmtsczl97000h04jsne4lcjip",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": null,
+      "companyId": null,
+      "phone": "9999999101",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-01-05T00:00:00.000Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-10-17T11:13:22.956Z",
+      "updatedAt": "2026-10-17T11:13:25.646Z",
+      "department": {
+        "id": "cmtsczl97000h04jsne4lcjip",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": null,
+      "user": {
+        "id": "cmvcaszos000i07ldvskw4pm0",
+        "email": "manager.demo@3boxeshrms.com",
+        "role": "manager",
+        "avatar": null
+      },
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmv938gur000006jvpiebkihu",
+      "employeeId": "EMP1001YMN",
+      "firstName": "Ammu",
+      "lastName": "S",
+      "email": "amrutha@marqaitech.com",
+      "userId": "cmv93gle8000306jvml09vtty",
+      "departmentId": "cmtsczl97000h04jsne4lcjip",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": null,
+      "phone": "9999088298",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-06-11T00:00:00.000Z",
+      "reportingManagerId": "cmttonqg6000004jp6392hxo4",
+      "createdAt": "2026-10-15T05:18:12.051Z",
+      "updatedAt": "2026-10-17T05:06:47.123Z",
+      "department": {
+        "id": "cmtsczl97000h04jsne4lcjip",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmv93gle8000306jvml09vtty",
+        "email": "amrutha@marqaitech.com",
+        "role": "employee",
+        "avatar": "/api/employees/cmv938gur000006jvpiebkihu/photo?token=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiJjbXRzYzFnMDkwMDAyMDRrdzV6M3lnaDEwIiwiZW1haWwiOiJhZG1pbkBhY21lLWdsb2JhbC5jb20iLCJyb2xlIjoidGVuYW50X2FkbWluIiwidGVuYW50SWQiOiJjbXJteGVnankwMDA2MDRqdjludGdjc2hoIiwiaWF0IjoxNzkyNTEwNjcxLCJleHAiOjE3OTI1OTcwNzF9.V-N3NBkxXUStHCWXgjO4jdy52jB5ZvFjIsVbd1QVTr4"
+      },
+      "reportingManager": {
+        "id": "cmttonqg6000004jp6392hxo4",
+        "firstName": "Madhu",
+        "lastName": "KK",
+        "employeeId": "EMP-TNSL-009"
+      },
+      "avatar": "/api/employees/cmv938gur000006jvpiebkihu/photo?token=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiJjbXRzYzFnMDkwMDAyMDRrdzV6M3lnaDEwIiwiZW1haWwiOiJhZG1pbkBhY21lLWdsb2JhbC5jb20iLCJyb2xlIjoidGVuYW50X2FkbWluIiwidGVuYW50SWQiOiJjbXJteGVnankwMDA2MDRqdjludGdjc2hoIiwiaWF0IjoxNzkyNTEwNjcxLCJleHAiOjE3OTI1OTcwNzF9.V-N3NBkxXUStHCWXgjO4jdy52jB5ZvFjIsVbd1QVTr4"
+    },
+    {
+      "id": "cmumgikxh000004jyv5k4zbkz",
+      "employeeId": "EMP-TNSL-030",
+      "firstName": "Veeha",
+      "lastName": "N",
+      "email": "veeha@technova.com",
+      "userId": null,
+      "departmentId": "cmtsczl97000c04jsi1tef59d",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "+919831829209",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-01-01T00:00:00.000Z",
+      "reportingManagerId": "cmu6rlxec000004jut176nww0",
+      "createdAt": "2026-09-29T09:11:16.853Z",
+      "updatedAt": "2026-10-15T06:28:28.482Z",
+      "department": {
+        "id": "cmtsczl97000c04jsi1tef59d",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmu6rlxec000004jut176nww0",
+        "firstName": "Hari",
+        "lastName": "Hari",
+        "employeeId": "EMP-TNSL-008"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmue167k2000304ij6yz7ygke",
+      "employeeId": "EMP-TNSL-011",
+      "firstName": "Shiraj",
+      "lastName": "Shake",
+      "email": "shakesiraj@marqaitech.com",
+      "userId": "cmue16np2000004kws672iagi",
+      "departmentId": "cmtsczl97000c04jsi1tef59d",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-06-01T00:00:00.000Z",
+      "reportingManagerId": "cmttonqg6000004jp6392hxo4",
+      "createdAt": "2026-09-23T11:39:36.003Z",
+      "updatedAt": "2026-10-15T07:29:31.949Z",
+      "department": {
+        "id": "cmtsczl97000c04jsi1tef59d",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmue16np2000004kws672iagi",
+        "email": "shakesiraj@marqaitech.com",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmttonqg6000004jp6392hxo4",
+        "firstName": "Madhu",
+        "lastName": "KK",
+        "employeeId": "EMP-TNSL-009"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmu6rlxec000004jut176nww0",
+      "employeeId": "EMP-TNSL-008",
+      "firstName": "Hari",
+      "lastName": "Hari",
+      "email": "info@sdlglobe.com",
+      "userId": "cmudz3sld000104i1us7tsu1f",
+      "departmentId": "cmtsczl97000g04jsksnkv8f7",
+      "designationId": "cmtsczlil001a04jsg44ftpdt",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "+919818280819",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-09-02T00:00:00.000Z",
+      "reportingManagerId": "cmu597olb000004jpzhzybrk8",
+      "createdAt": "2026-09-18T09:37:29.940Z",
+      "updatedAt": "2026-09-23T13:20:21.774Z",
+      "department": {
+        "id": "cmtsczl97000g04jsksnkv8f7",
+        "name": "Operations"
+      },
+      "designation": {
+        "id": "cmtsczlil001a04jsg44ftpdt",
+        "title": "Senior Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmudz3sld000104i1us7tsu1f",
+        "email": "info@sdlglobe.com",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmu597olb000004jpzhzybrk8",
+        "firstName": "Mohan",
+        "lastName": "Kumar",
+        "employeeId": "EMP-TNSL-015"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmu597olb000004jpzhzybrk8",
+      "employeeId": "EMP-TNSL-015",
+      "firstName": "Mohan",
+      "lastName": "Kumar",
+      "email": "mahesh@sdlglobe.com",
+      "userId": "cmudz4o27000204i1cylskr7v",
+      "departmentId": "cmtsczl97000f04js1qfckv52",
+      "designationId": "cmtsczlil001904jsyjt9h2ob",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-09-01T00:00:00.000Z",
+      "reportingManagerId": "cmtsgvcn8000004ldznz5isuw",
+      "createdAt": "2026-09-17T08:14:46.079Z",
+      "updatedAt": "2026-09-23T10:42:24.854Z",
+      "department": {
+        "id": "cmtsczl97000f04js1qfckv52",
+        "name": "Sales & Marketing"
+      },
+      "designation": {
+        "id": "cmtsczlil001904jsyjt9h2ob",
+        "title": "Team Lead"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmudz4o27000204i1cylskr7v",
+        "email": "mahesh@sdlglobe.com",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmtsgvcn8000004ldznz5isuw",
+        "firstName": "Test",
+        "lastName": "Test",
+        "employeeId": "EMP-TEST-013"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtwn3q4g000004l2ulsnijln",
+      "employeeId": "EMP-3BOX-007",
+      "firstName": "Keerthan",
+      "lastName": "Rao",
+      "email": "keer@3boxeshrms.com",
+      "userId": "cmtwnp9yl000004jnob1bsj35",
+      "departmentId": "cmtsczl97000c04jsi1tef59d",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "9856722860",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-01-01T00:00:00.000Z",
+      "reportingManagerId": "cmu6rlxec000004jut176nww0",
+      "createdAt": "2026-09-11T07:33:40.480Z",
+      "updatedAt": "2026-09-24T07:07:11.505Z",
+      "department": {
+        "id": "cmtsczl97000c04jsi1tef59d",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmtwnp9yl000004jnob1bsj35",
+        "email": "keer@3boxeshrms.com",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmu6rlxec000004jut176nww0",
+        "firstName": "Hari",
+        "lastName": "Hari",
+        "employeeId": "EMP-TNSL-008"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtve9cjw000004jm9seurlle",
+      "employeeId": "EMP-3BOX-005",
+      "firstName": "Manu",
+      "lastName": "Tilak",
+      "email": "manu@3boxeshrms.com",
+      "userId": "cmtveaz8g000004ido6pzq3ns",
+      "departmentId": "cmtsczl97000c04jsi1tef59d",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-06-01T00:00:00.000Z",
+      "reportingManagerId": "cmtwn3q4g000004l2ulsnijln",
+      "createdAt": "2026-09-10T10:38:20.108Z",
+      "updatedAt": "2026-09-18T13:02:33.667Z",
+      "department": {
+        "id": "cmtsczl97000c04jsi1tef59d",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmtveaz8g000004ido6pzq3ns",
+        "email": "manu@3boxeshrms.com",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmtwn3q4g000004l2ulsnijln",
+        "firstName": "Keerthan",
+        "lastName": "Rao",
+        "employeeId": "EMP-3BOX-007"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtv6zar9000004l91ie86x4e",
+      "employeeId": "EMP-TNSL-016",
+      "firstName": "Mallesh",
+      "lastName": "Rao",
+      "email": "mallesh@marqaitech.com",
+      "userId": "cmtv70f40000004k4vprzp2yq",
+      "departmentId": "cmtsczl97000c04jsi1tef59d",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": null,
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-02-06T00:00:00.000Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-09-10T07:14:33.910Z",
+      "updatedAt": "2026-09-22T10:05:31.653Z",
+      "department": {
+        "id": "cmtsczl97000c04jsi1tef59d",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmtv70f40000004k4vprzp2yq",
+        "email": "mallesh@marqaitech.com",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmttonqg6000004jp6392hxo4",
+      "employeeId": "EMP-TNSL-009",
+      "firstName": "Madhu",
+      "lastName": "KK",
+      "email": "madhuri@marqaitech.com",
+      "userId": "cmttoorgx000004jsxct7iig9",
+      "departmentId": "cmtsczl97000g04jsksnkv8f7",
+      "designationId": "cmtsczlil001b04js7ro32aw1",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "9845722820",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-09-24T00:00:00.000Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-09-09T05:53:55.110Z",
+      "updatedAt": "2026-10-15T05:03:12.086Z",
+      "department": {
+        "id": "cmtsczl97000g04jsksnkv8f7",
+        "name": "Operations"
+      },
+      "designation": {
+        "id": "cmtsczlil001b04js7ro32aw1",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmttoorgx000004jsxct7iig9",
+        "email": "madhuri@marqaitech.com",
+        "role": "hr_admin",
+        "avatar": null
+      },
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmtsgvcn8000004ldznz5isuw",
+      "employeeId": "EMP-TEST-013",
+      "firstName": "Test",
+      "lastName": "Test",
+      "email": "test@company.com",
+      "userId": null,
+      "departmentId": "cmtsczl97000c04jsi1tef59d",
+      "designationId": "cmtsczlil001a04jsg44ftpdt",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": null,
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-09-24T00:00:00.000Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-09-08T09:28:07.365Z",
+      "updatedAt": "2026-09-24T11:50:11.952Z",
+      "department": {
+        "id": "cmtsczl97000c04jsi1tef59d",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001a04jsg44ftpdt",
+        "title": "Senior Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004i04js37hc3133",
+      "employeeId": "EMP-PHL-008",
+      "firstName": "Riya",
+      "lastName": "Mukherjee",
+      "email": "riya.mukherjee@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000x04jsn3mezbvo",
+      "designationId": "cmtsczlil001v04jsn9kulauk",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9862471783",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-04-26T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004b04jsmkwvkag1",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97000x04jsn3mezbvo",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001v04jsn9kulauk",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004b04jsmkwvkag1",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-PHL-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004704jsl6qirgv0",
+      "employeeId": "EMP-ASG-005",
+      "firstName": "Harish",
+      "lastName": "Pillai",
+      "email": "harish.pillai@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000v04jskdpzsufz",
+      "designationId": "cmtsczlil001s04jsitaprgxi",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9831829209",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2024-08-16T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004304js0yc1b4l4",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000v04jskdpzsufz",
+        "name": "Operations"
+      },
+      "designation": {
+        "id": "cmtsczlil001s04jsitaprgxi",
+        "title": "Senior Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004304js0yc1b4l4",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ASG-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004904js6a0a9qv4",
+      "employeeId": "EMP-ASG-007",
+      "firstName": "Murugan",
+      "lastName": "Bose",
+      "email": "murugan.bose@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000r04js250sz75p",
+      "designationId": "cmtsczlil001o04jsweoitf1g",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9868777790",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-04-14T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004304js0yc1b4l4",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000r04js250sz75p",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001o04jsweoitf1g",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004304js0yc1b4l4",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ASG-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004104jsmptwu8k3",
+      "employeeId": "EMP-GDC-007",
+      "firstName": "Kavya",
+      "lastName": "Bose",
+      "email": "kavya.bose@globaldynamics.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000m04js293b78rm",
+      "designationId": "cmtsczlil001i04js3mzz1btk",
+      "branchId": "cmtsczl7y000804jsfaqqdyom",
+      "companyId": "cmtsczl5u000204jsngotqer2",
+      "phone": "+91-9811882026",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-10-16T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003v04jsqk241lg0",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000m04js293b78rm",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001i04js3mzz1btk",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7y000804jsfaqqdyom",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003v04jsqk241lg0",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-GDC-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004204jsj887x63q",
+      "employeeId": "EMP-GDC-008",
+      "firstName": "Riya",
+      "lastName": "Mukherjee",
+      "email": "riya.mukherjee@globaldynamics.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000n04jsok07i6wk",
+      "designationId": "cmtsczlil001j04jsn05hdlab",
+      "branchId": "cmtsczl7y000804jsfaqqdyom",
+      "companyId": "cmtsczl5u000204jsngotqer2",
+      "phone": "+91-9897591367",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-03-05T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003v04jsqk241lg0",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000n04jsok07i6wk",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001j04jsn05hdlab",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000804jsfaqqdyom",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003v04jsqk241lg0",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-GDC-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004304js0yc1b4l4",
+      "employeeId": "EMP-ASG-001",
+      "firstName": "Amit",
+      "lastName": "Reddy",
+      "email": "amit.reddy@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000r04js250sz75p",
+      "designationId": "cmtsczlil001o04jsweoitf1g",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9853261393",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "contract",
+      "dateOfJoining": "2024-07-05T00:00:00.000Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-10-15T05:05:34.067Z",
+      "department": {
+        "id": "cmtsczl97000r04js250sz75p",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001o04jsweoitf1g",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004404js5jk5qrka",
+      "employeeId": "EMP-ASG-002",
+      "firstName": "Deepak",
+      "lastName": "Patel",
+      "email": "deepak.patel@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000s04js7mwy5vdp",
+      "designationId": "cmtsczlil001p04jsf83bwnxh",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9847345678",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-03-25T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004304js0yc1b4l4",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000s04js7mwy5vdp",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001p04jsf83bwnxh",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004304js0yc1b4l4",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ASG-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004504jss1oz95ab",
+      "employeeId": "EMP-ASG-003",
+      "firstName": "Varun",
+      "lastName": "Kumar",
+      "email": "varun.kumar@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000t04jsb3brd9qh",
+      "designationId": "cmtsczlil001q04jst24z86bg",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9866886412",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-09-25T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004304js0yc1b4l4",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000t04jsb3brd9qh",
+        "name": "Finance"
+      },
+      "designation": {
+        "id": "cmtsczlil001q04jst24z86bg",
+        "title": "Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004304js0yc1b4l4",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ASG-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004804jshvx01lb4",
+      "employeeId": "EMP-ASG-006",
+      "firstName": "Saraswati",
+      "lastName": "Kapoor",
+      "email": "saraswati.kapoor@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000r04js250sz75p",
+      "designationId": "cmtsczlil001t04jsq6gqvjdb",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9894009043",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "contract",
+      "dateOfJoining": "2024-12-09T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004304js0yc1b4l4",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000r04js250sz75p",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001t04jsq6gqvjdb",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004304js0yc1b4l4",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ASG-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004b04jsmkwvkag1",
+      "employeeId": "EMP-PHL-001",
+      "firstName": "Vivaan",
+      "lastName": "Reddy",
+      "email": "vivaan.reddy@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000w04js1hcssiat",
+      "designationId": "cmtsczlil001u04js1wbe1tqg",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9899436876",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "contract",
+      "dateOfJoining": "2025-02-23T07:39:29.772Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:39:29.877Z",
+      "department": {
+        "id": "cmtsczl97000w04js1hcssiat",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001u04js1wbe1tqg",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpy004k04jslyw6qyaq",
+      "employeeId": "EMP-STE-002",
+      "firstName": "Deepak",
+      "lastName": "Patel",
+      "email": "deepak.patel@stellar.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001204js2uf5fso8",
+      "designationId": "cmtsczlil002104js4pp70ktf",
+      "branchId": "cmtsczl7z000b04js12mthsmz",
+      "companyId": "cmtsczl77000504js96dvui8h",
+      "phone": "+91-9896141375",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-04-05T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpy004j04jstgoacozl",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97001204js2uf5fso8",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil002104js4pp70ktf",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7z000b04js12mthsmz",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpy004j04jstgoacozl",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-STE-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004h04js734rguk9",
+      "employeeId": "EMP-PHL-007",
+      "firstName": "Kavya",
+      "lastName": "Bose",
+      "email": "kavya.bose@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000w04js1hcssiat",
+      "designationId": "cmtsczlil001u04js1wbe1tqg",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9882743383",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-11-25T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004b04jsmkwvkag1",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97000w04js1hcssiat",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001u04js1wbe1tqg",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004b04jsmkwvkag1",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-PHL-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004g04js68lssku6",
+      "employeeId": "EMP-PHL-006",
+      "firstName": "Pooja",
+      "lastName": "Kapoor",
+      "email": "pooja.kapoor@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000w04js1hcssiat",
+      "designationId": "cmtsczlil001z04jsy2g4bg6k",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9849105380",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "contract",
+      "dateOfJoining": "2023-04-07T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004b04jsmkwvkag1",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97000w04js1hcssiat",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001z04jsy2g4bg6k",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004b04jsmkwvkag1",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-PHL-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpy004l04jscfytp727",
+      "employeeId": "EMP-STE-003",
+      "firstName": "Varun",
+      "lastName": "Kumar",
+      "email": "varun.kumar@stellar.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001304jsr7b0echl",
+      "designationId": "cmtsczlil002204js97zj67o1",
+      "branchId": "cmtsczl7z000b04js12mthsmz",
+      "companyId": "cmtsczl77000504js96dvui8h",
+      "phone": "+91-9814559521",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-12-15T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpy004j04jstgoacozl",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97001304jsr7b0echl",
+        "name": "Finance"
+      },
+      "designation": {
+        "id": "cmtsczlil002204js97zj67o1",
+        "title": "Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7z000b04js12mthsmz",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpy004j04jstgoacozl",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-STE-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpy004m04js2gnnl9do",
+      "employeeId": "EMP-STE-004",
+      "firstName": "Nikhil",
+      "lastName": "Joshi",
+      "email": "nikhil.joshi@stellar.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001404jsbw1f58ro",
+      "designationId": "cmtsczlim002304jsk2pknwiv",
+      "branchId": "cmtsczl7z000b04js12mthsmz",
+      "companyId": "cmtsczl77000504js96dvui8h",
+      "phone": "+91-9831990821",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-06-05T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpy004j04jstgoacozl",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97001404jsbw1f58ro",
+        "name": "Sales & Marketing"
+      },
+      "designation": {
+        "id": "cmtsczlim002304jsk2pknwiv",
+        "title": "Team Lead"
+      },
+      "branch": {
+        "id": "cmtsczl7z000b04js12mthsmz",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpy004j04jstgoacozl",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-STE-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpy004o04jsgno9vepy",
+      "employeeId": "EMP-STE-006",
+      "firstName": "Saraswati",
+      "lastName": "Kapoor",
+      "email": "saraswati.kapoor@stellar.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001104jstcuwsp3i",
+      "designationId": "cmtsczlim002504jssk7dlnnt",
+      "branchId": "cmtsczl7z000b04js12mthsmz",
+      "companyId": "cmtsczl77000504js96dvui8h",
+      "phone": "+91-9814246817",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "contract",
+      "dateOfJoining": "2023-09-17T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpy004j04jstgoacozl",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97001104jstcuwsp3i",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlim002504jssk7dlnnt",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7z000b04js12mthsmz",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpy004j04jstgoacozl",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-STE-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpy004j04jstgoacozl",
+      "employeeId": "EMP-STE-001",
+      "firstName": "Amit",
+      "lastName": "Reddy",
+      "email": "amit.reddy@stellar.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001104jstcuwsp3i",
+      "designationId": "cmtsczlil002004js9uf13nov",
+      "branchId": "cmtsczl7z000b04js12mthsmz",
+      "companyId": "cmtsczl77000504js96dvui8h",
+      "phone": "+91-9870275478",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "contract",
+      "dateOfJoining": "2025-10-29T07:39:29.772Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-10-18T18:39:57.262Z",
+      "department": {
+        "id": "cmtsczl97001104jstcuwsp3i",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil002004js9uf13nov",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7z000b04js12mthsmz",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004d04jsl5zo6dsk",
+      "employeeId": "EMP-PHL-003",
+      "firstName": "Arjun",
+      "lastName": "Kumar",
+      "email": "arjun.kumar@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000y04jsit0m3jus",
+      "designationId": "cmtsczlil001w04jsjvrb371a",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9845857123",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-02-25T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004b04jsmkwvkag1",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97000y04jsit0m3jus",
+        "name": "Finance"
+      },
+      "designation": {
+        "id": "cmtsczlil001w04jsjvrb371a",
+        "title": "Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004b04jsmkwvkag1",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-PHL-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpy004n04jsp8f3nqdy",
+      "employeeId": "EMP-STE-005",
+      "firstName": "Harish",
+      "lastName": "Pillai",
+      "email": "harish.pillai@stellar.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001504jsrqbh85qq",
+      "designationId": "cmtsczlim002404jsxim47umm",
+      "branchId": "cmtsczl7z000b04js12mthsmz",
+      "companyId": "cmtsczl77000504js96dvui8h",
+      "phone": "+91-9818549777",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-08-21T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpy004j04jstgoacozl",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97001504jsrqbh85qq",
+        "name": "Operations"
+      },
+      "designation": {
+        "id": "cmtsczlim002404jsxim47umm",
+        "title": "Senior Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7z000b04js12mthsmz",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpy004j04jstgoacozl",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-STE-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004e04js80ggzepx",
+      "employeeId": "EMP-PHL-004",
+      "firstName": "Rahul",
+      "lastName": "Joshi",
+      "email": "rahul.joshi@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000z04js25bs1q0b",
+      "designationId": "cmtsczlil001x04jsrkkw8zcy",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9865365806",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2022-09-02T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004b04jsmkwvkag1",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97000z04js25bs1q0b",
+        "name": "Sales & Marketing"
+      },
+      "designation": {
+        "id": "cmtsczlil001x04jsrkkw8zcy",
+        "title": "Team Lead"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004b04jsmkwvkag1",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-PHL-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004c04jsaki6aorv",
+      "employeeId": "EMP-PHL-002",
+      "firstName": "Ishaan",
+      "lastName": "Patel",
+      "email": "ishaan.patel@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000x04jsn3mezbvo",
+      "designationId": "cmtsczlil001v04jsn9kulauk",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9819710315",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-03-30T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004b04jsmkwvkag1",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000x04jsn3mezbvo",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001v04jsn9kulauk",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004b04jsmkwvkag1",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-PHL-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004f04jsv6fucrx4",
+      "employeeId": "EMP-PHL-005",
+      "firstName": "Ananya",
+      "lastName": "Pillai",
+      "email": "ananya.pillai@primehealthcare.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001004jsu0j12qm8",
+      "designationId": "cmtsczlil001y04jsxuxcvfme",
+      "branchId": "cmtsczl7y000a04jsfsjhmplh",
+      "companyId": "cmtsczl6s000404jsikpgt9b1",
+      "phone": "+91-9887223381",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-08-13T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004b04jsmkwvkag1",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97001004jsu0j12qm8",
+        "name": "Operations"
+      },
+      "designation": {
+        "id": "cmtsczlil001y04jsxuxcvfme",
+        "title": "Senior Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000a04jsfsjhmplh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004b04jsmkwvkag1",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-PHL-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004a04js82vp319s",
+      "employeeId": "EMP-ASG-008",
+      "firstName": "Bala",
+      "lastName": "Mukherjee",
+      "email": "bala.mukherjee@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000s04js7mwy5vdp",
+      "designationId": "cmtsczlil001p04jsf83bwnxh",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9843248774",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2022-08-27T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004304js0yc1b4l4",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000s04js7mwy5vdp",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001p04jsf83bwnxh",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004304js0yc1b4l4",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ASG-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpy004p04js164cw1p0",
+      "employeeId": "EMP-STE-007",
+      "firstName": "Murugan",
+      "lastName": "Bose",
+      "email": "murugan.bose@stellar.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97001104jstcuwsp3i",
+      "designationId": "cmtsczlil002004js9uf13nov",
+      "branchId": "cmtsczl7z000b04js12mthsmz",
+      "companyId": "cmtsczl77000504js96dvui8h",
+      "phone": "+91-9817818831",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-07-22T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpy004j04jstgoacozl",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.946Z",
+      "department": {
+        "id": "cmtsczl97001104jstcuwsp3i",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil002004js9uf13nov",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7z000b04js12mthsmz",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpy004j04jstgoacozl",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-STE-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtscznpx004604jsod4tpulp",
+      "employeeId": "EMP-ASG-004",
+      "firstName": "Nikhil",
+      "lastName": "Joshi",
+      "email": "nikhil.joshi@apexservices.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000u04js9h2mb8fj",
+      "designationId": "cmtsczlil001r04jsbn1y26xz",
+      "branchId": "cmtsczl7y000904jsjhxh49hh",
+      "companyId": "cmtsczl66000304js8txtwhsq",
+      "phone": "+91-9876079130",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2024-06-25T07:39:29.772Z",
+      "reportingManagerId": "cmtscznpx004304js0yc1b4l4",
+      "createdAt": "2026-09-08T07:39:29.877Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000u04js9h2mb8fj",
+        "name": "Sales & Marketing"
+      },
+      "designation": {
+        "id": "cmtsczlil001r04jsbn1y26xz",
+        "title": "Team Lead"
+      },
+      "branch": {
+        "id": "cmtsczl7y000904jsjhxh49hh",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtscznpx004304js0yc1b4l4",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ASG-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003j04jseoyqtmjk",
+      "employeeId": "EMP-TNS-008",
+      "firstName": "Riya",
+      "lastName": "Mukherjee",
+      "email": "riya.mukherjee@technova.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000e04js3t0195eh",
+      "designationId": "cmtsczlil001804jsduety31l",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "+91-9872756595",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2026-09-09T00:00:00.000Z",
+      "reportingManagerId": "cmtsczno9003c04jsngxp8747",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T09:51:37.184Z",
+      "department": {
+        "id": "cmtsczl97000e04js3t0195eh",
+        "name": "Finance"
+      },
+      "designation": {
+        "id": "cmtsczlil001804jsduety31l",
+        "title": "Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003c04jsngxp8747",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-TNS-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003o04js8fctp2km",
+      "employeeId": "EMP-ISY-003",
+      "firstName": "Varun",
+      "lastName": "Kumar",
+      "email": "varun.kumar@innovatech.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000j04jsvjo4ueev",
+      "designationId": "cmtsczlil001e04js933b5o22",
+      "branchId": "cmtsczl7y000704jsvkymhtef",
+      "companyId": "cmtsczl5n000104js92l2cp0l",
+      "phone": "+91-9844998230",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-09-15T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003m04jsvgh8o4u3",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T07:40:03.944Z",
+      "department": {
+        "id": "cmtsczl97000j04jsvjo4ueev",
+        "name": "Finance"
+      },
+      "designation": {
+        "id": "cmtsczlil001e04js933b5o22",
+        "title": "Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000704jsvkymhtef",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003m04jsvgh8o4u3",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ISY-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003v04jsqk241lg0",
+      "employeeId": "EMP-GDC-001",
+      "firstName": "Vivaan",
+      "lastName": "Reddy",
+      "email": "vivaan.reddy@globaldynamics.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000m04js293b78rm",
+      "designationId": "cmtsczlil001i04js3mzz1btk",
+      "branchId": "cmtsczl7y000804jsfaqqdyom",
+      "companyId": "cmtsczl5u000204jsngotqer2",
+      "phone": "+91-9814345250",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "contract",
+      "dateOfJoining": "2022-08-10T07:39:29.772Z",
+      "reportingManagerId": null,
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T07:39:29.817Z",
+      "department": {
+        "id": "cmtsczl97000m04js293b78rm",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001i04js3mzz1btk",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7y000804jsfaqqdyom",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": null,
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003n04js95ltod6m",
+      "employeeId": "EMP-ISY-002",
+      "firstName": "Deepak",
+      "lastName": "Patel",
+      "email": "deepak.patel@innovatech.demo",
+      "userId": "cmtvitgru000004lavu962uih",
+      "departmentId": "cmtsczl97000i04js8lffmzfo",
+      "designationId": "cmtsczlil001d04jsmdjhy60g",
+      "branchId": "cmtsczl7y000704jsvkymhtef",
+      "companyId": "cmtsczl5n000104js92l2cp0l",
+      "phone": "+91-9873740777",
+      "status": "active",
+      "employeeStatus": "probation",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-11-25T00:00:00.000Z",
+      "reportingManagerId": "cmtsczno9003m04jsvgh8o4u3",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-15T14:19:00.437Z",
+      "department": {
+        "id": "cmtsczl97000i04js8lffmzfo",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001d04jsmdjhy60g",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000704jsvkymhtef",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmtvitgru000004lavu962uih",
+        "email": "deepak.patel@innovatech.demo",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmtsczno9003m04jsvgh8o4u3",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ISY-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003s04js9wf9bq7d",
+      "employeeId": "EMP-ISY-007",
+      "firstName": "Murugan",
+      "lastName": "Bose",
+      "email": "murugan.bose@innovatech.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000h04jsne4lcjip",
+      "designationId": "cmtsczlil001c04jsxz18cubs",
+      "branchId": "cmtsczl7y000704jsvkymhtef",
+      "companyId": "cmtsczl5n000104js92l2cp0l",
+      "phone": "+91-9837001069",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-09-18T00:00:00.000Z",
+      "reportingManagerId": "cmtsczno9003m04jsvgh8o4u3",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-15T14:20:17.326Z",
+      "department": {
+        "id": "cmtsczl97000h04jsne4lcjip",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001c04jsxz18cubs",
+        "title": "Director"
+      },
+      "branch": {
+        "id": "cmtsczl7y000704jsvkymhtef",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003m04jsvgh8o4u3",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ISY-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003t04jseueeu1y4",
+      "employeeId": "EMP-ISY-008",
+      "firstName": "Bala",
+      "lastName": "Mukherjee",
+      "email": "bala.mukherjee@innovatech.demo",
+      "userId": "cmtv2zwgn000004kzde7mpgp6",
+      "departmentId": "cmtsczl97000i04js8lffmzfo",
+      "designationId": "cmtsczlil001d04jsmdjhy60g",
+      "branchId": "cmtsczl7y000704jsvkymhtef",
+      "companyId": "cmtsczl5n000104js92l2cp0l",
+      "phone": "+91-9859874440",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2022-09-20T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003m04jsvgh8o4u3",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-10T05:23:03.694Z",
+      "department": {
+        "id": "cmtsczl97000i04js8lffmzfo",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001d04jsmdjhy60g",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000704jsvkymhtef",
+        "name": "Head Office"
+      },
+      "user": {
+        "id": "cmtv2zwgn000004kzde7mpgp6",
+        "email": "bala.mukherjee@innovatech.demo",
+        "role": "employee",
+        "avatar": null
+      },
+      "reportingManager": {
+        "id": "cmtsczno9003m04jsvgh8o4u3",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ISY-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003x04jsfyr8wnn8",
+      "employeeId": "EMP-GDC-003",
+      "firstName": "Arjun",
+      "lastName": "Kumar",
+      "email": "arjun.kumar@globaldynamics.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000o04jsk5rvr5u8",
+      "designationId": "cmtsczlil001k04js21wwzx8i",
+      "branchId": "cmtsczl7y000804jsfaqqdyom",
+      "companyId": "cmtsczl5u000204jsngotqer2",
+      "phone": "+91-9817392690",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2023-05-10T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003v04jsqk241lg0",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000o04jsk5rvr5u8",
+        "name": "Finance"
+      },
+      "designation": {
+        "id": "cmtsczlil001k04js21wwzx8i",
+        "title": "Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000804jsfaqqdyom",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003v04jsqk241lg0",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-GDC-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003p04jsrb2mcrr0",
+      "employeeId": "EMP-ISY-004",
+      "firstName": "Nikhil",
+      "lastName": "Joshi",
+      "email": "nikhil.joshi@innovatech.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000k04jsdo9qq8bo",
+      "designationId": "cmtsczlil001f04js3idr8fet",
+      "branchId": "cmtsczl7y000704jsvkymhtef",
+      "companyId": "cmtsczl5n000104js92l2cp0l",
+      "phone": "+91-9887090679",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2024-12-21T00:00:00.000Z",
+      "reportingManagerId": "cmtsczno9003m04jsvgh8o4u3",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-10T02:59:23.175Z",
+      "department": {
+        "id": "cmtsczl97000k04jsdo9qq8bo",
+        "name": "Sales & Marketing"
+      },
+      "designation": {
+        "id": "cmtsczlil001f04js3idr8fet",
+        "title": "Team Lead"
+      },
+      "branch": {
+        "id": "cmtsczl7y000704jsvkymhtef",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003m04jsvgh8o4u3",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ISY-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003y04js6n5rdyt5",
+      "employeeId": "EMP-GDC-004",
+      "firstName": "Rahul",
+      "lastName": "Joshi",
+      "email": "rahul.joshi@globaldynamics.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000p04js2ldqdjlj",
+      "designationId": "cmtsczlil001l04jsafqvbo3v",
+      "branchId": "cmtsczl7y000804jsfaqqdyom",
+      "companyId": "cmtsczl5u000204jsngotqer2",
+      "phone": "+91-9812520855",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2025-03-09T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003v04jsqk241lg0",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000p04js2ldqdjlj",
+        "name": "Sales & Marketing"
+      },
+      "designation": {
+        "id": "cmtsczlil001l04jsafqvbo3v",
+        "title": "Team Lead"
+      },
+      "branch": {
+        "id": "cmtsczl7y000804jsfaqqdyom",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003v04jsqk241lg0",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-GDC-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003d04jsb6yd1n4t",
+      "employeeId": "EMP-TNS-002",
+      "firstName": "Ishaan",
+      "lastName": "Patel",
+      "email": "ishaan.patel@technova.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000d04jsua6kdszd",
+      "designationId": "cmtsczlil001704jsz8lou6ga",
+      "branchId": "cmtsczl7y000604jso57lrbza",
+      "companyId": "cmtsczl5h000004js7m2gjvpg",
+      "phone": "+91-9828803789",
+      "status": "terminated",
+      "employeeStatus": "probation",
+      "employeeType": "full_time",
+      "dateOfJoining": "2022-11-02T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003c04jsngxp8747",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T07:51:43.416Z",
+      "department": {
+        "id": "cmtsczl97000d04jsua6kdszd",
+        "name": "Human Resources"
+      },
+      "designation": {
+        "id": "cmtsczlil001704jsz8lou6ga",
+        "title": "Senior Manager"
+      },
+      "branch": {
+        "id": "cmtsczl7y000604jso57lrbza",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003c04jsngxp8747",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-TNS-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003r04jsq6o8p206",
+      "employeeId": "EMP-ISY-006",
+      "firstName": "Saraswati",
+      "lastName": "Kapoor",
+      "email": "saraswati.kapoor@innovatech.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000h04jsne4lcjip",
+      "designationId": "cmtsczlil001h04jscywwebxr",
+      "branchId": "cmtsczl7y000704jsvkymhtef",
+      "companyId": "cmtsczl5n000104js92l2cp0l",
+      "phone": "+91-9868657217",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "contract",
+      "dateOfJoining": "2025-02-04T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003m04jsvgh8o4u3",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T07:40:03.944Z",
+      "department": {
+        "id": "cmtsczl97000h04jsne4lcjip",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001h04jscywwebxr",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000704jsvkymhtef",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003m04jsvgh8o4u3",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ISY-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9004004jshmuuem7e",
+      "employeeId": "EMP-GDC-006",
+      "firstName": "Pooja",
+      "lastName": "Kapoor",
+      "email": "pooja.kapoor@globaldynamics.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000m04js293b78rm",
+      "designationId": "cmtsczlil001n04jsypx9mfob",
+      "branchId": "cmtsczl7y000804jsfaqqdyom",
+      "companyId": "cmtsczl5u000204jsngotqer2",
+      "phone": "+91-9851600953",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "contract",
+      "dateOfJoining": "2025-09-27T07:39:29.772Z",
+      "reportingManagerId": "cmtsczno9003v04jsqk241lg0",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-08T07:40:03.945Z",
+      "department": {
+        "id": "cmtsczl97000m04js293b78rm",
+        "name": "Engineering"
+      },
+      "designation": {
+        "id": "cmtsczlil001n04jsypx9mfob",
+        "title": "Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000804jsfaqqdyom",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003v04jsqk241lg0",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "employeeId": "EMP-GDC-001"
+      },
+      "avatar": null
+    },
+    {
+      "id": "cmtsczno9003q04jszvjkl226",
+      "employeeId": "EMP-ISY-005",
+      "firstName": "Harish",
+      "lastName": "Pillai",
+      "email": "harish.pillai@innovatech.demo",
+      "userId": null,
+      "departmentId": "cmtsczl97000l04js7sefl77r",
+      "designationId": "cmtsczlil001g04js51974umf",
+      "branchId": "cmtsczl7y000704jsvkymhtef",
+      "companyId": "cmtsczl5n000104js92l2cp0l",
+      "phone": "+91-9819770390",
+      "status": "active",
+      "employeeStatus": "confirmed",
+      "employeeType": "full_time",
+      "dateOfJoining": "2022-09-25T00:00:00.000Z",
+      "reportingManagerId": "cmtsczno9003m04jsvgh8o4u3",
+      "createdAt": "2026-09-08T07:39:29.817Z",
+      "updatedAt": "2026-09-10T03:57:32.777Z",
+      "department": {
+        "id": "cmtsczl97000l04js7sefl77r",
+        "name": "Operations"
+      },
+      "designation": {
+        "id": "cmtsczlil001g04js51974umf",
+        "title": "Senior Executive"
+      },
+      "branch": {
+        "id": "cmtsczl7y000704jsvkymhtef",
+        "name": "Head Office"
+      },
+      "user": null,
+      "reportingManager": {
+        "id": "cmtsczno9003m04jsvgh8o4u3",
+        "firstName": "Amit",
+        "lastName": "Reddy",
+        "employeeId": "EMP-ISY-001"
+      },
+      "avatar": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 62,
+    "totalPages": 2
+  },
+  "dataScope": "all"
+}

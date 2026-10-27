@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
     const { id } = await params;
@@ -92,7 +92,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
     const { id } = await params;

@@ -155,6 +155,22 @@ export async function POST(request: Request) {
       payload.remoteLocation = (body.remoteLocation as string) || null;
       payload.availableForMeetings = body.availableForMeetings !== false;
       if (body.supportingDoc) payload.supportingDoc = body.supportingDoc;
+    } else if (requestType === 'HOLIDAY_WORK') {
+      // Task 109: pre-approval to work on a holiday / weekend. Once APPROVED
+      // it unlocks mobile/web punches for that date (punch API verifies the
+      // approved request when the employee is not holiday-punch enabled).
+      if (!body.startDate) return fail('Start date is required');
+      startDate = new Date(String(body.startDate));
+      if (isNaN(startDate.getTime())) return fail('Invalid start date');
+      if (body.endDate) {
+        endDate = new Date(String(body.endDate));
+        if (isNaN(endDate.getTime())) return fail('Invalid end date');
+        if (endDate < startDate) return fail('End date cannot be before start date');
+      } else {
+        endDate = new Date(startDate);
+      }
+      const expectedHours = Number(body.expectedHours);
+      payload.expectedHours = Number.isFinite(expectedHours) && expectedHours > 0 ? Math.min(expectedHours, 12) : null;
     } else if (requestType === 'HOURLY_PERMISSION') {
       if (!body.date) return fail('Date is required');
       startDate = new Date(String(body.date));

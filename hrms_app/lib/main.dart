@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'config/api_config.dart';
 import 'config/colors.dart';
 import 'config/constants.dart';
 import 'config/theme.dart';
@@ -20,16 +21,69 @@ import 'screens/attendance/attendance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/settings/diagnostics_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'models/employee.dart';
+import 'screens/onboarding/onboarding_screen.dart';
+import 'screens/auth/role_select_screen.dart';
+import 'screens/auth/signin_screen.dart';
+import 'screens/auth/welcome_screen.dart';
+import 'screens/auth/tenant_picker_screen.dart';
+import 'screens/home/home_screen.dart';
+import 'screens/employees/employee_management_screen.dart';
+import 'screens/employees/employee_empty_screen.dart';
+import 'screens/employees/employee_detail_by_id_screen.dart';
+import 'screens/leaves/leave_home_screen.dart';
+import 'screens/attendance/attendance_home_screen.dart';
+import 'screens/attendance/attendance_report_screen.dart';
+// Task 135 — team attendance reports + daily status (admin/CEO/HR)
+import 'screens/attendance/team_attendance_screen.dart';
+import 'screens/employees/employee_directory_screen.dart';
+import 'screens/auth/terms_screen.dart';
+import 'screens/payroll/payroll_home_screen.dart';
+import 'screens/projects/projects_home_screen.dart';
+import 'screens/projects/project_detail_screen.dart';
+import 'screens/chat/chat_home_screen.dart';
+import 'screens/chat/chat_room_screen.dart';
+// Task 156 — native AI Assistant (PhonePe-style centre dock target)
+import 'screens/ai/ai_assistant_screen.dart';
+import 'screens/helpdesk/helpdesk_screen.dart';
+import 'screens/home/announcements_screen.dart';
+import 'models/chat.dart';
+import 'providers/payroll_provider.dart';
+import 'providers/attendance_provider.dart';
+import 'providers/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.init();
+  // Restore the persisted workspace BEFORE touching any API, so a stored
+  // tenant token keeps talking to its own server after an app restart.
+  ApiConfig.restoreFromStorage();
   final token = StorageService.getToken();
   if (token != null) ApiService.setToken(token);
+  // Task 110 — dead-session recovery: any 401 from an authenticated call
+  // (the 24h token expired, super-admin switch revoked, etc.) now clears the
+  // session and lands the user on Sign In with an explanation instead of
+  // leaving EVERY module showing errors.
+  ApiService.onSessionExpired = (message) {
+    final nav = rootNavigatorKey.currentState;
+    if (nav != null) {
+      nav.pushNamedAndRemoveUntil('/signin', (r) => false);
+      rootMessengerKey.currentState?.showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFB7791F),
+        duration: const Duration(seconds: 4),
+      ));
+    }
+  };
   runApp(const HRMSApp());
 }
+
+/// Global navigator so the ApiService session-expiry hook can route back to
+/// Sign In from ANYWHERE (module screens, dialogs, background refreshes).
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> rootMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class HRMSApp extends StatelessWidget {
   const HRMSApp({super.key});
@@ -42,28 +96,95 @@ class HRMSApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => EmployeeProvider()),
         ChangeNotifierProvider(create: (_) => LeaveProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
+        ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+        // Task 119 — ChatRoomsProvider MUST live at app scope: ChatRoomScreen
+        // is pushed as its OWN route (Navigator.push), which is a sibling of
+        // the chat-home subtree. A provider created inside ChatHomeScreen is
+        // invisible from there — context.watch<ChatRoomsProvider> in the room
+        // screen threw ProviderNotFoundException and release builds rendered
+        // a GREY/EMPTY thread screen (the "chat screen is empty" report). One
+        // shared instance also means identity + directory resolve exactly once.
+        ChangeNotifierProvider(create: (_) => ChatRoomsProvider()),
       ],
       child: MaterialApp(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
+        navigatorKey: rootNavigatorKey,
+        scaffoldMessengerKey: rootMessengerKey,
         theme: AppTheme.lightTheme,
         initialRoute: '/',
         routes: {
           '/': (_) => const _AppWrapper(),
+          '/onboarding': (_) => const OnboardingScreen(),
+          '/role-select': (_) => const RoleSelectScreen(),
+          // Task 141 — the starry Welcome screen (image #2) precedes Sign In.
+          '/welcome': (_) => const WelcomeScreen(),
+          '/signin': (_) => const SignInScreen(),
+          '/tenant-picker': (_) => const TenantPickerScreen(),
+          '/home-new': (_) => const HomeScreen(),
+          '/employees-new': (_) => const EmployeeManagementScreen(),
+          '/employee-empty': (_) => const EmployeeEmptyScreen(),
+          '/leaves-new': (_) => const LeaveHomeScreen(),
+          '/attendance-new': (_) => const AttendanceHomeScreen(),
+          '/payroll-new': (_) => const PayrollHomeScreen(),
+          '/projects-new': (_) => const ProjectsHomeScreen(),
+          // Task 117 — Collaboration Chat module (web parity)
+          '/chat': (_) => const ChatHomeScreen(),
+          // Task 141 — HR Help Desk (web Support ticketing parity) + Announcements
+          '/helpdesk': (_) => const HelpDeskScreen(),
+          '/announcements': (_) => const AnnouncementsScreen(),
+          // Task 156 — raised violet centre dock opens the NATIVE AI chat
+          // (same /api/ai-chat endpoint + history as the web bot).
+          '/ai-assistant': (_) => const AiAssistantScreen(),
+          // '/projects/detail' is handled by onGenerateRoute below (needs the
+          // project ID passed as settings.arguments — same pattern as
+          // '/employees/detail').
           '/login': (_) => const LoginScreen(),
           '/dashboard': (_) => const _MainNavigation(),
           '/employees': (_) => const EmployeeListScreen(),
           '/leaves/request': (_) => const LeaveRequestScreen(),
-          '/attendance': (_) => const AttendanceScreen(),
+          // Task 113: the legacy static attendance placeholder is gone — the
+          // route now opens the LIVE My Attendance module (design #12).
+          '/attendance': (_) => const AttendanceHomeScreen(),
           '/reports': (_) => const ReportsScreen(),
           '/profile': (_) => const ProfileScreen(),
           '/settings': (_) => const SettingsScreen(),
+          '/directory': (_) => const EmployeeDirectoryScreen(),
+          '/attendance-report': (_) => const AttendanceReportScreen(),
+          // Task 135 — team attendance reports + daily status (admin/CEO/HR)
+          '/team-attendance': (_) => const TeamAttendanceScreen(),
+          '/terms': (_) => const TermsPage(),
+          '/privacy': (_) => const TermsPage(privacy: true),
           '/notifications': (_) => const NotificationsScreen(),
+          '/diagnostics': (_) => const DiagnosticsScreen(),
         },
         onGenerateRoute: (settings) {
           if (settings.name == '/employees/detail') {
-            final emp = settings.arguments as EmployeeModel;
-            return MaterialPageRoute(builder: (_) => EmployeeDetailScreen(employee: emp));
+            // Task 110 FIX: the module screen passes the employee ID (String)
+            // while the legacy list passes a full EmployeeModel. The old cast
+            // `settings.arguments as EmployeeModel` THREW a TypeError on every
+            // detail tap from Employee Management ("module throwing errors").
+            final arg = settings.arguments;
+            if (arg is EmployeeModel) {
+              return MaterialPageRoute(builder: (_) => EmployeeDetailScreen(employee: arg));
+            }
+            if (arg is String) {
+              return MaterialPageRoute(builder: (_) => EmployeeDetailByIdScreen(employeeId: arg));
+            }
+          }
+          if (settings.name == '/projects/detail') {
+            final id = settings.arguments;
+            return MaterialPageRoute(
+              builder: (_) => ProjectDetailScreen(projectId: id is String ? id : ''),
+            );
+          }
+          // Task 117 — chat thread needs the FULL room (header badges, member
+          // count, type), so the argument is the ChatRoomModel, not just an id.
+          if (settings.name == '/chat/room') {
+            final arg = settings.arguments;
+            if (arg is ChatRoomModel) {
+              return MaterialPageRoute(builder: (_) => ChatRoomScreen(room: arg));
+            }
           }
           return null;
         },
@@ -90,10 +211,39 @@ class _AppWrapperState extends State<_AppWrapper> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     final auth = context.read<AuthProvider>();
+    final seenOnboarding = StorageService.prefs.getBool('seen_onboarding') ?? false;
     if (auth.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      // Task 110 — VALIDATE the restored session before entering the app:
+      // tokens expire after 24h on the server. Without this check the app
+      // used to land on Home with a dead token and EVERY module errored.
+      final valid = await ApiService.validateSession();
+      if (!mounted) return;
+      if (!valid) {
+        // Token expired/invalid — clean up and ask for a fresh sign-in.
+        try { await auth.logout(); } catch (_) {}
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/signin');
+        rootMessengerKey.currentState?.showSnackBar(const SnackBar(
+          content: Text('Your session has expired. Please sign in again.'),
+          backgroundColor: Color(0xFFB7791F),
+          duration: Duration(seconds: 4),
+        ));
+        return;
+      }
+      // Token is alive — refresh name/photo from the server.
+      final fresh = await ApiService.refreshStoredUser();
+      if (mounted && fresh != null) auth.adoptUser(fresh);
+      // Super admins must pick a tenant workspace first (web switcher parity);
+      // everyone else goes straight to the dashboard.
+      final isSuper = auth.user?.role == 'super_admin';
+      Navigator.pushReplacementNamed(context, isSuper ? '/tenant-picker' : '/home-new');
+    } else if (!seenOnboarding) {
+      await StorageService.prefs.setBool('seen_onboarding', true);
+      Navigator.pushReplacementNamed(context, '/onboarding');
     } else {
-      Navigator.pushReplacementNamed(context, '/login');
+      // Task 141 — land on the starry Welcome screen; the arrow leads to the
+      // redesigned Sign In (Mobile number | Employee ID → OTP → fingerprint).
+      Navigator.pushReplacementNamed(context, '/welcome');
     }
   }
 

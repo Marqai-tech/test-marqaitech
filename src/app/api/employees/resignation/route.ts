@@ -169,7 +169,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const lifecycle = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_resignation_config', {
-      enabled: true, defaultNoticePeriodDays: 60, approvalRoles: ['tenant_admin', 'admin'], notifyReportingManager: true,
+      enabled: true, defaultNoticePeriodDays: 60, approvalRoles: ['tenant_admin', 'ceo', 'admin'], notifyReportingManager: true,
     });
     if (!lifecycle.enabled) return NextResponse.json({ error: 'Resignation requests are disabled in Employee Settings' }, { status: 409, headers: corsHeaders() });
     let {
@@ -348,7 +348,7 @@ export async function POST(request: Request) {
           ) as any[];
           if (mgrRows2?.[0]?.managerUserId) recipients.push({ userId: mgrRows2[0].managerUserId });
         } catch { /* best-effort */ }
-        const hrIds = await resolveRoleRecipients(db, ['hr_admin', 'admin', 'company_hr_admin', 'tenant_admin'], 10);
+        const hrIds = await resolveRoleRecipients(db, ['hr_admin', 'admin', 'company_hr_admin', 'tenant_admin', 'ceo'], 10);
         for (const id of hrIds) if (!recipients.some((r) => r.userId === id)) recipients.push({ userId: id });
         if (recipients.length) {
           await dispatchNotification({

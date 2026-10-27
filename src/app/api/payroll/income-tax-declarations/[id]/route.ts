@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Only admin/HR can approve/reject
     if ((body.status === 'APPROVED' || body.status === 'REJECTED') &&
-        userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+        userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
       return Response.json({ error: 'Only HR/Admin can approve or reject declarations' }, { status: 403, headers: corsHeaders });
     }
 
@@ -152,7 +152,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
     if (body.proofVerification) {
-      if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+      if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
         return Response.json({ error: 'Only HR/Finance can verify proofs' }, { status: 403, headers: corsHeaders });
       }
       const pv = body.proofVerification;

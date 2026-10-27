@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  FiCalendar, FiClock, FiFileText, FiHeadphones, FiUser,
+  FiCalendar, FiClock, FiFileText, FiHeadphones, FiUser, FiUsers,
   FiDollarSign, FiBookOpen, FiTrendingUp, FiCheckCircle,
-  FiAlertCircle, FiChevronRight, FiPlus, FiDownload,
-  FiActivity, FiTarget, FiAward, FiBriefcase, FiFolder,
-  FiSend, FiMessageCircle, FiShield, FiZap, FiHeart,
-  FiArrowRight, FiInfo, FiRefreshCw,
+  FiPlus, FiDownload,
+  FiActivity, FiAward, FiBriefcase, FiFolder,
+  FiSend, FiMessageCircle, FiZap, FiHeart,
+  FiArrowRight, FiInfo, FiRefreshCw, FiVolume2, FiBell, FiPhone, FiLogIn, FiLogOut,
 } from 'react-icons/fi';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -16,9 +16,19 @@ import {
   RadialBarChart, RadialBar,
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
+import { useNotificationStore } from '@/store/notificationStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { dashboardHrefForRole } from '@/lib/roleAccess';
+import BirthdaysCard from '@/components/dashboard/BirthdaysCard';
+import SocialFeedSection from '@/components/dashboard/SocialFeedSection';
+/* Task 145/147 — shared SmartHR widgets. Task 147: exact template pattern
+   (breadcrumbs + alert + profile hero + attendance overview rows). */
+import {
+  PageBreadcrumbs, DateChip, CollapseToggle, TemplateAlert, ProfileHeroCard,
+  Panel, EmptyState, statusBadge, SkeletonBlock,
+} from '@/components/dashboard/smarthr-widgets';
+import { dashboardHrefForRole, ADMIN_DASHBOARD_ROLES } from '@/lib/roleAccess';
 import { normalizeLeaveBalances } from '@/lib/leave-balance-rules';
+import { loggedInPhotoUrl } from '@/lib/profile-photo';
 
 /* ---------- helpers ---------- */
 
@@ -30,7 +40,7 @@ function getAuthHeaders() {
   };
 }
 
-const LEAVE_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#EC4899', '#06B6D4', '#8B5CF6'];
+const LEAVE_COLORS = ['#3A57C4', '#6C4FD6', '#FF9B44', '#009EFB', '#10B981', '#FFC107'];
 
 /* ---------- types ---------- */
 
@@ -54,14 +64,16 @@ interface AttendanceRow {
   workHours?: number | null;
 }
 
-interface PayslipRow {
+/* Task 141 — announcements banner source (pinned/announcement social feeds) */
+interface AnnouncementItem {
   id: string;
-  month: number;
-  year: number;
-  netSalary: number;
-  status: string;
-  currency?: string;
-  paidDate?: string | null;
+  content: string;
+  postType: string;
+  isPinned: boolean;
+  createdAt: string;
+  likesCount?: number;
+  commentsCount?: number;
+  author?: { firstName?: string; lastName?: string; avatar?: string | null } | null;
 }
 
 interface PerformanceRow {
@@ -83,14 +95,6 @@ interface GoalRow {
   endDate?: string | null;
 }
 
-interface TrainingRow {
-  id: string;
-  title: string;
-  status: string;
-  startDate?: string | null;
-  endDate?: string | null;
-}
-
 interface TrainingEnrollmentRow {
   id: string;
   status: string;
@@ -107,66 +111,6 @@ interface TimesheetRow {
   status: string;
 }
 
-interface TicketRow {
-  id: string;
-  ticketId: string;
-  subject: string;
-  status: string;
-  priority: string;
-  createdAt: string;
-}
-
-interface DocumentRow {
-  id: string;
-  name: string;
-  type: string;
-  status: string;
-  uploadedAt: string;
-}
-
-// BUG_032 fix: derive the document category from the document NAME when the
-// stored type doesn't match. The QA report found documents like:
-//   - name "Education" stored with type "Pan Card"
-//   - name "Probation Confirmation Letter" stored with type "Address Proof"
-// These mismatches come from admin/HR uploading documents without carefully
-// selecting the right type dropdown. We surface a name-derived category on
-// the dashboard so employees see the correct label, while keeping the
-// underlying DB row untouched (HR can correct the source via the documents
-// admin page if needed).
-function deriveDocumentCategory(name: string, storedType: string): string {
-  const n = (name || '').toLowerCase().trim();
-  const t = (storedType || '').toLowerCase().trim();
-
-  // Map common document names to their expected category.
-  const rules: { match: RegExp; category: string }[] = [
-    { match: /\b(education|degree|certificate|marksheet|convocation)\b/i, category: 'Education Certificate' },
-    { match: /\b(pan|pancard|pan card)\b/i, category: 'Pan Card' },
-    { match: /\b(aadhaar|aadhar)\b/i, category: 'Aadhaar Card' },
-    { match: /\b(passport)\b/i, category: 'Passport' },
-    { match: /\b(voter|voter id|election)\b/i, category: 'Voter ID' },
-    { match: /\b(driving|dl|driving licence|driving license)\b/i, category: 'Driving License' },
-    { match: /\b(address|residence|proof of address|proof of residence)\b/i, category: 'Address Proof' },
-    { match: /\b(bank|passbook|cheque|account)\b/i, category: 'Bank Document' },
-    { match: /\b(probabtion|probation|confirmation)\b/i, category: 'Probation Confirmation Letter' },
-    { match: /\b(offer|joining|appointment|rejoin|relieving|experience)\b/i, category: 'Employment Letter' },
-    { match: /\b(salary|payslip|pay slip)\b/i, category: 'Salary Document' },
-    { match: /\b(medical|fitness|health)\b/i, category: 'Medical Certificate' },
-    { match: /\b(noc|no objection)\b/i, category: 'NOC' },
-    { match: /\b(resume|cv|biodata)\b/i, category: 'Resume' },
-    { match: /\b(photo|avatar|picture)\b/i, category: 'Photo' },
-  ];
-  for (const r of rules) {
-    if (r.match.test(n)) {
-      // Only override if the stored type doesn't already match the name
-      // (so we don't replace a correctly-set type with our guess).
-      const storedMatchesName = r.match.test(t);
-      if (!storedMatchesName) return r.category;
-    }
-  }
-  // Fall back to the stored type, just prettified.
-  return storedType ? storedType.replace(/_/g, ' ') : 'Document';
-}
-
 interface RegularizationRow {
   id: string;
   date: string;
@@ -175,33 +119,42 @@ interface RegularizationRow {
   status: string;
 }
 
-/* ---------- skeleton ---------- */
-
-function SkeletonBlock({ className = '' }: { className?: string }) {
-  return <div className={`bg-slate-200/70 animate-pulse rounded-lg ${className}`} />;
+interface LeaveRequestRow {
+  id: string;
+  startDate: string;
+  endDate?: string | null;
+  status: string;
+  leaveType?: { name?: string } | null;
 }
 
-function StatSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2 flex-1">
-          <SkeletonBlock className="h-3 w-24" />
-          <SkeletonBlock className="h-7 w-16" />
-        </div>
-        <SkeletonBlock className="h-10 w-10 rounded-xl" />
-      </div>
-      <SkeletonBlock className="h-3 w-32 mt-3" />
-    </div>
-  );
+interface TeamMemberRow {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string | null;
+  designation?: { title?: string } | null;
+  department?: { name?: string } | null;
+}
+
+interface ProfileExtra {
+  phone?: string | null;
+  dateOfJoining?: string | null;
+  reportingManager?: { firstName?: string; lastName?: string } | null;
+  branch?: { name?: string } | null;
+  /* Task 149 — unified detail set (same as Employee List → View Details) */
+  employeeCode?: string | null;
+  totalExperience?: string | null;
+  departmentName?: string | null;
+  designationTitle?: string | null;
 }
 
 /* ---------- main component ---------- */
 
 export default function ESSDashboardPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, fetchUser } = useAuthStore();
   const { effectiveCompanyLabel, effectiveCompanyId, hydrated, hydrate } = useCompanyContextStore();
+  const notifications = useNotificationStore((s) => s.notifications);
 
   useEffect(() => {
     if (!hydrated) hydrate();
@@ -211,9 +164,8 @@ export default function ESSDashboardPage() {
 
   const firstName = user?.name?.split(' ')[0] || 'there';
   const userRole = user?.role || 'employee';
-  const currentHour = new Date().getHours();
-  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   useEffect(() => {
     if (userRole === 'super_admin') {
@@ -228,17 +180,21 @@ export default function ESSDashboardPage() {
   const [leaveSummary, setLeaveSummary] = useState({ total: 0, used: 0, remaining: 0 });
   const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
-  const [pendingLeaves, setPendingLeaves] = useState(0);
-  const [payslips, setPayslips] = useState<PayslipRow[]>([]);
+  const [payslips, setPayslips] = useState<{ id: string; month: number; year: number; netSalary: number; status: string; currency?: string }[]>([]);
   const [performance, setPerformance] = useState<PerformanceRow | null>(null);
   const [goals, setGoals] = useState<GoalRow[]>([]);
-  const [regularizations, setRegularizations] = useState<RegularizationRow[]>([]);
   const [training, setTraining] = useState<TrainingEnrollmentRow[]>([]);
   const [timesheets, setTimesheets] = useState<TimesheetRow[]>([]);
-  const [tickets, setTickets] = useState<TicketRow[]>([]);
-  const [documents, setDocuments] = useState<DocumentRow[]>([]);
+  const [regularizations, setRegularizations] = useState<RegularizationRow[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestRow[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberRow[]>([]);
+  const [profileExtra, setProfileExtra] = useState<ProfileExtra | null>(null);
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const [alertDismissed, setAlertDismissed] = useState(false);
+  const [contentCollapsed, setContentCollapsed] = useState(false);
 
-  /* ----- fetch all ESS data ----- */
+  /* ----- fetch all ESS data (Task 147: template-mapped) ----- */
   const fetchESS = useCallback(async () => {
     if (userRole === 'super_admin') {
       setLoading(false);
@@ -249,7 +205,6 @@ export default function ESSDashboardPage() {
     const cid = effectiveCompanyId();
     const scopeQuery = cid ? `companyId=${cid}&` : '';
 
-    // Helper that swallows errors and returns null
     const safe = async (url: string) => {
       try {
         const res = await fetch(url, { headers, cache: 'no-store' });
@@ -260,21 +215,61 @@ export default function ESSDashboardPage() {
       }
     };
 
-    const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData, regData, summaryData] =
+    const [leaveData, attData, payslipData, perfData, goalsData, trainData, tsData, regData, summaryData, feedData, leaveListData, teamData] =
       await Promise.all([
         safe(`/api/leave/balance?${scopeQuery}limit=50`),
         safe(`/api/attendance?${scopeQuery}limit=100`),
-        safe(`/api/leave?${scopeQuery}status=pending&limit=1`),
         safe(`/api/payroll/payslips?${scopeQuery}limit=5`),
         safe(`/api/performance?${scopeQuery}limit=1`),
         safe(`/api/goals?${scopeQuery}limit=5`),
         safe(`/api/training?${scopeQuery}limit=10`),
-        safe(`/api/timesheets?${scopeQuery}limit=5`),
-        safe(`/api/tickets?${scopeQuery}limit=5`),
-        safe(`/api/documents?${scopeQuery}limit=5`),
+        safe(`/api/timesheets?${scopeQuery}limit=8`),
         safe(`/api/attendance/regularize?${scopeQuery}limit=6`),
         safe(`/api/attendance/my-summary?${scopeQuery}`),
+        safe(`/api/social-feed?${scopeQuery}limit=10`),
+        safe(`/api/leave?${scopeQuery}limit=6`),
+        safe(`/api/employees?limit=5&excludeInactive=true${cid ? `&${scopeQuery.slice(0, -1)}` : ''}`),
       ]);
+
+    /* profile extras — phone, joined-on, report office.
+       Task 151 FIX: `user.employee` is only populated by /api/auth/me and is
+       often null right after login (login response doesn't include it), which
+       left the hero card rows (Employee ID / Phone / Dept / Designation /
+       Report Office / Joined on / Experience) permanently empty. Fall back to
+       /api/auth/me to resolve the employee id before fetching details. */
+    let empId = user?.employee?.id || null;
+    if (!empId) {
+      const me = await safe('/api/auth/me');
+      empId = me?.employee?.id || null;
+      if (me?.employee?.id) {
+        // Backfill the auth store so other widgets also see user.employee.
+        void fetchUser();
+      }
+    }
+    if (empId) {
+      const prof = await safe(`/api/employees/${empId}`);
+      const p = prof?.employee || prof;
+      if (p && (p.phone || p.dateOfJoining || p.reportingManager || p.employeeId || p.department || p.designation)) {
+        setProfileExtra({
+          phone: p.phone,
+          dateOfJoining: p.dateOfJoining,
+          reportingManager: p.reportingManager,
+          branch: p.branch,
+          employeeCode: p.employeeId,
+          totalExperience: p.totalExperience,
+          departmentName: p.department?.name || null,
+          designationTitle: p.designation?.title || null,
+        });
+      }
+    }
+
+    /* announcements (template alert banner) */
+    if (feedData?.posts && Array.isArray(feedData.posts)) {
+      const important = (feedData.posts as AnnouncementItem[]).filter(
+        (p) => p && (p.isPinned || p.postType === 'announcement')
+      );
+      setAnnouncements(important.slice(0, 5));
+    }
 
     /* leave balance */
     if (leaveData?.balances) {
@@ -301,26 +296,17 @@ export default function ESSDashboardPage() {
       setLeaveSummary(probation ? { total: 0, used: 0, remaining: 0 } : leaveData.summary);
     }
 
-    /* attendance — filter to current month for accurate rate */
+    /* attendance — current month for accurate metrics */
     if (attData?.attendance || attData?.records) {
       const allRows: AttendanceRow[] = attData.attendance || attData.records || [];
-      // Only count attendance for the current month
       const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
       const rows = allRows.filter((a) => {
         const d = new Date(a.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       });
-        setAttendanceRows(rows.length > 0 ? rows : allRows.slice(0, 30));
-}
-setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.attendanceRate : null);
-
-/* pending leaves — use pagination.total for accurate count */
-    if (leaveReqData?.leaveRequests || leaveReqData?.leaves) {
-      const total = leaveReqData.pagination?.total || leaveReqData.total || 0;
-      setPendingLeaves(total || (leaveReqData.leaveRequests || leaveReqData.leaves || []).length);
+      setAttendanceRows(rows.length > 0 ? rows : allRows.slice(0, 30));
     }
+    setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.attendanceRate : null);
 
     /* payslips */
     if (payslipData?.payslips || payslipData?.data) {
@@ -338,94 +324,115 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
       setGoals((goalsData.goals || goalsData.data).slice(0, 5));
     }
 
-    /* training enrollments - the /api/training endpoint may return a list with
-       enrollments attached, or we may need to derive from the response */
+    /* training enrollments */
     if (Array.isArray(trainData?.trainings)) {
-      // For ESS we want enrollments; the API may not support that directly,
-      // so we just show the list of upcoming trainings the employee can join.
       const upcoming = trainData.trainings
-        .filter((t: TrainingRow) => ['upcoming', 'ongoing'].includes(t.status))
-        .slice(0, 4)
-        .map((t: TrainingRow) => ({
+        .filter((t: { status: string }) => ['upcoming', 'ongoing'].includes(t.status))
+        .slice(0, 5)
+        .map((t: { id: string; status: string; title: string; startDate?: string | null; endDate?: string | null }) => ({
           id: t.id,
           status: t.status,
           score: null,
-          training: {
-            id: t.id,
-            title: t.title,
-            startDate: t.startDate,
-            endDate: t.endDate,
-          },
+          training: { id: t.id, title: t.title, startDate: t.startDate, endDate: t.endDate },
         }));
       setTraining(upcoming);
     }
 
     /* timesheets */
     if (tsData?.timesheets || tsData?.data) {
-      setTimesheets((tsData.timesheets || tsData.data).slice(0, 5));
+      setTimesheets((tsData.timesheets || tsData.data).slice(0, 8));
     }
 
-    /* tickets */
-    if (ticketData?.tickets || ticketData?.data) {
-      setTickets((ticketData.tickets || ticketData.data).slice(0, 5));
-    }
-
-    /* documents */
-    if (docData?.documents || docData?.data) {
-      setDocuments((docData.documents || docData.data).slice(0, 5));
-    }
-
-    /* regularization requests — the employee's own submissions (date, reason, status) */
+    /* regularizations */
     if (regData?.regularizations) {
       setRegularizations((regData.regularizations as RegularizationRow[]).slice(0, 5));
     }
 
-    // BUG_026 fix: Pending Approvals count must include BOTH pending leave
-    // requests AND pending regularization requests. Previously only pending
-    // leaves were counted, so an employee with 1 pending regularization but
-    // 0 pending leaves saw "0 — Awaiting manager response" — which looked
-    // wrong. Now we sum both.
-    const pendingRegCount = Array.isArray(regData?.regularizations)
-      ? (regData.regularizations as RegularizationRow[]).filter((r) => (r.status || '').toLowerCase() === 'pending').length
-      : 0;
-    setPendingLeaves((prev) => prev + pendingRegCount);
+    /* leave requests (schedule feed) */
+    if (leaveListData?.leaveRequests || leaveListData?.leaves || leaveListData?.data) {
+      setLeaveRequests((leaveListData.leaveRequests || leaveListData.leaves || leaveListData.data).slice(0, 5));
+    }
+
+    /* team members (may be forbidden for pure ESS — safe) */
+    if (teamData?.employees || teamData?.data) {
+      setTeamMembers((teamData.employees || teamData.data).slice(0, 4));
+    }
 
     setLoading(false);
-  }, [userRole, effectiveCompanyId]);
+  }, [userRole, effectiveCompanyId, user?.employee?.id, fetchUser]);
 
   useEffect(() => {
     fetchESS();
   }, [fetchESS]);
 
-  /* ----- derived data ----- */
+  /* auto-rotate announcements every 6s */
+  useEffect(() => {
+    if (announcements.length <= 1) return;
+    const t = setInterval(() => setBannerIndex((i) => (i + 1) % announcements.length), 6000);
+    return () => clearInterval(t);
+  }, [announcements.length]);
 
-  // BUG_023 fix: filter out test/dummy leave types from the dashboard leave
-  // chart + list (same filter as the home page). Hides names like "Validation
-  // Small Quota UUMJXU" that are seed-data leftovers.
-  const cleanLeaveBalances = useMemo(() => {
-    return leaveBalances.filter((b) => {
-      const name = (b.leaveType?.name || '').trim();
-      if (!name) return false;
-      const lower = name.toLowerCase();
-      if (/\b(test|dummy|sample|validation|temp\b|foo|bar)\b/i.test(lower)) return false;
-      if (/[A-Z]{5,}/.test(name)) return false;
-      if (/\d{6,}/.test(name)) return false;
-      return true;
-    });
-  }, [leaveBalances]);
+  /* ----- derived (template metrics) ----- */
 
   const leaveChartData = useMemo(() => {
-    if (cleanLeaveBalances.length === 0) return [];
-    return cleanLeaveBalances.map((b, i) => ({
+    if (leaveBalances.length === 0) return [];
+    return leaveBalances.map((b, i) => ({
       name: b.leaveType?.name || 'Leave',
       remaining: b.remaining || 0,
       used: b.used || 0,
       color: LEAVE_COLORS[i % LEAVE_COLORS.length],
     }));
-  }, [cleanLeaveBalances]);
+  }, [leaveBalances]);
+
+  /* Leave summary extras — pending requests + next approved time off.
+     These rows fill the Leave Summary card so its height lines up with the
+     profile hero card and the Leave Details chart beside it. */
+  const pendingLeaveCount = useMemo(
+    () => leaveRequests.filter((l) => l.status === 'pending').length,
+    [leaveRequests]
+  );
+  const nextApprovedLeave = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return (
+      leaveRequests
+        .filter((l) => l.status === 'approved' && new Date(l.startDate) >= startOfToday)
+        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0] || null
+    );
+  }, [leaveRequests]);
+
+  /* attendance punch metrics — today / week / month / overtime */
+  const attMetrics = useMemo(() => {
+    const toHours = (a: AttendanceRow) => {
+      if (a.workHours != null && !Number.isNaN(Number(a.workHours))) return Number(a.workHours);
+      if (a.checkIn && a.checkOut) {
+        const h = (new Date(a.checkOut).getTime() - new Date(a.checkIn).getTime()) / 3600000;
+        return h > 0 ? Math.round(h * 100) / 100 : 0;
+      }
+      return 0;
+    };
+    const fmtTime = (v?: string | null) => (v ? new Date(v).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : null);
+    const todayStr = new Date().toDateString();
+    const weekAgo = new Date(Date.now() - 7 * 86400000);
+    const todayRows = attendanceRows.filter((a) => new Date(a.date).toDateString() === todayStr);
+    const weekRows = attendanceRows.filter((a) => new Date(a.date) >= weekAgo);
+    const monthHours = attendanceRows.reduce((s, a) => s + toHours(a), 0);
+    const overtime = attendanceRows.reduce((s, a) => s + Math.max(0, toHours(a) - 9), 0);
+    return {
+      todayHours: Math.round(todayRows.reduce((s, a) => s + toHours(a), 0) * 10) / 10,
+      todayTarget: 9,
+      weekHours: Math.round(weekRows.reduce((s, a) => s + toHours(a), 0) * 10) / 10,
+      weekTarget: 45,
+      monthHours: Math.round(monthHours * 10) / 10,
+      overtime: Math.round(overtime * 10) / 10,
+      checkIn: fmtTime(todayRows[0]?.checkIn || attendanceRows[attendanceRows.length - 1]?.checkIn),
+      checkOut: fmtTime(todayRows[0]?.checkOut || attendanceRows[attendanceRows.length - 1]?.checkOut),
+      nowClock: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      todayLabel: new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+    };
+  }, [attendanceRows]);
 
   const attendanceTrend = useMemo(() => {
-    // last 7 attendance records, oldest first
     return [...attendanceRows]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-7)
@@ -439,26 +446,75 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
       });
   }, [attendanceRows]);
 
-  const monthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  /* projects from timesheets (template Projects panel) */
+  const projects = useMemo(() => {
+    const map: Record<string, { name: string; hours: number; tasks: number }> = {};
+    timesheets.forEach((t) => {
+      const name = (typeof t.project === 'object' && t.project ? t.project.name : t.project) || t.task || 'General';
+      if (!map[name]) map[name] = { name, hours: 0, tasks: 0 };
+      map[name].hours += t.hours || 0;
+      map[name].tasks += 1;
+    });
+    return Object.values(map).slice(0, 5);
+  }, [timesheets]);
+  const maxProjectHours = Math.max(1, ...projects.map((p) => p.hours));
 
-  /* ----- quick actions ----- */
-  const quickActions = [
-    { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', bg: 'from-cyan-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll/payslips', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
-    { icon: <FiUser className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', bg: 'from-pink-400 to-rose-500', shadow: 'shadow-rose-500/25' },
-    { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
-    { icon: <FiBookOpen className="w-5 h-5" />, label: 'Training', href: '/training', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
-    { icon: <FiSend className="w-5 h-5" />, label: 'Timesheet', href: '/timesheets', bg: 'from-sky-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
-    { icon: <FiFolder className="w-5 h-5" />, label: 'Documents', href: '/documents', bg: 'from-fuchsia-400 to-teal-500', shadow: 'shadow-teal-500/25' },
-    { icon: <FiFileText className="w-5 h-5" />, label: 'Policies', href: '/policies-handbook', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
-    { icon: <FiBriefcase className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-yellow-400 to-amber-500', shadow: 'shadow-amber-500/25' },
-    { icon: <FiHeart className="w-5 h-5" />, label: 'Grievance', href: '/grievances', bg: 'from-red-400 to-rose-500', shadow: 'shadow-rose-500/25' },
-  ];
+  /* skills chips — from training + designation */
+  const skills = useMemo(() => {
+    const set = new Set<string>();
+    training.slice(0, 4).forEach((t) => set.add(t.training.title.split(' ').slice(0, 2).join(' ')));
+    if (user?.employee?.designation) set.add(user.employee.designation);
+    if (set.size === 0 && user?.employee?.department) set.add(user.employee.department);
+    return Array.from(set).slice(0, 6);
+  }, [training, user]);
 
-  /* ----- helpers ----- */
+  /* meetings / schedule feed — trainings + approved leaves + regularizations */
+  const schedule = useMemo(() => {
+    const items: { id: string; title: string; time: string; sub: string; tone: string }[] = [];
+    training.forEach((t) => {
+      if (t.training.startDate) {
+        items.push({
+          id: `tr-${t.id}`,
+          title: t.training.title,
+          time: new Date(t.training.startDate).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+          sub: 'Training session',
+          tone: 'bg-[#FF9B44]/15 text-[#FF9B44]',
+        });
+      }
+    });
+    leaveRequests
+      .filter((l) => l.status === 'approved' && new Date(l.startDate) >= new Date(Date.now() - 86400000))
+      .forEach((l) => {
+        items.push({
+          id: `lv-${l.id}`,
+          title: l.leaveType?.name || 'Approved leave',
+          time: new Date(l.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+          sub: 'Time off',
+          tone: 'bg-[#10B981]/10 text-[#10B981]',
+        });
+      });
+    return items.slice(0, 5);
+  }, [training, leaveRequests]);
+
+  const photoUrl = loggedInPhotoUrl(user);
+
+  /* Task 149 — "no of yrs of exp": stored totalExperience wins; otherwise
+     tenure is derived from the date of joining. */
+  const experienceLabel = useMemo(() => {
+    const stored = (profileExtra?.totalExperience || '').trim();
+    if (stored) return stored;
+    const doj = profileExtra?.dateOfJoining;
+    if (!doj) return null;
+    const start = new Date(doj);
+    if (isNaN(start.getTime())) return null;
+    const months = Math.max(0, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
+    const yrs = Math.floor(months / 12);
+    const rem = months % 12;
+    if (yrs === 0 && rem === 0) return 'New joiner';
+    if (yrs === 0) return `${rem} mo at company`;
+    return rem ? `${yrs}.${Math.round(rem / 12 * 10)} yrs at company` : `${yrs} yrs at company`;
+  }, [profileExtra?.totalExperience, profileExtra?.dateOfJoining]);
+
   const fmtMoney = (n: number, currency = 'INR') => {
     try {
       return new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n || 0);
@@ -469,622 +525,577 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
   const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
   const monthLabel = (m: number, y: number) => new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
-  const statusBadge = (status: string) => {
-    const s = (status || '').toLowerCase();
-    const map: Record<string, string> = {
-      pending: 'bg-amber-50 text-amber-700 ring-amber-200',
-      draft: 'bg-slate-100 text-slate-700 ring-slate-200',
-      submitted: 'bg-green-50 text-green-700 ring-green-200',
-      approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      paid: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      processed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      resolved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      closed: 'bg-slate-100 text-slate-700 ring-slate-200',
-      rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
-      open: 'bg-amber-50 text-amber-700 ring-amber-200',
-      in_progress: 'bg-green-50 text-green-700 ring-green-200',
-      completed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      ongoing: 'bg-green-50 text-green-700 ring-green-200',
-      upcoming: 'bg-teal-50 text-teal-700 ring-teal-200',
-      enrolled: 'bg-green-50 text-green-700 ring-green-200',
-    };
-    const cls = map[s] || 'bg-slate-100 text-slate-700 ring-slate-200';
-    const label = s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ${cls}`}>{label}</span>;
-  };
+  const quickActions = [
+    { icon: <FiMessageCircle className="w-5 h-5" />, label: 'Chat', href: '/collaboration/chat', pastel: 'bg-[#10B981]/10 text-[#10B981]' },
+    { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', pastel: 'bg-[#FF9B44]/15 text-[#FF9B44]' },
+    { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', pastel: 'bg-[#009EFB]/10 text-[#009EFB]' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll', pastel: 'bg-[#3A57C4]/10 text-[#3A57C4]' },
+    { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', pastel: 'bg-[#6C4FD6]/10 text-[#6C4FD6]' },
+    { icon: <FiUser className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', pastel: 'bg-pink-50 text-pink-600' },
+    { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', pastel: 'bg-[#FFC107]/20 text-amber-600' },
+    { icon: <FiBookOpen className="w-5 h-5" />, label: 'Training', href: '/training', pastel: 'bg-emerald-50 text-emerald-600' },
+    { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', pastel: 'bg-[#8A5CF6]/10 text-[#8A5CF6]' },
+    { icon: <FiSend className="w-5 h-5" />, label: 'Timesheet', href: '/timesheets', pastel: 'bg-sky-50 text-sky-600' },
+    { icon: <FiFolder className="w-5 h-5" />, label: 'Documents', href: '/documents', pastel: 'bg-rose-50 text-rose-600' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'Policies', href: '/policies-handbook', pastel: 'bg-teal-50 text-teal-600' },
+  ];
 
   /* ----- render ----- */
 
-  // The platform dashboard owns the super admin experience. Do not paint
-  // employee self-service content while the role-specific redirect runs.
   if (!user || userRole === 'super_admin') {
     return <div className="py-12 text-center text-thb-text-secondary">Loading dashboard...</div>;
   }
 
+  const announcement = announcements[bannerIndex];
+
   return (
-    <div className="space-y-6">
-      {/* HERO */}
-      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-emerald-500/10">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]" />
-        <div className="absolute top-0 right-0 w-72 h-72 bg-green-500/20 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-0 w-56 h-56 bg-teal-500/20 rounded-full blur-[80px]" />
-        <div className="relative z-10 px-6 sm:px-8 py-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20 text-white text-xl font-bold">
-                {firstName[0]?.toUpperCase()}
-              </div>
-              <div>
-                <p className="text-green-300/60 text-xs font-medium tracking-widest uppercase">Employee Self-Service · {companyName}</p>
-                <h1 className="text-2xl font-bold text-white">
-                  {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-teal-300">{firstName}</span>!
-                </h1>
-                <p className="text-green-100/60 text-sm font-medium mt-0.5">{today}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => router.push('/leave')}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-semibold hover:bg-white/20 transition-all"
-              >
-                <FiPlus className="w-4 h-4" /> Apply Leave
-              </button>
-              <button
-                onClick={() => router.push('/helpdesk')}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all"
-              >
-                <FiHeadphones className="w-4 h-4" /> Raise Ticket
-              </button>
-            </div>
-          </div>
+    <div>
+      {/* ══ TEMPLATE: breadcrumb bar + date + collapse ══ */}
+      <PageBreadcrumbs
+        title="Employee Dashboard"
+        trail={['Dashboard', 'Employee Dashboard']}
+        right={
+          <>
+            <DateChip value={todayChip} />
+            <CollapseToggle collapsed={contentCollapsed} onToggle={() => setContentCollapsed((c) => !c)} />
+          </>
+        }
+      />
+
+      {contentCollapsed ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 py-10 text-center text-sm text-slate-400">
+          Content collapsed — press the chevron button to expand the dashboard.
         </div>
-      </div>
-
-      {/* STAT CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
-        ) : (
-          [
-            { label: 'Leave Balance', value: `${leaveSummary.remaining}`, sub: `${leaveSummary.used} of ${leaveSummary.total} days used`, icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
-            { label: 'Attendance Rate', value: attendanceRate === null ? '—' : `${attendanceRate}%`, sub: `${monthName}`, icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
-            { label: 'Pending Approvals', value: pendingLeaves, sub: 'Awaiting manager response', icon: <FiClock className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
-            { label: 'Open Tickets', value: tickets.filter((t) => ['open', 'in_progress'].includes(t.status)).length, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
-          ].map((s) => (
-            <div key={s.label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500">{s.label}</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{s.value}</p>
-                </div>
-                <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center ring-1 ${s.ring}`}>{s.icon}</div>
-              </div>
-              <p className="text-xs font-medium text-slate-500 mt-2">{s.sub}</p>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* LEAVE + ATTENDANCE */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Leave balance */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          {isProbation && (
-            <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-              <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
-              <p className="mt-1 text-xs text-emerald-700">All leave balances, including the applicable maternity or paternity leave, are zero during probation.</p>
-            </div>
+      ) : (
+        <div className="space-y-6">
+          {/* ══ TEMPLATE ROW 0: alert banner (announcements) ══ */}
+          {announcement && !alertDismissed && (
+            <TemplateAlert onClose={() => setAlertDismissed(true)}>
+              <span className="font-bold text-slate-900">
+                {announcement.isPinned ? 'Pinned Announcement: ' : 'Announcement: '}
+              </span>
+              {announcement.content}
+              {announcements.length > 1 && (
+                <span className="ml-2 text-xs text-slate-400">
+                  ({bannerIndex + 1}/{announcements.length})
+                </span>
+              )}
+            </TemplateAlert>
           )}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FiCalendar className="w-4 h-4 text-emerald-500" /> My Leave Balance
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">{new Date().getFullYear()} entitlements</p>
-            </div>
-            <button onClick={() => router.push('/leave')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
-          </div>
 
-          {loading ? (
-            <div className="h-56"><SkeletonBlock className="h-full w-full" /></div>
-          ) : leaveChartData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-              <FiInfo className="w-8 h-8 mb-2" />
-              <p className="text-sm">No leave balances configured</p>
+          {/* ══ TEMPLATE ROW 1: Profile hero (4) + Leave Details (4) + Leave Summary (4)
+              — equal thirds so the three cards align edge to edge; the Leave
+              Summary card carries extra rows (pending + upcoming) to match height ══ */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-4">
+              <ProfileHeroCard
+                name={user.name}
+                designation={profileExtra?.designationTitle || user.employee?.designation || 'Employee'}
+                department={profileExtra?.departmentName || user.employee?.department || companyName}
+                phone={profileExtra?.phone}
+                email={user.email}
+                reportTo={
+                  profileExtra?.reportingManager
+                    ? `${profileExtra.reportingManager.firstName || ''} ${profileExtra.reportingManager.lastName || ''}`.trim()
+                    : profileExtra?.branch?.name || null
+                }
+                joinedOn={profileExtra?.dateOfJoining ? fmtDate(profileExtra.dateOfJoining) : null}
+                photoUrl={photoUrl}
+                employeeCode={profileExtra?.employeeCode || user.employee?.employeeId || null}
+                experience={experienceLabel}
+              />
             </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="w-44 h-44 flex-shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={leaveChartData}
-                      dataKey="remaining"
-                      nameKey="name"
-                      innerRadius={48}
-                      outerRadius={70}
-                      paddingAngle={2}
-                    >
-                      {leaveChartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v: number, _n, p) => {
-                        const item = p?.payload;
-                        return [`${v} day(s) remaining · ${item?.used || 0} used`, item?.name];
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex-1 w-full space-y-2">
-                {cleanLeaveBalances
-                  .filter((b) => !/loss of pay|lop/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))
-                  .sort((a, b) => {
-                    const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave'];
-                    return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
-                  })
-                  .map((b, i) => (
-                  <div key={b.id} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: LEAVE_COLORS[i % LEAVE_COLORS.length] }} />
-                      <span className="font-medium text-slate-700 truncate">{b.leaveType?.name || 'Leave'}</span>
-                    </div>
-                    <span className="text-slate-500 font-medium whitespace-nowrap">
-                      <span className="text-slate-900 font-bold">{b.remaining}</span>
-                      <span className="text-slate-400"> / {b.total}</span>
-                    </span>
-                  </div>
-                ))}
+
+            <div className="xl:col-span-4">
+              <Panel title="Leave Details" icon={<FiCalendar className="w-4 h-4" />} href="/leave" accent="text-[#3A57C4]">
                 {isProbation && (
-                  <div className="flex items-center justify-between rounded-lg bg-sky-50 px-2 py-1.5 text-sm">
-                    <span className="font-medium text-sky-800">Loss of Pay (LOP)</span>
-                    <span className="text-xs font-semibold text-sky-700">Available for request · Prior approval required</span>
+                  <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                    <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
+                    <p className="mt-1 text-xs text-emerald-700">All leave balances are zero during probation.</p>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Attendance trend */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FiActivity className="w-4 h-4 text-emerald-500" /> My Attendance
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Last 7 records · {monthName}</p>
-            </div>
-            <button onClick={() => router.push('/attendance')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="h-56"><SkeletonBlock className="h-full w-full" /></div>
-          ) : attendanceTrend.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-              <FiInfo className="w-8 h-8 mb-2" />
-              <p className="text-sm">No attendance records yet</p>
-            </div>
-          ) : (
-            <>
-              <div className="h-40">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={attendanceTrend} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} domain={[0, 'auto']} />
-                    <Tooltip
-                      formatter={(v: number) => [`${v} hrs`, 'Worked']}
-                      contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', fontSize: 12 }}
-                    />
-                    <Bar dataKey="hours" fill="#10B981" radius={[6, 6, 0, 0]} barSize={26} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg bg-emerald-50 py-2">
-                  <p className="text-[11px] font-medium text-emerald-700/70">Present</p>
-                  <p className="text-sm font-bold text-emerald-700">{attendanceRows.filter((a) => a.status === 'present').length}</p>
-                </div>
-                <div className="rounded-lg bg-amber-50 py-2">
-                  <p className="text-[11px] font-medium text-amber-700/70">Present (Late)</p>
-                  <p className="text-sm font-bold text-amber-700">{attendanceRows.filter((a) => a.status === 'late').length}</p>
-                </div>
-                <div className="rounded-lg bg-rose-50 py-2">
-                  <p className="text-[11px] font-medium text-rose-700/70">Absent</p>
-                  <p className="text-sm font-bold text-rose-700">{attendanceRows.filter((a) => a.status === 'absent').length}</p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* MY REGULARIZATION REQUESTS */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiRefreshCw className="w-4 h-4 text-cyan-500" /> My Regularization Requests
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Missed-punch corrections you submitted</p>
-          </div>
-          <button onClick={() => router.push('/attendance/regularize')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-            View all <FiChevronRight className="w-3 h-3" />
-          </button>
-        </div>
-        {loading ? (
-          <div className="space-y-2">{Array.from({ length: 2 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-        ) : regularizations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 text-slate-400">
-            <FiInfo className="w-8 h-8 mb-2" />
-            <p className="text-sm">No regularization requests submitted yet</p>
-            <button onClick={() => router.push('/attendance/regularize')} className="mt-2 text-xs font-semibold text-cyan-600 hover:text-cyan-700">
-              Request a regularization
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {regularizations.map((r) => (
-              <div key={r.id} className="flex items-center justify-between py-3 gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {fmtDate(r.date)}
-                    <span className="ml-2 text-xs font-medium text-slate-500 capitalize">{(r.punchType || '').replace('_', '-')}</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5 truncate">{r.reason || '—'}</p>
-                </div>
-                {statusBadge(r.status)}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* PAYSLIPS + PERFORMANCE */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Payslips */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiFileText className="w-4 h-4 text-emerald-500" /> My Payslips
-            </h2>
-            <button onClick={() => router.push('/payroll')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : payslips.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-              <FiInfo className="w-8 h-8 mb-2" />
-              <p className="text-sm">No payslips available yet</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {payslips.map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">{monthLabel(p.month, p.year)}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Net: {fmtMoney(p.netSalary, p.currency)}</p>
+                {loading ? (
+                  <div className="h-56"><SkeletonBlock className="h-full w-full" /></div>
+                ) : leaveChartData.length === 0 ? (
+                  <EmptyState icon={<FiInfo className="w-8 h-8 mb-2" />} message="No leave balances configured" />
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="w-40 h-40 flex-shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={leaveChartData} dataKey="remaining" nameKey="name" innerRadius={44} outerRadius={64} paddingAngle={2}>
+                            {leaveChartData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(v, _n, p) => {
+                              const item = p?.payload;
+                              return [`${v} day(s) remaining · ${item?.used || 0} used`, item?.name];
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex-1 w-full space-y-2">
+                      {leaveBalances
+                        .filter((b) => !/loss of pay|lop/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))
+                        .slice(0, 6)
+                        .map((b, i) => (
+                          <div key={b.id} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: LEAVE_COLORS[i % LEAVE_COLORS.length] }} />
+                              <span className="font-medium text-slate-700 truncate">{b.leaveType?.name || 'Leave'}</span>
+                            </div>
+                            <span className="text-slate-500 font-medium whitespace-nowrap">
+                              <span className="text-slate-900 font-bold">{b.remaining}</span>
+                              <span className="text-slate-400"> / {b.total}</span>
+                            </span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {statusBadge(p.status)}
+                )}
+              </Panel>
+            </div>
+
+            <div className="xl:col-span-4">
+              {/* Task 148 — template bg-secondary pattern: FULL violet card.
+                  Extra rows (pending requests + upcoming approved leave) keep
+                  the card the same height as the hero card next to it. */}
+              <Panel title="Leave Summary" icon={<FiCheckCircle className="w-4 h-4" />} href="/leave" accent="text-[#10B981]" tone="violet">
+                {loading ? (
+                  <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-14 w-full !bg-white/20" />)}</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {[
+                        { label: 'Total Allocation', value: leaveSummary.total, tone: 'from-[#FF9B44] to-[#FF7A3D]', icon: <FiCalendar className="w-4 h-4" /> },
+                        { label: 'Days Used', value: leaveSummary.used, tone: 'from-rose-400 to-pink-500', icon: <FiClock className="w-4 h-4" /> },
+                        { label: 'Remaining', value: leaveSummary.remaining, tone: 'from-emerald-400 to-teal-400', icon: <FiCheckCircle className="w-4 h-4" /> },
+                        { label: 'Pending Requests', value: pendingLeaveCount, tone: 'from-amber-400 to-orange-500', icon: <FiSend className="w-4 h-4" /> },
+                      ].map((s) => (
+                        <div key={s.label} className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.12] px-3 py-2.5">
+                          <span className={`w-9 h-9 rounded-full bg-gradient-to-br ${s.tone} text-white flex items-center justify-center flex-shrink-0 shadow-md`}>
+                            {s.icon}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-lg font-bold text-white leading-none">{s.value}</p>
+                            <p className="text-[10px] text-white/65 mt-1 leading-tight">{s.label}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* upcoming approved leave — extra context row */}
+                    <div className="mt-3 rounded-xl border border-white/15 bg-white/[0.08] px-3 py-2.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/60">Upcoming Approved Leave</p>
+                      {nextApprovedLeave ? (
+                        <p className="text-xs text-white font-medium mt-1">
+                          {nextApprovedLeave.leaveType?.name || 'Leave'} · {fmtDate(nextApprovedLeave.startDate)}
+                          {nextApprovedLeave.endDate ? ` → ${fmtDate(nextApprovedLeave.endDate)}` : ''}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-white/70 mt-1">No upcoming approved leave</p>
+                      )}
+                    </div>
                     <button
-                      onClick={() => router.push(`/payroll`)}
-                      className="text-slate-400 hover:text-emerald-600 transition-colors"
-                      title="View payslip"
+                      onClick={() => router.push('/leave')}
+                      className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#3A57C4] text-sm font-bold shadow-lg hover:bg-blue-50 transition-all"
                     >
-                      <FiDownload className="w-4 h-4" />
+                      <FiPlus className="w-4 h-4" /> Apply Leave
                     </button>
-                  </div>
-                </div>
-              ))}
+                  </>
+                )}
+              </Panel>
             </div>
-          )}
-        </div>
-
-        {/* Performance + Goals */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiTrendingUp className="w-4 h-4 text-rose-500" /> My Performance
-            </h2>
-            <button onClick={() => router.push('/performance')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
           </div>
 
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : (
-            <>
-              {/* Latest review summary */}
-              {performance ? (
-                <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-rose-700/70">Latest Review · {performance.reviewCycle || 'Current cycle'}</p>
-                      {/* BUG_028 fix: hide the numeric rating while the review
-                          is still Pending — showing "3.0 / 5" next to a
-                          Pending badge is misleading (the score is not final
-                          until the review is completed). Show "Not rated yet"
-                          instead. */}
-                      {(() => {
-                        const status = (performance.status || '').toLowerCase();
-                        const isPending = status === 'pending' || status === 'in_progress' || status === 'draft';
-                        const rating = performance.overallRating ?? performance.rating;
-                        if (isPending || rating == null || Number.isNaN(Number(rating))) {
-                          return (
-                            <p className="text-2xl font-bold text-rose-700 mt-0.5">
-                              Not rated yet
-                            </p>
-                          );
-                        }
-                        return (
-                          <p className="text-2xl font-bold text-rose-700 mt-0.5">
-                            {Number(rating).toFixed(1)}
-                            <span className="text-sm font-medium text-rose-400"> / 5</span>
-                          </p>
-                        );
-                      })()}
-                      <p className="text-xs text-rose-700/70 mt-0.5">
-                        {performance.reviewer ? `By ${performance.reviewer.firstName} ${performance.reviewer.lastName}` : 'Self / Manager review'}
+          {/* ══ TEMPLATE ROW 2: Attendance punch (4) + Attendance Overview (8) ══ */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-4">
+              <Panel title="Attendance" icon={<FiClock className="w-4 h-4" />} href="/attendance" accent="text-[#009EFB]">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-slate-900 tracking-tight">{attMetrics.nowClock}</p>
+                  <p className="text-xs text-slate-500 mt-1">{attMetrics.todayLabel}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600/70">Punch In</p>
+                      <p className="text-sm font-bold text-emerald-700 mt-0.5 flex items-center justify-center gap-1.5">
+                        <FiLogIn className="w-3.5 h-3.5" /> {attMetrics.checkIn || '--:--'}
                       </p>
                     </div>
-                    <div className="w-14 h-14 rounded-full bg-white/70 flex items-center justify-center">
-                      <FiAward className="w-7 h-7 text-rose-500" />
+                    <div className="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-600/70">Punch Out</p>
+                      <p className="text-sm font-bold text-rose-700 mt-0.5 flex items-center justify-center gap-1.5">
+                        <FiLogOut className="w-3.5 h-3.5" /> {attMetrics.checkOut || '--:--'}
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-2">{statusBadge(performance.status)}</div>
+                  <div className="mt-3 rounded-xl bg-slate-50 border border-slate-100 px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Total Hours Today</p>
+                    <p className="text-lg font-bold text-slate-900 mt-0.5">
+                      {Math.floor(attMetrics.todayHours)}h {Math.round((attMetrics.todayHours % 1) * 60)}m
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push('/attendance')}
+                    className="mt-4 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-[#3A57C4] to-[#4C51D6] text-white text-sm font-semibold shadow-lg shadow-[#3A57C4]/25 hover:shadow-[#3A57C4]/45 transition-all"
+                  >
+                    Punch In / Out
+                  </button>
                 </div>
-              ) : (
-                <div className="mb-4 flex flex-col items-center justify-center py-6 text-slate-400">
-                  <FiInfo className="w-8 h-8 mb-2" />
-                  <p className="text-sm">No performance reviews yet</p>
-                </div>
-              )}
+              </Panel>
+            </div>
 
-              {/* Goals progress */}
-              <div className="space-y-2.5">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Goals</p>
-                {goals.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-2">No active goals</p>
+            <div className="xl:col-span-8">
+              <Panel title="Attendance Overview" icon={<FiActivity className="w-4 h-4" />} href="/attendance" accent="text-[#3A57C4]">
+                {loading ? (
+                  <div className="h-56"><SkeletonBlock className="h-full w-full" /></div>
                 ) : (
-                  goals.slice(0, 3).map((g) => (
-                    <div key={g.id} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-slate-700 truncate">{g.title}</span>
-                        <span className="text-xs font-semibold text-slate-500">{g.progress || 0}%</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${g.progress >= 75 ? 'bg-emerald-500' : g.progress >= 40 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                          style={{ width: `${Math.min(g.progress || 0, 100)}%` }}
-                        />
-                      </div>
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {[
+                        { label: 'Total Hours Today', value: `${attMetrics.todayHours} / ${attMetrics.todayTarget}`, sub: 'hrs', bg: 'bg-[#3A57C4]/10 text-[#3A57C4]', ring: 'ring-[#3A57C4]/20' },
+                        { label: 'Total Hours Week', value: `${attMetrics.weekHours} / ${attMetrics.weekTarget}`, sub: 'hrs', bg: 'bg-[#6C4FD6]/10 text-[#6C4FD6]', ring: 'ring-[#6C4FD6]/20' },
+                        { label: 'Total Hours Month', value: `${attMetrics.monthHours}`, sub: 'hrs', bg: 'bg-[#FF9B44]/15 text-[#FF9B44]', ring: 'ring-orange-200' },
+                        { label: 'Overtime this Month', value: `${attMetrics.overtime}`, sub: 'hrs', bg: 'bg-[#FFC107]/20 text-amber-600', ring: 'ring-amber-200' },
+                      ].map((t) => (
+                        <div key={t.label} className="rounded-xl border border-slate-100 bg-slate-50/40 p-3.5">
+                          <span className={`w-9 h-9 rounded-full ${t.bg} ring-1 ${t.ring} flex items-center justify-center`}>
+                            <FiClock className="w-4 h-4" />
+                          </span>
+                          <p className="text-lg font-bold text-slate-900 mt-2 leading-none">{t.value}</p>
+                          <p className="text-[11px] text-slate-500 mt-1">{t.label} ({t.sub})</p>
+                        </div>
+                      ))}
                     </div>
-                  ))
+                    {attendanceTrend.length === 0 ? (
+                      <div className="mt-4"><EmptyState icon={<FiInfo className="w-7 h-7 mb-1" />} message="No attendance records this month yet" /></div>
+                    ) : (
+                      <div className="h-44 mt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={attendanceTrend} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                            <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} domain={[0, 'auto']} />
+                            <Tooltip
+                              formatter={(v) => [`${v} hrs`, 'Worked']}
+                              contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', fontSize: 12 }}
+                            />
+                            <Bar dataKey="hours" fill="#3A57C4" radius={[6, 6, 0, 0]} barSize={26} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </>
                 )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* TRAINING + TIMESHEETS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Training */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiBookOpen className="w-4 h-4 text-emerald-500" /> My Training
-            </h2>
-            <button onClick={() => router.push('/training')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
+              </Panel>
+            </div>
           </div>
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : training.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-              <FiInfo className="w-8 h-8 mb-2" />
-              <p className="text-sm">No upcoming training programs</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {training.map((t) => {
-                // BUG_029 fix: derive training status from start/end dates.
-                // The API may return a stale 'upcoming' status for trainings
-                // whose dates have already passed. We compute the effective
-                // status client-side:
-                //   - both dates in the past → 'Completed'
-                //   - today is between start and end → 'In Progress'
-                //   - start date in the future → 'Upcoming'
-                //   - dates missing → fall back to the API-supplied status.
-                const deriveStatus = (): string => {
-                  const now = Date.now();
-                  const start = t.training.startDate ? new Date(t.training.startDate).getTime() : null;
-                  const end = t.training.endDate ? new Date(t.training.endDate).getTime() : null;
-                  if (start == null && end == null) return t.status;
-                  // Add 1 day grace to end so a training ending "today" is still
-                  // 'In Progress' rather than flipping to 'Completed' at midnight.
-                  const endWithGrace = end != null ? end + 24 * 60 * 60 * 1000 : null;
-                  if (start != null && now < start) return 'upcoming';
-                  if (endWithGrace != null && now > endWithGrace) return 'completed';
-                  if (start != null && (endWithGrace == null || now <= endWithGrace)) return 'in_progress';
-                  return t.status;
-                };
-                const effectiveStatus = deriveStatus();
-                return (
-                <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 text-white flex items-center justify-center flex-shrink-0">
-                    <FiBookOpen className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{t.training.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {t.training.startDate ? fmtDate(t.training.startDate) : 'Date TBD'}
-                      {t.training.endDate ? ` → ${fmtDate(t.training.endDate)}` : ''}
-                    </p>
-                  </div>
-                  {statusBadge(effectiveStatus)}
-                </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-        {/* Timesheets */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiClock className="w-4 h-4 text-sky-500" /> My Timesheets
-            </h2>
-            <button onClick={() => router.push('/timesheets')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : timesheets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-              <FiInfo className="w-8 h-8 mb-2" />
-              <p className="text-sm">No timesheets submitted yet</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {timesheets.map((t) => (
-                <div key={t.id} className="flex items-center justify-between py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">{fmtDate(t.date)}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 truncate">
-                      {(typeof t.project === 'object' && t.project ? t.project.name : t.project) || t.task || 'General'} · {t.hours}h
-                    </p>
+          {/* ══ TEMPLATE ROW 3: Projects (6) + Tasks (6) ══ */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-6">
+              <Panel title="Projects" icon={<FiBriefcase className="w-4 h-4" />} href="/timesheets" accent="text-[#6C4FD6]">
+                {loading ? (
+                  <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+                ) : projects.length === 0 ? (
+                  <EmptyState icon={<FiBriefcase className="w-8 h-8 mb-2" />} message="No project activity yet — log time in your timesheet" />
+                ) : (
+                  <div className="space-y-4">
+                    {projects.map((p) => (
+                      <div key={p.name}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
+                          <span className="text-xs font-medium text-slate-500 whitespace-nowrap">{p.hours}h · {p.tasks} entries</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-[#6C4FD6] to-[#3A57C4]"
+                            style={{ width: `${Math.max(6, Math.round((p.hours / maxProjectHours) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {statusBadge(t.status)}
-                </div>
-              ))}
+                )}
+              </Panel>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* TICKETS + DOCUMENTS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Helpdesk tickets */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiHeadphones className="w-4 h-4 text-teal-500" /> My Helpdesk Tickets
-            </h2>
-            <button onClick={() => router.push('/helpdesk')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : tickets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-              <FiCheckCircle className="w-8 h-8 mb-2 text-emerald-400" />
-              <p className="text-sm">No tickets raised</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {tickets.map((t) => (
-                <div key={t.id} className="flex items-center justify-between py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">
-                      <span className="text-slate-400 font-mono text-xs mr-2">#{t.ticketId}</span>
-                      {t.subject}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">{fmtDate(t.createdAt)}</p>
+            <div className="xl:col-span-6">
+              <Panel title="Tasks" icon={<FiCheckCircle className="w-4 h-4" />} href="/timesheets" accent="text-[#FF9B44]">
+                {loading ? (
+                  <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+                ) : timesheets.length === 0 ? (
+                  <EmptyState icon={<FiCheckCircle className="w-8 h-8 mb-2" />} message="No tasks logged yet" />
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {timesheets.slice(0, 5).map((t) => (
+                      <div key={t.id} className="flex items-center justify-between py-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{t.task || 'General task'}</p>
+                          <p className="text-xs text-slate-500 mt-0.5 truncate">
+                            {(typeof t.project === 'object' && t.project ? t.project.name : t.project) || 'General'} · {t.hours}h · {fmtDate(t.date)}
+                          </p>
+                        </div>
+                        {statusBadge(t.status)}
+                      </div>
+                    ))}
                   </div>
-                  {statusBadge(t.status)}
-                </div>
-              ))}
+                )}
+              </Panel>
             </div>
-          )}
-        </div>
-
-        {/* Documents */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiFolder className="w-4 h-4 text-fuchsia-500" /> My Documents
-            </h2>
-            <button onClick={() => router.push('/documents')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
-              View all <FiChevronRight className="w-3 h-3" />
-            </button>
           </div>
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : documents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-              <FiInfo className="w-8 h-8 mb-2" />
-              <p className="text-sm">No documents uploaded</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {documents.map((d) => (
-                <div key={d.id} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center flex-shrink-0">
-                      <FiFileText className="w-4 h-4" />
+
+          {/* ══ TEMPLATE ROW 4: Performance (5) + My Skills (4) + Team Birthday (3) ══ */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-5">
+              <Panel title="Performance" icon={<FiTrendingUp className="w-4 h-4" />} href="/performance" accent="text-[#6C4FD6]">
+                {loading ? (
+                  <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+                ) : (
+                  <>
+                    {performance ? (
+                      <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-[#6C4FD6]/10 to-[#3A57C4]/10 border border-[#6C4FD6]/20">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-[#6C4FD6]/70">Latest Review · {performance.reviewCycle || 'Current cycle'}</p>
+                            <p className="text-2xl font-bold text-[#3A57C4] mt-0.5">
+                              {(performance.overallRating ?? performance.rating ?? 0).toFixed(1)}
+                              <span className="text-sm font-medium text-[#6C4FD6]/60"> / 5</span>
+                            </p>
+                            <p className="text-xs text-[#6C4FD6]/70 mt-0.5">
+                              {performance.reviewer ? `By ${performance.reviewer.firstName} ${performance.reviewer.lastName}` : 'Self / Manager review'}
+                            </p>
+                          </div>
+                          <div className="w-14 h-14 rounded-full bg-white/70 flex items-center justify-center">
+                            <FiAward className="w-7 h-7 text-[#6C4FD6]" />
+                          </div>
+                        </div>
+                        <div className="mt-2">{statusBadge(performance.status)}</div>
+                      </div>
+                    ) : (
+                      <EmptyState icon={<FiInfo className="w-8 h-8 mb-2" />} message="No performance reviews yet" />
+                    )}
+                    <div className="space-y-2.5">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Goals</p>
+                      {goals.length === 0 ? (
+                        <p className="text-sm text-slate-400 py-2">No active goals</p>
+                      ) : (
+                        goals.slice(0, 3).map((g) => (
+                          <div key={g.id} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-medium text-slate-700 truncate">{g.title}</span>
+                              <span className="text-xs font-semibold text-slate-500">{g.progress || 0}%</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${g.progress >= 75 ? 'bg-emerald-500' : g.progress >= 40 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                                style={{ width: `${Math.min(g.progress || 0, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{d.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5 capitalize">{deriveDocumentCategory(d.name, d.type)} · {fmtDate(d.uploadedAt)}</p>
-                    </div>
+                  </>
+                )}
+              </Panel>
+            </div>
+
+            <div className="xl:col-span-4">
+              {/* Task 148 — template bg-warning pattern: FULL gold card */}
+              <Panel title="My Skills" icon={<FiAward className="w-4 h-4" />} href="/my-profile" accent="text-[#FFC107]" tone="amber">
+                {loading ? (
+                  <div className="flex flex-wrap gap-2">{Array.from({ length: 5 }).map((_, i) => <SkeletonBlock key={i} className="h-8 w-24 rounded-full !bg-white/40" />)}</div>
+                ) : skills.length === 0 ? (
+                  <EmptyState icon={<FiAward className="w-8 h-8 mb-2" />} message="Add skills from your profile" />
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((s) => (
+                      <span key={s} className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/70 text-xs font-semibold text-amber-900 ring-1 ring-white/60 shadow-sm">
+                        {s}
+                      </span>
+                    ))}
                   </div>
-                  {statusBadge(d.status)}
+                )}
+                <button
+                  onClick={() => router.push('/my-profile')}
+                  className="mt-4 text-xs font-bold text-amber-950 hover:text-amber-900 inline-flex items-center gap-1"
+                >
+                  Manage skills <FiArrowRight className="w-3 h-3" />
+                </button>
+              </Panel>
+            </div>
+
+            <div className="xl:col-span-3">
+              <BirthdaysCard />
+            </div>
+          </div>
+
+          {/* ══ TEMPLATE ROW 5: Team Members (4) + Notifications (4) + Meetings Schedule (4) ══ */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-4">
+              <Panel title="Team Members" icon={<FiUsers className="w-4 h-4" />} href="/collaboration" accent="text-[#3A57C4]">
+                {loading ? (
+                  <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+                ) : teamMembers.length === 0 ? (
+                  <EmptyState icon={<FiUsers className="w-8 h-8 mb-2" />} message="Directory access restricted" />
+                ) : (
+                  <div className="space-y-3">
+                    {teamMembers.map((m) => {
+                      const ini = `${m.firstName?.[0] || ''}${m.lastName?.[0] || ''}`.toUpperCase();
+                      return (
+                        <div key={m.id} className="flex items-center gap-3">
+                          <span className="relative flex-shrink-0">
+                            {m.avatar ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={m.avatar} alt={`${m.firstName} ${m.lastName}`} className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
+                            ) : (
+                              <span className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3A57C4] to-[#6C4FD6] text-white text-[11px] font-bold flex items-center justify-center">{ini || '?'}</span>
+                            )}
+                            <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate">{m.firstName} {m.lastName}</p>
+                            <p className="text-[11px] text-slate-400 truncate">{m.designation?.title || m.department?.name || 'Team member'}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Panel>
+            </div>
+
+            <div className="xl:col-span-4">
+              <Panel title="Notifications" icon={<FiBell className="w-4 h-4" />} href="/notifications" accent="text-[#FF9B44]">
+                {notifications.length === 0 ? (
+                  <EmptyState icon={<FiBell className="w-8 h-8 mb-2" />} message="No notifications yet" />
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {notifications.slice(0, 5).map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => (n.link ? (window.location.href = n.link) : router.push('/notifications'))}
+                        className="w-full text-left py-3 flex items-start gap-2.5 hover:bg-slate-50 transition-colors"
+                      >
+                        <span className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${n.isRead ? 'bg-slate-300' : 'bg-[#FF9B44]'}`} />
+                        <div className="min-w-0">
+                          <p className={`text-sm truncate ${n.isRead ? 'text-slate-600 font-medium' : 'text-slate-900 font-semibold'}`}>{n.title}</p>
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{n.message}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
+
+            <div className="xl:col-span-4">
+              <Panel title="Meetings Schedule" icon={<FiCalendar className="w-4 h-4" />} href="/calendar" accent="text-[#6C4FD6]">
+                {loading ? (
+                  <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+                ) : schedule.length === 0 ? (
+                  <EmptyState icon={<FiCalendar className="w-8 h-8 mb-2" />} message="Nothing scheduled — check the calendar" />
+                ) : (
+                  <div className="space-y-3">
+                    {schedule.map((s) => (
+                      <div key={s.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
+                        <span className={`w-9 h-9 rounded-lg ${s.tone} flex items-center justify-center flex-shrink-0`}>
+                          <FiCalendar className="w-4 h-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{s.title}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{s.time} · {s.sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
+          </div>
+
+          {/* ══ ROW 6: Recent Payslips (full width) — kept above the feeds so
+                 the page ends evenly with Social Feeds + Quick Actions ══ */}
+          <Panel title="Recent Payslips" icon={<FiFileText className="w-4 h-4" />} href="/payroll" accent="text-[#10B981]">
+            {loading ? (
+              <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+            ) : payslips.length === 0 ? (
+              <EmptyState icon={<FiInfo className="w-8 h-8 mb-2" />} message="No payslips available yet" />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {payslips.map((p) => (
+                  <div key={p.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-slate-900">{monthLabel(p.month, p.year)}</p>
+                      <FiDownload className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">{fmtMoney(p.netSalary, p.currency)}</p>
+                    <div className="mt-1.5">{statusBadge(p.status)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+
+          {/* ══ LAST ROW: Social Feeds (8) + Quick Actions (4) — feeds close the page ══ */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-8">
+              <Panel title="Social Feeds" icon={<FiUsers className="w-4 h-4" />} href="/social-feed" accent="text-pink-500">
+                <SocialFeedSection limit={6} />
+              </Panel>
+            </div>
+            <div className="xl:col-span-4">
+              <Panel
+                title="Quick Actions"
+                icon={<FiZap className="w-4 h-4" />}
+                accent="text-[#FFC107]"
+                action={<span className="text-[10px] text-slate-400">Self-service shortcuts</span>}
+              >
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {quickActions.map((a) => (
+                    <button
+                      key={a.label}
+                      onClick={() => router.push(a.href)}
+                      className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-white border border-slate-100 hover:border-[#6C4FD6]/30 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                    >
+                      <div className={`w-10 h-10 rounded-full ${a.pastel} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform`}>
+                        {a.icon}
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-700 text-center group-hover:text-slate-900 leading-tight">{a.label}</span>
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </Panel>
+            </div>
+          </div>
+
+          {/* Footer hint — Task 163: admins only (employees have no Admin Dashboard) */}
+          {ADMIN_DASHBOARD_ROLES.includes(userRole.toLowerCase()) && (
+            <div className="flex items-center justify-center pt-2 pb-4">
+              <button
+                onClick={() => router.push('/home')}
+                className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-emerald-600 transition-colors"
+              >
+                <FiArrowRight className="w-3 h-3 rotate-180" /> Open Admin Dashboard
+              </button>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* QUICK ACTIONS */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <FiZap className="w-4 h-4 text-amber-500" /> Quick Actions
-          </h2>
-          <span className="text-xs text-slate-500">Tap to jump into a self-service flow</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {quickActions.map((a) => (
-            <button
-              key={a.label}
-              onClick={() => router.push(a.href)}
-              className={`group flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br ${a.bg} ${a.shadow} shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all text-white`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                {a.icon}
-              </div>
-              <span className="text-xs font-semibold text-center">{a.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Footer hint */}
-      <div className="flex items-center justify-center pt-2 pb-4">
-        <button
-          onClick={() => router.push('/home')}
-          className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-emerald-600 transition-colors"
-        >
-          <FiArrowRight className="w-3 h-3 rotate-180" /> Back to role-based home
-        </button>
-      </div>
+      {/* floating chat icon */}
+      <button
+        onClick={() => router.push('/collaboration/chat')}
+        title="Chat — project & team conversations"
+        aria-label="Open chat"
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-[#6C4FD6] to-[#3A57C4] text-white shadow-xl shadow-[#6C4FD6]/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+      >
+        <FiMessageCircle className="w-6 h-6" />
+        <span className="absolute inset-0 rounded-full ring-2 ring-[#6C4FD6]/40 animate-ping" style={{ animationDuration: '3s' }} />
+      </button>
     </div>
   );
 }

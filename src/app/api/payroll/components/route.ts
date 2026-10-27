@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (!authInfo) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     // Only admins can create payroll components
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(authInfo.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(authInfo.role)) {
       return Response.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders });
     }
 

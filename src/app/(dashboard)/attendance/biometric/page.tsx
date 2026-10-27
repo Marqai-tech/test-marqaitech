@@ -116,6 +116,9 @@ interface ETimeOfficeSyncStatus {
     unmatched?: number;
     message?: string;
   } | null;
+  // Task 158 — device staleness surface (best-effort fields).
+  lastPunchAt?: string | null;
+  lastPunchAgeDays?: number | null;
 }
 
 interface Branch { id: string; name: string }
@@ -144,7 +147,7 @@ const biometricWorkflowSteps = [
 export default function BiometricPage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [tab, setTab] = useState<'devices' | 'enrollments' | 'punches' | 'thresholds'>('devices');
   const [devices, setDevices] = useState<BiometricDevice[]>([]);
@@ -162,6 +165,7 @@ export default function BiometricPage() {
   const [punchesSummary, setPunchesSummary] = useState<{ todayTotal: number; todayFlagged: number; last7Flagged: number } | null>(null);
   const [teamOfficeSync, setTeamOfficeSync] = useState<ETimeOfficeSyncStatus | null>(null);
   const [syncingTeamOffice, setSyncingTeamOffice] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const cid = effectiveCompanyId();
   const scopeQuery = cid ? `companyId=${cid}&` : '';
@@ -304,6 +308,36 @@ export default function BiometricPage() {
 
   useEffect(() => { queueMicrotask(() => { refreshAll(); }); }, [refreshAll]);
 
+  /* Task 159: self-healing resync — re-matches orphaned punches against the
+   * current roster and rewinds the Team Office checkpoint ~7 days so any
+   * days the incremental download missed are re-pulled (deduped on insert). */
+  const handleTeamOfficeResync = async () => {
+    setResyncing(true);
+    try {
+      const r = await fetch('/api/attendance/biometric/sync', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        // Task 161: full-window resync — replay the last 90 days (route max)
+        // so every missed day is re-pulled, re-matched and the attendance
+        // report is rebuilt from ALL punches, not just the last week.
+        body: JSON.stringify({ rematch: true, rewindDays: 90 }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Team Office resync failed');
+      if (d.skipped) {
+        toast.success(`Resync skipped: ${d.skipped}`);
+      } else {
+        toast.success(`Resync complete: ${d.imported || 0} imported, ${d.rematched || 0} re-matched, ${d.unmatched || 0} still unmatched.`);
+      }
+      await Promise.all([fetchTeamOfficeSyncStatus(), fetchDevices(), fetchPunches()]);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Team Office resync failed');
+      await fetchTeamOfficeSyncStatus();
+    } finally {
+      setResyncing(false);
+    }
+  };
+
   const handleTeamOfficeSync = async () => {
     setSyncingTeamOffice(true);
     try {
@@ -321,6 +355,38 @@ export default function BiometricPage() {
       await Promise.all([fetchTeamOfficeSyncStatus(), fetchDevices(), fetchPunches()]);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Team Office sync failed');
+      await fetchTeamOfficeSyncStatus();
+    } finally {
+      setSyncingTeamOffice(false);
+    }
+  };
+
+  // Task 158 — full re-sync: rewind the Team Office cursor to the start of
+  // the current month's record table and re-download everything (stored
+  // record keys make this idempotent), then recompute attendance for every
+  // biometric-punch day of the last 31 days (corrects late/half-day/work
+  // hours and replaces auto-present placeholders where real punches exist).
+  // (Distinct from Task 161's Resync & Rematch, which replays 90 days.)
+  const handleTeamOfficeRecalculate = async () => {
+    setSyncingTeamOffice(true);
+    try {
+      const monthTable = (teamOfficeSync?.lastRecord || '').split('$')[0];
+      const rewindToRecord = /^\d{6}$/.test(monthTable) ? `${monthTable}$1` : undefined;
+      const r = await fetch('/api/attendance/biometric/sync', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ rewindToRecord, reclassifyDays: 31 }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Team Office re-sync failed');
+      if (d.skipped) {
+        toast.success(`Re-sync skipped: ${d.skipped}`);
+      } else {
+        toast.success(`Re-sync complete: ${d.imported || 0} new punch(es) imported, ${d.duplicatesSkipped || 0} duplicate(s) skipped, ${d.lastRecord ? `checkpoint ${d.lastRecord}` : 'checkpoint unchanged'}. Attendance recalculated for the last 31 days.`);
+      }
+      await Promise.all([fetchTeamOfficeSyncStatus(), fetchDevices(), fetchPunches()]);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Team Office re-sync failed');
       await fetchTeamOfficeSyncStatus();
     } finally {
       setSyncingTeamOffice(false);
@@ -620,18 +686,48 @@ export default function BiometricPage() {
                   {teamOfficeSync?.status?.lastSyncAt ? ` Last sync: ${new Date(teamOfficeSync.status.lastSyncAt).toLocaleString()}.` : ''}
                   {teamOfficeSync?.status?.state === 'error' ? ` Last error: ${teamOfficeSync.status.message || 'Sync failed.'}` : ''}
                 </p>
+                {/* Task 158 — device staleness: the sync job can be green while
+                    the terminal itself stopped uploading; surface the age of
+                    the newest punch actually received. */}
+                {teamOfficeSync?.lastPunchAt ? (
+                  <p className={`text-xs mt-1 ${(teamOfficeSync.lastPunchAgeDays || 0) >= 2 ? 'text-amber-700 font-medium' : 'text-thb-text-secondary'}`}>
+                    Newest punch received: {new Date(teamOfficeSync.lastPunchAt).toLocaleString()}
+                    ({teamOfficeSync.lastPunchAgeDays === 1 ? '1 day ago' : `${teamOfficeSync.lastPunchAgeDays || 0} days ago`}).
+                    {(teamOfficeSync.lastPunchAgeDays || 0) >= 2 ? ' If employees are still punching, the terminal may be offline from the cloud — check the device network.' : ''}
+                  </p>
+                ) : null}
                 {teamOfficeSync?.status?.unmatched ? (
                   <p className="text-xs text-amber-700 mt-1">{teamOfficeSync.status.unmatched} punch(es) need an HRMS employee-code match.</p>
                 ) : null}
               </div>
-              <button
-                onClick={handleTeamOfficeSync}
-                disabled={syncingTeamOffice || !teamOfficeSync?.configured}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 text-sm font-medium"
-              >
-                <FiRefreshCw className={`w-4 h-4 ${syncingTeamOffice ? 'animate-spin' : ''}`} />
-                {syncingTeamOffice ? 'Syncing…' : 'Sync from Team Office'}
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={handleTeamOfficeSync}
+                  disabled={resyncing || syncingTeamOffice || !teamOfficeSync?.configured}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  <FiRefreshCw className={`w-4 h-4 ${syncingTeamOffice ? 'animate-spin' : ''}`} />
+                  {syncingTeamOffice ? 'Syncing…' : 'Sync from Team Office'}
+                </button>
+                <button
+                  onClick={handleTeamOfficeResync}
+                  disabled={resyncing || syncingTeamOffice || !teamOfficeSync?.configured}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-50 text-sm font-medium transition-colors"
+                  title="Re-match orphaned punches and re-pull the last 7 days from Team Office"
+                >
+                  <FiRefreshCw className={`w-4 h-4 ${resyncing ? 'animate-spin' : ''}`} />
+                  {resyncing ? 'Resyncing…' : 'Resync & Rematch'}
+                </button>
+                <button
+                  onClick={handleTeamOfficeRecalculate}
+                  disabled={resyncing || syncingTeamOffice || !teamOfficeSync?.configured}
+                  title="Re-download the whole month from Team Office (idempotent) and recompute attendance from all stored punches"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-50 text-sm font-medium transition-colors"
+                >
+                  <FiRefreshCw className={`w-4 h-4 ${syncingTeamOffice ? 'animate-spin' : ''}`} />
+                  {syncingTeamOffice ? 'Recalculating…' : 'Re-sync & recalculate'}
+                </button>
+              </div>
             </div>
           )}
           {devices.length === 0 && !loading ? (

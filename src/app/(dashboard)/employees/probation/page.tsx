@@ -111,7 +111,7 @@ const initialForm = {
 export default function ProbationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'company_hr_admin', 'hr_admin', 'manager'].includes((user?.role || '').toLowerCase());
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'company_hr_admin', 'hr_admin', 'manager'].includes((user?.role || '').toLowerCase());
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 

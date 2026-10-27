@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const role = (decoded.role as string) || 'employee';
-    if (!['super_admin', 'tenant_admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(role)) {
       return NextResponse.json({ error: 'Only super_admin and tenant_admin can clean up sample data' }, { status: 403, headers: corsHeaders() });
     }
 

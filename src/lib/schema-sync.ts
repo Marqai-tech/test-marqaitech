@@ -1116,6 +1116,15 @@ const SYNC_STATEMENTS: string[] = [
     CONSTRAINT "CollaborationSettings_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "CollaborationSettings_tenantId_key" ON "CollaborationSettings"("tenantId")`,
+  // ─── Task 122: chat governance columns ───
+  `ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "chatCustomManagersEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "chatGroupManagerIds" TEXT NOT NULL DEFAULT '[]'`,
+  `ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "chatDirectDeleteEnabled" BOOLEAN NOT NULL DEFAULT true`,
+  // ─── Task 122: room soft-delete audit trail + per-member hidden flag ───
+  `ALTER TABLE "ChatRoom" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "ChatRoom" ADD COLUMN IF NOT EXISTS "deletedBy" TEXT`,
+  `ALTER TABLE "ChatRoomMember" ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "ChatRoomMember" ADD COLUMN IF NOT EXISTS "hiddenAt" TIMESTAMP(3)`,
 
   // ─── CalendarEvent: ensure table exists ───
   `CREATE TABLE IF NOT EXISTS "CalendarEvent" (

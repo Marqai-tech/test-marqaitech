@@ -1,3 +1,4 @@
+// Build: task152-152fix-cachebust-2026-10-25 (fresh build cache for missing API routes)
 // Build: 3boxes-hrms-favicon-fix-2026-08-06
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';

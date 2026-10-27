@@ -6,8 +6,7 @@ import {
   FiMonitor, FiShield, FiHeadphones, FiActivity,
   FiRefreshCw, FiHardDrive, FiAlertTriangle, FiCheckCircle,
   FiServer, FiWifi, FiLock, FiDatabase, FiClock,
-  FiArrowUp, FiArrowDown, FiChevronRight,
-  FiPlus, FiTrendingUp, FiX, FiFileText,
+  FiChevronRight, FiPlus,
 } from 'react-icons/fi';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -15,6 +14,9 @@ import {
 } from 'recharts';
 import toast from 'react-hot-toast';
 import { isClientDemoMode } from '@/lib/site-mode';
+/* Task 156-d — shared SmartHR widgets: same gradient banner / stat cards /
+   panels as the Employee module dashboard (Task 155 reference). */
+import { PageBreadcrumbs, DateChip, Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 
 /* ================================================================
    IT Admin Dashboard Hub – 3Boxes HRMS
@@ -47,6 +49,17 @@ const COLORS = {
 };
 
 const PIE_COLORS = [COLORS.emerald, COLORS.rose, COLORS.amber, COLORS.slate];
+
+/* Task 156-d — SmartHR pastel accent rotation for stat card rows
+   (royal → emerald → orange → rose → info → violet). */
+const STAT_ACCENTS = [
+  { bg: 'bg-[#3A57C4]/10 text-[#3A57C4]', ring: 'ring-[#3A57C4]/20' },
+  { bg: 'bg-[#10B981]/10 text-[#10B981]', ring: 'ring-[#10B981]/20' },
+  { bg: 'bg-[#FF9B44]/10 text-[#FF9B44]', ring: 'ring-[#FF9B44]/20' },
+  { bg: 'bg-[#F43F5E]/10 text-[#F43F5E]', ring: 'ring-[#F43F5E]/20' },
+  { bg: 'bg-[#009EFB]/10 text-[#009EFB]', ring: 'ring-[#009EFB]/20' },
+  { bg: 'bg-[#6C4FD6]/10 text-[#6C4FD6]', ring: 'ring-[#6C4FD6]/20' },
+];
 
 const SEVERITY_CONFIG: Record<string, { bg: string; text: string; dot: string }> = {
   CRITICAL: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
@@ -366,6 +379,8 @@ const TABS: TabDef[] = [
 export default function ITAdminHubPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
+  /* Task 156-d — date chip for the SmartHR banner right slot */
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const [stats] = useState<ITStat[]>(getDemoStats());
   const [systemHealth] = useState<SystemHealthPoint[]>(getDemoSystemHealth());
@@ -408,28 +423,23 @@ export default function ITAdminHubPage() {
 
   /* ---- Render helpers ---- */
 
-  function renderStatCard(stat: ITStat) {
+  function renderStatCard(stat: ITStat, idx: number) {
+    /* Task 156-d — shared SmartHR StatCard (white card + colourful top accent
+       bar + round pastel icon). The old trend chip is folded into the sub
+       line so no data is lost. */
+    const accent = STAT_ACCENTS[idx % STAT_ACCENTS.length];
     return (
-      <div key={stat.label} className="thb-card thb-card-hover p-5 rounded-2xl border border-slate-100">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 flex-1 min-w-0">
-            <p className="text-xs font-medium text-slate-500 truncate">{stat.label}</p>
-            <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
-          </div>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.bgColor}`} style={{ color: stat.color }}>
-            {stat.icon}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 mt-3">
-          {stat.trend !== undefined && (
-            <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${stat.trend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {stat.trend >= 0 ? <FiArrowUp className="w-3 h-3" /> : <FiArrowDown className="w-3 h-3" />}
-              {Math.abs(stat.trend)}%
-            </span>
-          )}
-          <span className="text-xs text-slate-500">{stat.sub}</span>
-        </div>
-      </div>
+      <StatCard
+        key={stat.label}
+        label={stat.label}
+        value={stat.value}
+        sub={stat.trend !== undefined
+          ? `${stat.trend >= 0 ? '+' : '-'}${Math.abs(stat.trend)}% ${stat.trendLabel || ''} · ${stat.sub}`
+          : stat.sub}
+        icon={stat.icon}
+        bg={accent.bg}
+        ring={accent.ring}
+      />
     );
   }
 
@@ -438,23 +448,27 @@ export default function ITAdminHubPage() {
   function renderDashboardTab() {
     return (
       <div className="space-y-6">
-        {/* Stats Row */}
+        {/* Stats Row — shared SmartHR StatCard */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {stats.map(renderStatCard)}
+          {stats.map((s, i) => renderStatCard(s, i))}
         </div>
 
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* System Health */}
-          <div className="lg:col-span-2 thb-card p-6 rounded-2xl border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-800">System Health — Last 24 Hours</h3>
-              <div className="flex items-center gap-4 text-xs text-slate-500">
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.blue }} /> CPU</span>
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.violet }} /> Memory</span>
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.amber }} /> Disk</span>
-              </div>
-            </div>
+          {/* System Health — SmartHR Panel */}
+          <div className="lg:col-span-2">
+            <Panel
+              title="System Health — Last 24 Hours"
+              icon={<FiActivity className="w-4 h-4" />}
+              accent="text-[#3A57C4]"
+              action={
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.blue }} /> CPU</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.violet }} /> Memory</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.amber }} /> Disk</span>
+                </div>
+              }
+            >
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={systemHealth} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -466,11 +480,11 @@ export default function ITAdminHubPage() {
                 <Area type="monotone" dataKey="disk" stroke={COLORS.amber} fill={COLORS.amber} fillOpacity={0.1} strokeWidth={2} name="Disk" />
               </AreaChart>
             </ResponsiveContainer>
+            </Panel>
           </div>
 
-          {/* Device Status Pie */}
-          <div className="thb-card p-6 rounded-2xl border border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Device Status</h3>
+          {/* Device Status — SmartHR Panel */}
+          <Panel title="Device Status" icon={<FiMonitor className="w-4 h-4" />} accent="text-[#6C4FD6]">
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie data={deviceDist} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value">
@@ -490,14 +504,13 @@ export default function ITAdminHubPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </Panel>
         </div>
 
         {/* Charts Row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Ticket Distribution */}
-          <div className="thb-card p-6 rounded-2xl border border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Ticket Distribution by Category</h3>
+          {/* Ticket Distribution — SmartHR Panel */}
+          <Panel title="Ticket Distribution by Category" icon={<FiHeadphones className="w-4 h-4" />} accent="text-[#009EFB]">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={ticketsByCategory} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -507,19 +520,22 @@ export default function ITAdminHubPage() {
                 <Bar dataKey="count" fill={COLORS.blue} radius={[6, 6, 0, 0]} name="Tickets" />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </Panel>
 
-          {/* Security Alerts */}
-          <div className="thb-card p-6 rounded-2xl border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-800">Security Alerts</h3>
+          {/* Security Alerts — SmartHR Panel */}
+          <Panel
+            title="Security Alerts"
+            icon={<FiShield className="w-4 h-4" />}
+            accent="text-[#FF9B44]"
+            action={
               <button
                 onClick={() => router.push('/it-admin/security')}
-                className="text-xs text-thb-primary hover:text-thb-primary-dark font-medium flex items-center gap-1"
+                className="text-xs font-semibold text-[#3A57C4] hover:text-[#2C43A3] inline-flex items-center gap-1"
               >
                 View All <FiChevronRight className="w-3 h-3" />
               </button>
-            </div>
+            }
+          >
             <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
               {securityAlerts.map((alert) => {
                 const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.LOW;
@@ -537,13 +553,12 @@ export default function ITAdminHubPage() {
                 );
               })}
             </div>
-          </div>
+          </Panel>
 
-          {/* System Uptime & Quick Actions */}
+          {/* System Uptime & Quick Actions — SmartHR Panels */}
           <div className="space-y-6">
             {/* Uptime Gauge */}
-            <div className="thb-card p-6 rounded-2xl border border-slate-100">
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">System Uptime</h3>
+            <Panel title="System Uptime" icon={<FiActivity className="w-4 h-4" />} accent="text-[#10B981]">
               <div className="flex items-center justify-center">
                 <div className="relative w-32 h-32">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
@@ -557,11 +572,10 @@ export default function ITAdminHubPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Panel>
 
             {/* Quick Actions */}
-            <div className="thb-card p-6 rounded-2xl border border-slate-100">
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">Quick Actions</h3>
+            <Panel title="Quick Actions" icon={<FiPlus className="w-4 h-4" />} accent="text-[#FFC107]">
               <div className="grid grid-cols-2 gap-2">
                 {quickActions.map((qa) => (
                   <button
@@ -575,15 +589,14 @@ export default function ITAdminHubPage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </Panel>
           </div>
         </div>
 
         {/* Recent Activities & Active Tickets */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Activities */}
-          <div className="thb-card p-6 rounded-2xl border border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Recent Activities</h3>
+          {/* Recent Activities — SmartHR Panel */}
+          <Panel title="Recent Activities" icon={<FiActivity className="w-4 h-4" />} accent="text-[#6C4FD6]">
             <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
               {recentActivities.map((act) => {
                 const typeColors: Record<string, string> = {
@@ -606,19 +619,22 @@ export default function ITAdminHubPage() {
                 );
               })}
             </div>
-          </div>
+          </Panel>
 
-          {/* Active Tickets */}
-          <div className="thb-card p-6 rounded-2xl border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-800">Active Tickets</h3>
+          {/* Active Tickets — SmartHR Panel */}
+          <Panel
+            title="Active Tickets"
+            icon={<FiHeadphones className="w-4 h-4" />}
+            accent="text-[#3A57C4]"
+            action={
               <button
                 onClick={() => router.push('/it-admin/tickets')}
-                className="text-xs text-thb-primary hover:text-thb-primary-dark font-medium flex items-center gap-1"
+                className="text-xs font-semibold text-[#3A57C4] hover:text-[#2C43A3] inline-flex items-center gap-1"
               >
                 View All <FiChevronRight className="w-3 h-3" />
               </button>
-            </div>
+            }
+          >
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -647,7 +663,7 @@ export default function ITAdminHubPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Panel>
         </div>
       </div>
     );
@@ -658,19 +674,23 @@ export default function ITAdminHubPage() {
   function renderDevicesTab() {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">Device Inventory</h3>
-          <button
-            onClick={() => router.push('/it-admin/devices')}
-            className="px-4 py-2 bg-thb-primary text-white rounded-xl text-xs font-medium hover:bg-thb-primary-dark transition-colors flex items-center gap-2"
-          >
-            <FiMonitor className="w-4 h-4" /> View Full Inventory
-          </button>
-        </div>
-        <div className="thb-card rounded-2xl border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-50/80">
+        <Panel
+          title="Device Inventory"
+          icon={<FiMonitor className="w-4 h-4" />}
+          accent="text-[#3A57C4]"
+          action={
+            <button
+              onClick={() => router.push('/it-admin/devices')}
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-[#3A57C4] text-white shadow-sm hover:bg-[#2C43A3] transition-colors"
+            >
+              <FiMonitor className="w-4 h-4" /> View Full Inventory
+            </button>
+          }
+        >
+          <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50/80">
                 <tr className="text-slate-500">
                   <th className="px-4 py-3 text-left font-medium">Device Name</th>
                   <th className="px-4 py-3 text-left font-medium">Type</th>
@@ -699,7 +719,8 @@ export default function ITAdminHubPage() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </Panel>
       </div>
     );
   }
@@ -715,29 +736,34 @@ export default function ITAdminHubPage() {
     ];
     return (
       <div className="space-y-6">
+        {/* Security summary — shared SmartHR StatCard */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {secStats.map((s) => (
-            <div key={s.label} className="thb-card p-5 rounded-2xl border border-slate-100 flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.bgColor}`} style={{ color: s.color }}>
-                {s.icon}
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{s.label}</p>
-                <p className="text-lg font-bold text-slate-800">{s.value}</p>
-              </div>
-            </div>
+          {secStats.map((s, i) => (
+            <StatCard
+              key={s.label}
+              label={s.label}
+              value={s.value}
+              sub=""
+              icon={s.icon}
+              bg={STAT_ACCENTS[i % STAT_ACCENTS.length].bg}
+              ring={STAT_ACCENTS[i % STAT_ACCENTS.length].ring}
+            />
           ))}
         </div>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">Security Alerts</h3>
-          <button
-            onClick={() => router.push('/it-admin/security')}
-            className="px-4 py-2 bg-thb-primary text-white rounded-xl text-xs font-medium hover:bg-thb-primary-dark transition-colors flex items-center gap-2"
-          >
-            <FiShield className="w-4 h-4" /> Full Security Dashboard
-          </button>
-        </div>
-        <div className="thb-card p-6 rounded-2xl border border-slate-100">
+        {/* Security Alerts — SmartHR Panel */}
+        <Panel
+          title="Security Alerts"
+          icon={<FiShield className="w-4 h-4" />}
+          accent="text-[#FF9B44]"
+          action={
+            <button
+              onClick={() => router.push('/it-admin/security')}
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-[#3A57C4] text-white shadow-sm hover:bg-[#2C43A3] transition-colors"
+            >
+              <FiShield className="w-4 h-4" /> Full Security Dashboard
+            </button>
+          }
+        >
           <div className="space-y-3">
             {securityAlerts.map((alert) => {
               const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.LOW;
@@ -755,7 +781,7 @@ export default function ITAdminHubPage() {
               );
             })}
           </div>
-        </div>
+        </Panel>
       </div>
     );
   }
@@ -765,19 +791,23 @@ export default function ITAdminHubPage() {
   function renderTicketsTab() {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">IT Support Tickets</h3>
-          <button
-            onClick={() => router.push('/it-admin/tickets')}
-            className="px-4 py-2 bg-thb-primary text-white rounded-xl text-xs font-medium hover:bg-thb-primary-dark transition-colors flex items-center gap-2"
-          >
-            <FiHeadphones className="w-4 h-4" /> Full Ticket System
-          </button>
-        </div>
-        <div className="thb-card rounded-2xl border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-50/80">
+        <Panel
+          title="IT Support Tickets"
+          icon={<FiHeadphones className="w-4 h-4" />}
+          accent="text-[#3A57C4]"
+          action={
+            <button
+              onClick={() => router.push('/it-admin/tickets')}
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-[#3A57C4] text-white shadow-sm hover:bg-[#2C43A3] transition-colors"
+            >
+              <FiHeadphones className="w-4 h-4" /> Full Ticket System
+            </button>
+          }
+        >
+          <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50/80">
                 <tr className="text-slate-500">
                   <th className="px-4 py-3 text-left font-medium">ID</th>
                   <th className="px-4 py-3 text-left font-medium">Title</th>
@@ -805,7 +835,8 @@ export default function ITAdminHubPage() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </Panel>
       </div>
     );
   }
@@ -815,19 +846,23 @@ export default function ITAdminHubPage() {
   function renderSoftwareTab() {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">Software & Licenses</h3>
-          <button
-            onClick={() => router.push('/it-admin/software')}
-            className="px-4 py-2 bg-thb-primary text-white rounded-xl text-xs font-medium hover:bg-thb-primary-dark transition-colors flex items-center gap-2"
-          >
-            <FiDatabase className="w-4 h-4" /> Full License Management
-          </button>
-        </div>
-        <div className="thb-card rounded-2xl border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-50/80">
+        <Panel
+          title="Software & Licenses"
+          icon={<FiDatabase className="w-4 h-4" />}
+          accent="text-[#6C4FD6]"
+          action={
+            <button
+              onClick={() => router.push('/it-admin/software')}
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-[#3A57C4] text-white shadow-sm hover:bg-[#2C43A3] transition-colors"
+            >
+              <FiDatabase className="w-4 h-4" /> Full License Management
+            </button>
+          }
+        >
+          <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50/80">
                 <tr className="text-slate-500">
                   <th className="px-4 py-3 text-left font-medium">Software</th>
                   <th className="px-4 py-3 text-left font-medium">Version</th>
@@ -854,7 +889,8 @@ export default function ITAdminHubPage() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </Panel>
       </div>
     );
   }
@@ -864,29 +900,34 @@ export default function ITAdminHubPage() {
   function renderNetworkTab() {
     return (
       <div className="space-y-6">
+        {/* Network summary — shared SmartHR StatCard */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {networkStats.map((s) => (
-            <div key={s.id} className="thb-card p-5 rounded-2xl border border-slate-100 flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.bgColor}`} style={{ color: s.color }}>
-                {s.icon}
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{s.label}</p>
-                <p className="text-lg font-bold text-slate-800">{s.value}</p>
-              </div>
-            </div>
+          {networkStats.map((s, i) => (
+            <StatCard
+              key={s.id}
+              label={s.label}
+              value={s.value}
+              sub=""
+              icon={s.icon}
+              bg={STAT_ACCENTS[i % STAT_ACCENTS.length].bg}
+              ring={STAT_ACCENTS[i % STAT_ACCENTS.length].ring}
+            />
           ))}
         </div>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">Network Overview</h3>
-          <button
-            onClick={() => router.push('/it-admin/network')}
-            className="px-4 py-2 bg-thb-primary text-white rounded-xl text-xs font-medium hover:bg-thb-primary-dark transition-colors flex items-center gap-2"
-          >
-            <FiWifi className="w-4 h-4" /> Full Network Dashboard
-          </button>
-        </div>
-        <div className="thb-card p-6 rounded-2xl border border-slate-100">
+        {/* Network Overview — SmartHR Panel */}
+        <Panel
+          title="Network Overview"
+          icon={<FiWifi className="w-4 h-4" />}
+          accent="text-[#009EFB]"
+          action={
+            <button
+              onClick={() => router.push('/it-admin/network')}
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-[#3A57C4] text-white shadow-sm hover:bg-[#2C43A3] transition-colors"
+            >
+              <FiWifi className="w-4 h-4" /> Full Network Dashboard
+            </button>
+          }
+        >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-slate-700">Network Devices</h4>
@@ -942,7 +983,7 @@ export default function ITAdminHubPage() {
               ))}
             </div>
           </div>
-        </div>
+        </Panel>
       </div>
     );
   }
@@ -951,31 +992,23 @@ export default function ITAdminHubPage() {
 
   return (
     <div className="min-h-screen bg-thb-background">
-      {/* Hero Gradient */}
-      <div className="bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 px-4 md:px-6 pt-6 pb-8">
-        <div className="max-w-[1400px] mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <FiServer className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl md:text-2xl font-bold text-white">IT Admin</h1>
-                  <p className="text-white/80 text-xs">3Boxes HRMS — Infrastructure & Security Management</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+      {/* Task 156-d — shared SmartHR gradient banner replaces the red/orange hero */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-6 pt-6">
+        <PageBreadcrumbs
+          title="IT Admin Console"
+          trail={['IT Admin', 'Console']}
+          right={
+            <>
+              <DateChip value={todayChip} />
               <button
                 onClick={() => { toast.success('Refreshing data...'); }}
-                className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded-lg text-xs font-medium hover:bg-white/30 transition-colors flex items-center gap-1.5"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors"
               >
                 <FiRefreshCw className="w-3.5 h-3.5" /> Refresh
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       </div>
 
       {/* Tab Navigation */}
@@ -990,7 +1023,7 @@ export default function ITAdminHubPage() {
                 onClick={() => handleTabClick(tab)}
                 className={`flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${
                   activeTab === tab.key
-                    ? 'bg-red-50 text-red-700 shadow-sm'
+                    ? 'bg-[#3A57C4] text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
                 }`}
               >

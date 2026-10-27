@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   FiPlus, FiRefreshCw, FiClock, FiGitBranch, FiZap, FiShield, FiCheckCircle,
-  FiXCircle, FiEye, FiX, FiArrowRight, FiList,
+  FiXCircle, FiEye, FiX, FiArrowRight, FiList, FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -21,13 +21,14 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-type RequestType = 'REGULARIZATION' | 'WFH' | 'HOURLY_PERMISSION' | 'GATE_PASS';
+type RequestType = 'REGULARIZATION' | 'WFH' | 'HOURLY_PERMISSION' | 'GATE_PASS' | 'HOLIDAY_WORK';
 
 const TYPE_META: Record<RequestType, { label: string; icon: React.ReactNode; color: string }> = {
   REGULARIZATION: { label: 'Regularization', icon: <FiClock className="w-4 h-4" />, color: 'amber' },
   WFH: { label: 'Work From Home', icon: <FiGitBranch className="w-4 h-4" />, color: 'violet' },
   HOURLY_PERMISSION: { label: 'Hourly Permission', icon: <FiZap className="w-4 h-4" />, color: 'emerald' },
   GATE_PASS: { label: 'Gate Pass', icon: <FiShield className="w-4 h-4" />, color: 'cyan' },
+  HOLIDAY_WORK: { label: 'Holiday / Weekend Work', icon: <FiCalendar className="w-4 h-4" />, color: 'rose' },
 };
 
 interface Approval {
@@ -72,7 +73,7 @@ function fmtDT(v?: string | null) {
 
 export default function AttendanceRequestsPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
   const [scope, setScope] = useState<'mine' | 'inbox' | 'all'>('mine');
   const [items, setItems] = useState<AttRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -356,6 +357,7 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
       if (type === 'WFH') { body.startDate = form.startDate; body.endDate = form.endDate || form.startDate; body.remoteLocation = form.remoteLocation; }
       if (type === 'HOURLY_PERMISSION') { body.date = form.date; body.startTime = form.startTime; body.endTime = form.endTime; }
       if (type === 'GATE_PASS') { body.date = form.date; body.departureTime = form.departureTime; body.expectedReturn = form.expectedReturn; body.destination = form.destination; }
+      if (type === 'HOLIDAY_WORK') { body.startDate = form.startDate; body.endDate = form.endDate || form.startDate; if (form.expectedHours) body.expectedHours = Number(form.expectedHours); }
       const res = await fetch('/api/attendance/requests', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
       const data = await res.json();
       if (res.ok) {
@@ -386,13 +388,14 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                   className="p-4 rounded-xl border border-thb-border text-left hover:border-teal-300 hover:bg-teal-50/40 transition-colors">
                   <span className={`inline-flex p-2 rounded-lg mb-2 ${
                     m.color === 'amber' ? 'bg-amber-50 text-amber-600' : m.color === 'violet' ? 'bg-violet-50 text-violet-600' :
-                    m.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : 'bg-cyan-50 text-cyan-600'}`}>{m.icon}</span>
+                    m.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : m.color === 'rose' ? 'bg-rose-50 text-rose-600' : 'bg-cyan-50 text-cyan-600'}`}>{m.icon}</span>
                   <p className="text-sm font-bold text-thb-text-primary">{m.label}</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     {t === 'REGULARIZATION' && 'Fix a missed punch / biometric error'}
                     {t === 'WFH' && 'Work from home (full or half day)'}
                     {t === 'HOURLY_PERMISSION' && 'Short leave for 1–4 hours'}
                     {t === 'GATE_PASS' && 'Official or personal OUT pass'}
+                    {t === 'HOLIDAY_WORK' && 'Pre-approval to punch on a holiday/weekend'}
                   </p>
                 </button>
               );
@@ -448,6 +451,17 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                   <div><label className="text-xs font-semibold text-slate-500">Expected return</label><input type="time" value={form.expectedReturn || ''} onChange={e => set('expectedReturn', e.target.value)} className={`${inp} mt-1`} /></div>
                 </div>
                 <div><label className="text-xs font-semibold text-slate-500">Destination</label><input value={form.destination || ''} onChange={e => set('destination', e.target.value)} placeholder="e.g. Client office — Hitech City" className={`${inp} mt-1`} /></div>
+              </>
+            )}
+
+            {type === 'HOLIDAY_WORK' && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className="text-xs font-semibold text-slate-500">Holiday / weekend date *</label><input type="date" value={form.startDate || ''} onChange={e => set('startDate', e.target.value)} className={`${inp} mt-1`} /></div>
+                  <div><label className="text-xs font-semibold text-slate-500">End date (optional)</label><input type="date" value={form.endDate || ''} onChange={e => set('endDate', e.target.value)} className={`${inp} mt-1`} /></div>
+                </div>
+                <div><label className="text-xs font-semibold text-slate-500">Expected working hours (optional)</label><input type="number" min="1" max="12" value={form.expectedHours || ''} onChange={e => set('expectedHours', e.target.value)} placeholder="e.g. 4" className={`${inp} mt-1`} /></div>
+                <p className="text-[11px] text-slate-400">Approval unlocks mobile-app / web punches for that date. Biometric punches on holidays are always recorded.</p>
               </>
             )}
 

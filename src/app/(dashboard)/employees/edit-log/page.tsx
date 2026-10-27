@@ -65,7 +65,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 export default function EmployeeEditLogPage() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
 
   const [requests, setRequests] = useState<UpdateRequest[]>([]);
   const [transferAudits, setTransferAudits] = useState<TransferAudit[]>([]);
@@ -77,6 +77,10 @@ export default function EmployeeEditLogPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      // Admins viewing the edit log should see ALL employees' requests, not
+      // just their own. Without scope=all the API defaults to scope=mine and
+      // the audit log appears empty for changes submitted by other employees.
+      if (isAdmin) params.set('scope', 'all');
       if (filterStatus !== 'all') params.set('status', filterStatus);
       if (filterCategory !== 'all') params.set('category', filterCategory);
       const sq = scopeQuery();
@@ -127,7 +131,7 @@ export default function EmployeeEditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterCategory, scopeQuery]);
+  }, [filterStatus, filterCategory, scopeQuery, isAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

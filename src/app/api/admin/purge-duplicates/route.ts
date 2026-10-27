@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     if (!decoded) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role as string)) {
       return NextResponse.json({ error: 'Only admins can purge duplicates' }, { status: 403 });
     }
 
@@ -269,7 +269,7 @@ export async function POST(request: Request) {
       select: { id: true, email: true, userId: true },
     });
     const employeeUserIds = new Set(remainingEmployees.filter(e => e.userId).map(e => e.userId!));
-    const orphanUsers = allUsers.filter(u => !employeeUserIds.has(u.id) && !['super_admin', 'tenant_admin', 'admin'].includes(u.role || ''));
+    const orphanUsers = allUsers.filter(u => !employeeUserIds.has(u.id) && !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(u.role || ''));
 
     if (orphanUsers.length > 0) {
       summary.details.push(`Found ${orphanUsers.length} orphaned users (no employee record) — these are likely from previous seed runs. To clean them up, use the "Reset Employee Data" feature.`);

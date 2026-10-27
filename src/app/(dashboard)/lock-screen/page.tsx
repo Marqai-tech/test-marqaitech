@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { validatePasswordRequired } from '@/lib/validators';
-import { isRememberMe, setToken as persistAuthToken } from '@/lib/token-storage';
+import { homeHrefForRole } from '@/lib/roleAccess';
 
 export default function LockScreenPage() {
   const router = useRouter();
@@ -32,26 +32,18 @@ export default function LockScreenPage() {
     }
     setLoading(true);
     try {
-      // BUG_001 / BUG_002 fix: preserve the remember-me flag across lock-screen
-      // unlock. If the user originally selected "Keep me signed in for 30
-      // days", we re-issue the JWT with the 30-day TTL and persist it via
-      // the proper token-storage helper (which writes to real localStorage
-      // when remember=true, surviving tab close/reopen). Using raw
-      // localStorage.setItem('tb_token', ...) was intercepted by the storage
-      // shim and routed to sessionStorage, destroying the durable session.
-      const remembered = isRememberMe();
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user?.email, password, rememberMe: remembered }),
+        body: JSON.stringify({ email: user?.email, password }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.token) {
-          persistAuthToken(data.token, { remember: remembered });
+          localStorage.setItem('tb_token', data.token);
         }
         toast.success('Welcome back!');
-        router.push('/home');
+        router.push(homeHrefForRole(user?.role));
       } else {
         toast.error('Incorrect password. Please try again.');
       }

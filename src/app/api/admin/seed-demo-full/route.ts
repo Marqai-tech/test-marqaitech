@@ -133,7 +133,7 @@ async function authorize(request: Request) {
   if (!token) return { error: json({ error: 'Unauthorized' }, 401) };
   const decoded = await verifyToken(token);
   if (!decoded) return { error: json({ error: 'Invalid token' }, 401) };
-  if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string)) {
+  if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role as string)) {
     return { error: json({ error: 'Only admins can seed demo data' }, 403) };
   }
   return { decoded };

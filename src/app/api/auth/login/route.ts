@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     if (isTestPlatformHost(hostHeader) || tenantSlug === 'test') {
       // QA uses the isolated copied tenant database rather than the platform
       // database, which only contains platform identities.
-      tenantSlug = process.env.TEST_TENANT_SLUG || 'acme-global-demo';
+      tenantSlug = process.env.TEST_TENANT_SLUG || 'test-marqaitech';
     }
     let subdomainTenantId: string | null = null;
 
@@ -102,27 +102,18 @@ export async function POST(request: Request) {
         // Super admins can still log in from any domain (they control tenant status).
         // For all other roles, a suspended/inactive/pending_approval tenant
         // means the user cannot log in.
-        //
-        // BUG_019 fix: tenants with status 'trial' or 'active' may log in.
-        // The previous check (`status !== 'active'`) rejected trial tenants
-        // outright with a "tenant is trial, access denied" error — meaning
-        // the admin who just created a trial could NOT log in to the trial
-        // portal they had just provisioned. Trial expiry is enforced later
-        // in the flow (lines ~481+) by inspecting TrialRegistration.trialEnd.
-        const TRIAL_ALLOWED_STATUSES = ['active', 'trial'];
-        if (!TRIAL_ALLOWED_STATUSES.includes(subdomainTenant.status)) {
+        if (subdomainTenant.status !== 'active') {
           const statusMessages: Record<string, string> = {
             suspended: `Your tenant "${subdomainTenant.name}" has been suspended. Please contact the super admin to reactivate your account.`,
             inactive: `Your tenant "${subdomainTenant.name}" is inactive. Please contact the super admin.`,
             pending_approval: `Your tenant "${subdomainTenant.name}" is pending approval. You cannot log in until the super admin approves your account.`,
-            expired: `Your trial for "${subdomainTenant.name}" has expired. Please contact 3Boxes HRMS support to activate your subscription.`,
           };
           // Note: We don't know the user's role yet at this point, but we
           // check the tenant status first. Super admins log in via the
           // platform domain (3boxeshrms.com) which has no tenant slug,
           // so this check won't affect them.
           return NextResponse.json(
-            {
+            { 
               error: statusMessages[subdomainTenant.status] || `Your tenant "${subdomainTenant.name}" is ${subdomainTenant.status}. Access denied.`,
               code: 'TENANT_BLOCKED',
               tenantStatus: subdomainTenant.status,
@@ -196,10 +187,31 @@ export async function POST(request: Request) {
             select: userSelect,
           });
         } else if (employeeIdInput) {
-          // Employee ID lookup — case-insensitive match on Employee.employeeId
-          // Resolve to userId, then load the User
+          // Task 127: Employee ID OR MOBILE NUMBER lookup. The mobile app's
+          // sign-in screen has a country-code selector; digit-only identities
+          // are phone numbers (optionally prefixed by the selected dial code).
+          // Match Employee.phone against the raw digits, +<digits>,
+          // <dialCode><digits> and (for long inputs) the last 10 digits —
+          // production stores plain 10-digit locals ("7671813161").
+          const identityDigits = employeeIdInput.replace(/\D/g, '');
+          const dialDigits = String(body.dialCode || '').replace(/\D/g, '');
+          const phoneCandidates = new Set<string>();
+          if (identityDigits.length >= 6) {
+            phoneCandidates.add(identityDigits);
+            phoneCandidates.add(`+${identityDigits}`);
+            if (dialDigits) {
+              phoneCandidates.add(`${dialDigits}${identityDigits}`);
+              phoneCandidates.add(`+${dialDigits}${identityDigits}`);
+            }
+            if (identityDigits.length > 10) phoneCandidates.add(identityDigits.slice(-10));
+          }
           const emp = await tenantDbForLogin.employee.findFirst({
-            where: { employeeId: { equals: employeeIdInput, mode: 'insensitive' } },
+            where: {
+              OR: [
+                { employeeId: { equals: employeeIdInput, mode: 'insensitive' } },
+                ...(phoneCandidates.size > 0 ? [{ phone: { in: [...phoneCandidates] } }] : []),
+              ],
+            },
             select: { userId: true },
           }).catch(() => null);
           if (emp?.userId) {
@@ -240,6 +252,58 @@ export async function POST(request: Request) {
     // If user was found in tenant DB, attach tenant info
     if (user && !user.tenant && userTenant) {
       user.tenant = userTenant;
+    }
+
+    // ─── Task 132: cross-tenant suggestion for users who exist ONLY in a
+    // tenant DB (no platform mirror row) ────────────────────────────────────
+    // The mobile app's workspace ladder is: configured workspace → live apex
+    // → suggested tenant subdomain. The apex can only produce `suggestedUrl`
+    // from a PLATFORM-DB row (Rule 0). Users created directly in a tenant DB
+    // (e.g. the MarqAI CEO added in Task 129) have no mirror row, so the apex
+    // answered a flat 401 "Invalid email, employee ID, or password" and the
+    // ladder died — the mobile app rejected a perfectly valid tenant password
+    // and never reached the tenant workspace.
+    // Fix: when no DB holds this email, sweep the ACTIVE tenant DBs (demo
+    // excluded — its workspace URL is not a *.3boxeshrms.com subdomain). If a
+    // tenant DB has this email AND the password verifies, answer with the
+    // same 403 + suggestedUrl shape as Rule 0. The client then re-authenticates
+    // fully at that tenant host, so NO session/token is minted here and
+    // candidate/invited/status edge cases stay on the tenant host's path.
+    if (!user && email && !tenantSlug) {
+      try {
+        const sweepDbs = await platformDb.tenantDatabase.findMany({
+          where: { isActive: true, tenant: { isNot: { slug: '3boxes-hrms-demo' } } },
+          select: { connectionString: true, tenant: { select: { slug: true } } },
+        });
+        for (const td of sweepDbs) {
+          if (!td.connectionString || !td.tenant?.slug) continue;
+          let candidate: any = null;
+          try {
+            const sweepTenantDb = await getDbForTenant(td.tenant.slug);
+            candidate = await sweepTenantDb.user.findUnique({
+              where: { email },
+              select: { id: true, password: true },
+            });
+          } catch (sweepDbErr) {
+            console.error(`[Login] Tenant sweep skipped ${td.tenant.slug}:`, sweepDbErr);
+            continue;
+          }
+          if (!candidate) continue;
+          const pwOk = await verifyPassword(password, candidate.password).catch(() => false);
+          if (!pwOk) continue;
+          console.log(`[Login] Task 132 sweep: ${email} resolved to tenant ${td.tenant.slug} — suggesting workspace`);
+          return NextResponse.json(
+            {
+              error: `This login page is for platform super admins only. Please log in at https://${td.tenant.slug}.3boxeshrms.com/login.`,
+              code: 'MAIN_DOMAIN_SUPER_ADMIN_ONLY',
+              suggestedUrl: `https://${td.tenant.slug}.3boxeshrms.com/login`,
+            },
+            { status: 403, headers: corsHeaders() }
+          );
+        }
+      } catch (sweepErr) {
+        console.error('[Login] Tenant sweep failed:', sweepErr);
+      }
     }
 
     if (!user) {
@@ -323,7 +387,16 @@ export async function POST(request: Request) {
       } catch { /* best-effort — don't block self-heal if Employee lookup fails */ }
     }
 
-    if (!isValid && password === 'MarqAI@2026' && !recentlyInvited) {
+    // Task 134 post-deploy fix: the heal must never defeat a REAL password.
+    // It now fires ONLY when the stored value is not a valid bcrypt hash at
+    // all (corrupt legacy seed rows). Any properly hashed password — an
+    // invite password or one a user set via Change Password — is protected:
+    // a mismatch is a genuine wrong-password, not a stale seed, so the user
+    // gets the normal 401 / Forgot-Password path instead of being silently
+    // reset back to 'MarqAI@2026'.
+    const storedHashLooksBcrypt =
+      typeof user.password === 'string' && /^\$2[aby]\$/.test(user.password) && user.password.length >= 59;
+    if (!isValid && password === 'MarqAI@2026' && !recentlyInvited && !storedHashLooksBcrypt) {
       console.log(`[Login] Password mismatch for ${email || employeeIdInput}. Attempting self-healing reset...`);
       try {
         const newHash = await hashPassword(password);

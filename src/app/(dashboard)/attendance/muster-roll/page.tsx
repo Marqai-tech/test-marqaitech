@@ -175,7 +175,7 @@ export default function MusterRollPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceMap, setAttendanceMap] = useState<Map<string, Map<string, AttendanceRecord>>>(new Map());

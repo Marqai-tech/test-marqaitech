@@ -40,7 +40,7 @@ const REPEAT_DAYS = 7;       // follow-up reminder interval (configurable)
 // HR / Admin audience for the 30-day alert (matches leave-notify fallbacks —
 // includes tenant_admin so customers whose HR account uses that role, e.g.
 // hr@marqaitech.com on LIVE, are covered).
-const HR_ROLES = ['hr_admin', 'admin', 'tenant_admin', 'company_hr_admin'];
+const HR_ROLES = ['hr_admin', 'admin', 'tenant_admin', 'ceo', 'company_hr_admin'];
 
 function cors() {
   return {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         const decoded = await verifyToken(getTokenFromHeaders(request) || '');
         const role = (decoded as { role?: string } | null)?.role || '';
         const tid = (decoded as { tenantId?: string | null } | null)?.tenantId || null;
-        if (['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(role)) {
+        if (['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(role)) {
           adminTenantId = tid;
         }
       } catch { /* fall through to unauthorized */ }

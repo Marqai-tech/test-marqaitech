@@ -24,7 +24,7 @@ const BAND_LABEL: Record<string, string> = { valid: 'Valid', lifetime: 'No expir
 
 export default function CertificationsPage() {
   const user = useAuthStore((s) => s.user);
-  const isApprover = ['super_admin', 'tenant_admin', 'admin', 'hr_manager'].includes(user?.role || '');
+  const isApprover = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager'].includes(user?.role || '');
   const [rows, setRows] = useState<Cert[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);

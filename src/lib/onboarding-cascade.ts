@@ -209,17 +209,17 @@ export async function convertCandidateToEmployee(db: Record<string, any>, input:
       message: `New hire ${firstName} ${lastName} (${position}) joins on ${joiningDate.toLocaleDateString()}. Please set up system access, corporate email, and device allocation.`,
     },
     {
-      roles: ['tenant_admin', 'admin'],
+      roles: ['tenant_admin', 'ceo', 'admin'],
       title: `Workstation Readiness — ${firstName} ${lastName}`,
       message: `Admin: prepare the workstation and seating for ${firstName} ${lastName} (${position}), joining ${joiningDate.toLocaleDateString()}.`,
     },
     {
-      roles: ['finance', 'finance_admin', 'tenant_admin'],
+      roles: ['finance', 'finance_admin', 'tenant_admin', 'ceo'],
       title: `Payroll Setup Required — ${firstName} ${lastName}`,
       message: `Finance: complete payroll setup and benefits enrollment for ${firstName} ${lastName} (${position}), joining ${joiningDate.toLocaleDateString()}.`,
     },
     {
-      roles: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin'],
+      roles: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin', 'ceo'],
       title: `Preboarding Started — ${firstName} ${lastName}`,
       message: `HR: send the digital paperwork pack (tax forms, direct deposit, employment agreement, emergency contact, NDA) and track background checks for ${firstName} ${lastName}.`,
     },

@@ -32,7 +32,7 @@ export interface PipelineStage {
 
 export interface ApprovalTier {
   tier: number;
-  approverType: 'reporting_manager' | 'department_head' | 'hr_admin' | 'tenant_admin' | 'finance' | 'specific_user';
+  approverType: 'reporting_manager' | 'department_head' | 'hr_admin' | 'tenant_admin' | 'ceo' | 'finance' | 'specific_user';
   approverUserId?: string | null;
   label?: string;
 }
@@ -88,7 +88,7 @@ export const APPLICATION_STAGE_KEYS = ['applied', 'screening', 'interview', 'off
 export const PREBOARDING_STAGE_KEYS = ['offer_accepted', 'document_collection', 'bgv', 'provisioning', 'asset_request', 'joined'] as const;
 
 export const ONBOARDING_TASK_CATEGORIES = [
-  'general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation',
+  'general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation', 'documentation', 'compliance',
 ] as const;
 
 // ─────────────────────────── Defaults ───────────────────────────
@@ -200,7 +200,7 @@ export function validateRecruitmentConfig(cfg: unknown): { ok: true; value: Recr
   const oa = (c.offerApproval && typeof c.offerApproval === 'object' ? c.offerApproval : {}) as Record<string, unknown>;
   const tiers: ApprovalTier[] = [];
   if (Array.isArray(oa.tiers)) {
-    const allowed = ['reporting_manager', 'department_head', 'hr_admin', 'tenant_admin', 'finance', 'specific_user'];
+    const allowed = ['reporting_manager', 'department_head', 'hr_admin', 'tenant_admin', 'ceo', 'finance', 'specific_user'];
     let tierNo = 0;
     for (const raw of oa.tiers) {
       if (!raw || typeof raw !== 'object') continue;

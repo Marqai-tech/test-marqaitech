@@ -278,7 +278,7 @@ export async function GET(request: Request) {
     const tenantId = decoded.tenantId as string | undefined;
 
     // super_admin, tenant_admin, and admin can view tenant configuration
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
       console.warn('[tenant-config] Access denied for role:', userRole);
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
@@ -350,7 +350,7 @@ export async function GET(request: Request) {
     }
 
     // super_admin can view any tenant; tenant_admin and admin only their own
-    if ((userRole === 'tenant_admin' || userRole === 'admin') && targetTenantId !== tenantId) {
+    if (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && targetTenantId !== tenantId) {
       return NextResponse.json({ error: 'Access denied — you can only view your own tenant configuration' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -620,7 +620,7 @@ export async function POST(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -630,7 +630,7 @@ export async function POST(request: Request) {
     const targetTenantId = bodyTenantId || tenantId;
 
     // super_admin can configure any tenant; tenant_admin and admin only their own
-    if ((userRole === 'tenant_admin' || userRole === 'admin') && targetTenantId !== tenantId) {
+    if (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && targetTenantId !== tenantId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -852,7 +852,7 @@ export async function POST(request: Request) {
     // ─── ACTION: create_policy ───
     if (action === 'create_policy') {
       // tenant_admin and admin can create policies if customisationTier is 'custom' or 'full'
-      if ((userRole === 'tenant_admin' || userRole === 'admin') && config.customisationTier === 'standard') {
+      if (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && config.customisationTier === 'standard') {
         return NextResponse.json({ error: 'Your customisation tier does not allow creating custom policies. Contact super admin to upgrade.' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -878,7 +878,7 @@ export async function POST(request: Request) {
           policyType,
           category: category || 'custom',
           policyContent: typeof policyContent === 'string' ? policyContent : JSON.stringify(policyContent),
-          source: (userRole === 'tenant_admin' || userRole === 'admin') ? 'tenant_override' : 'system_default',
+          source: ((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') ? 'tenant_override' : 'system_default',
           status: 'active',
           isEditable: true,
           notes,
@@ -974,7 +974,7 @@ export async function PATCH(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -990,12 +990,12 @@ export async function PATCH(request: Request) {
 
       // Verify tenant access
       const config = await db.tenantConfiguration.findUnique({ where: { id: countryAccess.tenantConfigId } });
-      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
+      if (!config || (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
       // tenant_admin/admin can only override if customisation tier allows
-      if ((userRole === 'tenant_admin' || userRole === 'admin') && config.customisationTier === 'standard') {
+      if (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && config.customisationTier === 'standard') {
         return NextResponse.json({ error: 'Your tier does not allow editing country settings' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -1015,7 +1015,7 @@ export async function PATCH(request: Request) {
       }
 
       if (Object.keys(updateData).length > 0) {
-        updateData.isOverridden = userRole === 'tenant_admin' || userRole === 'admin';
+        updateData.isOverridden = (userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin';
         await db.tenantCountryAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
@@ -1040,7 +1040,7 @@ export async function PATCH(request: Request) {
       }
 
       const config = await db.tenantConfiguration.findUnique({ where: { id: currencyAccess.tenantConfigId } });
-      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
+      if (!config || (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -1051,7 +1051,7 @@ export async function PATCH(request: Request) {
       }
 
       if (Object.keys(updateData).length > 0) {
-        updateData.isOverridden = userRole === 'tenant_admin' || userRole === 'admin';
+        updateData.isOverridden = (userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin';
         await db.tenantCurrencyAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
@@ -1067,7 +1067,7 @@ export async function PATCH(request: Request) {
       }
 
       const config = await db.tenantConfiguration.findUnique({ where: { id: langAccess.tenantConfigId } });
-      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
+      if (!config || (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -1078,7 +1078,7 @@ export async function PATCH(request: Request) {
       }
 
       if (Object.keys(updateData).length > 0) {
-        updateData.isOverridden = userRole === 'tenant_admin' || userRole === 'admin';
+        updateData.isOverridden = (userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin';
         await db.tenantLanguageAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
@@ -1094,12 +1094,12 @@ export async function PATCH(request: Request) {
       }
 
       const config = await db.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
-      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
+      if (!config || (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
       // tenant_admin/admin cannot edit if isEditable is false
-      if ((userRole === 'tenant_admin' || userRole === 'admin') && !policy.isEditable) {
+      if (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && !policy.isEditable) {
         return NextResponse.json({ error: 'This policy is not editable at your customisation tier' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -1218,7 +1218,7 @@ export async function DELETE(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -1235,7 +1235,7 @@ export async function DELETE(request: Request) {
     }
 
     const config = await db.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
-    if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
+    if (!config || (((userRole === 'tenant_admin' || userRole === 'ceo') || userRole === 'admin') && config.tenantId !== tenantId)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 

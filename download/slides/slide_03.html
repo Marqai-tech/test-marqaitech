@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>What's New in v1.6.6</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:#f7faf8;}
+  .material-icons{line-height:1;}
+  .icon-sq{width:34px;height:34px;border-radius:9px;background:var(--accent-tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .card-title{font-size:15.5px;font-weight:800;color:var(--primary);}
+  .new-chip{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--accent);color:#fff;font-size:9.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;flex-shrink:0;}
+  .bullet{font-size:12.3px;line-height:1.5;color:var(--muted);}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--accent-2);flex-shrink:0;margin-top:7px;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px;display:flex;flex-direction:column;">
+
+  <header class="flex items-end justify-between">
+    <div>
+      <div class="kicker">RELEASE HIGHLIGHTS</div>
+      <h1 style="margin:8px 0 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;color:var(--primary);">What's new in v1.6.6 (build 33)</h1>
+    </div>
+    <span class="new-chip">October 2026 release</span>
+  </header>
+
+  <div class="grid" style="grid-template-columns:repeat(12,1fr);grid-template-rows:1fr 1fr;gap:16px;flex:1;margin-top:22px;min-height:0;">
+
+    <!-- Login redesign -->
+    <div class="card col-span-7" style="padding:18px 22px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">login</i></div>
+        <div class="card-title">Brand-new sign-in experience</div>
+      </div>
+      <ul style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">starry welcome screen with the 3Boxes HRMS logo — "Your workplace, in one place"</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">two sign-in tabs: <b style="color:var(--primary);">Mobile Number</b> (+91, one-time code) or <b style="color:var(--primary);">Employee ID</b> + password</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">6-box OTP verification with resend countdown; code lands in your registered email</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet"><b style="color:var(--primary);">Face ID / fingerprint unlock</b> after first sign-in — opening the app takes a second</span></li>
+      </ul>
+    </div>
+
+    <!-- HR Help Desk -->
+    <div class="card col-span-5" style="padding:18px 22px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">headset_mic</i></div>
+        <div class="card-title">HR Help Desk</div>
+      </div>
+      <ul style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">raise, track and reply to support tickets from the phone</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet"><b style="color:var(--primary);">same ticketing system as the web app</b> (Support &amp; AI → Help Desk)</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">HR/Admin see all tenant tickets and change status on the go</span></li>
+      </ul>
+    </div>
+
+    <!-- Home dashboard -->
+    <div class="card col-span-5" style="padding:18px 22px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">dashboard</i></div>
+        <div class="card-title">Smarter Home dashboard</div>
+      </div>
+      <ul style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">auto-rotating <b style="color:var(--primary);">announcements banner</b> from the company feed</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet"><b style="color:var(--primary);">Last week Attendance</b> bar chart — absent days in red</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet"><b style="color:var(--primary);">Quick Links</b> rail: Requests · Directory · Payslips · Documents · Help Desk · Feeds · Reports</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">birthdays card (today + upcoming 45 days) with Send Wishes</span></li>
+      </ul>
+    </div>
+
+    <!-- Chat -->
+    <div class="card col-span-4" style="padding:18px 22px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">chat_bubble</i></div>
+        <div class="card-title">Chat everywhere</div>
+      </div>
+      <ul style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">Chat joins the <b style="color:var(--primary);">bottom navigation</b>: Home · Chat · Attendance · Profile</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet">floating <b style="color:var(--primary);">chat bubble</b> on the web dashboard too — project &amp; team conversations on both</span></li>
+      </ul>
+    </div>
+
+    <!-- Web parity -->
+    <div class="card col-span-3" style="padding:18px 22px;display:flex;flex-direction:column;">
+      <div class="flex items-center" style="gap:10px;">
+        <div class="icon-sq"><i class="material-icons" style="font-size:18px;">devices</i></div>
+        <div class="card-title">Web parity</div>
+      </div>
+      <ul style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;">
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet" style="font-size:12px;">announcements banner on the employee dashboard (web)</span></li>
+        <li class="flex" style="gap:9px;"><span class="dot"></span><span class="bullet" style="font-size:12px;">one ticketing queue, two front-ends — start on phone, finish on web</span></li>
+      </ul>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

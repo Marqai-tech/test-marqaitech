@@ -4,9 +4,12 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import {
   FiPlus, FiX, FiMessageSquare, FiUser, FiClock,
   FiCheck, FiAlertCircle, FiArrowRight, FiSend,
-  FiEye, FiEdit2, FiTrash2,
+  FiEye, FiEdit2, FiTrash2, FiRefreshCw,
   FiGrid, FiFileText, FiHelpCircle, FiBarChart2,
 } from 'react-icons/fi';
+/* Task 156e — shared SmartHR widgets: same gradient banner / stat cards /
+   panels as the Employee Module Dashboard (Task 155 gold standard). */
+import { Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -114,6 +117,8 @@ function HelpdeskPageContent() {
     <ModuleDashboardShell
       moduleKey="support"
       moduleLabel="Support & AI"
+      title="Support Dashboard"
+      trail={['Support', 'Dashboard']}
       moduleIcon={<FiHelpCircle className="w-5 h-5 text-white" />}
       gradientColor="from-yellow-500 to-orange-600"
       tabs={supportTabs}
@@ -143,6 +148,7 @@ function HelpdeskContent() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'my' | 'all'>('my');
   const [showForm, setShowForm] = useState(false);
+  // Task 139 — deep-link: /helpdesk?action=create opens the Create Ticket form
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -193,6 +199,13 @@ function HelpdeskContent() {
 
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
+
+  // Task 139 — auto-open the Create Ticket form from the dashboard Raise button
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('action') === 'create') {
+      setShowForm(true);
+    }
+  }, []);
 
   const fetchViewingTicket = useCallback(async (id: string) => {
     try {
@@ -331,7 +344,7 @@ function HelpdeskContent() {
   };
 
   // Safely compare requester: use requesterId if available, fall back to name match
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
   const myTickets = tickets.filter((t) => {
     const ticketAny = t as Record<string, unknown>;
     if (ticketAny.requesterId && user?.id) return ticketAny.requesterId === user.id;
@@ -345,16 +358,26 @@ function HelpdeskContent() {
     return String(status).replace('_', ' ');
   };
 
+  /* SmartHR KPI stats — display-only counts derived from the loaded tickets
+     list (no extra fetches; existing data flow untouched). */
+  const statOpen = tickets.filter((t) => t.status === 'open').length;
+  const statInProgress = tickets.filter((t) => t.status === 'in_progress').length;
+  const statResolved = tickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary">Helpdesk</h1>
-          <p className="text-thb-text-secondary mt-1">Manage support tickets and requests</p>
+      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={fetchTickets} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm text-xs font-semibold rounded-lg px-3 py-2 inline-flex items-center gap-1.5 transition-colors" title="Refresh tickets">
+            <FiRefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
         </div>
-        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
-          <FiPlus className="w-4 h-4" /> Create Ticket
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
+            <FiPlus className="w-4 h-4" /> Create Ticket
+          </button>
+        </div>
       </div>
 
       {/* Error State */}
@@ -365,6 +388,18 @@ function HelpdeskContent() {
           <button onClick={fetchTickets} className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors">
             Retry
           </button>
+        </div>
+      )}
+
+      {/* KPI stat tiles — shared SmartHR StatCard (white card, colourful top
+          accent bar + round pastel icon). Hidden while loading/errored so the
+          cards never flash misleading zeros. */}
+      {!loading && !error && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Total Tickets" value={tickets.length} sub="All support tickets in view" icon={<FiMessageSquare className="w-5 h-5" />} bg="bg-[#3A57C4]/10 text-[#3A57C4]" ring="ring-[#3A57C4]/20" />
+          <StatCard label="Open" value={statOpen} sub="Awaiting first response" icon={<FiAlertCircle className="w-5 h-5" />} bg="bg-[#FF9B44]/15 text-[#FF9B44]" ring="ring-[#FF9B44]/25" />
+          <StatCard label="In Progress" value={statInProgress} sub="Being worked on by agents" icon={<FiClock className="w-5 h-5" />} bg="bg-[#009EFB]/10 text-[#009EFB]" ring="ring-[#009EFB]/20" />
+          <StatCard label="Resolved / Closed" value={statResolved} sub="Completed support tickets" icon={<FiCheck className="w-5 h-5" />} bg="bg-[#10B981]/10 text-[#10B981]" ring="ring-[#10B981]/20" />
         </div>
       )}
 
@@ -517,11 +552,17 @@ function HelpdeskContent() {
         </div>
       )}
 
-      {/* Tickets Table */}
+      {/* Tickets Table — wrapped in the shared SmartHR panel (Task 156e) */}
+      <Panel
+        title="Support Tickets"
+        icon={<FiMessageSquare className="w-4 h-4" />}
+        accent="text-[#3A57C4]"
+        action={<span className="text-xs text-slate-500">{displayTickets.length} ticket{displayTickets.length === 1 ? '' : 's'}</span>}
+      >
       {loading ? (
-        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="thb-card p-5 animate-pulse"><div className="h-4 w-3/4 bg-slate-200 rounded mb-2" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
+        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="p-5 border border-slate-100 rounded-xl animate-pulse"><div className="h-4 w-3/4 bg-slate-200 rounded mb-2" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
       ) : displayTickets.length === 0 ? (
-        <div className="thb-card p-12 text-center">
+        <div className="py-10 text-center">
           <FiAlertCircle className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
           <p className="text-thb-text-secondary">
             {activeTab === 'my' ? 'You haven\'t created any tickets yet' : 'No tickets found'}
@@ -531,8 +572,7 @@ function HelpdeskContent() {
           </button>
         </div>
       ) : (
-        <div className="thb-card overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50/50 border-b border-thb-border">
                 <tr>
@@ -576,9 +616,9 @@ function HelpdeskContent() {
                 ))}
               </tbody>
             </table>
-          </div>
         </div>
       )}
+      </Panel>
     </div>
   );
 }

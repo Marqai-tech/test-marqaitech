@@ -13,7 +13,7 @@
  */
 import { getAuthInfo } from '@/lib/companyScope';
 
-export type ApproverType = 'reporting_manager' | 'hr_admin' | 'tenant_admin' | 'specific_user' | 'finance';
+export type ApproverType = 'reporting_manager' | 'hr_admin' | 'tenant_admin' | 'ceo' | 'specific_user' | 'finance';
 
 export interface WorkflowTier {
   approverType: ApproverType;
@@ -56,6 +56,7 @@ export const APPROVER_TYPE_LABELS: Record<ApproverType, string> = {
   reporting_manager: 'Reporting Manager',
   hr_admin: 'HR Admin',
   tenant_admin: 'MD / Tenant Admin',
+  ceo: 'CEO',
   specific_user: 'Specific User',
   finance: 'Finance',
 };
@@ -150,14 +151,14 @@ export async function resolveTierApprovers(
       // tenant_admin role (e.g. MarqAI — hr@marqaitech.com), HR-tier alerts
       // must reach them, not only literal hr_admin accounts.
       const admins = await db.user.findMany({
-        where: { role: { in: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin'] }, status: 'active' },
+        where: { role: { in: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin', 'ceo'] }, status: 'active' },
         select: { id: true },
         take: 20,
       });
       admins.forEach((a: { id: string }) => userIds.add(a.id));
-    } else if (tier.approverType === 'tenant_admin') {
+    } else if ((tier.approverType === 'tenant_admin' || tier.approverType === 'ceo')) {
       const admins = await db.user.findMany({
-        where: { role: { in: ['super_admin', 'tenant_admin'] }, status: 'active' },
+        where: { role: { in: ['super_admin', 'tenant_admin', 'ceo'] }, status: 'active' },
         select: { id: true },
         take: 20,
       });

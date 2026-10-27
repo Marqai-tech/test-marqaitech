@@ -2,7 +2,9 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { FiChevronRight } from 'react-icons/fi';
+/* Task 156 — the shell header is now the shared SmartHR gradient banner,
+   identical to /dashboard and /employees/dashboard. */
+import { PageBreadcrumbs, DateChip } from '@/components/dashboard/smarthr-widgets';
 
 export interface DashboardTabConfig {
   label: string;
@@ -19,6 +21,12 @@ interface ModuleDashboardShellProps {
   tabs: DashboardTabConfig[];
   children: Record<string, ReactNode>;  // keyed by tab key
   overviewContent?: ReactNode;  // default/overview tab content
+  /** Task 156 — SmartHR banner title (defaults to moduleLabel). */
+  title?: string;
+  /** Task 156 — SmartHR banner trail (defaults to [moduleLabel]). */
+  trail?: string[];
+  /** Task 156 — extra right-slot content for the banner (defaults to a DateChip). */
+  headerRight?: ReactNode;
 }
 
 export default function ModuleDashboardShell({
@@ -29,6 +37,9 @@ export default function ModuleDashboardShell({
   tabs,
   children,
   overviewContent,
+  title,
+  trail,
+  headerRight,
 }: ModuleDashboardShellProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -82,7 +93,7 @@ export default function ModuleDashboardShell({
           {moduleLabel} {tabLabel} — view and manage {tabKey === 'reports' ? 'analytics and reports' : tabKey === 'settings' ? 'configuration and preferences' : 'details'}.
         </p>
         {navLink && (
-          <a href={navLink} className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
+          <a href={navLink} className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3A57C4] hover:bg-[#2C43A3] text-white rounded-lg text-sm font-medium transition-colors">
             Go to {tabLabel}
           </a>
         )}
@@ -90,19 +101,21 @@ export default function ModuleDashboardShell({
     );
   };
 
+  /* Task 156 — the flat icon+h1 title row is replaced by the same royal→violet
+     gradient PageBreadcrumbs banner every other dashboard uses; the tab bar
+     (URL-synced, unchanged logic) sits right below it with a royal active pill. */
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
   return (
     <div>
       {/* Module Header with Tabs */}
       <div className="mb-6">
-        {/* Module Title Row */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradientColor} flex items-center justify-center shadow-md`}>
-            {moduleIcon}
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-thb-text-primary">{moduleLabel}</h1>
-          </div>
-        </div>
+        {/* SmartHR gradient banner (replaces the old flat module title row) */}
+        <PageBreadcrumbs
+          title={title ?? moduleLabel}
+          trail={trail ?? [moduleLabel]}
+          right={headerRight ?? <DateChip value={todayChip} />}
+        />
 
         {/* Tab Bar */}
         <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 overflow-x-auto">
@@ -114,11 +127,11 @@ export default function ModuleDashboardShell({
                 onClick={() => handleTabChange(tab.key)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
                   isActive
-                    ? 'bg-white text-thb-text-primary shadow-sm'
+                    ? 'bg-[#3A57C4] text-white shadow-sm'
                     : 'text-thb-text-secondary hover:text-thb-text-primary hover:bg-white/50'
                 }`}
               >
-                <span className={isActive ? 'text-green-500' : 'text-thb-text-secondary'}>{tab.icon}</span>
+                <span className={isActive ? 'text-white' : 'text-thb-text-secondary'}>{tab.icon}</span>
                 {tab.label}
                 {tab.isNew && (
                   <span className="text-[7px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-100 text-emerald-600 border border-emerald-200">

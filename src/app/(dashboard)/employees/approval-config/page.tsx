@@ -25,7 +25,7 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-type ApproverType = 'reporting_manager' | 'hr_admin' | 'tenant_admin' | 'specific_user' | 'finance';
+type ApproverType = 'reporting_manager' | 'hr_admin' | 'tenant_admin' | 'ceo' | 'specific_user' | 'finance';
 
 const APPROVER_TYPES: { value: ApproverType; label: string; hint: string }[] = [
   { value: 'reporting_manager', label: 'Reporting Manager', hint: "The employee's assigned reporting manager" },
@@ -202,7 +202,7 @@ function WorkflowCard({
 export default function ApprovalConfigPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(user?.role || '');
   const [users, setUsers] = useState<UserOption[]>([]);
 
   const loadUsers = useCallback(async () => {

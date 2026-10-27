@@ -103,7 +103,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     // Notify tenant admins + HR
     try {
       const admins = await (db as any).user.findMany({
-        where: { role: { in: ['super_admin', 'tenant_admin', 'admin', 'hr_admin'] }, status: 'active' },
+        where: { role: { in: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'] }, status: 'active' },
         select: { id: true },
         take: 20,
       });
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       if (tenantAcc?.id) {
         const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
         if (action === 'accept') {
-          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
           const itIds = await resolveRoleRecipients(db, ['it_admin', 'it_support', 'admin', 'system_admin'], 10);
           await dispatchNotification({
             tenantId: tenantAcc.id,
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
             origin: new URL(_req.url).origin,
           });
         } else {
-          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
           await dispatchNotification({
             tenantId: tenantAcc.id,
             module: 'recruitment',

@@ -39,6 +39,7 @@
  */
 
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 /** Resend's default sandbox domain — works without domain verification, but ONLY sends to the account holder's email */
 const RESEND_SANDBOX_FROM = 'onboarding@resend.dev';
@@ -54,6 +55,49 @@ function getResendClient(): Resend | null {
   }
   resend = new Resend(apiKey);
   return resend;
+}
+
+/**
+ * Task 142 — SMTP transport (PRIMARY provider when configured).
+ *
+ * Production runs on an SMTP account (SMTP_HOST / SMTP_USERNAME / SMTP_PASSWORD,
+ * e.g. webhostbox). The Resend key historically held only a placeholder, so
+ * OTP + notification emails silently never reached real employees. Resolution
+ * order in sendEmail():
+ *   1. SMTP (when SMTP_HOST + SMTP_USERNAME + SMTP_PASSWORD are set) — real
+ *      credentials, verified sending domain, delivers to ANY recipient.
+ *   2. Resend (when a real API key exists) — kept as fallback.
+ *   3. Dev log (no provider) — flow keeps working locally.
+ */
+let smtpTransport: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+function getSmtpTransport(): ReturnType<typeof nodemailer.createTransport> | null {
+  if (smtpTransport) return smtpTransport;
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USERNAME;
+  const pass = process.env.SMTP_PASSWORD;
+  if (!host || !user || !pass) return null;
+  const port = Number(process.env.SMTP_PORT || 465);
+  const encryption = String(process.env.SMTP_ENCRYPTION || '').toLowerCase();
+  smtpTransport = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465 || encryption === 'ssl',
+    auth: { user, pass },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+  });
+  return smtpTransport;
+}
+
+/** Resend keys that are obviously placeholders (e.g. "[SET_YOUR_KEY]") must not be used. */
+function isPlaceholderResendKey(key: string | undefined): boolean {
+  if (!key) return true;
+  const k = key.trim();
+  if (k.startsWith('[') || k.endsWith(']')) return true;
+  if (/^(set|your|placeholder|xxx|changeme|test)_/i.test(k)) return true;
+  return false;
 }
 
 /**
@@ -151,6 +195,8 @@ export interface SendEmailParams {
 export interface SendEmailResult {
   success: boolean;
   error?: string;
+  /** Task 142 — which provider actually delivered ('smtp' | 'resend'). */
+  via?: 'smtp' | 'resend';
   /** true if the email was sent using the Resend sandbox (onboarding@resend.dev)
    *  instead of the admin's configured FROM address. This usually means the
    *  admin's domain is not verified in Resend, and the email was ONLY delivered
@@ -162,12 +208,8 @@ export interface SendEmailResult {
 }
 
 /**
- * Send an email via Resend.
- *
- * If the primary FROM address triggers a domain-verification error, the function
- * automatically retries using onboarding@resend.dev and returns
- * { usedFallbackFrom: true, sandboxWarning: "..." } so the caller can inform
- * the admin that the email was only delivered to the Resend account holder.
+ * Task 142 — Send an email. SMTP first (real credentials in production),
+ * then Resend, then dev-log. See the provider notes above getSmtpTransport().
  */
 export async function sendEmail(
   params: SendEmailParams,
@@ -176,12 +218,46 @@ export async function sendEmail(
 
   // Resolve the FROM address: explicit param > RESEND_FROM_EMAIL > EMAIL_FROM > sandbox
   const sender = from || getEmailFromAddress();
+  const recipients = Array.isArray(to) ? to.join(', ') : to;
+
+  // ─── 1) SMTP (primary — production has real credentials) ───
+  const smtp = getSmtpTransport();
+  if (smtp) {
+    const smtpFrom = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || sender;
+    try {
+      const info = await smtp.sendMail({
+        from: `${process.env.SMTP_FROM_NAME || '3Boxes HRMS'} <${smtpFrom}>`,
+        to,
+        subject,
+        html,
+      });
+      console.log(`[EmailService] ✉️  SMTP email sent to ${recipients} — Subject: "${subject}" — From: "${smtpFrom}" — messageId: ${info?.messageId || 'n/a'}`);
+      return { success: true, usedFallbackFrom: false, via: 'smtp' };
+    } catch (smtpErr) {
+      const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
+      console.error(`[EmailService] SMTP send failed (host: ${process.env.SMTP_HOST}): ${msg}`);
+      console.warn('[EmailService] Falling back to Resend (if configured)...');
+      // fall through to Resend
+    }
+  }
+
+  // ─── 2) Resend (fallback) ───
+  const resendKey = process.env.RESEND_API_KEY;
+  if (isPlaceholderResendKey(resendKey)) {
+    if (smtp) {
+      // SMTP was configured but failed AND Resend is a placeholder — report failure honestly.
+      return { success: false, error: 'SMTP send failed and no working Resend key is configured', usedFallbackFrom: false };
+    }
+    // Dev mode: no provider at all — log the email so the flow doesn't break.
+    console.log(`[EmailService DEV] To: ${recipients} | Subject: ${subject}`);
+    console.log(`[EmailService DEV] From: ${sender}`);
+    return { success: true, usedFallbackFrom: false };
+  }
 
   const client = getResendClient();
 
   if (!client) {
     // Dev mode: no API key — just log the email details so the flow doesn't break
-    const recipients = Array.isArray(to) ? to.join(', ') : to;
     console.log(`[EmailService DEV] To: ${recipients} | Subject: ${subject}`);
     console.log(`[EmailService DEV] From: ${sender}`);
     // In dev mode, we consider it "sent" so the UI flow doesn't break.

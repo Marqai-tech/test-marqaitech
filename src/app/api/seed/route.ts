@@ -1392,7 +1392,7 @@ export async function GET(request: Request) {
       ];
       const RBAC_LIMITED_MODULES = ['dashboard', 'notifications', 'docs'];
       const RBAC_DEFAULT_ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'approve'];
-      const RBAC_ADMIN_ONLY = ['super_admin', 'tenant_admin', 'ai_admin'];
+      const RBAC_ADMIN_ONLY = ['super_admin', 'tenant_admin', 'ceo', 'ai_admin'];
 
       // Create modules and permissions
       for (const mod of RBAC_MODULES) {
@@ -1417,7 +1417,7 @@ export async function GET(request: Request) {
 
       const createdRoleIds: Record<string, string> = {};
       for (const roleDef of RBAC_ROLES) {
-        const roleTenantId = roleDef.tenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin' ? tenant.id : roleDef.tenantId ?? null;
+        const roleTenantId = roleDef.tenantId === null && roleDef.key !== 'super_admin' && (roleDef.key !== 'tenant_admin' && roleDef.key !== 'ceo') ? tenant.id : roleDef.tenantId ?? null;
         const existing = await db.role.findFirst({ where: { key: roleDef.key, tenantId: roleTenantId, companyId: null } });
         if (!existing) {
           const role = await db.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: 'user-admin' } });
@@ -1473,7 +1473,7 @@ export async function GET(request: Request) {
         const rKey = roleMapping[u.role];
         if (!rKey || !createdRoleIds[rKey]) continue;
         try {
-          await db.userRoleAssignment.create({ data: { userId: u.id, roleId: createdRoleIds[rKey], companyId: rKey !== 'super_admin' && rKey !== 'tenant_admin' ? usaCompany.id : null, assignedBy: 'user-admin' } });
+          await db.userRoleAssignment.create({ data: { userId: u.id, roleId: createdRoleIds[rKey], companyId: rKey !== 'super_admin' && (rKey !== 'tenant_admin' && rKey !== 'ceo') ? usaCompany.id : null, assignedBy: 'user-admin' } });
           rbacUserRoleAssignmentsCreated++;
         } catch { /* skip duplicates */ }
       }

@@ -54,8 +54,12 @@ export async function GET(request: Request) {
     const requesterId = searchParams.get('requesterId');
     const assignedAgentId = searchParams.get('assignedAgentId');
     const tenantIdParam = searchParams.get('tenantId');
+    // Task 141 — ?mine=1: server-enforced self-scope for the mobile HR Help
+    // Desk. The client cannot widen the view by passing someone else's
+    // requesterId — the caller's OWN user id always wins.
+    const mine = searchParams.get('mine') === '1';
 
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role as string);
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
     // The Ticket model has no tenantId, so for super_admin on the platform DB,
@@ -87,7 +91,11 @@ export async function GET(request: Request) {
     if (status) where.status = status;
     if (priority) where.priority = priority;
     if (categoryId) where.categoryId = categoryId;
-    if (requesterId) where.requesterId = requesterId;
+    if (mine) {
+      where.requesterId = decoded.userId as string;
+    } else if (requesterId) {
+      where.requesterId = requesterId;
+    }
     if (assignedAgentId) where.assignedAgentId = assignedAgentId;
 
     let tickets: unknown[] = [];
@@ -148,9 +156,16 @@ export async function GET(request: Request) {
         // Exclude tickets whose requesterName matches a hidden tenant name
         const requesterName = String(t.requesterName || '');
         if (hiddenTenantNames.some(name => requesterName.includes(name))) return false;
-        // Exclude dummy/placeholder tickets with placeholder subjects
-        const subject = String(t.subject || '').toLowerCase();
-        if (subject.includes('test ticket') || subject.includes('dummy') || subject.includes('sample')) return false;
+        /* Task 152 — the subject-based seed filter used to hide REAL user
+           tickets (any subject containing "test"/"dummy"/"sample" silently
+           vanished — that is exactly why mobile-raised HR tickets appeared
+           missing). Seed/demo placeholder rows have NO real requester, so
+           the filter now only applies to requester-less rows. */
+        const requesterId = String(t.requesterId || '');
+        if (!requesterId) {
+          const subject = String(t.subject || '').toLowerCase();
+          if (subject.includes('test ticket') || subject.includes('dummy') || subject.includes('sample')) return false;
+        }
         return true;
       });
 
@@ -268,6 +283,69 @@ export async function POST(request: Request) {
       } catch (e) {
         console.error('Failed to send notification:', e);
       }
+    }
+
+    /* Task 152 — HR ticket notifications: tickets raised WITHOUT an assigned
+       agent (typical HR tickets from the mobile app / employee self-service)
+       previously notified NOBODY. Now:
+         1. every tenant admin / HR user gets an in-app notification,
+         2. HR + admins get a best-effort email via the tenant mail channel,
+         3. the requester gets a "ticket received" confirmation. */
+    try {
+      const { createNotification } = await import('@/lib/notifications');
+      const adminRoles = ['tenant_admin', 'hr_admin', 'admin', 'ceo', 'super_admin'];
+      const recipients = await db.user.findMany({
+        where: { role: { in: adminRoles } },
+        select: { id: true, email: true, role: true },
+        take: 25,
+      }).catch(() => []);
+
+      const target = assignedAgentId
+        ? recipients.filter((u) => u.id !== assignedAgentId)
+        : recipients;
+      for (const u of target) {
+        await createNotification({
+          tenantId: decoded.tenantId as string,
+          userId: u.id,
+          title: 'New HR Ticket Received',
+          message: `Ticket ${ticketId} (${priority || 'medium'} priority) raised by ${effectiveRequesterName}: ${subject}`,
+          type: 'info',
+          category: 'alert',
+          link: '/helpdesk/tickets',
+        }).catch(() => null);
+      }
+      // requester confirmation
+      await createNotification({
+        tenantId: decoded.tenantId as string,
+        userId: effectiveRequesterId,
+        title: 'Ticket Submitted',
+        message: `Your ticket ${ticketId} — "${subject}" — has been received and is being reviewed by the HR/team.`,
+        type: 'success',
+        category: 'system',
+        link: '/helpdesk/tickets',
+      }).catch(() => null);
+
+      // Best-effort email to admins/HR (tenant SMTP/Resend when configured)
+      const emails = (target.map((u) => u.email).filter(Boolean) as string[]).slice(0, 10);
+      if (emails.length && decoded.tenantId) {
+        const { sendTenantEmail } = await import('@/lib/notification-channels');
+        for (const to of emails) {
+          void sendTenantEmail(db, decoded.tenantId as string, {
+            to,
+            subject: `[${ticketId}] New ticket: ${subject}`,
+            html: `<p>A new ticket was raised in 3Boxes HRMS.</p>
+                   <ul>
+                     <li><b>Ticket:</b> ${ticketId}</li>
+                     <li><b>Subject:</b> ${subject}</li>
+                     <li><b>Priority:</b> ${priority || 'medium'}</li>
+                     <li><b>Raised by:</b> ${effectiveRequesterName}</li>
+                   </ul>
+                   <p>Open the Help Desk to respond.</p>`,
+          }).catch(() => null);
+        }
+      }
+    } catch (e) {
+      console.error('Task152 ticket notification flow failed:', e);
     }
 
     return NextResponse.json({ ticket }, { status: 201, headers: corsHeaders() });

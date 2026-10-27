@@ -41,6 +41,7 @@ export interface RoleTipsConfig {
 export type HrmsRole =
   | 'super_admin'
   | 'tenant_admin'
+  | 'ceo'
   | 'admin'
   | 'manager'
   | 'employee'
@@ -69,7 +70,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Monitor Team Activity',
         description: 'As a manager, the Team Activity widget on your dashboard shows pending approvals, attendance anomalies, and team leave calendars at a glance.',
-        roles: ['manager', 'tenant_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo'],
       },
       {
         title: 'System Health & Alerts',
@@ -79,7 +80,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Financial Snapshot',
         description: 'Finance users see a financial snapshot widget with pending payroll runs, expense approvals, and budget utilization summaries.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Recruitment Pipeline Summary',
@@ -132,7 +133,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Explore Reports',
         description: 'Navigate to the Reports module for deeper analytics and data insights',
         route: '/reports',
-        roles: ['manager', 'tenant_admin', 'super_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowTitle: 'Getting Started with Dashboard',
@@ -157,7 +158,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Manage Employee Records',
         description: 'HR admins can create, update, and manage all employee records including personal info, job details, compensation, and document uploads.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Team Roster Overview',
@@ -167,12 +168,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Bulk Import Employees',
         description: 'Use the CSV bulk import feature to onboard multiple employees at once. Download the template, fill in data, and upload for mass creation.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Employee Lifecycle Tracking',
         description: 'Track the full employee lifecycle from onboarding through probation confirmation, promotions, transfers, and eventual separation—all from the employee profile.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -206,28 +207,28 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Add New Employee',
         description: 'Click "Add Employee" to create a new employee record with personal, job, and compensation details',
         route: '/employees',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 4,
         title: 'Edit Employee Details',
         description: 'Open an employee record to update job information, compensation, or personal details',
         route: '/employees',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         step: 5,
         title: 'Upload Documents',
         description: 'Upload and manage employee documents like ID proofs, certificates, and contracts',
         route: '/documents',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 6,
         title: 'Generate Reports',
         description: 'Export employee data or generate headcount reports for HR analytics',
         route: '/reports',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowTitle: 'Managing Employees',
@@ -243,22 +244,22 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Company Profile Setup',
         description: 'Set up your company profile with legal name, registration details, logo, and contact information. This data flows into offer letters, payslips, and compliance documents.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Manage Branches & Locations',
         description: 'Define all company branches and locations. Each branch can have its own attendance rules, holiday calendar, and statutory compliance requirements.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Department Configuration',
         description: 'Create and manage departments with designated department heads. Departments are used for organizational structure, reporting, and access control.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Designation & Grade Setup',
         description: 'Define designations and grade levels that link to salary structures, leave policies, and approval hierarchies.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'View Company Directory',
@@ -277,7 +278,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Create Company Profile',
         description: 'Enter company legal name, registration number, logo, and address',
         route: '/company',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         step: 1,
@@ -291,28 +292,28 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Add Branches',
         description: 'Define office locations with address, time zone, and statutory details',
         route: '/company',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         step: 3,
         title: 'Define Departments',
         description: 'Create departments, assign heads, and set up reporting hierarchies',
         route: '/company',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 4,
         title: 'Setup Designations',
         description: 'Create designation levels and map them to grade structures',
         route: '/company',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 5,
         title: 'Configure Holiday Calendar',
         description: 'Set up the company holiday calendar for each branch or location',
         route: '/company',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 6,
@@ -354,7 +355,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Offer Letter Generation',
         description: 'Generate offer letters from templates with pre-filled compensation details, joining dates, and terms. Send digitally for e-signature.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Referral Tracking',
@@ -382,7 +383,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Approve Requisition',
         description: 'Review and approve the job requisition after verifying budget and headcount',
         route: '/requisitions',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 3,
@@ -433,12 +434,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Automated Onboarding Plans',
         description: 'Create reusable onboarding templates with task checklists, document requirements, and orientation schedules. Assign templates based on department or role.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Pre-boarding Portal',
         description: 'New hires receive a pre-boarding portal link to submit documents, fill personal details, and complete compliance forms before their first day.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Manager Welcome & Setup',
@@ -467,7 +468,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Create Onboarding Plan',
         description: 'Set up onboarding templates with tasks, documents, and orientation activities',
         route: '/onboarding',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -547,17 +548,17 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Shift Management',
         description: 'HR admins can define shifts, rotate shift schedules, and assign employees to shifts. Night shift allowances are auto-calculated based on shift configuration.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Attendance Policy Configuration',
         description: 'Configure attendance rules including grace period, half-day thresholds, overtime calculation, and late arrival penalties per company policy.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Attendance Reports & Compliance',
         description: 'Generate attendance summaries, overtime reports, and compliance reports for payroll processing and statutory requirements.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowSteps: [
@@ -566,7 +567,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Shifts',
         description: 'Define shift timings, grace periods, and overtime rules for each location',
         route: '/attendance',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -646,7 +647,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Leave Policy Configuration',
         description: 'HR admins define leave types, accrual rules, carry-forward limits, encashment policies, and probation restrictions per company policy.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Holiday & Leave Calendar',
@@ -656,7 +657,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Leave Encashment & Settlement',
         description: 'Process leave encashment during payroll or full-and-final settlement. Configurable rules determine which leave types are encashable.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowSteps: [
@@ -665,7 +666,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Leave Policies',
         description: 'Define leave types, accrual rules, eligibility, and carry-forward limits',
         route: '/leave',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -723,7 +724,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Configure Components First',
         description: 'Start by setting up Component Master and Statutory Components before processing payroll. Earnings, deductions, and allowances must be defined before running any payroll.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'View Your Payslip',
@@ -733,7 +734,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'CTC Template Setup',
         description: 'Create CTC templates that define the salary structure for different grades and designations. Templates ensure consistency in offer letters and payroll.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Payroll Processing Cycle',
@@ -743,12 +744,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Tax & Statutory Compliance',
         description: 'Configure tax slabs, PF, ESI, TDS, and professional tax settings. The system auto-calculates statutory deductions during payroll processing.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Payroll Reports & Bank Files',
         description: 'Generate salary registers, statutory reports (PF ECR, ESI, TDS), and bank payment files after locking the payroll run.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowSteps: [
@@ -757,7 +758,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Setup Components',
         description: 'Configure earnings, deductions, and allowances in the Component Master',
         route: '/payroll/components',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         step: 1,
@@ -771,14 +772,14 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Statutory',
         description: 'Set up PF, ESI, TDS, Professional Tax, and other statutory components',
         route: '/payroll/statutory',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 3,
         title: 'Create CTC Templates',
         description: 'Build salary structure templates for different grades and roles',
         route: '/payroll/ctc-templates',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 4,
@@ -832,7 +833,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Review Cycle Management',
         description: 'HR admins can configure performance review cycles with custom questionnaires, rating scales, review periods, and multi-level approval workflows.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Self-Appraisal',
@@ -856,7 +857,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Review Cycle',
         description: 'Set up the performance review cycle with timeline, questionnaire, and rating scale',
         route: '/performance',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -936,17 +937,17 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Course & Content Management',
         description: 'HR admins can create courses, upload content (videos, documents, SCORM), set assessments, and define completion criteria and certifications.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Training Compliance Tracking',
         description: 'Track mandatory training completions for compliance (fire safety, data privacy, harassment prevention). Get alerts for overdue trainings.',
-        roles: ['manager', 'tenant_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo'],
       },
       {
         title: 'Training ROI & Analytics',
         description: 'Measure training effectiveness through completion rates, assessment scores, post-training performance improvements, and employee satisfaction surveys.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -955,7 +956,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Create Training Program',
         description: 'Build courses with content, assessments, and certification criteria',
         route: '/training',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -997,7 +998,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Evaluate Effectiveness',
         description: 'Analyze post-training performance, gather feedback, and measure ROI',
         route: '/reports',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowTitle: 'Training Management Workflow',
@@ -1028,7 +1029,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Survey Configuration',
         description: 'HR admins can create custom engagement surveys with various question types, schedule recurring pulse surveys, and set anonymity levels.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Grievance Management',
@@ -1038,7 +1039,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Engagement Analytics',
         description: 'Analyze engagement trends across departments, demographics, and time periods. Identify hotspots and track the impact of interventions.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -1047,7 +1048,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Create Engagement Survey',
         description: 'Design survey questions, set anonymity level, and schedule the survey period',
         route: '/engagement',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -1075,7 +1076,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Analyze Survey Results',
         description: 'View aggregated survey results, sentiment analysis, and trend reports',
         route: '/engagement',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 5,
@@ -1089,7 +1090,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Track Improvements',
         description: 'Monitor engagement score changes over time to measure the impact of interventions',
         route: '/engagement',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowTitle: 'Employee Engagement Cycle',
@@ -1120,7 +1121,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'SLA Configuration',
         description: 'Configure SLAs by ticket category and priority. Set response and resolution time targets, escalation rules, and breach notifications.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Manager Escalation View',
@@ -1130,7 +1131,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Helpdesk Analytics',
         description: 'Track ticket volume, resolution times, SLA compliance, agent performance, and satisfaction scores to continuously improve support quality.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -1146,7 +1147,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure SLA & Categories',
         description: 'Set up ticket categories, SLAs, escalation rules, and agent assignments',
         route: '/helpdesk',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 2,
@@ -1222,7 +1223,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Travel Policy Configuration',
         description: 'Define travel policies including class of travel, accommodation limits, per diem rates, and approval thresholds by grade and destination.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowSteps: [
@@ -1231,7 +1232,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Travel Policy',
         description: 'Define travel rules, per diem rates, and approval thresholds by grade',
         route: '/travel',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -1309,12 +1310,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Expense Analytics',
         description: 'Track expense trends by department, category, and employee. Identify cost-saving opportunities and policy violation patterns.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Expense Policy Configuration',
         description: 'Define expense categories, spending limits, required documentation, and multi-level approval thresholds by employee grade.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowSteps: [
@@ -1323,7 +1324,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Expense Policy',
         description: 'Set up expense categories, limits, and approval rules by grade',
         route: '/expenses',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -1394,7 +1395,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Asset Depreciation Tracking',
         description: 'Finance can track asset depreciation for accounting purposes. The system calculates depreciation schedules and provides reports for financial statements.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Audit & Compliance',
@@ -1476,12 +1477,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Document Categories & Access Control',
         description: 'HR admins can organize documents into categories, set access permissions by role, and configure retention policies for compliance.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Digital Signatures & Workflows',
         description: 'Route documents for digital signatures and approvals. Track document status (draft, pending signature, signed, archived) through the workflow.',
-        roles: ['manager', 'tenant_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo'],
       },
       {
         title: 'Compliance & Expiry Tracking',
@@ -1500,7 +1501,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Setup Document Categories',
         description: 'Create document categories and define access permissions for each role',
         route: '/documents',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -1514,7 +1515,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Retention Policies',
         description: 'Set document retention periods and auto-archival rules for compliance',
         route: '/documents',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 3,
@@ -1535,7 +1536,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Review Audit Trail',
         description: 'Monitor document access logs and ensure compliance with data governance policies',
         route: '/documents',
-        roles: ['super_admin', 'tenant_admin', 'admin'],
+        roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
       },
     ],
     workflowTitle: 'Document Management Workflow',
@@ -1566,7 +1567,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Project Dashboard',
         description: 'Track project health with real-time dashboards showing budget vs actual, milestone progress, risk indicators, and team workload distribution.',
-        roles: ['manager', 'tenant_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo'],
       },
       {
         title: 'Client Billing Integration',
@@ -1576,7 +1577,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Project Portfolio Management',
         description: 'Super admins and tenant admins can view the entire project portfolio, compare project health metrics, and make strategic resource decisions.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -1585,7 +1586,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Create Project',
         description: 'Define the project with name, client, timeline, budget, and team structure',
         route: '/projects',
-        roles: ['manager', 'tenant_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -1634,7 +1635,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Project Closure',
         description: 'Close the project, release resources, and generate final reports',
         route: '/projects',
-        roles: ['manager', 'tenant_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo'],
       },
     ],
     workflowTitle: 'Project Management Workflow',
@@ -1655,17 +1656,17 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Role-Based Access Control',
         description: 'Configure role permissions at the module and action level. Define who can view, create, edit, or delete data in each module.',
-        roles: ['super_admin', 'tenant_admin'],
+        roles: ['super_admin', 'tenant_admin', 'ceo'],
       },
       {
         title: 'Workflow & Approval Configuration',
         description: 'Set up multi-level approval workflows for leave, expenses, travel, and other requests. Configure delegation rules for when approvers are away.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Email & Notification Templates',
         description: 'Customize email and notification templates for various events (welcome email, leave approval, payroll notification, etc.) with your branding.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Integration Settings',
@@ -1691,21 +1692,21 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Manage RBAC',
         description: 'Review and configure role permissions for each module and action',
         route: '/settings',
-        roles: ['super_admin', 'tenant_admin'],
+        roles: ['super_admin', 'tenant_admin', 'ceo'],
       },
       {
         step: 2,
         title: 'Configure Approval Workflows',
         description: 'Set up multi-level approval chains and delegation rules for requests',
         route: '/settings',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 3,
         title: 'Customize Templates',
         description: 'Edit email and notification templates with company branding',
         route: '/settings',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 4,
@@ -1726,7 +1727,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Test Configuration',
         description: 'Verify all settings work as expected by testing workflows and permissions',
         route: '/settings',
-        roles: ['super_admin', 'tenant_admin', 'admin'],
+        roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
       },
     ],
     workflowTitle: 'System Settings Configuration',
@@ -1742,7 +1743,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Pre-Built Report Library',
         description: 'Access a library of pre-built HR, payroll, attendance, and compliance reports. Filter by date range, department, location, and employee status.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'View Personal Reports',
@@ -1757,7 +1758,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Custom Report Builder',
         description: 'Create custom reports by selecting data fields, filters, grouping, and chart types. Save custom reports for reuse and schedule automated generation.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Compliance & Statutory Reports',
@@ -1767,7 +1768,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'AI-Powered Insights',
         description: 'Use AI to automatically surface anomalies, trends, and recommendations from your HR data. Ask questions in natural language for instant analysis.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -1782,7 +1783,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Select Report Type',
         description: 'Choose from pre-built reports or start a custom report from scratch',
         route: '/reports',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 2,
@@ -1809,21 +1810,21 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Export & Share',
         description: 'Export reports as PDF, Excel, or CSV and share with stakeholders',
         route: '/reports',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         step: 6,
         title: 'Schedule Recurring Reports',
         description: 'Set up automated report generation on a daily, weekly, or monthly schedule',
         route: '/reports',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 7,
         title: 'AI Analysis',
         description: 'Use AI-powered insights to identify trends, anomalies, and recommendations',
         route: '/reports',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowTitle: 'Reporting & Analytics Workflow',
@@ -1839,7 +1840,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Initiate Separation Request',
         description: 'Start the separation process by creating a separation record specifying the type (resignation, termination, retirement), notice period, and last working day. The system auto-triggers the offboarding workflow.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Submit Resignation',
@@ -1859,7 +1860,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Full & Final Settlement',
         description: 'Process the F&F settlement including pending salary, leave encashment, bonus, deductions, loan recoveries, and asset returns. The system auto-calculates based on configured rules.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Knowledge Transfer & Handover',
@@ -1880,7 +1881,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Create Separation Record',
         description: 'HR initiates a separation record for the employee with type, notice period, and last day',
         route: '/separation',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 2,
@@ -1954,7 +1955,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Investigation & Resolution',
         description: 'HR admins and designated committee members investigate grievances through interviews, document reviews, and evidence collection. All actions are tracked with timestamps for compliance.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Manager Awareness',
@@ -1964,12 +1965,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Escalation Mechanism',
         description: 'If a grievance is not resolved within the defined SLA, it is automatically escalated to higher authorities. Multi-level escalation ensures no grievance goes unaddressed.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Compliance & Audit Trail',
         description: 'All grievance actions are logged with full audit trails for legal compliance. Reports show resolution rates, average time-to-resolution, and category trends for organizational improvement.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -2020,7 +2021,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Approve Resolution',
         description: 'Review and approve the proposed resolution; escalate if unsatisfied',
         route: '/grievances',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 7,
@@ -2063,12 +2064,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Timesheet Policies & Compliance',
         description: 'Configure timesheet submission deadlines, approval workflows, overtime rules, and compliance requirements. Enforce mandatory submission for regulated industries.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Time Tracking Reports',
         description: 'Generate reports on time utilization, project profitability, employee productivity, and billing accuracy. Identify trends in overtime, under-utilization, and project overruns.',
-        roles: ['manager', 'tenant_admin'],
+        roles: ['manager', 'tenant_admin', 'ceo'],
       },
     ],
     workflowSteps: [
@@ -2077,7 +2078,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Timesheet Policies',
         description: 'Set up submission frequency, deadlines, billable codes, and approval rules',
         route: '/timesheets',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 1,
@@ -2151,17 +2152,17 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Create & Publish Articles',
         description: 'HR admins and content owners can create rich-text articles with images, tables, and embedded media. Use the draft-review-publish workflow to ensure quality before articles go live.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Access-Controlled Content',
         description: 'Control who can view, edit, and manage documents based on role, department, or location. Sensitive policies like compensation guidelines can be restricted to authorized personnel only.',
-        roles: ['tenant_admin', 'super_admin'],
+        roles: ['tenant_admin', 'ceo', 'super_admin'],
       },
       {
         title: 'Version History & Audit',
         description: 'Every document edit is tracked with version history. Compare versions, revert changes, and see who modified what and when for full compliance traceability.',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         title: 'Employee Self-Service Access',
@@ -2182,28 +2183,28 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Create Document Category',
         description: 'Set up categories and access rules for organizing documentation',
         route: '/docs',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 2,
         title: 'Write New Article',
         description: 'Create a new article with rich content, images, and formatting',
         route: '/docs',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 3,
         title: 'Set Access Permissions',
         description: 'Define who can view and edit the document based on role or department',
         route: '/docs',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 4,
         title: 'Review & Publish',
         description: 'Submit for review, get approval, and publish the article to the knowledge base',
         route: '/docs',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
       {
         step: 5,
@@ -2217,7 +2218,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Track Usage & Feedback',
         description: 'Monitor article views, search analytics, and user feedback to improve documentation',
         route: '/docs',
-        roles: ['tenant_admin'],
+        roles: ['tenant_admin', 'ceo'],
       },
     ],
     workflowTitle: 'Documentation Hub Workflow',

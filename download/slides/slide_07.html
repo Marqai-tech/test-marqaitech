@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Leave SOP — 3Boxes HRMS Mobile App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;background:#f7faf8;overflow:hidden;}
+  .pill-rev{color:#8a5a14;}
+  .h-title{font-family:var(--font-heading);font-size:34px;line-height:1.14;font-weight:800;letter-spacing:-0.9px;color:var(--primary);}
+  .lead{display:block;font-size:15px;font-weight:800;letter-spacing:-0.2px;color:var(--primary);}
+  .body-txt{font-size:14px;line-height:1.55;color:var(--muted);}
+  .body-txt b{color:var(--primary);font-weight:700;}
+  .card-title{font-size:16px;font-weight:800;letter-spacing:-0.2px;color:var(--primary);}
+  .icon-chip{width:34px;height:34px;border-radius:10px;background:var(--accent-tint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .icon-chip .material-icons{font-size:19px;color:var(--accent);}
+  .tag{display:inline-flex;align-items:center;padding:4px 11px;border-radius:999px;background:var(--stripe);border:1px solid var(--border);font-size:10.5px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--primary-soft);}
+  .dotgrid{background-image:radial-gradient(rgba(18,53,39,0.10) 1.3px, transparent 1.3px);background-size:18px 18px;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px 44px;display:flex;flex-direction:column;">
+
+  <div data-decor aria-hidden="true" class="dotgrid" style="position:absolute;top:52px;right:64px;width:190px;height:60px;opacity:.55;"></div>
+  <div data-decor aria-hidden="true" style="position:absolute;top:-120px;right:-120px;width:300px;height:300px;border-radius:50%;border:42px solid rgba(74,154,106,0.09);"></div>
+
+  <header style="position:relative;z-index:1;">
+    <div class="kicker">Leave SOP</div>
+    <h1 class="h-title" style="margin:10px 0 0;">Apply ahead, track live, approve on the go</h1>
+  </header>
+
+  <main style="flex:1;min-height:0;display:grid;grid-template-columns:58fr 42fr;gap:22px;margin-top:20px;position:relative;z-index:1;">
+
+    <!-- LEFT: 4 numbered steps -->
+    <section style="display:flex;flex-direction:column;gap:12px;min-height:0;">
+      <div class="card" style="flex:1;display:flex;align-items:center;gap:14px;padding:14px 18px;">
+        <div class="stepnum">1</div>
+        <p class="body-txt" style="margin:0;">
+          <span class="lead">Open Leave Management</span>
+          <span>(or tap <b>Request Leave</b> on Home) → <b>Apply Leave</b>.</span>
+        </p>
+      </div>
+      <div class="card" style="flex:1;display:flex;align-items:center;gap:14px;padding:14px 18px;">
+        <div class="stepnum">2</div>
+        <p class="body-txt" style="margin:0;">
+          <span class="lead">Choose the leave type</span>
+          <span>— <b>casual, sick, earned</b>, plus company-specific types.</span>
+        </p>
+      </div>
+      <div class="card" style="flex:1;display:flex;align-items:center;gap:14px;padding:14px 18px;">
+        <div class="stepnum">3</div>
+        <p class="body-txt" style="margin:0;">
+          <span class="lead">Pick dates and add a short reason</span>
+          <span>— apply <b>BEFORE</b> the leave date whenever possible.</span>
+        </p>
+      </div>
+      <div class="card" style="flex:1;display:flex;align-items:center;gap:14px;padding:14px 18px;">
+        <div class="stepnum">4</div>
+        <p class="body-txt" style="margin:0;">
+          <span class="lead">Submit</span>
+          <span>— track <b>status chips</b> in your list; you are notified the moment a decision lands.</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- RIGHT: balances, approvers, status chips -->
+    <aside style="display:flex;flex-direction:column;gap:12px;min-height:0;">
+
+      <div class="card" style="padding:15px 18px;">
+        <div style="display:flex;align-items:center;gap:11px;">
+          <div class="icon-chip"><i class="material-icons">event_available</i></div>
+          <div class="card-title">Live balances</div>
+        </div>
+        <p class="body-txt" style="margin:9px 0 0;font-size:13.5px;">Remaining balance per leave type with this year's usage — <b>check before applying</b>.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
+          <span class="tag">Casual</span>
+          <span class="tag">Sick</span>
+          <span class="tag">Earned</span>
+          <span class="tag">+ Company-specific types</span>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1;padding:15px 18px;display:flex;flex-direction:column;min-height:0;">
+        <div style="display:flex;align-items:center;gap:11px;">
+          <div class="icon-chip"><i class="material-icons">manage_accounts</i></div>
+          <div class="card-title" style="font-size:15px;">For approvers <span style="font-weight:600;font-size:12.5px;color:var(--muted);letter-spacing:0;">(HR/Admin/CEO/managers)</span></div>
+        </div>
+        <p class="body-txt" style="margin:9px 0 0;font-size:13.5px;"><b>Approve / Reject</b> actions sit right on each pending card, and leave can be applied <b>on behalf of an employee</b> from the same screen; every action is <b>audit-logged</b>.</p>
+        <div style="display:flex;align-items:center;gap:9px;margin-top:auto;padding-top:10px;">
+          <span class="pill pill-yes">Approve</span>
+          <span class="pill pill-no">Reject</span>
+        </div>
+      </div>
+
+      <div class="card" style="padding:13px 18px;">
+        <div style="font-size:10.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);">Status chips in your list</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:9px;">
+          <span class="pill pill-rev">Pending</span>
+          <span class="pill pill-yes">Approved</span>
+          <span class="pill pill-no">Rejected</span>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <footer style="margin-top:14px;position:relative;z-index:1;background:var(--accent-tint);border:1px solid #cfe4d7;border-radius:12px;padding:11px 18px;display:flex;align-items:center;gap:13px;">
+    <i class="material-icons" style="font-size:20px;color:var(--accent);">notifications_active</i>
+    <i class="material-icons" style="font-size:20px;color:var(--accent);">mail</i>
+    <p style="margin:0;font-size:14px;font-weight:600;color:var(--primary);">Every decision triggers an in-app notification <span style="font-weight:800;">AND</span> an email.</p>
+  </footer>
+
+</div>
+</body>
+</html>

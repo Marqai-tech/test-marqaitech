@@ -80,7 +80,7 @@ const initialForm = {
 export default function ResignationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isApprover = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isApprover = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 

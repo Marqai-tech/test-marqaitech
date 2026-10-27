@@ -459,7 +459,7 @@ export async function GET(request: Request) {
     for (const slug of restrictedArticles) {
       const article = await db.docArticle.findUnique({ where: { slug } });
       if (article) {
-        for (const role of ['tenant_admin', 'super_admin']) {
+        for (const role of ['tenant_admin', 'ceo', 'super_admin']) {
           const existingRule = await db.docAccessRule.findFirst({
             where: { articleId: article.id, role },
           });

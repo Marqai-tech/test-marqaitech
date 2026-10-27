@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -118,7 +118,7 @@ export async function PUT(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -176,7 +176,7 @@ export async function DELETE(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
 

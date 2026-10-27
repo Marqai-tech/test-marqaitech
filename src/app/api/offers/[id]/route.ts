@@ -106,12 +106,12 @@ export async function PATCH(
             const satisfies = (() => {
               switch (tier.approverType) {
                 case 'specific_user': return !!tier.approverUserId && uid === tier.approverUserId;
-                case 'hr_admin': return ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'super_admin'].includes(role);
-                case 'tenant_admin': return ['tenant_admin', 'admin', 'super_admin'].includes(role);
-                case 'finance': return ['finance', 'finance_admin', 'tenant_admin'].includes(role);
+                case 'hr_admin': return ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'ceo', 'super_admin'].includes(role);
+                case 'tenant_admin': case 'ceo': return ['tenant_admin', 'ceo', 'admin', 'super_admin'].includes(role);
+                case 'finance': return ['finance', 'finance_admin', 'tenant_admin', 'ceo'].includes(role);
                 case 'reporting_manager':
                 case 'department_head':
-                default: return ['manager', 'department_head', 'hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'super_admin'].includes(role);
+                default: return ['manager', 'department_head', 'hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'ceo', 'super_admin'].includes(role);
               }
             })();
             if (!satisfies) {
@@ -136,7 +136,7 @@ export async function PATCH(
         } else {
           // No tier chain configured — legacy behavior, but restrict to HR-level roles
           const role = String(decoded.role || '');
-          if (!['admin', 'tenant_admin', 'hr_admin', 'company_hr_admin', 'super_admin'].includes(role)) {
+          if (!['admin', 'tenant_admin', 'ceo', 'hr_admin', 'company_hr_admin', 'super_admin'].includes(role)) {
             return NextResponse.json(
               { error: 'Not authorized to approve offers — HR/admin approval is required.' },
               { status: 403, headers: corsHeaders() }
@@ -216,9 +216,10 @@ export async function PATCH(
 
       const notificationInfo = notificationMap[effectiveStatus];
       if (notificationInfo) {
-        // Notify the HR admin / approvers
+        // Notify the HR admin / approvers — BUG-7 fix: broaden to include
+        // hr_admin, company_hr_admin and admin roles, not just tenant_admin.
         const hrAdmins = await db.user.findMany({
-          where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin'] } },
+          where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin', 'hr_admin', 'company_hr_admin', 'admin'] } },
         });
 
         for (const admin of hrAdmins) {
@@ -229,7 +230,7 @@ export async function PATCH(
             message: notificationInfo.message,
             type: notificationInfo.type,
             category: 'recruitment',
-            link: `/offers/${id}`,
+            link: '/offers',
           });
         }
       }
@@ -259,7 +260,7 @@ export async function PATCH(
         }
         if (effectiveStatus === 'accepted' && tenantIdOff) {
           // Recruiter/HR + IT & Admin provisioning trigger
-          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
           const itIds = await resolveRoleRecipients(db, ['it_admin', 'it_support', 'admin', 'system_admin'], 10);
           const recipients = Array.from(new Set([...hrIds, ...itIds])).map((uid) => ({ userId: uid }));
           await dispatchNotification({
@@ -273,12 +274,12 @@ export async function PATCH(
               Department: existing.department || '—',
               Joining_Date: offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString('en-IN') : 'TBD',
             },
-            entity: { type: 'offer', id, link: `/offers/${id}` },
+            entity: { type: 'offer', id, link: '/offers' },
             origin: originOff,
           });
         }
         if (effectiveStatus === 'rejected' && tenantIdOff) {
-          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
           await dispatchNotification({
             tenantId: tenantIdOff,
             module: 'recruitment',
@@ -289,7 +290,7 @@ export async function PATCH(
               Position: existing.position || '',
               Reason: responseNotes || '—',
             },
-            entity: { type: 'offer', id, link: `/offers/${id}` },
+            entity: { type: 'offer', id, link: '/offers' },
             origin: originOff,
           });
         }

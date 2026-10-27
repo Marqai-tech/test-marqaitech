@@ -23,6 +23,9 @@ import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { DEFAULT_PREBOARDING_CONFIG } from '@/lib/recruitment-workflow';
+/* Task 156-b — shared SmartHR widgets (white StatCards + Panels); the shell
+   now renders the SmartHR gradient banner itself. */
+import { Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 
 /* ── Types ── */
 interface PreboardingCandidate {
@@ -174,6 +177,8 @@ function PreboardingPageContent() {
     <ModuleDashboardShell
       moduleKey="preboarding"
       moduleLabel="Preboarding"
+      title="Preboarding Dashboard"
+      trail={['Onboarding', 'Preboarding']}
       moduleIcon={<FiFileText className="w-5 h-5 text-white" />}
       gradientColor="from-lime-500 to-green-600"
       tabs={preboardingTabs}
@@ -196,7 +201,7 @@ export default function PreboardingPage() {
 /* ── Component ── */
 function PreboardingContent() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [candidates, setCandidates] = useState<PreboardingCandidate[]>([]);
   const [usingLiveData, setUsingLiveData] = useState(false);
@@ -228,6 +233,11 @@ function PreboardingContent() {
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
 
+  // GAP-3 fix: gate config state — read from the workflow configuration API
+  // so we can enforce document/HR verification gates on the client side.
+  const [blockJoiningUntilDocs, setBlockJoiningUntilDocs] = useState(false);
+  const [requireHRVerification, setRequireHRVerification] = useState(false);
+
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -252,6 +262,9 @@ function PreboardingContent() {
           setLabelToStatus(l2s);
           statusToLabelRef.current = s2l;
           stageLabelsRef.current = labels;
+          // GAP-3 fix: read the gate toggles from config
+          setBlockJoiningUntilDocs(!!cfgJson.effective?.blockJoiningUntilDocsComplete);
+          setRequireHRVerification(!!cfgJson.effective?.requireHRVerification);
         }
       } catch { /* defaults already set */ }
 
@@ -388,6 +401,27 @@ function PreboardingContent() {
     if (currentIdx < 0 || currentIdx >= stageLabels.length - 1) return;
     const nextLabel = stageLabels[currentIdx + 1];
     const nextStatus = labelToStatus[nextLabel];
+
+    // GAP-3 fix: enforce the document gate when advancing to the final stage.
+    // If blockJoiningUntilDocsComplete is enabled, prevent advancing to the
+    // last stage (Day 1 Ready / Joined) if any document is in 'pending' or
+    // 'rejected' state.
+    if (currentIdx + 1 === stageLabels.length - 1 && blockJoiningUntilDocs) {
+      const pendingDocs = (current.documents || []).filter(
+        (d: { status: string }) => d.status === 'pending' || d.status === 'rejected'
+      );
+      if (pendingDocs.length > 0) {
+        toast.error(`Cannot advance to "${nextLabel}" — ${pendingDocs.length} document(s) still pending or rejected. Complete document verification first.`);
+        return;
+      }
+    }
+
+    // GAP-3 fix: enforce the HR verification gate when advancing to the final stage.
+    if (currentIdx + 1 === stageLabels.length - 1 && requireHRVerification && !current.hrVerified) {
+      toast.error(`Cannot advance to "${nextLabel}" — HR verification is required before joining. Mark the candidate as HR Verified first.`);
+      return;
+    }
+
     // Optimistic update
     setCandidates(prev => prev.map(c => (c.id === id ? { ...c, stage: nextLabel } : c)));
     // Persist to the workflow engine (status key from configuration)
@@ -422,24 +456,29 @@ function PreboardingContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiUserPlus className="w-6 h-6 text-emerald-500" />
-            Preboarding
-          </h1>
-          <p className="text-thb-text-secondary mt-1">Manage pre-boarding workflow for incoming employees</p>
-          <p className={`text-[11px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${usingLiveData ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-            {usingLiveData ? '● Live data — candidates converted from recruitment appear here' : '● No preboarding records yet — convert a hired candidate in Recruitment'}
-          </p>
+      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Live-data status chip (was on the banner's gradient; now restyled for white background) */}
+          <span
+            className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 shadow-sm text-xs font-semibold rounded-lg px-3 py-2"
+            title={usingLiveData ? 'Candidates converted from recruitment appear here' : 'Convert a hired candidate in Recruitment'}
+          >
+            <span className={`w-2 h-2 rounded-full ${usingLiveData ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+            {usingLiveData ? 'Live data' : 'No records yet'}
+          </span>
         </div>
-        {isAdmin && (
-          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium text-sm shadow-sm shadow-emerald-500/25 transition-colors">
-            <FiPlus className="w-4 h-4" />
-            Add Candidate
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <button
+              onClick={handleShowAddForm}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Candidate
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Module Tips & Workflow */}
@@ -448,53 +487,49 @@ function PreboardingContent() {
         <ModuleWorkflow moduleKey="preboarding" title="How to Manage Pre-boarding" steps={preboardingWorkflowSteps} accentColor="emerald" userRole={user?.role} />
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards — shared SmartHR StatCard (Task 156-b) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="thb-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-50"><FiUserPlus className="w-4 h-4 text-emerald-600" /></div>
-            <div>
-              <p className="text-xs font-medium text-thb-text-secondary">Total Candidates</p>
-              <p className="text-xl font-bold text-thb-text-primary">{totalCandidates}</p>
-            </div>
-          </div>
-        </div>
-        <div className="thb-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-cyan-50"><FiClock className="w-4 h-4 text-cyan-600" /></div>
-            <div>
-              <p className="text-xs font-medium text-thb-text-secondary">In Progress</p>
-              <p className="text-xl font-bold text-thb-text-primary">{inProgress}</p>
-            </div>
-          </div>
-        </div>
-        <div className="thb-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-50"><FiShield className="w-4 h-4 text-amber-600" /></div>
-            <div>
-              <p className="text-xs font-medium text-thb-text-secondary">Pending BGV</p>
-              <p className="text-xl font-bold text-amber-600">{pendingBGV}</p>
-            </div>
-          </div>
-        </div>
-        <div className="thb-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-50"><FiCheckCircle className="w-4 h-4 text-emerald-600" /></div>
-            <div>
-              <p className="text-xs font-medium text-thb-text-secondary">Ready for Day 1</p>
-              <p className="text-xl font-bold text-emerald-600">{readyDay1}</p>
-            </div>
-          </div>
-        </div>
+        <StatCard
+          label="Total Candidates"
+          value={totalCandidates}
+          sub="In pre-boarding workflow"
+          icon={<FiUserPlus className="w-5 h-5" />}
+          bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+          ring="ring-[#3A57C4]/20"
+        />
+        <StatCard
+          label="In Progress"
+          value={inProgress}
+          sub="Between first and final stage"
+          icon={<FiClock className="w-5 h-5" />}
+          bg="bg-[#009EFB]/10 text-[#009EFB]"
+          ring="ring-[#009EFB]/20"
+        />
+        <StatCard
+          label="Pending BGV"
+          value={pendingBGV}
+          sub="Background verification open"
+          icon={<FiShield className="w-5 h-5" />}
+          bg="bg-[#FF9B44]/15 text-[#FF9B44]"
+          ring="ring-[#FF9B44]/20"
+        />
+        <StatCard
+          label="Ready for Day 1"
+          value={readyDay1}
+          sub="Reached the final stage"
+          icon={<FiCheckCircle className="w-5 h-5" />}
+          bg="bg-[#10B981]/10 text-[#10B981]"
+          ring="ring-[#10B981]/20"
+        />
       </div>
 
       {/* Stage Pipeline Bar */}
       <div className="thb-card p-4">
-        <h3 className="text-sm font-semibold text-thb-text-secondary mb-3">7-Stage Workflow Pipeline</h3>
+        <h3 className="text-sm font-semibold text-thb-text-secondary mb-3">{stageLabels.length}-Stage Workflow Pipeline</h3>
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
           {stageCounts.map((s, i) => (
             <div key={s.stage} className="flex items-center">
-              <div className={`flex flex-col items-center min-w-[100px] px-3 py-2 rounded-lg ${i <= stageLabels.indexOf(filtered[0]?.stage || '') ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 border border-slate-200'}`}>
+              <div className={`flex flex-col items-center min-w-[100px] px-3 py-2 rounded-lg ${i <= stageLabels.indexOf(filtered[0]?.stage || '') ? 'bg-[#3A57C4]/10 border border-[#3A57C4]/25' : 'bg-slate-50 border border-slate-200'}`}>
                 <span className="text-[10px] text-thb-text-muted text-center leading-tight">{s.stage}</span>
                 <span className="text-sm font-bold text-thb-text-primary mt-1">{s.count}</span>
               </div>
@@ -504,10 +539,10 @@ function PreboardingContent() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-thb-border">
+      {/* Tabs — royal active pill (Task 156-b, SmartHR tab pattern) */}
+      <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-[#3A57C4] text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>
             <tab.icon className="w-4 h-4" />
             {tab.label}
           </button>
@@ -569,9 +604,9 @@ function PreboardingContent() {
         </div>
       )}
 
-      {/* Tab Content: Pipeline */}
+      {/* Tab Content: Pipeline — SmartHR Panel (Task 156-b) */}
       {activeTab === 'pipeline' && (
-        <div className="thb-card overflow-hidden">
+        <Panel title="Candidate Pipeline" icon={<FiUserPlus className="w-4 h-4" />} accent="text-[#3A57C4]">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -655,7 +690,7 @@ function PreboardingContent() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* Tab Content: Documents */}
@@ -696,9 +731,9 @@ function PreboardingContent() {
         </div>
       )}
 
-      {/* Tab Content: BGV Tracking */}
+      {/* Tab Content: BGV Tracking — SmartHR Panel (Task 156-b) */}
       {activeTab === 'bgv' && (
-        <div className="thb-card overflow-hidden">
+        <Panel title="BGV Tracking" icon={<FiShield className="w-4 h-4" />} accent="text-[#6C4FD6]">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -741,7 +776,7 @@ function PreboardingContent() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Panel>
       )}
     </div>
   );

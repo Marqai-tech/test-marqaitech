@@ -23,6 +23,7 @@ import { getDbForTenantById, getPlatformDb } from '@/lib/tenant-db';
 import { getEventDef, type NotificationChannel } from '@/lib/notification-events';
 import { renderPlaceholders, buildEmailHtml } from '@/lib/notification-render';
 import { sendTenantEmail, sendGlobalEmail } from '@/lib/notification-channels';
+import { getTenantBranding, type TenantBranding } from '@/lib/tenant-branding';
 
 type PrismaClient = ReturnType<typeof getPlatformDb>;
 
@@ -230,7 +231,33 @@ async function resolveRecipient(db: PrismaClient, r: NotificationRecipient): Pro
         if (!base.name) base.name = (user as any).name || '';
         if (!base.email) base.email = user.email || null;
       }
-    } catch { /* user lookup is best-effort (e.g. candidate recipients) */ }
+    } catch (prismaErr) {
+      // Prisma findUnique can fail on tenant DBs with schema drift (missing
+      // columns the client expects). Fall back to RAW SQL so the recipient's
+      // email is still resolved — otherwise the email channel is silently
+      // skipped ("no email address") and notification emails never go out.
+      try {
+        const rows = await db.$queryRawUnsafe(
+          `SELECT name, email FROM "User" WHERE id = $1 LIMIT 1`,
+          base.userId,
+        ) as any[];
+        if (rows[0]) {
+          if (!base.name) base.name = rows[0].name || '';
+          if (!base.email) base.email = rows[0].email || null;
+        }
+      } catch { /* raw SQL also failed — leave as-is */ }
+    }
+  }
+  // Also try to resolve email from the Employee table if User lookup didn't
+  // yield one (some tenant DBs have Employee.email but User.email is null).
+  if (base.userId && !base.email) {
+    try {
+      const empRows = await db.$queryRawUnsafe(
+        `SELECT email FROM "Employee" WHERE "userId" = $1 LIMIT 1`,
+        base.userId,
+      ) as any[];
+      if (empRows[0]?.email) base.email = empRows[0].email;
+    } catch { /* best-effort */ }
   }
   return base;
 }
@@ -286,11 +313,16 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
   // Tenant slug for absolute links + company name for branding
   let tenantSlug = '';
   let companyName = params.companyName || '';
+  let branding: TenantBranding | null = null;
   try {
     const platformDb = getPlatformDb();
     const tenant = await platformDb.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } });
     tenantSlug = tenant?.slug || '';
     if (!companyName) companyName = tenant?.name || '3Boxes HRMS';
+    // REQ 5: fetch full tenant branding (logo + colors) once per dispatch.
+    // Branding is tenant-isolated — getTenantBranding only reads from the
+    // Tenant row matching this tenantId, never crosses tenants.
+    branding = await getTenantBranding(tenantId);
   } catch { /* branding fallback below */ }
   const baseUrl = resolveBaseUrl(params.origin, tenantSlug);
 
@@ -328,7 +360,7 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
       try {
         const status = await sendToChannel({
           db, tenantId, channel, recipient, vars, tpl, module, eventKey,
-          entity: params.entity, actionToken, actionUrl, actionExpiresAt, baseUrl, companyName,
+          entity: params.entity, actionToken, actionUrl, actionExpiresAt, baseUrl, companyName, branding,
         });
         logDelivery(result, channel, recipientLabel, status.status, status.error, actionToken || undefined);
       } catch (e: any) {
@@ -363,6 +395,7 @@ interface SendContext {
   actionExpiresAt: Date | null;
   baseUrl: string;
   companyName: string;
+  branding: TenantBranding | null;
 }
 
 /**
@@ -391,7 +424,7 @@ async function resolveActionExpiry(
 }
 
 async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?: string }> {
-  const { db, tenantId, channel, recipient, vars, tpl, module, eventKey, entity } = ctx;
+  const { db, tenantId, channel, recipient, vars, tpl, module, eventKey, entity, branding } = ctx;
   const title = renderPlaceholders(tpl.subject, vars);
   const bodyText = renderPlaceholders(tpl.body, vars);
   const slackText = renderPlaceholders(tpl.bodySlack || tpl.body, vars);
@@ -451,7 +484,7 @@ async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?
         break;
       }
       case 'email': {
-        const html = buildEmailHtml({ title, bodyText, actionUrl: ctx.actionUrl, companyName: ctx.companyName, expiresAt: vars.Action_Expiry });
+        const html = buildEmailHtml({ title, bodyText, actionUrl: ctx.actionUrl, companyName: ctx.companyName, expiresAt: vars.Action_Expiry, branding });
         const res = await sendTenantEmail(db, tenantId, { to: recipient.email!, subject: title, html });
         status = res.success ? 'sent' : 'failed';
         error = res.error;
@@ -462,6 +495,15 @@ async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?
           await mirrorToInternalInbox(db, ctx, recipient, title, bodyText).catch((mirrorErr: Error) => {
             console.warn(`[NotificationCenter] inbox mirror failed for ${recipient.email || recipient.userId}: ${mirrorErr.message}`);
           });
+          // Update the corresponding in-app Notification's isEmailSent flag
+          // so the UI can show whether an email was delivered. Best-effort —
+          // uses RAW SQL to avoid Prisma schema-drift issues.
+          try {
+            await db.$executeRawUnsafe(
+              `UPDATE "Notification" SET "isEmailSent" = true WHERE "userId" = $1 AND title = $2 AND "isEmailSent" = false`,
+              recipient.userId, title,
+            );
+          } catch { /* non-fatal */ }
         }
         break;
       }

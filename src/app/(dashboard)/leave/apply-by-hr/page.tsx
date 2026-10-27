@@ -60,6 +60,13 @@ interface LeaveRequest {
   leaveType?: { id: string; name: string; code: string };
 }
 
+/* ── Task 135: attendance context (regularization dates + pending requests)
+   shown beside the leave form so HR sees the full picture before applying ── */
+interface AttendanceContextLite {
+  regularizations: Array<{ id: string; date: string; punchType: string; status: string }>;
+  pendingByType: Array<{ type: string; count: number; latestDate?: string }>;
+}
+
 export default function ApplyLeaveByHRPage() {
   const { user } = useAuthStore();
   const router = useRouter();
@@ -85,6 +92,8 @@ export default function ApplyLeaveByHRPage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [recentRequests, setRecentRequests] = useState<LeaveRequest[]>([]);
+  // Task 135 — the selected employee's regularization dates + pending requests
+  const [attendanceContext, setAttendanceContext] = useState<AttendanceContextLite | null>(null);
   // Holiday calendar (for working-day duration display)
   const [holidays, setHolidays] = useState<Array<{ id: string; name: string; date: string; type: string }>>([]);
 
@@ -105,7 +114,7 @@ export default function ApplyLeaveByHRPage() {
     setLoadingEmployees(true);
     try {
       const sq = scopeQuery();
-      const r = await fetch(`/api/employees?limit=50&includePhotos=0&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal });
+      const r = await fetch(`/api/employees?limit=50&includePhotos=0&excludeInactive=true&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setEmployees(d.employees || []);
@@ -153,10 +162,13 @@ export default function ApplyLeaveByHRPage() {
       const typesUrl = employee.companyId
         ? `/api/leave-types?companyId=${encodeURIComponent(employee.companyId)}`
         : '/api/leave-types';
-      const [typesRes, balanceRes, requestsRes] = await Promise.all([
+      const [typesRes, balanceRes, requestsRes, regRes, attReqRes] = await Promise.all([
         fetch(typesUrl, { headers: getAuthHeaders() }),
         fetch(`/api/leave/balance?employeeId=${employee.id}`, { headers: getAuthHeaders() }),
         fetch(`/api/leave?employeeId=${employee.id}&limit=5`, { headers: getAuthHeaders() }),
+        // Task 135 — regularization dates + pending attendance requests
+        fetch(`/api/attendance/regularize?employeeId=${employee.id}&limit=50`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/attendance/requests?scope=all&status=pending&limit=200`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
 
       const typesData = await typesRes.json();
@@ -196,6 +208,38 @@ export default function ApplyLeaveByHRPage() {
 
       const requestData = await requestsRes.json();
       if (requestsRes.ok) setRecentRequests(requestData.leaveRequests || []);
+
+      // Task 135 — build the attendance context panel (best-effort)
+      const ctx: AttendanceContextLite = { regularizations: [], pendingByType: [] };
+      if (regRes && regRes.ok) {
+        try {
+          const d = await regRes.json();
+          const regs = Array.isArray(d?.regularizations) ? d.regularizations : [];
+          ctx.regularizations = regs.slice(0, 6).map((r: Record<string, unknown>) => ({
+            id: String(r.id || ''),
+            date: String(r.date || '').slice(0, 10),
+            punchType: String(r.punchType || '—').replace(/_/g, ' '),
+            status: String(r.status || 'pending'),
+          }));
+        } catch { /* non-fatal */ }
+      }
+      if (attReqRes && attReqRes.ok) {
+        try {
+          const d = await attReqRes.json();
+          const reqs = (Array.isArray(d?.requests) ? d.requests : []).filter((r: Record<string, unknown>) => r.employeeId === employee.id || (r.employee as Record<string, unknown> | undefined)?.id === employee.id);
+          const byType = new Map<string, { count: number; latest?: string }>();
+          for (const r of reqs) {
+            const key = String(r.requestType || 'OTHER').replace(/_/g, ' ');
+            const cur = byType.get(key) || { count: 0 };
+            cur.count += 1;
+            const sd = r.startDate ? String(r.startDate).slice(0, 10) : '';
+            if (sd && (!cur.latest || sd > cur.latest)) cur.latest = sd;
+            byType.set(key, cur);
+          }
+          ctx.pendingByType = Array.from(byType.entries()).map(([type, v]) => ({ type, count: v.count, latestDate: v.latest }));
+        } catch { /* non-fatal */ }
+      }
+      setAttendanceContext(ctx);
     } catch {
       toast.error('Failed to load leave data');
     } finally {
@@ -552,6 +596,42 @@ export default function ApplyLeaveByHRPage() {
                         }`}>{req.status}</span>
                       </div>
                       <p className="text-[10px] text-slate-400 mt-0.5">{fmtDate(req.startDate)} — {fmtDate(req.endDate)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Task 135 — Attendance & Regularizations */}
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                <FiCalendar className="w-4 h-4 text-cyan-500" />
+                Attendance &amp; Regularizations
+              </h3>
+              {attendanceContext && attendanceContext.pendingByType.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {attendanceContext.pendingByType.map(p => (
+                    <span key={p.type} className="text-[10px] bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full">
+                      {p.type}: {p.count} pending{p.latestDate ? ` · ${p.latestDate}` : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {!attendanceContext || attendanceContext.regularizations.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2 text-center">No regularizations on record</p>
+              ) : (
+                <div className="space-y-2">
+                  {attendanceContext.regularizations.map(r => (
+                    <div key={r.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                      <div>
+                        <p className="text-xs font-medium text-slate-700">{r.date}</p>
+                        <p className="text-[10px] text-slate-400 capitalize">{r.punchType}</p>
+                      </div>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        r.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        r.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        r.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>{r.status}</span>
                     </div>
                   ))}
                 </div>

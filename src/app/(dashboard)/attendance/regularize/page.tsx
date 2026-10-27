@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle, FiEye, FiX, FiEdit2 } from 'react-icons/fi';
+import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle, FiEye, FiX, FiEdit2, FiUnlock, FiLock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -39,11 +39,22 @@ interface AttendanceContext {
   status?: string | null;
 }
 
+/* Task 161 — release window state served by /api/attendance/regularization-release */
+interface RegularizationWindowState {
+  open: boolean;
+  legacy: boolean;
+  reason: string | null;
+  cutoffDate: string | null;
+  daysLeft: number | null;
+  release: { releasedByName?: string; releasedAt?: string } | null;
+  canManage?: boolean;
+}
+
 export default function RegularizePage() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<Regularization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +64,7 @@ export default function RegularizePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attendanceContext, setAttendanceContext] = useState<AttendanceContext | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [regWindow, setRegWindow] = useState<RegularizationWindowState | null>(null);
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -77,6 +89,14 @@ export default function RegularizePage() {
   }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // Task 161 — the release window banner (open/closed) + apply gating
+  useEffect(() => {
+    fetch('/api/attendance/regularization-release', { headers: getAuthHeaders() })
+      .then(r => r.json())
+      .then(d => { if (d && typeof d.open === 'boolean') setRegWindow(d as RegularizationWindowState); })
+      .catch(() => { /* window state is optional — page stays usable */ });
+  }, []);
 
   useEffect(() => {
     if (!showForm || !form.date || !form.punchType) { setAttendanceContext(null); return; }
@@ -165,6 +185,11 @@ export default function RegularizePage() {
   const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const fmtTime = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+  // Task 161 — window closed for this cycle: employees cannot self-apply
+  // (admins/HR keep proxy-apply). Legacy (never released) stays always open.
+  const windowClosedForMe = Boolean(regWindow && !regWindow.legacy && !regWindow.open && !isAdmin);
+  const cutoffLabel = regWindow?.cutoffDate ? fmtDate(regWindow.cutoffDate) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -175,10 +200,44 @@ export default function RegularizePage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Submit missed-punch requests · AI-assisted · manager approval</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
+        <button
+          onClick={() => (windowClosedForMe ? toast.error('The regularization window is currently closed. You will be notified when HR releases it.') : setShowForm(!showForm))}
+          disabled={windowClosedForMe}
+          className={`3boxes-btn-primary flex items-center gap-2 ${windowClosedForMe ? 'opacity-50 cursor-not-allowed' : ''}`}
+          title={windowClosedForMe ? 'Regularization window is closed' : undefined}
+        >
           <FiPlus className="w-4 h-4" /> Request Regularization
         </button>
       </div>
+
+      {/* Task 161 — release window banner */}
+      {regWindow && !regWindow.legacy && (
+        regWindow.open ? (
+          <div className="thb-card p-4 border-l-4 border-l-emerald-500 bg-emerald-50/60 flex items-start gap-3">
+            <FiUnlock className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-emerald-800">Regularization window is open{cutoffLabel ? ` — apply before ${cutoffLabel}` : ''}</p>
+              <p className="text-xs text-emerald-700 mt-0.5">
+                Released by {regWindow.release?.releasedByName || 'HR'}{regWindow.daysLeft != null && regWindow.daysLeft > 0 ? ` · ${regWindow.daysLeft} day(s) left before the payroll cut-off` : ' · payroll cut-off is today'}.
+                You can submit regularization requests for your missed punches now.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="thb-card p-4 border-l-4 border-l-amber-500 bg-amber-50/60 flex items-start gap-3">
+            <FiLock className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-amber-800">Regularization window is closed for this cycle</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {regWindow.reason === 'past_payroll_cutoff'
+                  ? `The payroll cut-off${cutoffLabel ? ` (${cutoffLabel})` : ''} has passed — new regularization requests are disabled until HR releases the next cycle.`
+                  : 'HR has not released the regularization window for this cycle yet. You will receive an email and in-app notification when it opens.'}
+                {regWindow.canManage ? ' As an HR admin you can release it from Attendance → Approval Workflows.' : ''}
+              </p>
+            </div>
+          </div>
+        )
+      )}
 
       <ModuleTips moduleKey="attendance-regularize">
         <p><strong>REQ-REG-01..03:</strong> Employees can request a forgotten Check-In or Check-Out. The AI suggests the most likely time based on history. Regularizations on weekends/holidays require manager + HR approval.</p>

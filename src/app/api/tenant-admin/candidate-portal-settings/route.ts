@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: CORS });
     const decodedRec = decoded as unknown as Record<string, any>;
 
-    if (!['super_admin', 'tenant_admin'].includes(decodedRec.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(decodedRec.role)) {
       return NextResponse.json({ error: 'Tenant admin only' }, { status: 403, headers: CORS });
     }
 
@@ -83,7 +83,7 @@ export async function PUT(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: CORS });
     const decodedRec = decoded as unknown as Record<string, any>;
 
-    if (!['super_admin', 'tenant_admin'].includes(decodedRec.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(decodedRec.role)) {
       return NextResponse.json({ error: 'Tenant admin only' }, { status: 403, headers: CORS });
     }
 

@@ -147,10 +147,18 @@ export default function OffersPage() {
   const handleStatusChange = async (id: string, status: string) => {
     try {
       const res = await fetch(`/api/offers/${id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) {
+        // BUG-3 fix: surface the server-side error message (e.g. "Approval
+        // blocked: tier 2 of 3 requires \"HR Approval\" to approve") so the
+        // user knows exactly why the action was rejected.
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Action failed (HTTP ${res.status})`);
+      }
       toast.success(`Offer ${status.replace('_', ' ')}`);
       fetchOffers();
-    } catch { toast.error('Action failed'); }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Action failed');
+    }
   };
 
   const nextStatus = (current: string) => {
@@ -317,7 +325,20 @@ export default function OffersPage() {
                         <td className="px-4 py-3 text-sm text-thb-text-primary">{o.position}</td>
                         <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{o.offeredCurrency} {o.offeredSalary?.toLocaleString()}</td>
                         <td className="px-4 py-3 text-sm text-thb-text-secondary">{o.joiningDate ? new Date(o.joiningDate).toLocaleDateString() : '—'}</td>
-                        <td className="px-4 py-3"><span className={getStatusBadge(o.status)}>{formatStatus(o.status)}</span></td>
+                        <td className="px-4 py-3">
+                          <span className={getStatusBadge(o.status)}>{formatStatus(o.status)}</span>
+                          {/* BUG-4 fix: show tier progression when offer is in pending_approval */}
+                          {o.status === 'pending_approval' && o.approvalTiers && (() => {
+                            try {
+                              const tiers = typeof o.approvalTiers === 'string' ? JSON.parse(o.approvalTiers) : o.approvalTiers;
+                              if (Array.isArray(tiers) && tiers.length > 0) {
+                                const signed = tiers.filter((t: { signedAt?: string }) => t.signedAt).length;
+                                return <span className="ml-1 text-[10px] text-amber-600 font-medium">({signed}/{tiers.length} tiers)</span>;
+                              }
+                            } catch { /* ignore parse errors */ }
+                            return null;
+                          })()}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
                             {nextStatus(o.status) && (

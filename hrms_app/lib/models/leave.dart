@@ -31,17 +31,22 @@ class LeaveModel {
     return LeaveModel(
       id: json['id'] ?? '',
       employeeId: json['employeeId'],
-      employeeName: json['employeeName'] ?? json['employee']?['name'],
-      leaveType: json['leaveType'] ?? json['type'] ?? 'Casual Leave',
+      employeeName: json['employeeName'] ?? (json['employee'] is Map ? '${json['employee']['firstName'] ?? ''} ${json['employee']['lastName'] ?? ''}'.trim() : null),
+      leaveType: json['leaveType'] is Map ? ((json['leaveType']['name'] ?? json['leaveType']['code'])?.toString() ?? 'Leave') : ((json['leaveType'] ?? json['type'] ?? 'Leave').toString()),
       startDate: DateTime.tryParse(json['startDate']?.toString() ?? '') ?? DateTime.now(),
       endDate: DateTime.tryParse(json['endDate']?.toString() ?? '') ?? DateTime.now(),
       status: json['status'] ?? 'PENDING',
-      reason: json['reason'],
-      daysCount: (json['daysCount'] ?? json['numberOfDays'])?.toDouble(),
+      reason: json['reason'] is String ? json['reason'] : json['reason']?.toString(),
+      daysCount: _num(json['totalDays'] ?? json['daysCount'] ?? json['numberOfDays']),
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
-      approvedBy: json['approvedBy'] ?? json['approverName'],
-      contactNumber: json['contactNumber'],
+      approvedBy: json['approvedBy'] is String ? json['approvedBy'] : json['approverName']?.toString(),
+      contactNumber: json['contactNumber']?.toString(),
     );
+  }
+
+  static double? _num(Object? v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() => {

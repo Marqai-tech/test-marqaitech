@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const userRole = decoded.role as string;
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(userRole)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(userRole)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 

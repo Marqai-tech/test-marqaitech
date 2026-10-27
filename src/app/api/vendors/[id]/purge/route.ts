@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const { id } = await params;
     // RBAC: only super_admin or tenant_admin
-    if (!((decoded.role as string) && ['super_admin', 'tenant_admin'].includes(decoded.role as string))) {
+    if (!((decoded.role as string) && ['super_admin', 'tenant_admin', 'ceo'].includes(decoded.role as string))) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
     const vendor = await db.vendor.findUnique({ where: { id } });

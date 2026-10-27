@@ -6,6 +6,9 @@ import toast from 'react-hot-toast';
 import { FiBookOpen, FiAward, FiUsers, FiTrendingUp, FiCheckCircle, FiClock, FiAlertTriangle, FiFileText, FiArrowRight, FiTarget, FiShield } from 'react-icons/fi';
 import ModuleTips from '@/components/ModuleTips';
 import { useAuthStore } from '@/store/authStore';
+/* Task 156-c — shared SmartHR widgets so the L&D Hub matches the restyled
+   module dashboards (same gradient banner + white pastel-accent cards). */
+import { PageBreadcrumbs, Panel, StatCard, StatSkeleton } from '@/components/dashboard/smarthr-widgets';
 
 function getAuthHeaders(): HeadersInit {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -19,16 +22,8 @@ interface DashboardData {
   role: string;
 }
 
-const KPI = ({ icon, label, value, sub, tone = 'emerald' }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; tone?: string }) => (
-  <div className="thb-card p-4 flex items-start gap-3">
-    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 bg-${tone}-500`}>{icon}</div>
-    <div className="min-w-0">
-      <div className="text-2xl font-bold thb-text-primary">{value}</div>
-      <div className="text-xs thb-text-secondary font-medium">{label}</div>
-      {sub ? <div className="text-[11px] thb-text-muted mt-0.5">{sub}</div> : null}
-    </div>
-  </div>
-);
+/* Task 156-c — the local KPI component was replaced by the shared SmartHR
+   StatCard (white card, colourful top accent bar, round pastel icon). */
 
 const HUB_LINKS = [
   { href: '/learning/catalog', label: 'Course Catalog', desc: 'Content hub: e-learning, documents, quizzes, external links', icon: <FiBookOpen /> },
@@ -44,7 +39,7 @@ export default function LearningHubPage() {
   const user = useAuthStore((s) => s.user);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager'].includes(user?.role || '');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,26 +68,31 @@ export default function LearningHubPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold thb-text-primary flex items-center gap-2"><FiBookOpen className="text-emerald-500" /> Learning &amp; Development</h1>
-          <p className="text-sm thb-text-secondary mt-1">Upskilling, compliance tracking and professional growth through an automated digital workflow.</p>
-        </div>
-        {isAdmin && <Link href="/learning/catalog" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition">Manage Catalog <FiArrowRight /></Link>}
-      </div>
+      {/* Header — SmartHR gradient breadcrumb banner (Task 156-c) */}
+      <PageBreadcrumbs
+        title={'L&D Hub'}
+        trail={['Learning', 'L&D Hub']}
+        right={
+          <>
+            {isAdmin && (
+              <Link href="/learning/catalog" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">Manage Catalog <FiArrowRight className="w-4 h-4" /></Link>
+            )}
+          </>
+        }
+      />
 
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="thb-card h-24 animate-pulse" />)}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <StatSkeleton key={i} />)}</div>
       ) : data ? (
         <>
           {/* Employee self-service panel */}
           {data.employee.myLearning.length > 0 || data.employee.myCertCount > 0 ? (
-            <div className="thb-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold thb-text-primary flex items-center gap-2"><FiClock className="text-emerald-500" /> My Learning</h2>
-                <span className="text-xs thb-text-secondary">{data.employee.myCertCount} active certificate{data.employee.myCertCount === 1 ? '' : 's'} · {data.employee.myPendingSignoffs} signature{data.employee.myPendingSignoffs === 1 ? '' : 's'} pending</span>
-              </div>
+            <Panel
+              title="My Learning"
+              icon={<FiClock className="w-4 h-4" />}
+              accent="text-[#10B981]"
+              action={<span className="text-xs text-slate-500">{data.employee.myCertCount} active certificate{data.employee.myCertCount === 1 ? '' : 's'} · {data.employee.myPendingSignoffs} signature{data.employee.myPendingSignoffs === 1 ? '' : 's'} pending</span>}
+            >
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {data.employee.myLearning.length === 0 ? <p className="text-sm thb-text-muted py-4 text-center">No assigned courses pending — browse the catalog to request training.</p> :
                   data.employee.myLearning.map((e) => (
@@ -109,37 +109,37 @@ export default function LearningHubPage() {
                     </div>
                   ))}
               </div>
-            </div>
+            </Panel>
           ) : null}
 
-          {/* Admin KPIs */}
+          {/* Admin KPIs — shared SmartHR StatCard row (Task 156-c) */}
           {isAdmin ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KPI icon={<FiBookOpen size={18} />} label="Published courses" value={data.admin.courseCount} sub={`${data.admin.pathCount} learning paths`} />
-              <KPI icon={<FiUsers size={18} />} label="Enrolments" value={data.admin.totalEnrollments} sub={`${data.admin.byStatus.completed || 0} completed · ${data.admin.byStatus.in_progress || 0} in progress`} tone="violet" />
-              <KPI icon={<FiAward size={18} />} label="Certificates issued" value={data.admin.certCount} sub="auto-issued on passing assessments" tone="amber" />
-              <KPI icon={<FiShield size={18} />} label="Compliance tracks" value={data.admin.activeCompliance} sub={`${data.admin.pendingRequests} requests pending`} tone="rose" />
+              <StatCard label="Published Courses" value={data.admin.courseCount} sub={`${data.admin.pathCount} learning paths`} icon={<FiBookOpen className="w-5 h-5" />} bg="bg-[#3A57C4]/10 text-[#3A57C4]" ring="ring-[#3A57C4]/20" />
+              <StatCard label="Enrolments" value={data.admin.totalEnrollments} sub={`${data.admin.byStatus.completed || 0} completed · ${data.admin.byStatus.in_progress || 0} in progress`} icon={<FiUsers className="w-5 h-5" />} bg="bg-[#6C4FD6]/10 text-[#6C4FD6]" ring="ring-[#6C4FD6]/20" />
+              <StatCard label="Certificates Issued" value={data.admin.certCount} sub="auto-issued on passing assessments" icon={<FiAward className="w-5 h-5" />} bg="bg-[#FF9B44]/15 text-[#FF9B44]" ring="ring-[#FF9B44]/20" />
+              <StatCard label="Compliance Tracks" value={data.admin.activeCompliance} sub={`${data.admin.pendingRequests} requests pending`} icon={<FiShield className="w-5 h-5" />} bg="bg-[#F43F5E]/10 text-[#F43F5E]" ring="ring-[#F43F5E]/20" />
             </div>
           ) : null}
 
           {(isAdmin || data.manager.teamPendingRequests > 0) && (data.admin.pendingRequests > 0 || data.admin.openSkillGaps > 0 || data.manager.teamPendingRequests > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {data.admin.pendingRequests > 0 && isAdmin ? (
-                <Link href="/learning/requests" className="thb-card p-4 flex items-center gap-3 hover:border-emerald-400 transition group">
+                <Link href="/learning/requests" className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#3A57C4]/40 transition group">
                   <FiAlertTriangle className="text-amber-500 text-xl" />
                   <div className="flex-1"><div className="text-sm font-semibold thb-text-primary">{data.admin.pendingRequests} course request{data.admin.pendingRequests === 1 ? '' : 's'} awaiting approval</div><div className="text-xs thb-text-secondary">Review nominations &amp; budgets</div></div>
                   <FiArrowRight className="thb-text-muted group-hover:translate-x-0.5 transition" />
                 </Link>
               ) : null}
               {data.admin.openSkillGaps > 0 && isAdmin ? (
-                <Link href="/learning/enrollments" className="thb-card p-4 flex items-center gap-3 hover:border-emerald-400 transition group">
+                <Link href="/learning/enrollments" className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#3A57C4]/40 transition group">
                   <FiTarget className="text-violet-500 text-xl" />
                   <div className="flex-1"><div className="text-sm font-semibold thb-text-primary">{data.admin.openSkillGaps} open skill gap{data.admin.openSkillGaps === 1 ? '' : 's'}</div><div className="text-xs thb-text-secondary">From performance reviews (TNI)</div></div>
                   <FiArrowRight className="thb-text-muted group-hover:translate-x-0.5 transition" />
                 </Link>
               ) : null}
               {data.manager.teamPendingRequests > 0 ? (
-                <Link href="/learning/requests" className="thb-card p-4 flex items-center gap-3 hover:border-emerald-400 transition group">
+                <Link href="/learning/requests" className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#3A57C4]/40 transition group">
                   <FiUsers className="text-emerald-500 text-xl" />
                   <div className="flex-1"><div className="text-sm font-semibold thb-text-primary">{data.manager.teamPendingRequests} team request{data.manager.teamPendingRequests === 1 ? '' : 's'} to approve</div><div className="text-xs thb-text-secondary">As direct supervisor</div></div>
                   <FiArrowRight className="thb-text-muted group-hover:translate-x-0.5 transition" />
@@ -150,36 +150,34 @@ export default function LearningHubPage() {
         </>
       ) : null}
 
-      {/* Module navigation */}
-      <div>
-        <h2 className="text-sm font-semibold thb-text-secondary uppercase tracking-wide mb-3">L&amp;D Modules</h2>
+      {/* Module navigation — SmartHR panel (Task 156-c) */}
+      <Panel title={'L&D Modules'} icon={<FiBookOpen className="w-4 h-4" />} accent="text-[#6C4FD6]">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {HUB_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="thb-card p-5 hover:border-emerald-400 hover:shadow-sm transition group">
+            <Link key={l.href} href={l.href} className="rounded-xl border border-slate-100 bg-white p-5 hover:border-[#6C4FD6]/40 hover:shadow-md transition group">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">{l.icon}</div>
+                <div className="w-9 h-9 rounded-lg bg-[#6C4FD6]/10 text-[#6C4FD6] flex items-center justify-center shrink-0">{l.icon}</div>
                 <div>
-                  <div className="font-semibold text-sm thb-text-primary flex items-center gap-1">{l.label} <FiArrowRight className="opacity-0 group-hover:opacity-100 transition text-emerald-500" /></div>
-                  <p className="text-xs thb-text-secondary mt-1 leading-relaxed">{l.desc}</p>
+                  <div className="font-semibold text-sm text-slate-900 flex items-center gap-1">{l.label} <FiArrowRight className="opacity-0 group-hover:opacity-100 transition text-[#6C4FD6]" /></div>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{l.desc}</p>
                 </div>
               </div>
             </Link>
           ))}
         </div>
-      </div>
+      </Panel>
 
-      {/* Workflow */}
-      <div className="thb-card p-5">
-        <h2 className="font-semibold thb-text-primary mb-3 flex items-center gap-2"><FiFileText className="text-emerald-500" /> L&amp;D Workflow</h2>
+      {/* Workflow — SmartHR panel (Task 156-c) */}
+      <Panel title={'L&D Workflow'} icon={<FiFileText className="w-4 h-4" />} accent="text-[#009EFB]">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {['TNI: skill gap identified', 'Course nomination', 'Supervisor / L&D approval', 'Auto-enrolment & calendar invite', 'Delivery & participation', 'Assessment & certification', 'Feedback & ROI evaluation', 'Skill record updated'].map((s, i) => (
             <span key={s} className="inline-flex items-center gap-2">
-              <span className={`px-3 py-1.5 rounded-full font-medium ${i === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 thb-text-secondary'}`}>{i + 1}. {s}</span>
-              {i < 7 ? <FiArrowRight className="thb-text-muted" /> : null}
+              <span className={`px-3 py-1.5 rounded-full font-medium ${i === 0 ? 'bg-[#3A57C4]/10 text-[#3A57C4]' : 'bg-slate-100 text-slate-600'}`}>{i + 1}. {s}</span>
+              {i < 7 ? <FiArrowRight className="text-slate-400" /> : null}
             </span>
           ))}
         </div>
-      </div>
+      </Panel>
 
       <ModuleTips moduleKey="learning" userRole={user?.role} />
     </div>

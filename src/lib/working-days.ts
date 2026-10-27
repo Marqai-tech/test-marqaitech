@@ -121,7 +121,10 @@ export async function getHolidaysInRange(
     const rows = await db.holiday.findMany({
       where: {
         date: { gte: dayStartUtc(start), lte: dayStartUtc(end) },
-        type: { in: ['public', 'company', 'national', 'country'] },
+        // Task 127: include 'festival' — Dussehra/Ganesh Chaturthi etc. are
+        // seeded as type "festival" in production, and excluding them made the
+        // auto-present engine mark management employees PRESENT on holidays.
+        type: { in: ['public', 'company', 'national', 'country', 'festival'] },
       },
       select: { date: true, name: true },
     });

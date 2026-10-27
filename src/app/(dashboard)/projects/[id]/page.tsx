@@ -9,15 +9,18 @@
  *       Azure DevOps) · Activity (live feed) · Closure (readiness + post-mortem + sign-off)
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
   FiBriefcase, FiLayers, FiUsers, FiGrid, FiZap, FiClock, FiCheckCircle,
   FiLink2, FiActivity, FiFlag, FiPlus, FiTrash2, FiRefreshCw, FiPlay,
   FiSend, FiCheck, FiX, FiChevronRight, FiTarget, FiAlertTriangle,
+  FiFileText, FiMessageCircle, FiUpload, FiDownload,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
+import TaskAttachments from '@/components/tasks/TaskAttachments';
+import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -28,8 +31,9 @@ const TABS = [
   { key: 'overview', label: 'Overview & Intake', icon: FiBriefcase },
   { key: 'planning', label: 'Planning & Phases', icon: FiLayers },
   { key: 'resources', label: 'Resources', icon: FiUsers },
+  { key: 'files', label: 'Files & Chat', icon: FiFileText },
   { key: 'board', label: 'Delivery Board', icon: FiGrid },
-  { key: 'sprints', label: 'Sprints', icon: FiZap },
+  // { key: 'sprints', … } — Task 150: Sprints hidden (may be re-plugged later)
   { key: 'times', label: 'Time Log', icon: FiClock },
   { key: 'approvals', label: 'Approvals', icon: FiCheckCircle },
   { key: 'integrations', label: 'Integrations', icon: FiLink2 },
@@ -68,6 +72,41 @@ function Badge({ children, tone = 'slate' }: { children: React.ReactNode; tone?:
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${tones[tone] || tones.slate}`}>{children}</span>;
 }
 
+// ─── Task 128: unified task classification + delivery workflow step ───
+const TASK_TYPES: { value: string; label: string }[] = [
+  { value: 'customisation', label: 'Customisation' },
+  { value: 'rework', label: 'Rework' },
+  { value: 'development', label: 'Development' },
+  { value: 'bug', label: 'Bug' },
+];
+
+const WORKFLOW_STEPS: { value: string; label: string }[] = [
+  { value: 'testing', label: 'Testing' },
+  { value: 're_testing', label: 'Re-testing' },
+  { value: 'production', label: 'Production' },
+  { value: 'delivery', label: 'Delivery' },
+];
+
+function workflowStepLabel(v?: string | null) {
+  if (!v) return null;
+  return WORKFLOW_STEPS.find((s) => s.value === v)?.label || v;
+}
+
+function taskTypeLabel(v?: string | null) {
+  if (!v) return null;
+  return TASK_TYPES.find((t) => t.value === v)?.label || v;
+}
+
+function workflowStepTone(v?: string | null) {
+  switch (v) {
+    case 'testing': return 'sky';
+    case 're_testing': return 'amber';
+    case 'production': return 'violet';
+    case 'delivery': return 'emerald';
+    default: return 'slate';
+  }
+}
+
 // ─── main page ────────────────────────────────────────────────────
 
 export default function ProjectWorkspacePage() {
@@ -100,7 +139,6 @@ export default function ProjectWorkspacePage() {
   // board
   const [tasks, setTasks] = useState<any[]>([]);
   const [sprints, setSprints] = useState<any[]>([]);
-  const [taskForm, setTaskForm] = useState<any>({ open: false, name: '', priority: 'medium', assignedToId: '', sprintId: '', storyPoints: '', plannedEnd: '', dependsOnId: '', estimatedHours: '', description: '' });
 
   // sprints tab
   const [sprintForm, setSprintForm] = useState<any>({ name: '', goal: '', startDate: '', endDate: '' });
@@ -116,6 +154,15 @@ export default function ProjectWorkspacePage() {
 
   // activity
   const [activities, setActivities] = useState<any[]>([]);
+
+  // ─── Task 121: Files & Chat tab ─────────────────────────────────────
+  const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [filesRoomId, setFilesRoomId] = useState<string | null>(null);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [filesUploading, setFilesUploading] = useState(false);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const filesInputRef = useRef<HTMLInputElement>(null);
   const [activityPost, setActivityPost] = useState('');
 
   // closure
@@ -124,7 +171,7 @@ export default function ProjectWorkspacePage() {
   const [reviewDraft, setReviewDraft] = useState<Record<string, any>>({});
   const [signOffNotes, setSignOffNotes] = useState('');
 
-  const isAdmin = ['tenant_admin', 'super_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['tenant_admin', 'ceo', 'super_admin', 'admin'].includes(user?.role || '');
 
   const loadProject = useCallback(async () => {
     setLoading(true);
@@ -166,11 +213,11 @@ export default function ProjectWorkspacePage() {
       } else if (t === 'resources') {
         const [rrRes, empRes] = await Promise.all([
           fetch(`/api/projects/${id}/resource-requests`, { headers }),
-          fetch('/api/employees?limit=500', { headers }).catch(() => null),
+          fetch('/api/employees?limit=500&excludeInactive=true', { headers }).catch(() => null),
         ]);
         if (rrRes.ok) { const j = await rrRes.json(); setRequirements(j.requirements || []); setAllocations(j.allocations || []); }
         if (empRes?.ok) { const j = await empRes.json(); setEmployeeList(j.employees || j.data || []); }
-      } else if (t === 'board' || t === 'sprints') {
+      } else if (t === 'board') {
         const [taskRes, sprintRes] = await Promise.all([
           fetch(`/api/projects/${id}/tasks?limit=200`, { headers }),
           fetch(`/api/projects/${id}/sprints`, { headers }),
@@ -190,6 +237,20 @@ export default function ProjectWorkspacePage() {
       } else if (t === 'integrations') {
         const res = await fetch(`/api/projects/${id}/integrations`, { headers });
         if (res.ok) setIntegrations((await res.json()).integrations || []);
+      } else if (t === 'files') {
+        // Task 121 — aggregated project files (workspace-room attachments + drive)
+        setFilesLoading(true);
+        try {
+          const res = await fetch(`/api/projects/${id}/files`, { headers });
+          if (res.ok) {
+            const j = await res.json();
+            setProjectFiles(j.files || []);
+            setDriveFiles(j.driveFiles || []);
+            setFilesRoomId(j.roomId || null);
+          }
+        } finally {
+          setFilesLoading(false);
+        }
       } else if (t === 'activity') {
         const res = await fetch(`/api/projects/${id}/activity?limit=80`, { headers });
         if (res.ok) setActivities((await res.json()).activities || []);
@@ -205,6 +266,87 @@ export default function ProjectWorkspacePage() {
       toast.error('Failed to load tab data');
     }
   }, [id]);
+
+  // ─── Task 121: workspace chat + project files handlers ───────────────
+  const ensureWorkspace = async (): Promise<string | null> => {
+    setWorkspaceBusy(true);
+    try {
+      const res = await fetch(`/api/projects/${id}/workspace`, { method: 'POST', headers: getAuthHeaders() });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed to open project workspace');
+      if (j.roomId) setFilesRoomId(j.roomId);
+      return j.roomId || null;
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to open project workspace');
+      return null;
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  };
+
+  const openProjectChat = async () => {
+    const roomId = await ensureWorkspace();
+    if (roomId) router.push(`/collaboration/chat?room=${roomId}`);
+  };
+
+  const loadFilesTab = async () => {
+    setFilesLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${id}/files`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const j = await res.json();
+        setProjectFiles(j.files || []);
+        setDriveFiles(j.driveFiles || []);
+        setFilesRoomId(j.roomId || null);
+      }
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  // Uploading from the Projects module posts an attachment message into the
+  // project's workspace chat room — one source of truth, so the same file is
+  // visible in the conversation AND in this Files list (and vice versa).
+  const handleProjectFilesPicked = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const room = filesRoomId || (await ensureWorkspace());
+    if (!room) return;
+    setFilesUploading(true);
+    try {
+      let uploaded = 0;
+      for (const f of Array.from(fileList).slice(0, 5)) {
+        if (f.size > 4 * 1024 * 1024) {
+          toast.error(`"${f.name}" exceeds the 4 MB limit`);
+          continue;
+        }
+        const dataUrl = await new Promise<string>((resolve) => {
+          const r = new FileReader();
+          r.onload = () => resolve(typeof r.result === 'string' ? r.result : '');
+          r.onerror = () => resolve('');
+          r.readAsDataURL(f);
+        });
+        if (!dataUrl) continue;
+        const res = await fetch(`/api/collaboration/chat/rooms/${room}/messages`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            body: `📎 ${f.name}`,
+            attachments: [{ name: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size, dataUrl }],
+          }),
+        });
+        if (res.ok) uploaded++;
+        else {
+          const j = await res.json().catch(() => ({}));
+          toast.error(j.error || `Failed to upload ${f.name}`);
+        }
+      }
+      if (uploaded > 0) toast.success(`${uploaded} file${uploaded > 1 ? 's' : ''} added to the project`);
+      if (filesInputRef.current) filesInputRef.current.value = '';
+      await loadFilesTab();
+    } finally {
+      setFilesUploading(false);
+    }
+  };
 
   useEffect(() => { loadProject(); }, [loadProject]);
   useEffect(() => { loadTab(tab); }, [tab, loadTab]);
@@ -281,17 +423,96 @@ export default function ProjectWorkspacePage() {
         />
       )}
 
-      {tab === 'board' && (
-        <BoardTab
-          project={project} tasks={tasks} sprints={sprints} taskForm={taskForm} setTaskForm={setTaskForm}
-          employeeList={employeeList} isAdmin={isAdmin} onReload={refreshAll}
-        />
+      {/* ─── Task 121: Files & Chat — project conversation + attachments ─── */}
+      {tab === 'files' && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={openProjectChat}
+              disabled={workspaceBusy}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+            >
+              {workspaceBusy ? <FiRefreshCw size={13} className="animate-spin" /> : <FiMessageCircle size={13} />}
+              {filesRoomId ? 'Open Project Chat' : 'Create & Open Project Chat'}
+            </button>
+            <input ref={filesInputRef} type="file" multiple className="hidden" onChange={e => handleProjectFilesPicked(e.target.files)} />
+            <button
+              onClick={() => filesInputRef.current?.click()}
+              disabled={filesUploading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700 disabled:opacity-50"
+            >
+              {filesUploading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiUpload size={13} />}
+              Attach Files / Docs
+            </button>
+            <span className="text-[11px] text-slate-400">
+              Files shared here land in the project's chat workspace too — and files shared in the project chat show up here. Max 5 MB × 4 per file.
+            </span>
+          </div>
+
+          {filesLoading ? (
+            <div className="flex items-center justify-center py-12 text-slate-400">
+              <FiRefreshCw className="animate-spin" size={18} />
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-slate-100 text-xs font-semibold text-slate-600 flex items-center gap-2">
+                  <FiFileText size={13} /> Project files ({projectFiles.length})
+                </div>
+                {projectFiles.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-xs text-slate-400">
+                    No files yet — attach documents here or share them in the project chat.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {projectFiles.map((f, i) => (
+                      <li key={`${f.messageId}-${i}`} className="flex items-center gap-3 px-4 py-2.5 text-xs">
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                          <FiFileText size={14} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {f.dataUrl ? (
+                            <a href={f.dataUrl} download={f.name} className="font-medium text-slate-800 hover:text-teal-600 truncate inline-flex items-center gap-1" title="Download">
+                              {f.name} <FiDownload size={11} className="text-teal-500" />
+                            </a>
+                          ) : (
+                            <span className="font-medium text-slate-800 truncate">{f.name}</span>
+                          )}
+                          <p className="text-[10px] text-slate-400">
+                            {f.senderName} · {String(f.createdAt).slice(0, 16).replace('T', ' ')}
+                            {f.sizeBytes ? ` · ${f.sizeBytes < 1024 * 1024 ? `${Math.round(f.sizeBytes / 1024)} KB` : `${(f.sizeBytes / (1024 * 1024)).toFixed(1)} MB`}` : ''}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-sky-50 text-sky-600 px-2 py-0.5 text-[10px] font-medium">chat</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {driveFiles.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-slate-100 text-xs font-semibold text-slate-600">Drive documents ({driveFiles.length})</div>
+                  <ul className="divide-y divide-slate-100">
+                    {driveFiles.map((d: any) => (
+                      <li key={d.id} className="flex items-center gap-3 px-4 py-2.5 text-xs">
+                        <FiFileText className="text-slate-400 shrink-0" size={14} />
+                        <span className="font-medium text-slate-700 truncate">{d.name}</span>
+                        <span className="text-[10px] text-slate-400 ml-auto">{d.uploadedBy || '—'} · {String(d.createdAt).slice(0, 10)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </section>
       )}
 
-      {tab === 'sprints' && (
-        <SprintsTab
-          project={project} sprints={sprints} metrics={sprintMetrics} sprintForm={sprintForm}
-          setSprintForm={setSprintForm} tasks={tasks} onReload={refreshAll}
+      {tab === 'board' && (
+        <BoardTab
+          project={project} tasks={tasks} sprints={sprints}
+          employeeList={employeeList} isAdmin={isAdmin} onReload={refreshAll}
         />
       )}
 
@@ -712,49 +933,46 @@ const BOARD_COLUMNS = [
   { key: 'done', label: 'Done' },
 ];
 
-function BoardTab({ project, tasks, sprints, taskForm, setTaskForm, employeeList, isAdmin, onReload }: any) {
+function BoardTab({ project, tasks, sprints, employeeList, isAdmin, onReload }: any) {
   const [busy, setBusy] = useState(false);
   const [dragTask, setDragTask] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
+  // Task 131 — the create form is the SHARED CreateTaskModal (identical to
+  // the PM dashboard + Tasks page + mobile sheet, attachments included).
+  const [showCreate, setShowCreate] = useState(false);
 
   const openEdit = (t: any) => {
     setEditing({
       id: t.id, name: t.name, priority: t.priority, assignedToId: t.assignedToId || '',
-      sprintId: t.sprintId || '', storyPoints: t.storyPoints ?? '', plannedEnd: t.plannedEnd ? String(t.plannedEnd).slice(0, 10) : '',
+      sprintId: t.sprintId || '', taskType: t.taskType || '', workflowStep: t.workflowStep || '',
+      _origStep: t.workflowStep || null, _origAssigneeId: t.assignedToId || '',
+      plannedStart: t.plannedStart ? String(t.plannedStart).slice(0, 10) : '',
+      plannedEnd: t.plannedEnd ? String(t.plannedEnd).slice(0, 10) : '',
       dependsOnId: t.dependsOnId || '', estimatedHours: t.estimatedHours ?? '', description: t.description || '',
     });
   };
 
-  const createTask = async () => {
-    if (!taskForm.name) { toast.error('Task name is required'); return; }
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/projects/${project.id}/tasks`, {
-        method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({
-          name: taskForm.name, priority: taskForm.priority, assignedToId: taskForm.assignedToId || undefined,
-          sprintId: taskForm.sprintId || undefined, storyPoints: taskForm.storyPoints ? Number(taskForm.storyPoints) : undefined,
-          plannedEnd: taskForm.plannedEnd || undefined, dependsOnId: taskForm.dependsOnId || undefined,
-          estimatedHours: taskForm.estimatedHours ? Number(taskForm.estimatedHours) : undefined,
-          description: taskForm.description || undefined,
-        }),
-      });
-      const j = await res.json();
-      if (!res.ok) { toast.error(j.error || 'Create failed'); return; }
-      toast.success('Task created');
-      setTaskForm({ open: false, name: '', priority: 'medium', assignedToId: '', sprintId: '', storyPoints: '', plannedEnd: '', dependsOnId: '', estimatedHours: '', description: '' });
-      await onReload();
-    } finally { setBusy(false); }
-  };
-
   const saveEdit = async () => {
+    const stepChanged = editing.workflowStep && editing.workflowStep !== editing._origStep;
+    if (stepChanged && editing.workflowStep !== 're_testing' && !editing.assignedToId) {
+      toast.error(`Select the assignee for the "${workflowStepLabel(editing.workflowStep)}" step — the assignee is asked again on every step change except re-testing`);
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/projects/${project.id}/tasks/${editing.id}`, {
         method: 'PATCH', headers: getAuthHeaders(),
         body: JSON.stringify({
-          name: editing.name, priority: editing.priority, assignedToId: editing.assignedToId || null,
-          sprintId: editing.sprintId || null, storyPoints: editing.storyPoints === '' ? null : Number(editing.storyPoints),
+          name: editing.name, priority: editing.priority,
+          // re-testing keeps the current assignee — only send an explicit
+          // assignee when the picker holds one
+          ...(editing.workflowStep === 're_testing'
+            ? (editing.assignedToId ? { assignedToId: editing.assignedToId } : {})
+            : { assignedToId: editing.assignedToId || null }),
+          sprintId: editing.sprintId || null,
+          taskType: editing.taskType || null,
+          workflowStep: editing.workflowStep || null,
+          plannedStart: editing.plannedStart || null,
           plannedEnd: editing.plannedEnd || null, dependsOnId: editing.dependsOnId || null,
           estimatedHours: editing.estimatedHours ? Number(editing.estimatedHours) : undefined,
           description: editing.description || null,
@@ -762,7 +980,7 @@ function BoardTab({ project, tasks, sprints, taskForm, setTaskForm, employeeList
       });
       const j = await res.json();
       if (!res.ok) { toast.error(j.error || 'Update failed'); return; }
-      toast.success('Task updated — collaboration board card synced');
+      toast.success(stepChanged ? `Task moved to ${workflowStepLabel(editing.workflowStep)} — assignee, PM & admins notified` : 'Task updated — collaboration board card synced');
       setEditing(null);
       await onReload();
     } finally { setBusy(false); }
@@ -796,38 +1014,17 @@ function BoardTab({ project, tasks, sprints, taskForm, setTaskForm, employeeList
     <div>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] text-slate-400">Drag cards between columns — status changes persist here AND sync to the linked Collaboration kanban board.</p>
-        <button onClick={() => setTaskForm({ ...taskForm, open: !taskForm.open })} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-900"><FiPlus size={12} /> New task</button>
+        <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-900"><FiPlus size={12} /> New task</button>
       </div>
 
-      {taskForm.open && (
-        <div className="border border-slate-200 rounded-xl p-4 mb-4 bg-slate-50/60 grid md:grid-cols-4 gap-2">
-          <input placeholder="Task / user story name" value={taskForm.name} onChange={(e) => setTaskForm({ ...taskForm, name: e.target.value })} className={`${inputCls} md:col-span-2`} />
-          <select value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })} className={inputCls}>
-            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
-          </select>
-          <select value={taskForm.assignedToId} onChange={(e) => setTaskForm({ ...taskForm, assignedToId: e.target.value })} className={inputCls}>
-            <option value="">Assign to…</option>
-            {employeeList.map((e: any) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
-          </select>
-          {project.methodology === 'agile' && (
-            <>
-              <select value={taskForm.sprintId} onChange={(e) => setTaskForm({ ...taskForm, sprintId: e.target.value })} className={inputCls}>
-                <option value="">Sprint…</option>
-                {sprints.map((s: any) => <option key={s.id} value={s.id}>Sprint {s.sprintNumber}: {s.name}</option>)}
-              </select>
-              <input type="number" placeholder="Story points" value={taskForm.storyPoints} onChange={(e) => setTaskForm({ ...taskForm, storyPoints: e.target.value })} className={inputCls} min={0} />
-            </>
-          )}
-          <input type="date" value={taskForm.plannedEnd} onChange={(e) => setTaskForm({ ...taskForm, plannedEnd: e.target.value })} className={inputCls} title="Hard deadline" />
-          <select value={taskForm.dependsOnId} onChange={(e) => setTaskForm({ ...taskForm, dependsOnId: e.target.value })} className={inputCls}>
-            <option value="">Depends on… (finish-to-start)</option>
-            {tasks.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <input type="number" placeholder="Estimated hours" value={taskForm.estimatedHours} onChange={(e) => setTaskForm({ ...taskForm, estimatedHours: e.target.value })} className={inputCls} min={0} />
-          <input placeholder="Notes / acceptance criteria" value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} className={`${inputCls} md:col-span-3`} />
-          <button onClick={createTask} disabled={busy} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Create task</button>
-        </div>
-      )}
+      <CreateTaskModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={onReload}
+        projects={[project]}
+        employees={employeeList}
+        fixedProjectId={project.id}
+      />
 
       <div className="grid md:grid-cols-4 gap-3">
         {BOARD_COLUMNS.map((col) => {
@@ -858,10 +1055,13 @@ function BoardTab({ project, tasks, sprints, taskForm, setTaskForm, employeeList
                         {isAdmin && <button onClick={() => deleteTask(t.id)} className="text-slate-300 hover:text-red-500 p-0.5" title="Delete"><FiTrash2 size={10} /></button>}
                       </div>
                     </div>
+                    {t.description && <p className="text-[10.5px] text-slate-500 mt-1 line-clamp-2" title={t.description}>{t.description}</p>}
                     <div className="flex flex-wrap items-center gap-1 mt-1.5">
                       <Badge tone={t.priority === 'critical' ? 'red' : t.priority === 'high' ? 'amber' : 'slate'}>{t.priority}</Badge>
-                      {t.storyPoints != null && <Badge tone="violet">{t.storyPoints} pts</Badge>}
+                      {t.taskType && <Badge tone="violet">{taskTypeLabel(t.taskType)}</Badge>}
+                      {t.workflowStep && <Badge tone={workflowStepTone(t.workflowStep)}>{workflowStepLabel(t.workflowStep)}</Badge>}
                       {t.sprint && <Badge tone="sky">S{t.sprint.sprintNumber}</Badge>}
+                      {(t._count?.attachments ?? 0) > 0 && <Badge tone="slate">📎 {t._count?.attachments}</Badge>}
                       {t.dependsOn && <Badge tone={t.dependsOn.status === 'done' ? 'emerald' : 'amber'}>⛓ {t.dependsOn.name.slice(0, 14)}{t.dependsOn.status !== 'done' ? ' (gate)' : ''}</Badge>}
                     </div>
                     {t.assignedTo && (
@@ -885,29 +1085,52 @@ function BoardTab({ project, tasks, sprints, taskForm, setTaskForm, employeeList
             <h3 className="text-sm font-bold text-slate-800">Edit task</h3>
             <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className={inputCls} placeholder="Task name" />
             <div className="grid grid-cols-2 gap-2">
+              <select value={editing.taskType || ''} onChange={(e) => setEditing({ ...editing, taskType: e.target.value })} className={inputCls}>
+                <option value="">Task type…</option>
+                {TASK_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <select
+                value={editing.workflowStep || ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  // Re-testing → the task goes BACK to the assignee itself:
+                  // pre-fill the picker with the current assignee.
+                  setEditing({ ...editing, workflowStep: v, assignedToId: v === 're_testing' ? (editing.assignedToId || editing._origAssigneeId || '') : editing.assignedToId });
+                }}
+                className={inputCls}
+              >
+                <option value="">Workflow step…</option>
+                {WORKFLOW_STEPS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
               <select value={editing.priority} onChange={(e) => setEditing({ ...editing, priority: e.target.value })} className={inputCls}>
                 <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
               </select>
               <select value={editing.assignedToId} onChange={(e) => setEditing({ ...editing, assignedToId: e.target.value })} className={inputCls}>
-                <option value="">Unassigned</option>
+                <option value="">{editing.workflowStep === 're_testing' ? 'Assignee (kept for re-testing)' : 'Unassigned'}</option>
                 {employeeList.map((e: any) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
               </select>
               {project.methodology === 'agile' && (
-                <>
-                  <select value={editing.sprintId} onChange={(e) => setEditing({ ...editing, sprintId: e.target.value })} className={inputCls}>
-                    <option value="">No sprint (backlog)</option>
-                    {sprints.map((s: any) => <option key={s.id} value={s.id}>Sprint {s.sprintNumber}: {s.name}</option>)}
-                  </select>
-                  <input type="number" placeholder="Story points" value={editing.storyPoints} onChange={(e) => setEditing({ ...editing, storyPoints: e.target.value })} className={inputCls} />
-                </>
+                <select value={editing.sprintId} onChange={(e) => setEditing({ ...editing, sprintId: e.target.value })} className={inputCls}>
+                  <option value="">No sprint (backlog)</option>
+                  {sprints.map((s: any) => <option key={s.id} value={s.id}>Sprint {s.sprintNumber}: {s.name}</option>)}
+                </select>
               )}
-              <input type="date" value={editing.plannedEnd} onChange={(e) => setEditing({ ...editing, plannedEnd: e.target.value })} className={inputCls} />
+              <input type="date" title="Start date" value={editing.plannedStart} onChange={(e) => setEditing({ ...editing, plannedStart: e.target.value })} className={inputCls} />
+              <input type="date" title="End date" value={editing.plannedEnd} onChange={(e) => setEditing({ ...editing, plannedEnd: e.target.value })} className={inputCls} />
               <select value={editing.dependsOnId} onChange={(e) => setEditing({ ...editing, dependsOnId: e.target.value })} className={inputCls}>
                 <option value="">No dependency</option>
                 {tasks.filter((t: any) => t.id !== editing.id).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
+            {editing.workflowStep && editing.workflowStep !== editing._origStep && (
+              <p className={`text-[10.5px] rounded-lg px-2.5 py-1.5 ${editing.workflowStep === 're_testing' ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700'}`}>
+                {editing.workflowStep === 're_testing'
+                  ? 'Re-testing: this task goes back to the assignee itself — no reassignment needed.'
+                  : `${workflowStepLabel(editing.workflowStep)}: pick the assignee again for this step (required).`}
+              </p>
+            )}
             <textarea rows={2} value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} className={inputCls} placeholder="Description" />
+            <TaskAttachments projectId={project.id} taskId={editing.id} />
             <div className="flex justify-end gap-2">
               <button onClick={() => setEditing(null)} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600">Cancel</button>
               <button onClick={saveEdit} disabled={busy} className="text-xs px-4 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Save</button>

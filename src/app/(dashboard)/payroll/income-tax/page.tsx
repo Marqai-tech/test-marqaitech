@@ -74,9 +74,18 @@ type TabType = 'calculator' | 'declarations';
 export default function IncomeTaxPage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [activeTab, setActiveTab] = useState<TabType>('calculator');
+
+  /* Task 153 — deep-link support: /payroll/income-tax?tab=declarations
+     (used by the Payroll Dashboard's "IT Declaration" tile) opens straight
+     on the Declarations tab. */
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'declarations') {
+      setActiveTab('declarations');
+    }
+  }, []);
   const [taxInput, setTaxInput] = useState<TaxInput>(defaultTaxInput);
   const [taxResult, setTaxResult] = useState<TaxResult | null>(null);
   const [calculating, setCalculating] = useState(false);

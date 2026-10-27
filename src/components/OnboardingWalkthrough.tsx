@@ -45,7 +45,9 @@ const employeeSteps: OnboardingStep[] = [
     icon: FiHome,
     iconBg: 'bg-gradient-to-br from-green-500 to-cyan-500',
     iconColor: 'text-white',
-    link: '/home',
+    /* Task 163 — /dashboard works for every role (admins get bounced to their
+       Admin Dashboard via the home nav entry; employees land right here). */
+    link: '/dashboard',
     linkLabel: 'Go to Dashboard',
     features: [
       'Quick action cards for common tasks',
@@ -287,7 +289,7 @@ export default function OnboardingWalkthrough() {
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
   const [isAnimating, setIsAnimating] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const isAdmin = user?.role === 'tenant_admin' || user?.role === 'admin' || user?.role === 'super_admin';
+  const isAdmin = (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin' || user?.role === 'super_admin';
   const steps = isAdmin ? adminSteps : employeeSteps;
 
   useEffect(() => {

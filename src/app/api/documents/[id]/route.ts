@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { validateDocumentDataUrl } from '@/lib/document-validation';
+import { isSafeDocumentUrl } from '@/lib/sanitize';
 
 function corsHeaders() {
   return {
@@ -29,8 +31,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.status !== undefined) data.status = body.status;
     if (body.expiryDate !== undefined) data.expiryDate = body.expiryDate ? new Date(body.expiryDate) : null;
     if (body.type !== undefined) data.type = body.type;
-    if (body.fileUrl !== undefined) data.fileUrl = body.fileUrl;
+    if (body.fileUrl !== undefined) {
+      // REQ 2: server-side PDF-only / 3MB / safe-URL validation on PATCH too.
+      const fileUrl: string | null = body.fileUrl ? String(body.fileUrl) : null;
+      if (fileUrl) {
+        if (!isSafeDocumentUrl(fileUrl)) {
+          return NextResponse.json({ error: 'File URL must be a safe http(s) link or a PDF data URL.' }, { status: 400, headers: corsHeaders() });
+        }
+        const payloadError = validateDocumentDataUrl(fileUrl);
+        if (payloadError) {
+          return NextResponse.json({ error: payloadError }, { status: 400, headers: corsHeaders() });
+        }
+      }
+      data.fileUrl = fileUrl;
+    }
     if (body.description !== undefined) data.description = body.description;
+    if (body.category !== undefined) data.category = body.category || 'other';
 
     const document = await db.document.update({
       where: { id },

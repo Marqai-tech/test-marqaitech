@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { PROFILE_SECTION_REQUESTS, applyProfileSectionChange } from '@/lib/employee-update-request';
 
 function corsHeaders() {
   return {
@@ -55,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
     const action = String(body.action || '');
     const comments = sanitizeMultiLineText(body.comments, 500);
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
 
     const updateRequest = await db.employeeUpdateRequest.findUnique({
       where: { id },
@@ -167,9 +168,52 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // Apply the change
       try {
         const newValue = updateRequest.newValue;
+        // Task 158 — SECTION requests (Experience / Achievements / Documents /
+        // Verification / Health) carry a JSON payload and need their own
+        // appliers (relation rows / JSON blocks) instead of a column write.
+        if (updateRequest.fieldName in PROFILE_SECTION_REQUESTS) {
+          const sectionResult = await applyProfileSectionChange(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            db as unknown as Record<string, any>,
+            updateRequest.employeeId,
+            updateRequest.fieldName as keyof typeof PROFILE_SECTION_REQUESTS,
+            newValue,
+          );
+          await db.employeeUpdateRequest.update({
+            where: { id },
+            data: { status: 'applied', appliedAt: new Date() },
+          });
+          // Notify the requester — multi-channel (Task 36)
+          try {
+            if (auth.tenantId) {
+              const { dispatchNotification } = await import('@/lib/notification-center');
+              await dispatchNotification({
+                tenantId: auth.tenantId,
+                module: 'core_hr',
+                eventKey: 'core_hr.profile.update_result',
+                recipients: updateRequest.requestedById ? [{ userId: updateRequest.requestedById }] : [],
+                vars: {
+                  Field_Name: updateRequest.fieldLabel || updateRequest.fieldName,
+                  Status: 'APPROVED & APPLIED',
+                  Approver_Name: approverName,
+                  Comment: comments ? `Comments: ${comments}` : '',
+                },
+                entity: { type: 'employee_update_request', id, link: '/employees/update-requests' },
+                origin: req.headers.get('origin') || undefined,
+              });
+            }
+          } catch { /* non-fatal */ }
+          return NextResponse.json({ message: `Request approved and applied to employee record (${sectionResult.applied} item(s))`, finalized: true }, { headers: corsHeaders() });
+        }
+
         // Handle JSON-encoded values
         let parsedValue: unknown = newValue;
         try { parsedValue = JSON.parse(newValue); } catch { /* keep as string */ }
+        // Task 139 — date fields must land as Date objects (Prisma timestamp columns)
+        if (typeof parsedValue === 'string' && ['originalBirthday', 'dateOfBirth'].includes(updateRequest.fieldName)) {
+          const d = new Date(parsedValue);
+          if (!isNaN(d.getTime())) parsedValue = d;
+        }
 
         await db.employee.update({
           where: { id: updateRequest.employeeId },

@@ -277,7 +277,7 @@ export async function PATCH(
             const hrAdmins = await db.user.findMany({
               where: {
                 tenantId: scope.tenantId,
-                role: { in: ['tenant_admin', 'admin'] },
+                role: { in: ['tenant_admin', 'ceo', 'admin'] },
                 status: 'active',
               },
               select: { id: true },

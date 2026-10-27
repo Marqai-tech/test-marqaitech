@@ -42,7 +42,7 @@ export async function GET(
     const { id } = await params;
 
     // RBAC check
-    const access = await resolveProjectAccess(decoded, id);
+    const access = await resolveProjectAccess(decoded, id, db);
     if (!access.canView) {
       return NextResponse.json(
         { error: 'You do not have access to this project', access: 'denied' },
@@ -127,7 +127,7 @@ export async function PUT(
     const { id } = await params;
 
     // RBAC check
-    const access = await resolveProjectAccess(decoded, id);
+    const access = await resolveProjectAccess(decoded, id, db);
     if (!access.canView) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
@@ -217,7 +217,7 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded, id);
+    const access = await resolveProjectAccess(decoded, id, db);
     if (!access.canView) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
@@ -330,7 +330,7 @@ export async function DELETE(
     const { id } = await params;
 
     const userRole = decoded.role as string;
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo')) {
       return NextResponse.json(
         { error: 'Only super_admin or tenant_admin can delete projects' },
         { status: 403, headers: corsHeaders() }

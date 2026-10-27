@@ -12,6 +12,7 @@ import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { DEFAULT_SHIFT_END, DEFAULT_SHIFT_START, minutesInTimeZone, validatePunchTime } from '@/lib/punch-time-validation';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
+import { findAttendanceForLocalDay } from '@/lib/attendance-day';
 
 export { OPTIONS };
 
@@ -71,6 +72,32 @@ export async function POST(request: Request) {
     }
     if (!emp) return fail('Employee record not found. Please ensure your user account is linked to an employee record.', 404);
 
+    // ─── Task 161: Regularization release window gating ───
+    // When HR has started using the release control, employee self-service
+    // applications are only accepted while the window is open (released and
+    // before the payroll cut-off of the release month). Admins/HR bypass the
+    // gate so proxy-apply keeps working. If the window was never released
+    // (legacy) regularization behaves exactly as before.
+    if (!isAdminRole(user.role)) {
+      try {
+        const gateTenantId = (user as { tenantId?: string | null }).tenantId || (await resolveCompanyScope(request))?.tenantId;
+        if (gateTenantId) {
+          const { getRegularizationWindow } = await import('@/lib/regularization-release');
+          const win = await getRegularizationWindow(db, gateTenantId);
+          if (!win.legacy && !win.open) {
+            return fail(
+              win.reason === 'past_payroll_cutoff'
+                ? 'The regularization window for this payroll cycle closed on the payroll cut-off date. Please contact HR if you still need a correction.'
+                : 'The regularization window is currently closed. You will be notified when HR releases it for this cycle.',
+              403,
+            );
+          }
+        }
+      } catch (gateErr) {
+        console.warn('[regularize] window gate check failed (non-fatal):', gateErr);
+      }
+    }
+
     const date = new Date(body.date as string);
     const punchType = body.punchType as string;
     const requestedTime = punchType === 'production_shortfall'
@@ -109,19 +136,24 @@ export async function POST(request: Request) {
     // Check-in/check-out requests remain employee claims and use the normal
     // punch validation below.
     if (punchType === 'production_shortfall') {
-      const attendance = await db.attendance.findFirst({
-        where: { employeeId: emp.id, date: new Date(`${dateKey}T00:00:00.000Z`) },
-        select: { workHours: true, checkIn: true, checkOut: true, breakIn: true, breakOut: true },
-      });
+      // Task 162: dual-convention day lookup — the biometric sync keys rows
+      // at IST midnight, the old exact UTC-midnight equality missed them and
+      // production-shortfall requests failed with "No attendance record".
+      const attendance = await findAttendanceForLocalDay(db, emp.id, dateKey);
       if (!attendance) {
         return fail('No attendance record exists for this date. Select a date with production hours below 8 hours.', 422);
       }
 
-      // Missing Break-In/Break-Out is a separate regularization case. Never
-      // infer production hours from gross time or the default lunch window.
       let productionHours = attendance.workHours == null ? null : Number(attendance.workHours);
-      if (!attendance.breakIn || !attendance.breakOut) {
-        return fail('Break-In and Break-Out are required before production hours can be calculated. Submit break regularization for the missing punch(es).', 422);
+      if (productionHours == null && attendance.checkIn && attendance.checkOut) {
+        const grossMinutes = (new Date(attendance.checkOut).getTime() - new Date(attendance.checkIn).getTime()) / 60000;
+        const breakMinutes = effectiveBreakMinutes(
+          attendance.breakIn ? new Date(attendance.breakIn) : null,
+          attendance.breakOut ? new Date(attendance.breakOut) : null,
+          new Date(attendance.checkIn),
+          new Date(attendance.checkOut), await loadAttendanceBreakPolicy(db),
+        );
+        productionHours = (grossMinutes - breakMinutes) / 60;
       }
       if (productionHours == null || productionHours >= 8) {
         return fail('Production hours are not short on this date. Select a date with production hours below 8 hours.', 422);
@@ -153,10 +185,7 @@ export async function POST(request: Request) {
       let existingCheckIn: string | null = null;
       let existingCheckOut: string | null = null;
       try {
-        const attendance = await db.attendance.findFirst({
-          where: { employeeId: emp.id, date: new Date(`${dateKey}T00:00:00.000Z`) },
-          select: { checkIn: true, checkOut: true },
-        });
+        const attendance = await findAttendanceForLocalDay<{ checkIn: Date | null; checkOut: Date | null }>(db, emp.id, dateKey);
         if (attendance?.checkIn) existingCheckIn = toHHmm(new Date(attendance.checkIn));
         if (attendance?.checkOut) existingCheckOut = toHHmm(new Date(attendance.checkOut));
       } catch (attendanceErr) {
@@ -193,7 +222,7 @@ export async function POST(request: Request) {
       });
       if (duplicate) {
         return fail(
-          `A ${duplicate.status} regularization request for this date (${punchType === 'check_in' ? 'Check-In' : punchType === 'check_out' ? 'Check-Out' : punchType === 'break_in' ? 'Break-In' : punchType === 'break_out' ? 'Break-Out' : 'Production Shortfall'}) already exists. Duplicate requests are not allowed.`,
+          `A ${duplicate.status} regularization request for this date (${punchType === 'check_in' ? 'Check-In' : 'Check-Out'}) already exists. Duplicate requests are not allowed.`,
           409,
         );
       }
@@ -316,7 +345,7 @@ export async function POST(request: Request) {
       const tenantId = (user as any).tenantId || (await resolveCompanyScope(request))?.tenantId;
       const hrUsers = tenantId
         ? await db.user.findMany({
-            where: { tenantId, role: { in: ['hr_admin', 'hr', 'admin', 'tenant_admin'] }, status: 'active' },
+            where: { tenantId, role: { in: ['hr_admin', 'hr', 'admin', 'tenant_admin', 'ceo'] }, status: 'active' },
             select: { id: true, email: true, name: true },
           }).catch(() => [])
         : [];

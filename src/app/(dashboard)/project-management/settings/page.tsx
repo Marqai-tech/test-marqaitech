@@ -27,18 +27,15 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 
 export default function ProjectSettingsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
-  const [sprintDuration, setSprintDuration] = useState('2weeks');
+  /* Task 152 — sprint + timesheet options removed from the slimmed PM module.
+     The API still accepts the legacy keys, so saves stay backward-compatible. */
   const [autoAssign, setAutoAssign] = useState(false);
-  const [timeTrackingMandatory, setTimeTrackingMandatory] = useState(true);
-  const [sprintDeadlineAlerts, setSprintDeadlineAlerts] = useState(true);
   const [dailyStandupReminders, setDailyStandupReminders] = useState(true);
   const [overdueTaskEscalation, setOverdueTaskEscalation] = useState(false);
   const [requireApproval, setRequireApproval] = useState(false);
   const [defaultView, setDefaultView] = useState('grid');
-  const [overtimeEnabled, setOvertimeEnabled] = useState(false);
-  const [autoTimesheetApproval, setAutoTimesheetApproval] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -55,14 +52,9 @@ export default function ProjectSettingsPage() {
         const data = await res.json();
         if (data.settings) {
           const s = data.settings;
-          if (s.sprintDuration !== undefined) setSprintDuration(String(s.sprintDuration));
           if (s.autoAssign !== undefined) setAutoAssign(!!s.autoAssign);
-          if (s.timeTrackingEnabled !== undefined) setTimeTrackingMandatory(!!s.timeTrackingEnabled);
-          if (s.notifyOnDeadline !== undefined) setSprintDeadlineAlerts(!!s.notifyOnDeadline);
           if (s.requireApproval !== undefined) setRequireApproval(!!s.requireApproval);
           if (s.defaultView !== undefined) setDefaultView(String(s.defaultView));
-          if (s.overtimeEnabled !== undefined) setOvertimeEnabled(!!s.overtimeEnabled);
-          if (s.autoTimesheetApproval !== undefined) setAutoTimesheetApproval(!!s.autoTimesheetApproval);
         }
       }
     } catch {
@@ -76,14 +68,9 @@ export default function ProjectSettingsPage() {
     setSaving(true);
     try {
       const payload = {
-        sprintDuration,
         autoAssign,
-        timeTrackingEnabled: timeTrackingMandatory,
         requireApproval,
         defaultView,
-        overtimeEnabled,
-        notifyOnDeadline: sprintDeadlineAlerts,
-        autoTimesheetApproval,
       };
       const res = await fetch('/api/project-settings', {
         method: 'PUT',
@@ -170,22 +157,6 @@ export default function ProjectSettingsPage() {
             <p className="text-xs text-thb-text-muted mt-0.5">Default settings for new projects</p>
           </div>
           <div className="p-5 space-y-5">
-            {/* Sprint Duration */}
-            <div>
-              <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Sprint Duration</label>
-              <select
-                value={sprintDuration}
-                onChange={(e) => setSprintDuration(e.target.value)}
-                className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
-              >
-                <option value="1week">1 Week</option>
-                <option value="2weeks">2 Weeks</option>
-                <option value="3weeks">3 Weeks</option>
-                <option value="4weeks">4 Weeks</option>
-              </select>
-              <p className="text-xs text-thb-text-muted mt-1">Default sprint length for new projects</p>
-            </div>
-
             {/* Default View */}
             <div>
               <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Default Project View</label>
@@ -218,15 +189,6 @@ export default function ProjectSettingsPage() {
               </div>
               <Toggle enabled={requireApproval} onToggle={() => setRequireApproval(!requireApproval)} />
             </div>
-
-            {/* Time Tracking Mandatory */}
-            <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-              <div>
-                <p className="text-sm font-medium text-thb-text-primary">Time Tracking Mandatory</p>
-                <p className="text-xs text-thb-text-muted mt-0.5">Require team members to log time on all tasks</p>
-              </div>
-              <Toggle enabled={timeTrackingMandatory} onToggle={() => setTimeTrackingMandatory(!timeTrackingMandatory)} />
-            </div>
           </div>
         </div>
 
@@ -237,17 +199,8 @@ export default function ProjectSettingsPage() {
             <p className="text-xs text-thb-text-muted mt-0.5">Configure project-related notifications and approvals</p>
           </div>
           <div className="p-5 space-y-5">
-            {/* Sprint Deadline Alerts */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-thb-text-primary">Sprint Deadline Alerts</p>
-                <p className="text-xs text-thb-text-muted mt-0.5">Notify team when sprint deadlines are approaching</p>
-              </div>
-              <Toggle enabled={sprintDeadlineAlerts} onToggle={() => setSprintDeadlineAlerts(!sprintDeadlineAlerts)} />
-            </div>
-
             {/* Daily Standup Reminders */}
-            <div className="flex items-center justify-between pt-4 border-t border-thb-border">
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-thb-text-primary">Daily Standup Reminders</p>
                 <p className="text-xs text-thb-text-muted mt-0.5">Send reminders for daily standup meetings</p>
@@ -262,24 +215,6 @@ export default function ProjectSettingsPage() {
                 <p className="text-xs text-thb-text-muted mt-0.5">Escalate overdue tasks to project manager automatically</p>
               </div>
               <Toggle enabled={overdueTaskEscalation} onToggle={() => setOverdueTaskEscalation(!overdueTaskEscalation)} />
-            </div>
-
-            {/* Overtime Tracking */}
-            <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-              <div>
-                <p className="text-sm font-medium text-thb-text-primary">Overtime Tracking</p>
-                <p className="text-xs text-thb-text-muted mt-0.5">Enable overtime tracking for project work</p>
-              </div>
-              <Toggle enabled={overtimeEnabled} onToggle={() => setOvertimeEnabled(!overtimeEnabled)} />
-            </div>
-
-            {/* Auto Timesheet Approval */}
-            <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-              <div>
-                <p className="text-sm font-medium text-thb-text-primary">Auto Timesheet Approval</p>
-                <p className="text-xs text-thb-text-muted mt-0.5">Automatically approve submitted timesheets</p>
-              </div>
-              <Toggle enabled={autoTimesheetApproval} onToggle={() => setAutoTimesheetApproval(!autoTimesheetApproval)} />
             </div>
           </div>
         </div>

@@ -179,7 +179,7 @@ export async function POST(request: Request) {
     const tenantId = job.department?.company?.companyGroup?.tenant?.id;
     if (tenantId) {
       const tenantAdmins = await db.user.findMany({
-        where: { tenantId, role: { in: ['tenant_admin', 'hr_admin', 'recruiter'] } },
+        where: { tenantId, role: { in: ['tenant_admin', 'ceo', 'hr_admin', 'recruiter'] } },
         select: { id: true },
       });
       if (tenantAdmins.length > 0) {

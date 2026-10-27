@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { openDocumentInNewTab } from '@/lib/document-viewer';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   FiArrowLeft,
   FiUser,
@@ -36,11 +38,16 @@ import {
   FiDownload,
   FiX,
   FiLayers,
+  FiEye,
+  FiExternalLink,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
+import IdentityVerification from '@/components/employees/IdentityVerification';
+import SelfEditProfileModal from '@/components/hrms/SelfEditProfileModal';
+import ProfileSectionEditRequest, { type ProfileSection } from '@/components/employees/ProfileSectionEditRequest';
 import { employeePhotoUrl } from '@/lib/profile-photo';
 import { isSafeDocumentUrl } from '@/lib/sanitize';
 import { getToken } from '@/lib/token-storage';
@@ -56,19 +63,21 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
   const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
   const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
   const [attendancePolicies, setAttendancePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
   const [travelPolicies, setTravelPolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
   const [salaryStructures, setSalaryStructures] = useState<Array<{ id: string; name: string }>>([]);
   const [saving, setSaving] = useState<string | null>(null);
+  // Task 137 — assigned company policy documents (view + download grid)
+  const [companyPolicies, setCompanyPolicies] = useState<Array<Record<string, unknown>>>([]);
 
   const fetchPolicies = useCallback(async () => {
     const sqBase = scopeQuery();
     const sq = sqBase ? `${sqBase}&` : '';
     try {
-      const [polRes, lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
+      const [polRes, lpRes, apRes, tpRes, ssRes, cpRes] = await Promise.allSettled([
         fetch(`/api/employees/${employeeId}/policies?${sq}`, { headers: getAuthHeaders() }),
         // BUG FIX: usable=1 excludes inactive and future-dated policies from
         // the employee policy dropdowns.
@@ -76,12 +85,19 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
         fetch(`/api/policies?${sq}category=attendance&usable=1`, { headers: getAuthHeaders() }),
         fetch(`/api/policies?${sq}category=travel&usable=1`, { headers: getAuthHeaders() }),
         fetch(`/api/salary-structures?${sq}`, { headers: getAuthHeaders() }),
+        // Task 137 — every ACTIVE company policy document (with its file)
+        fetch(`/api/policies?${sq}status=active&includeFile=1&limit=100`, { headers: getAuthHeaders() }),
       ]);
       if (polRes.status === 'fulfilled' && polRes.value.ok) { const d = await polRes.value.json(); setPolicies(d.data); }
       if (lpRes.status === 'fulfilled' && lpRes.value.ok) { const d = await lpRes.value.json(); setLeavePolicies((d.policies || d.data || [])); }
       if (apRes.status === 'fulfilled' && apRes.value.ok) { const d = await apRes.value.json(); setAttendancePolicies((d.policies || d.data || [])); }
       if (tpRes.status === 'fulfilled' && tpRes.value.ok) { const d = await tpRes.value.json(); setTravelPolicies((d.policies || d.data || [])); }
       if (ssRes.status === 'fulfilled' && ssRes.value.ok) { const d = await ssRes.value.json(); setSalaryStructures((d.salaryStructures || d.data || [])); }
+      if (cpRes.status === 'fulfilled' && cpRes.value.ok) {
+        const d = await cpRes.value.json();
+        const list = d.policies || d.data || [];
+        setCompanyPolicies(Array.isArray(list) ? list.filter((p: Record<string, unknown>) => p.status !== 'inactive') : []);
+      }
     } catch { /* silently */ }
   }, [employeeId, scopeQuery, selectedTenantId]);
 
@@ -125,6 +141,77 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
 
   return (
     <div className="space-y-5">
+      {/* Task 137 — Assigned Company Policies grid (every employee can view/download) */}
+      <div className="thb-card p-5">
+        <h4 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Assigned Company Policies</h4>
+        <p className="text-xs text-thb-text-muted mb-4">Policy documents assigned to this employee — view or download them from here.</p>
+        {companyPolicies.length === 0 ? (
+          <p className="text-xs text-thb-text-muted">No active company policies published yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {companyPolicies.map((p) => {
+              const title = String(p.title || 'Untitled policy');
+              const category = String(p.category || 'other');
+              const version = String(p.version || '1.0');
+              const fileName = String(p.fileName || '');
+              const fileUrl = String(p.fileUrl || '');
+              const isData = fileUrl.startsWith('data:');
+              const eff = p.effectiveDate ? new Date(String(p.effectiveDate)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+              return (
+                <div key={String(p.id)} className="p-3 rounded-xl border border-thb-border bg-white flex flex-col gap-2">
+                  <div className="flex items-start gap-2">
+                    <div className="w-9 h-9 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center flex-shrink-0">
+                      <FiShield className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-thb-text-primary truncate" title={title}>{title}</p>
+                      <p className="text-[10px] text-thb-text-muted">
+                        <span className="capitalize">{category.replace(/_/g, ' ')}</span> · v{version}{eff ? ` · from ${eff}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-auto">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          // Task 139 — open the ORIGINAL document (native PDF/image render
+                          // via a blob URL); description fallback only when no file exists.
+                          if (fileUrl) {
+                            const opened = openDocumentInNewTab(fileUrl, fileName || `${title}.pdf`);
+                            if (!opened) toast.error('Could not open the policy document — use Download instead');
+                          } else {
+                            const w = window.open('', '_blank');
+                            if (w) {
+                              w.document.write(`<html><head><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:24px;white-space:pre-wrap"><h2 style="color:#10b981">${title}</h2><p><em>Policy description (no file attached)</em></p>${String(p.description || '').slice(0, 200000)}</body></html>`);
+                              w.document.close();
+                            }
+                          }
+                        } catch { toast.error('Could not open the policy'); }
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-50 text-violet-700 text-xs font-semibold hover:bg-violet-100 transition-colors"
+                    >
+                      <FiEye className="w-3.5 h-3.5" /> View
+                    </button>
+                    {fileUrl ? (
+                      <a
+                        href={fileUrl}
+                        download={fileName || `${title}.${isData ? 'pdf' : 'txt'}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 transition-colors"
+                      >
+                        <FiDownload className="w-3.5 h-3.5" /> Download{fileName ? '' : ' link'}
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-thb-text-muted">No document attached</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {!isAdmin && <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-700">Only admins can modify policy mappings.</div>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-green-500" />)}
@@ -176,6 +263,7 @@ interface EmployeeData {
   lastName: string;
   email: string;
   phone?: string | null;
+  personalEmail?: string | null;
   avatar?: string | null;
   user?: { id?: string; email?: string; role?: string; avatar?: string | null } | null;
   department?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
@@ -185,6 +273,7 @@ interface EmployeeData {
   dateOfJoining: string;
   status: string;
   dateOfBirth?: string | null;
+  originalBirthday?: string | null;
   gender?: string | null;
   maritalStatus?: string | null;
   nationality?: string | null;
@@ -219,7 +308,12 @@ interface EmployeeData {
   }>;
   dependents?: Array<{ id: string; name: string; relation: string; dateOfBirth?: string | null; gender?: string | null }>;
   qualifications?: Array<{ id: string; degree: string; institution: string; year: number; percentage?: number | null }>;
-  experiences?: Array<{ id: string; company: string; designation: string; startDate: string; endDate?: string | null; isCurrent: boolean }>;
+  // Task 137 — richer experience rows + interests + company tags
+  interests?: string | null;
+  experiences?: Array<{ id: string; company: string; designation: string; startDate: string; endDate?: string | null; isCurrent: boolean; description?: string | null; companyLogo?: string | null; companyCategory?: string | null; companyLevel?: string | null; domains?: string[] | string | null; letters?: Array<{ name?: string; type?: string; fileUrl?: string }> | string | null }>;
+  achievements?: Array<{ id: string; title: string; description?: string | null; category?: string | null; issuer?: string | null; achievedOn?: string | null }>;
+  kycVerification?: string | null;
+  kycVerifiedAt?: string | null;
   skills?: Array<{ id: string; skill: string; level: string; yearsOfExp?: number | null }>;
   documents?: Array<{ id: string; name: string; type: string; fileUrl?: string | null; status: string; uploadedAt: string; expiryDate?: string | null }>;
   assetAssignments?: Array<{ id: string; status: string; assignedDate: string; asset: { id: string; name: string; assetTag: string; category: string } }>;
@@ -227,8 +321,61 @@ interface EmployeeData {
   _count?: { directReports: number } | null;
 }
 
-const tabs = ['Overview', 'Personal', 'Employment', 'Experience', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
+const tabs = ['Overview', 'Personal', 'Employment', 'Experience', 'Achievements', 'Documents', 'Verification', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
 type TabName = typeof tabs[number];
+
+// Task 158 — currency symbol from the employee's salaryCurrency (system
+// default INR). The Payroll tab previously hard-coded "$", which showed
+// dollars to Indian-origin employees; now every payslip row renders in the
+// employee's own currency, consistent with the rest of the system.
+function currencySymbol(code?: string | null): string {
+  switch ((code || 'INR').toUpperCase()) {
+    case 'INR': return '₹';
+    case 'USD': return '$';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'AED': return 'AED ';
+    default: return `${code} `;
+  }
+}
+
+// Task 158 — self-service banner shown on the employee's OWN profile for the
+// editable sections: explains the HR-approval flow and opens the request
+// modal. A pending request shows an amber chip instead of the button.
+function SelfServiceEditBanner({
+  sectionLabel,
+  pending,
+  onRequest,
+}: {
+  sectionLabel: string;
+  pending: boolean;
+  onRequest: () => void;
+}) {
+  return (
+    <div className="thb-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-l-4 border-l-teal-500">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-thb-text-primary">Want to correct your {sectionLabel} details?</p>
+        <p className="text-xs text-thb-text-muted mt-0.5">
+          Submit an edit request — HR reviews it and your official record updates only after approval.
+        </p>
+      </div>
+      {pending ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          Edit pending HR approval
+        </span>
+      ) : (
+        <button
+          onClick={onRequest}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 shadow-sm whitespace-nowrap"
+        >
+          <FiEdit2 className="w-3.5 h-3.5" />
+          Request Edit
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ─── Info Field Component ───
 function InfoField({ label, value, icon, accentColor, onNavigate, navigateHint }: { label: string; value?: string | null; icon?: React.ReactNode; accentColor?: string; onNavigate?: () => void; navigateHint?: string }) {
@@ -291,10 +438,15 @@ function StatCard({ icon, label, value, subtitle, colorClass, borderGradient }: 
   );
 }
 
-export default function EmployeeDetailPage() {
+// Task 154 — accepts an optional selfEmployeeId so the SAME page component
+// renders on /my-profile for the logged-in user (My Profile ≡ Employee List
+// → View Details, per user request). When set, params are ignored and the
+// "Back to Employees" navigation is hidden (self-service roles cannot open
+// the /employees area).
+export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?: string } = {}) {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const id = selfEmployeeId || (params?.id as string) || '';
   const { user } = useAuthStore();
   const canManageMappings = canAccessEmployeeSettings(user?.role);
   const canEditRecord = canEditEmployeeRecords(user?.role);
@@ -306,7 +458,12 @@ export default function EmployeeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabName>('Overview');
+  const [showSelfEdit, setShowSelfEdit] = useState(false);
   const [companyMappings, setCompanyMappings] = useState<Array<{ id: string; companyId: string; employeeCode: string; isPrimary: boolean; department?: { name: string } | null; designation?: { title: string } | null; branch?: { name: string } | null; company?: { name: string; code?: string } | null }>>([]);
+  // Task 158 — self-service section edit requests (Experience / Achievements /
+  // Documents / Verification / Health) visible on the employee's OWN profile.
+  const [editSection, setEditSection] = useState<ProfileSection | null>(null);
+  const [mySectionRequests, setMySectionRequests] = useState<Array<{ id: string; fieldName: string; status: string; createdAt: string; approverComments?: string | null }>>([]);
 
   const [attendance, setAttendance] = useState<Array<{ id: string; date: string; checkIn?: string | null; checkOut?: string | null; workHours?: number | null; overtime?: number | null; status: string }>>([]);
   const [payrolls, setPayrolls] = useState<Array<{ id: string; month: number; year: number; grossSalary: number; totalDeductions: number; netSalary: number; status: string; paidDate?: string | null }>>([]);
@@ -362,6 +519,22 @@ export default function EmployeeDetailPage() {
     } catch { /* silently */ }
   }, [employee, scopeQuery, selectedTenantId]);
 
+  // Task 158 — the employee's own section-edit requests (status chips + the
+  // "My Profile Edit Requests" panel on the Overview tab).
+  const fetchMySectionRequests = useCallback(async () => {
+    if (!selfEmployeeId) return;
+    try {
+      const res = await fetch('/api/employees/update-requests?scope=mine', { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const d = await res.json();
+      setMySectionRequests(d.requests || []);
+    } catch { /* optional surface */ }
+  }, [selfEmployeeId]);
+
+  useEffect(() => {
+    if (employee?.id && selfEmployeeId) queueMicrotask(() => { fetchMySectionRequests(); });
+  }, [employee?.id, selfEmployeeId, fetchMySectionRequests]);
+
   const fetchRelatedData = useCallback(async () => {
     if (!employee) return;
     const sqBase = scopeQuery();
@@ -391,18 +564,15 @@ export default function EmployeeDetailPage() {
   }, [employee, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
+    if (!persistHydrated) return;
     const ac = new AbortController();
     queueMicrotask(() => fetchEmployee(ac.signal));
     return () => ac.abort();
   }, [fetchEmployee, persistHydrated]);
 
   useEffect(() => {
-    // Keep the overview fast: these queries can cold-start Neon and are only
-    // needed when the corresponding tab is opened.
-    if (employee && ['Attendance', 'Payroll', 'Leave'].includes(activeTab)) {
-      queueMicrotask(() => fetchRelatedData());
-    }
-  }, [employee, activeTab, fetchRelatedData]);
+    if (employee) queueMicrotask(() => fetchRelatedData());
+  }, [employee, fetchRelatedData]);
 
   useEffect(() => {
     if (employee && activeTab === 'Company Mapping') queueMicrotask(() => fetchCompanyMappings());
@@ -460,6 +630,7 @@ export default function EmployeeDetailPage() {
               <FiRefreshCw className="w-4 h-4" />
               Retry
             </button>
+            {!selfEmployeeId && (
             <button
               onClick={() => router.push('/employees')}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
@@ -467,6 +638,7 @@ export default function EmployeeDetailPage() {
               <FiArrowLeft className="w-4 h-4" />
               Back to Employees
             </button>
+            )}
           </div>
         </div>
       </div>
@@ -482,6 +654,13 @@ export default function EmployeeDetailPage() {
     || (user?.email && employee.email && user.email.toLowerCase() === employee.email.toLowerCase()),
   );
   const profileViewOnly = !canEditRecord && !isOwnProfile;
+  // Task 158 — pending section-request chips on the employee's own profile.
+  const SECTION_REQUEST_KEYS: ProfileSection[] = ['experience', 'achievements', 'documents', 'verification', 'health'];
+  const SECTION_REQUEST_LABELS: Record<ProfileSection, string> = { experience: 'Experience', achievements: 'Achievements', documents: 'Documents', verification: 'Verification', health: 'Health' };
+  const pendingSectionField = new Set(
+    mySectionRequests.filter((r) => r.status === 'pending' && SECTION_REQUEST_KEYS.includes(r.fieldName as ProfileSection)).map((r) => r.fieldName),
+  );
+  const sectionRequestRows = mySectionRequests.filter((r) => SECTION_REQUEST_KEYS.includes(r.fieldName as ProfileSection)).slice(0, 6);
   const daysEmployed = Math.floor((now - new Date(employee.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24));
   const totalLeaveBalance = employee.leaveBalances?.reduce((sum, lb) => sum + lb.remaining, 0) || 0;
   const attendanceRate = attendance.length > 0 ? Math.round((attendance.filter(a => ['present', 'late'].includes(a.status)).length / attendance.length) * 100) : 0;
@@ -560,11 +739,24 @@ export default function EmployeeDetailPage() {
                 Edit
               </button>
               )}
+              {/* Task 162: ESS self-edit — employees editing their OWN profile
+                  get the contact-details editor (PATCH /api/users/profile:
+                  low-risk applied directly, high-risk routed to approvals). */}
+              {!canEditRecord && isOwnProfile && (
+                <button
+                  onClick={() => setShowSelfEdit(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-600 via-fuchsia-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-teal-700 hover:via-fuchsia-600 hover:to-cyan-600 transition-all shadow-md shadow-fuchsia-200/50"
+                >
+                  <FiEdit2 className="w-3.5 h-3.5" />
+                  Edit Profile
+                </button>
+              )}
               {profileViewOnly && (
                 <span className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-lg">
                   View only
                 </span>
               )}
+              {!selfEmployeeId && (
               <button
                 onClick={() => router.push('/employees')}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-thb-border text-thb-text-secondary rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
@@ -572,6 +764,7 @@ export default function EmployeeDetailPage() {
                 <FiArrowLeft className="w-3.5 h-3.5" />
                 Back
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -608,7 +801,7 @@ export default function EmployeeDetailPage() {
         <StatCard
           icon={<FiDollarSign className="w-5 h-5 text-teal-600" />}
           label="Salary"
-          value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${(employee.salary / 1000).toFixed(0)}K` : '—'}
+          value={employee.salary ? `${currencySymbol(employee.salaryCurrency)} ${(employee.salary / 1000).toFixed(0)}K` : '—'}
           subtitle={employee.salary ? employee.salary.toLocaleString() : undefined}
           colorClass="bg-gradient-to-br from-teal-100 to-teal-50"
           borderGradient="from-teal-500 via-teal-400 to-fuchsia-400"
@@ -618,6 +811,15 @@ export default function EmployeeDetailPage() {
       {/* ═══════════════════════════════════════════
           TAB NAVIGATION + CONTENT
           ═══════════════════════════════════════════ */}
+      {/* Task 137 — mandatory/optional section clarity on the view page */}
+      <div className="flex items-center gap-4 text-xs text-thb-text-secondary flex-wrap px-1">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+          <span className="text-red-500 font-bold">*</span> Mandatory sections: Personal, Address, Employment, Bank, Emergency, Health
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          Optional sections: Statutory, Overseas, Experience, Documents, Policies, Company Mapping
+        </span>
+      </div>
       <div className="thb-card overflow-hidden">
         {/* Tab Bar */}
         <div className="border-b border-thb-border bg-gradient-to-r from-teal-50/30 via-green-50/20 to-cyan-50/30 overflow-x-auto">
@@ -647,11 +849,39 @@ export default function EmployeeDetailPage() {
           {/* ── Overview Tab ── */}
           {activeTab === 'Overview' && (
             <div className="space-y-6">
+              {/* Task 158 — self-service: status of my section edit requests */}
+              {selfEmployeeId && sectionRequestRows.length > 0 && (
+                <SectionCard title="My Profile Edit Requests" icon={<FiEdit2 className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-cyan-400 to-emerald-400">
+                  <div className="space-y-2">
+                    {sectionRequestRows.map((r) => {
+                      const label = SECTION_REQUEST_LABELS[r.fieldName as ProfileSection] || r.fieldName;
+                      const statusStyle: Record<string, string> = {
+                        pending: 'bg-amber-50 text-amber-700 border-amber-200',
+                        approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        applied: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+                        cancelled: 'bg-slate-50 text-slate-600 border-slate-200',
+                      };
+                      return (
+                        <div key={r.id} className="flex items-center gap-3 p-3 rounded-lg border border-thb-border hover:bg-slate-50/60 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-thb-text-primary">{label} edit request</p>
+                            <p className="text-xs text-thb-text-muted">{new Date(r.createdAt).toLocaleString()}{r.approverComments ? ` — “${r.approverComments}”` : ''}</p>
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold capitalize ${statusStyle[r.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>{r.status}</span>
+                        </div>
+                      );
+                    })}
+                    <Link href="/employees/update-requests" className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-700 mt-1">View all in Update Requests →</Link>
+                  </div>
+                </SectionCard>
+              )}
               {/* Personal Information */}
               <SectionCard title="Personal Information" icon={<FiUser className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Full Name" value={`${employee.firstName} ${employee.lastName}`} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Date of Birth" value={formatDate(employee.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                  <InfoField label="Original Birthday" value={formatDate(employee.originalBirthday)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
                   <InfoField label="Gender" value={employee.gender} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Marital Status" value={employee.maritalStatus} icon={<FiHeart className="w-3.5 h-3.5" />} />
                   <InfoField label="Nationality" value={employee.nationality} icon={<FiGlobe className="w-3.5 h-3.5" />} />
@@ -724,6 +954,7 @@ export default function EmployeeDetailPage() {
                   <InfoField label="Email" value={employee.email} icon={<FiMail className="w-3.5 h-3.5" />} />
                   <InfoField label="Phone" value={employee.phone} icon={<FiPhone className="w-3.5 h-3.5" />} />
                   <InfoField label="Date of Birth" value={formatDate(employee.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                  <InfoField label="Original Birthday" value={formatDate(employee.originalBirthday)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
                   <InfoField label="Gender" value={employee.gender} />
                   <InfoField label="Marital Status" value={employee.maritalStatus} />
                   <InfoField label="Nationality" value={employee.nationality} icon={<FiGlobe className="w-3.5 h-3.5" />} />
@@ -787,6 +1018,26 @@ export default function EmployeeDetailPage() {
                   </div>
                 </SectionCard>
               )}
+
+              {/* Task 137 — Interests (Personal tab) */}
+              <SectionCard title="Interests" icon={<FiHeart className="w-4 h-4 text-violet-500" />} accentGradient="from-violet-500 via-fuchsia-400 to-pink-400">
+                {(() => {
+                  const interests = String((employee as unknown as Record<string, unknown>).interests || '')
+                    .split(',').map(s => s.trim()).filter(Boolean);
+                  if (!interests.length) {
+                    return <p className="text-xs text-thb-text-muted">No interests recorded. Add them from Edit Employee → Personal → Interests.</p>;
+                  }
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {interests.map((s, i) => (
+                        <span key={`${s}-${i}`} className="inline-flex items-center px-3 py-1.5 rounded-full bg-violet-50 text-violet-700 text-xs font-medium border border-violet-200">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </SectionCard>
             </div>
           )}
 
@@ -810,11 +1061,40 @@ export default function EmployeeDetailPage() {
                   <InfoField label="Branch" value={employee.branch?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
                   <InfoField label="Date of Joining" value={formatDate(employee.dateOfJoining)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
                   <InfoField label="Status" value={badge.label} />
-                  <InfoField label="Employee Status" value={(employee as Record<string, unknown>).employeeStatus ? String((employee as Record<string, unknown>).employeeStatus).charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeStatus).slice(1) : '—'} />
-                  <InfoField label="Employee Type" value={(employee as Record<string, unknown>).employeeType ? String((employee as Record<string, unknown>).employeeType).replace(/_/g, ' ').charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeType).slice(1).replace(/_/g, ' ') : '—'} />
-                  <InfoField label="Personal Email" value={(employee as Record<string, unknown>).personalEmail as string || '—'} icon={<FiMail className="w-3.5 h-3.5" />} />
+                  <InfoField label="Employee Status" value={(employee as unknown as Record<string, unknown>).employeeStatus ? String((employee as unknown as Record<string, unknown>).employeeStatus).charAt(0).toUpperCase() + String((employee as unknown as Record<string, unknown>).employeeStatus).slice(1) : '—'} />
+                  <InfoField label="Employee Type" value={(employee as unknown as Record<string, unknown>).employeeType ? String((employee as unknown as Record<string, unknown>).employeeType).replace(/_/g, ' ').charAt(0).toUpperCase() + String((employee as unknown as Record<string, unknown>).employeeType).slice(1).replace(/_/g, ' ') : '—'} />
+                  <InfoField label="Personal Email" value={(employee as unknown as Record<string, unknown>).personalEmail as string || '—'} icon={<FiMail className="w-3.5 h-3.5" />} />
                   <InfoField label="Reporting Manager Designation" value={employee.reportingManager?.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
                 </div>
+              </SectionCard>
+
+              {/* Task 137 — Technical Skills (feeds the skill matrix) */}
+              <SectionCard title="Technical Skills" icon={<FiAward className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-teal-400 to-fuchsia-400">
+                {(employee.skills || []).length === 0 ? (
+                  <p className="text-xs text-thb-text-muted">No technical skills recorded. Add them from Edit Employee → Employment → Technical Skills.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {(employee.skills || []).map((sk) => {
+                      const lvl = (sk.level || 'intermediate').toLowerCase();
+                      const color = lvl === 'expert'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : lvl === 'advanced'
+                          ? 'bg-teal-50 text-teal-700 border-teal-200'
+                          : lvl === 'beginner'
+                            ? 'bg-slate-50 text-slate-600 border-slate-200'
+                            : 'bg-sky-50 text-sky-700 border-sky-200';
+                      return (
+                        <div key={sk.id} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-thb-border bg-white">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{sk.skill}</p>
+                            <p className="text-[11px] text-thb-text-muted capitalize">{lvl}{sk.yearsOfExp ? ` · ${sk.yearsOfExp} yr${sk.yearsOfExp === 1 ? '' : 's'}` : ''}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize flex-shrink-0 ${color}`}>{lvl}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </SectionCard>
 
               {/* Bank Details */}
@@ -855,8 +1135,114 @@ export default function EmployeeDetailPage() {
 
           {activeTab === 'Experience' && (
             <div className="space-y-6">
-              {([1, 2, 3] as const).map((n) => {
-                const rec = employee as Record<string, unknown>;
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="experience" pending={pendingSectionField.has('experience')} onRequest={() => setEditSection('experience')} />
+              )}
+              {/* Task 137 — dynamic experience entries (legacy previousEmployer1..3 rows fall back below) */}
+              {(employee.experiences || []).map((exp, i) => {
+                const dur = (() => {
+                  try {
+                    const start = new Date(exp.startDate);
+                    const end = exp.isCurrent || !exp.endDate ? new Date() : new Date(exp.endDate);
+                    if (isNaN(start.getTime())) return '';
+                    let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+                    if (end.getDate() < start.getDate()) months -= 1;
+                    if (months < 0) return '';
+                    const years = Math.floor(months / 12);
+                    const mos = months % 12;
+                    if (years && mos) return `${years} yr${years > 1 ? 's' : ''} ${mos} mo${mos > 1 ? 's' : ''}`;
+                    if (years) return `${years} yr${years > 1 ? 's' : ''}`;
+                    return months ? `${months} mo${months > 1 ? 's' : ''}` : 'Just joined';
+                  } catch { return ''; }
+                })();
+                return (
+                  <SectionCard key={exp.id || i} title={`Experience ${i + 1}${exp.isCurrent ? ' (Current)' : ''}`} icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-white border border-thb-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {exp.companyLogo ? (
+                          <img src={exp.companyLogo} alt={exp.company} className="w-9 h-9 object-contain" />
+                        ) : (
+                          <FiBriefcase className="w-5 h-5 text-slate-300" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="text-sm font-semibold text-thb-text-primary">{exp.company}</p>
+                          {exp.companyCategory && (
+                            <span className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[10px] font-semibold border border-violet-200">
+                              {({ listed: 'Listed', non_listed: 'Non-Listed', government: 'Government', psu: 'PSU', startup: 'Startup', other: 'Other' } as Record<string, string>)[exp.companyCategory] || exp.companyCategory}
+                            </span>
+                          )}
+                          {exp.companyLevel && (
+                            <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[10px] font-semibold border border-teal-200">
+                              {({ mnc: 'MNC', tier_1: 'Tier-1', tier_2: 'Tier-2', tier_3: 'Tier-3', large: 'Large Enterprise', mid: 'Mid-Size', startup: 'Startup', small: 'Small Company' } as Record<string, string>)[exp.companyLevel] || exp.companyLevel}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                          <InfoField label="Designation" value={exp.designation} icon={<FiUser className="w-3.5 h-3.5" />} />
+                          <InfoField label="From" value={new Date(exp.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                          <InfoField label="To" value={exp.isCurrent ? 'Currently working' : (exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null)} icon={<FiClock className="w-3.5 h-3.5" />} />
+                          {dur && <InfoField label="Duration" value={dur} />}
+                          {exp.description && <InfoField label="Reason for Leaving" value={exp.description} />}
+                        </div>
+                        {(() => {
+                          // Task 138 — domains worked + proof letters for this employer
+                          const parseJson = (v: unknown): unknown[] | null => {
+                            if (Array.isArray(v)) return v;
+                            if (typeof v === 'string' && v.trim()) { try { const j = JSON.parse(v); return Array.isArray(j) ? j : null; } catch { return null; } }
+                            return null;
+                          };
+                          const doms = parseJson(exp.domains) as string[] | null;
+                          const letters = (parseJson(exp.letters) || []) as Array<{ name?: string; type?: string; fileUrl?: string }>;
+                          const letterLabels: Record<string, string> = {
+                            offer_letter: 'Offer Letter', relieving_letter: 'Relieving Letter', experience_letter: 'Experience Letter',
+                            appraisal_letter: 'Appraisal / Increment Letter', payslip: 'Payslip', other: 'Other Letter',
+                          };
+                          if (!doms?.length && !letters.length) return null;
+                          return (
+                            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2.5">
+                              {doms && doms.length > 0 && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider mb-1.5">Domains worked in</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {doms.map((d) => (
+                                      <span key={d} className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-medium">{d}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {letters.length > 0 && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider mb-1.5">Letters from this company</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {letters.filter((l) => l.fileUrl).map((l, li) => (
+                                      <a
+                                        key={li}
+                                        href={l.fileUrl || '#'}
+                                        {...(l.fileUrl?.startsWith('data:') ? { download: l.name || 'letter' } : { target: '_blank', rel: 'noopener noreferrer' })}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-teal-200 bg-teal-50 text-teal-700 text-[11px] font-medium hover:bg-teal-100 transition-colors"
+                                      >
+                                        <FiFileText className="w-3.5 h-3.5" />
+                                        {letterLabels[l.type || 'other'] || 'Letter'}{l.name && !l.fileUrl?.startsWith('data:') ? ` · ${l.name}` : ''}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </SectionCard>
+                );
+              })}
+              {/* Legacy static rows (pre-Task-137 data) — hidden once dynamic entries exist */}
+              {(employee.experiences || []).length === 0 && ([1, 2, 3] as const).map((n) => {
+                const rec = employee as unknown as Record<string, unknown>;
+                const hasLegacy = Boolean(rec[`previousEmployer${n}`]);
+                if (!hasLegacy) return null;
                 return (
                   <SectionCard key={n} title={`Experience ${n}`} icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
@@ -868,9 +1254,32 @@ export default function EmployeeDetailPage() {
                   </SectionCard>
                 );
               })}
+              {(employee.experiences || []).length === 0 && !((employee as unknown as Record<string, unknown>).previousEmployer1 || (employee as unknown as Record<string, unknown>).previousEmployer2 || (employee as unknown as Record<string, unknown>).previousEmployer3) && (
+                <div className="thb-card p-6 text-center">
+                  <FiBriefcase className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm text-thb-text-muted">No previous experience recorded yet. Add entries from Edit Employee → Experience.</p>
+                </div>
+              )}
               <SectionCard title="Total Experience" icon={<FiStar className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-teal-400 to-emerald-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
-                  <InfoField label="Total Experience" value={((employee as Record<string, unknown>).totalExperience as string) || null} />
+                  <InfoField label="Total Experience" value={(() => {
+                    const rec = employee as unknown as Record<string, unknown>;
+                    const spans = (employee.experiences || []).map((x) => ({ startDate: x.startDate, endDate: x.endDate, isCurrent: x.isCurrent }));
+                    let months = 0;
+                    for (const sp of spans) {
+                      if (!sp.startDate) continue;
+                      try {
+                        const st = new Date(sp.startDate);
+                        const en = sp.isCurrent || !sp.endDate ? new Date() : new Date(sp.endDate);
+                        let m = (en.getFullYear() - st.getFullYear()) * 12 + (en.getMonth() - st.getMonth());
+                        if (en.getDate() < st.getDate()) m -= 1;
+                        if (m > 0) months += m;
+                      } catch { /* skip */ }
+                    }
+                    const yrs = Math.round((months / 12) * 10) / 10;
+                    if (yrs > 0) return `${yrs} yr${yrs === 1 ? '' : 's'}`;
+                    return (rec.totalExperience as string) || null;
+                  })()} />
                 </div>
               </SectionCard>
             </div>
@@ -878,7 +1287,47 @@ export default function EmployeeDetailPage() {
 
           {/* ── Documents Tab ── */}
           {activeTab === 'Documents' && (
-            <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} viewOnly={profileViewOnly} />
+            <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="document" pending={pendingSectionField.has('documents')} onRequest={() => setEditSection('documents')} />
+              )}
+              <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} viewOnly={profileViewOnly} />
+            </div>
+          )}
+
+          {/* ── Achievements Tab (Task 138) ── */}
+          {activeTab === 'Achievements' && (
+            <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="achievements" pending={pendingSectionField.has('achievements')} onRequest={() => setEditSection('achievements')} />
+              )}
+              {(employee.achievements || []).map((a, i) => (
+                <SectionCard key={a.id || i} title={a.title || `Achievement ${i + 1}`} icon={<FiAward className="w-4 h-4 text-violet-500" />} accentGradient="from-violet-500 via-purple-400 to-fuchsia-400">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                    <InfoField label="Category" value={({ previous_company: 'Previous Company', certification: 'Certification', award: 'Award / Recognition', academic: 'Academic', community: 'Community / Social', other: 'Other' } as Record<string, string>)[a.category || 'other'] || a.category || null} icon={<FiAward className="w-3.5 h-3.5" />} />
+                    <InfoField label="Issued by" value={a.issuer || null} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                    <InfoField label="Date" value={a.achievedOn ? new Date(a.achievedOn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                    {a.description && <InfoField label="Description" value={a.description} />}
+                  </div>
+                </SectionCard>
+              ))}
+              {(employee.achievements || []).length === 0 && (
+                <div className="thb-card p-6 text-center">
+                  <FiAward className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm text-thb-text-muted">No achievements recorded yet. Add them from Edit Employee → Experience → Achievements (from the previous company experience or any other source).</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Verification Tab (Task 138 — Aadhaar / PAN / DigiLocker) ── */}
+          {activeTab === 'Verification' && (
+            <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="verification" pending={pendingSectionField.has('verification')} onRequest={() => setEditSection('verification')} />
+              )}
+              <IdentityVerification employeeId={employee.id} canVerify={canEditRecord} />
+            </div>
           )}
 
           {/* ── Leave Tab ── */}
@@ -1028,9 +1477,9 @@ export default function EmployeeDetailPage() {
                         return (
                           <tr key={p.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                             <td className="py-3 text-sm font-medium text-thb-text-primary">{months[p.month]} {p.year}</td>
-                            <td className="py-3 text-sm text-thb-text-secondary">${p.grossSalary.toLocaleString()}</td>
-                            <td className="py-3 text-sm text-red-500">${p.totalDeductions.toLocaleString()}</td>
-                            <td className="py-3 text-sm font-semibold text-emerald-600">${p.netSalary.toLocaleString()}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{currencySymbol(employee.salaryCurrency)}{p.grossSalary.toLocaleString()}</td>
+                            <td className="py-3 text-sm text-red-500">{currencySymbol(employee.salaryCurrency)}{p.totalDeductions.toLocaleString()}</td>
+                            <td className="py-3 text-sm font-semibold text-emerald-600">{currencySymbol(employee.salaryCurrency)}{p.netSalary.toLocaleString()}</td>
                             <td className="py-3"><span className={statusMap[p.status] || 'thb-badge thb-badge-info'}>{p.status}</span></td>
                           </tr>
                         );
@@ -1045,12 +1494,15 @@ export default function EmployeeDetailPage() {
           {/* ── Health Tab ── */}
           {activeTab === 'Health' && (
             <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="health" pending={pendingSectionField.has('health')} onRequest={() => setEditSection('health')} />
+              )}
               {/* Vitals & Blood */}
               <SectionCard title="Vitals & Blood Information" icon={<FiHeart className="w-4 h-4 text-red-500" />} accentGradient="from-red-500 via-rose-400 to-pink-400">
                 <p className="text-xs text-thb-text-muted mb-4">Employee health information for workplace safety and emergency preparedness.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-0">
                   <InfoField label="Blood Group" value={employee.bloodGroup} icon={<FiDroplet className="w-3.5 h-3.5" />} />
-                  <InfoField label="Emergency Condition" value={(employee as Record<string, unknown>).emergencyMedicalCondition as string} />
+                  <InfoField label="Emergency Condition" value={(employee as unknown as Record<string, unknown>).emergencyMedicalCondition as string} />
                 </div>
               </SectionCard>
 
@@ -1058,11 +1510,11 @@ export default function EmployeeDetailPage() {
               <SectionCard title="Medical History" icon={<FiShield className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
                 <div className="space-y-3">
                   {[
-                    { label: 'Chronic Illness', value: (employee as Record<string, unknown>).hasChronicIllness as string, details: (employee as Record<string, unknown>).chronicIllnessDetails as string },
-                    { label: 'Allergies', value: (employee as Record<string, unknown>).hasAllergies as string, details: (employee as Record<string, unknown>).allergyDetails as string },
-                    { label: 'Disability', value: (employee as Record<string, unknown>).hasDisability as string, details: (employee as Record<string, unknown>).disabilityDetails as string },
-                    { label: 'On Medication', value: (employee as Record<string, unknown>).isOnMedication as string, details: (employee as Record<string, unknown>).medicationDetails as string },
-                    { label: 'Previous Surgery', value: (employee as Record<string, unknown>).hasHadSurgery as string, details: (employee as Record<string, unknown>).surgeryDetails as string },
+                    { label: 'Chronic Illness', value: (employee as unknown as Record<string, unknown>).hasChronicIllness as string, details: (employee as unknown as Record<string, unknown>).chronicIllnessDetails as string },
+                    { label: 'Allergies', value: (employee as unknown as Record<string, unknown>).hasAllergies as string, details: (employee as unknown as Record<string, unknown>).allergyDetails as string },
+                    { label: 'Disability', value: (employee as unknown as Record<string, unknown>).hasDisability as string, details: (employee as unknown as Record<string, unknown>).disabilityDetails as string },
+                    { label: 'On Medication', value: (employee as unknown as Record<string, unknown>).isOnMedication as string, details: (employee as unknown as Record<string, unknown>).medicationDetails as string },
+                    { label: 'Previous Surgery', value: (employee as unknown as Record<string, unknown>).hasHadSurgery as string, details: (employee as unknown as Record<string, unknown>).surgeryDetails as string },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center gap-3 p-3 rounded-lg border border-thb-border hover:bg-slate-50/50 transition-colors">
                       {item.value === 'yes' ? (
@@ -1079,13 +1531,37 @@ export default function EmployeeDetailPage() {
                 </div>
               </SectionCard>
 
-              {/* Physician & Insurance */}
-              <SectionCard title="Physician & Insurance" icon={<FiShield className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
+              {/* Task 137 — Insurance (renamed from "Physician & Insurance") + family details */}
+              <SectionCard title="Insurance" icon={<FiShield className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-0">
-                  <InfoField label="Primary Physician" value={(employee as Record<string, unknown>).primaryPhysicianName as string} icon={<FiUser className="w-3.5 h-3.5" />} />
-                  <InfoField label="Physician Phone" value={(employee as Record<string, unknown>).primaryPhysicianPhone as string} icon={<FiPhone className="w-3.5 h-3.5" />} />
-                  <InfoField label="Insurance Provider" value={(employee as Record<string, unknown>).healthInsuranceProvider as string} icon={<FiShield className="w-3.5 h-3.5" />} />
-                  <InfoField label="Policy Number" value={(employee as Record<string, unknown>).healthInsurancePolicyNo as string} icon={<FiFileText className="w-3.5 h-3.5" />} />
+                  <InfoField label="Primary Physician" value={(employee as unknown as Record<string, unknown>).primaryPhysicianName as string} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Physician Phone" value={(employee as unknown as Record<string, unknown>).primaryPhysicianPhone as string} icon={<FiPhone className="w-3.5 h-3.5" />} />
+                  <InfoField label="Insurance Provider" value={(employee as unknown as Record<string, unknown>).healthInsuranceProvider as string} icon={<FiShield className="w-3.5 h-3.5" />} />
+                  <InfoField label="Policy Number" value={(employee as unknown as Record<string, unknown>).healthInsurancePolicyNo as string} icon={<FiFileText className="w-3.5 h-3.5" />} />
+                </div>
+
+                {/* Family details covered under the medical insurance */}
+                <div className="mt-5 pt-4 border-t border-thb-border/60">
+                  <p className="text-xs font-semibold text-thb-text-primary mb-3">Family Details (Medical Insurance)</p>
+                  {(employee.dependents || []).length === 0 ? (
+                    <p className="text-xs text-thb-text-muted">No family members recorded for insurance cover. Add them from Edit Employee → Health → Insurance.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {(employee.dependents || []).map((dep) => (
+                        <div key={dep.id} className="flex items-center gap-3 p-3 rounded-lg border border-thb-border bg-white">
+                          <div className="w-9 h-9 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center flex-shrink-0">
+                            <FiUsers className="w-4 h-4 text-rose-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{dep.name}</p>
+                            <p className="text-xs text-thb-text-muted capitalize">
+                              {dep.relation}{dep.dateOfBirth ? ` · ${new Date(dep.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </SectionCard>
             </div>
@@ -1215,7 +1691,43 @@ export default function EmployeeDetailPage() {
           )}
 
         </div>
+
+        {/* Task 158 — self-service section edit request modal */}
+        {editSection && employee && (
+          <ProfileSectionEditRequest
+            section={editSection}
+            employeeId={employee.id}
+            employee={employee as unknown as Record<string, unknown>}
+            onClose={() => setEditSection(null)}
+            onSubmitted={(message) => {
+              setEditSection(null);
+              toast.success(message);
+              queueMicrotask(() => { fetchMySectionRequests(); });
+            }}
+          />
+        )}
       </div>
+
+      {/* Task 162: ESS self-edit modal (own profile, non-HR roles) */}
+      {showSelfEdit && employee && (
+        <SelfEditProfileModal
+          employee={{
+            id: employee.id,
+            phone: employee.phone,
+            personalEmail: employee.personalEmail,
+            currentAddress: employee.currentAddress,
+            currentCity: employee.currentCity,
+            currentState: employee.currentState,
+            currentZipCode: employee.currentZipCode,
+            currentCountry: employee.currentCountry,
+            emergencyContactName: employee.emergencyContactName,
+            emergencyContactPhone: employee.emergencyContactPhone,
+            emergencyContactRelation: employee.emergencyContactRelation,
+          }}
+          onClose={() => setShowSelfEdit(false)}
+          onSaved={() => { fetchEmployee(); }}
+        />
+      )}
     </div>
   );
 }
@@ -1248,7 +1760,7 @@ const DOC_CATEGORIES = [
   { value: 'lifecycle', label: 'Lifecycle & Performance', icon: '📈' },
   { value: 'other', label: 'Other', icon: '📎' },
 ];
-const DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','other','aadhaar','pan_card','bank_proof','passport','visa','education','experience','medical'];
+const DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','other','aadhaar','pan_card','bank_proof','passport','visa','education','experience','resume','medical'];
 
 function EmployeeDocumentsTab({ employeeId, initialDocuments, viewOnly = false }: { employeeId: string; initialDocuments: EmployeeDocument[]; viewOnly?: boolean }) {
   const { user } = useAuthStore();
@@ -1360,6 +1872,7 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments, viewOnly = false }
                   {doc.requiredFormat && <p>Required: {doc.requiredFormat.toUpperCase()}</p>}
                 </div>
                 <div className="mt-3 flex items-center gap-2">
+                  {doc.fileUrl && isSafeDocumentUrl(doc.fileUrl) && <button type="button" onClick={() => { const ok = openDocumentInNewTab(doc.fileUrl as string, doc.name); if (!ok) toast.error('Could not open the document'); }} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-violet-600 hover:bg-violet-50 rounded"><FiEye className="w-3 h-3" /> View</button>}
                   {doc.fileUrl && isSafeDocumentUrl(doc.fileUrl) && <a href={doc.fileUrl} {...((doc.fileUrl || '').startsWith('data:') ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
                   {doc.fileUrl && !isSafeDocumentUrl(doc.fileUrl) && <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 bg-red-50 rounded" title="This link was blocked for security reasons">Blocked link</span>}
                   {isAdmin && !viewOnly && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
