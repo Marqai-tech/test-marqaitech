@@ -101,7 +101,11 @@ export async function GET(request: Request) {
     // check for it and force the self-scope lookup even for admin roles,
     // so the admin sees only THEIR OWN leave applications (not all employees').
     const viewSelf = searchParams.get('view') === 'self';
-    const effectiveScope = viewSelf ? 'self' : scope.scope;
+    // view=team → returns leaves of SAME-DEPARTMENT colleagues (for the
+    // team leave calendar in the Apply Leave form). This bypasses the
+    // self-scope restriction so employees can see their team's leaves.
+    const viewTeam = searchParams.get('view') === 'team';
+    const effectiveScope = viewSelf ? 'self' : (viewTeam ? 'team' : scope.scope);
 
     // ─── QA Dashboard fix: "Employees on Leave" metric ───
     // onLeaveToday=1 → count DISTINCT employees with an APPROVED leave record
@@ -174,6 +178,21 @@ export async function GET(request: Request) {
     } else if (scope.companyId) {
       // Admin with a specific company selected via CompanySwitcher
       where.employee = { companyId: scope.companyId };
+    } else if (effectiveScope === 'team') {
+      // view=team → find the logged-in employee's department and return
+      // same-department colleagues' leaves (excluding the employee's own).
+      // Used by the LeaveRequestPanel's team leave calendar.
+      const selfEmp = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { id: true, departmentId: true },
+      }).catch(() => null);
+      if (selfEmp?.departmentId) {
+        where.employee = { departmentId: selfEmp.departmentId, status: 'active' };
+        where.employeeId = { not: selfEmp.id }; // exclude own leaves
+      } else {
+        // No department — return nothing (can't determine "team")
+        where.employeeId = '__none__';
+      }
     }
     // scope === 'all' && no companyId → admin sees all companies
 
