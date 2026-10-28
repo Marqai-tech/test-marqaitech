@@ -660,19 +660,39 @@ export default function LeaveRequestPanel({
               const isToday = cell.date === todayStr;
 
               return (
-                <button key={i} onClick={() => setSelectedCalDate(cell.date)}
-                  className={`aspect-square rounded-lg text-xs flex flex-col items-center justify-center relative transition-all
+                <button key={i}
+                  onClick={() => {
+                    // Fix 2: clicking a calendar date auto-fills From/To dates
+                    setSelectedCalDate(cell.date);
+                    if (!form.startDate) {
+                      // No start date yet → set as start date
+                      setForm(p => ({ ...p, startDate: cell.date! }));
+                    } else if (form.startDate && !form.endDate) {
+                      // Start date set but no end → set as end date (swap if before start)
+                      if (cell.date! < form.startDate) {
+                        setForm(p => ({ ...p, endDate: p.startDate, startDate: cell.date! }));
+                      } else {
+                        setForm(p => ({ ...p, endDate: cell.date! }));
+                      }
+                    } else {
+                      // Both dates set → reset and use clicked date as new start
+                      setForm(p => ({ ...p, startDate: cell.date!, endDate: '' }));
+                    }
+                  }}
+                  className={`aspect-square rounded-lg text-xs flex flex-col items-center justify-center relative transition-all cursor-pointer
                     ${isSelected ? 'ring-2 ring-green-500 bg-green-100' : ''}
                     ${inRange && !isSelected ? 'bg-green-50 border border-green-200' : ''}
-                    ${isWeekend && !inRange ? 'text-slate-300' : 'text-slate-700'}
+                    ${isWeekend && !inRange && !hasApproved && !hasPending ? 'text-slate-300' : 'text-slate-700'}
                     ${isHoliday && !inRange ? 'bg-teal-50 text-teal-600' : ''}
                     ${isToday ? 'ring-1 ring-blue-400' : ''}
+                    ${hasApproved && !inRange ? 'bg-red-100 text-red-700 font-bold' : ''}
+                    ${hasPending && !hasApproved && !inRange ? 'bg-amber-100 text-amber-700' : ''}
                     hover:bg-slate-100`}>
-                  <span className={`font-medium ${inRange ? 'text-green-700' : ''}`}>{cell.day}</span>
-                  {/* Status dots */}
+                  <span className={`font-medium ${inRange ? 'text-green-700' : ''} ${hasApproved ? 'text-red-700' : ''}`}>{cell.day}</span>
+                  {/* Status dots — still show for additional clarity */}
                   {(hasApproved || hasPending) && (
                     <div className="absolute bottom-0.5 flex gap-0.5">
-                      {hasApproved && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+                      {hasApproved && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
                       {hasPending && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
                     </div>
                   )}
@@ -682,29 +702,32 @@ export default function LeaveRequestPanel({
           </div>
 
           {/* Legend */}
-          <div className="mt-3 flex items-center gap-3 text-[10px] text-slate-500">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Approved</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> Pending</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-300" /> Holiday</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-200 border border-green-400" /> Your leave</span>
+          <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300" /> Team on leave</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 border border-amber-300" /> Pending</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-teal-50 border border-teal-300" /> Holiday</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-50 border border-green-300" /> Your leave</span>
           </div>
 
-          {/* Selected date events */}
+          {/* Selected date events — with profile pics */}
           {selectedCalDate && (
             <div className="mt-4 p-3 rounded-lg bg-white border border-slate-200">
               <p className="text-xs font-semibold text-slate-700 mb-2">
                 {formatDateShort(selectedCalDate)} — {getWeekdayShort(new Date(selectedCalDate))}
               </p>
               {leavesOnDate(selectedCalDate).length > 0 ? (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {leavesOnDate(selectedCalDate).map(l => (
                     <div key={l.id} className="flex items-center gap-2 text-xs">
-                      <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-600">
+                      {/* Profile pic / initials avatar */}
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                         {(l.employee.firstName[0] + (l.employee.lastName[0] || '')).toUpperCase()}
                       </div>
-                      <span className="text-slate-700 flex-1 truncate">{l.employee.firstName} {l.employee.lastName}</span>
-                      {l.leaveType && <span className="text-slate-400">{l.leaveType.name}</span>}
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${l.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-slate-700 font-medium truncate">{l.employee.firstName} {l.employee.lastName}</div>
+                        {l.leaveType && <div className="text-slate-400 text-[10px]">{l.leaveType.name}</div>}
+                      </div>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium flex-shrink-0 ${l.status === 'approved' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
                         {l.status}
                       </span>
                     </div>
@@ -713,6 +736,10 @@ export default function LeaveRequestPanel({
               ) : (
                 <p className="text-xs text-slate-400">No team leaves on this date.</p>
               )}
+              {/* Hint: click to set dates */}
+              <p className="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-100">
+                Click a date to set From/To dates
+              </p>
             </div>
           )}
 
@@ -725,13 +752,14 @@ export default function LeaveRequestPanel({
 
           {/* ── Team Alert: shows who else is on leave during the selected dates ── */}
           {/* Appears below the calendar with profile pics of affected team members */}
-          {form.startDate && form.endDate && (() => {
+          {form.startDate && (() => {
+            const checkEnd = form.endDate || form.startDate;
             // Find team members on leave during the selected range
             const conflicts = teamLeaves.filter(l => {
               const ls = new Date(l.startDate).toISOString().split('T')[0];
               const le = new Date(l.endDate).toISOString().split('T')[0];
               // Overlap check: leave starts before our end AND ends after our start
-              return ls <= form.endDate && le >= form.startDate;
+              return ls <= checkEnd && le >= form.startDate;
             });
             if (conflicts.length === 0) return null;
             // Deduplicate by employee ID
@@ -750,18 +778,23 @@ export default function LeaveRequestPanel({
                     <p className="text-xs font-semibold text-amber-800 mb-2">
                       Team Alert
                     </p>
-                    <p className="text-xs text-amber-700 mb-2">
+                    <p className="text-xs text-amber-700 mb-3">
                       Warning: {uniqueMembers.length} other member(s) of your department team are on leave during these dates ({memberNames.join(', ')}). Project delivery may be impacted.
                     </p>
-                    {/* Profile pictures / initials of team members on leave */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Profile picture chips of team members on leave */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       {uniqueMembers.map(l => (
-                        <div key={l.employee.id} className="flex items-center gap-1.5 bg-white rounded-full pl-0.5 pr-2 py-0.5 border border-amber-200">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
+                        <div key={l.employee.id} className="flex items-center gap-1.5 bg-white rounded-full pl-1 pr-2.5 py-1 border border-amber-200 shadow-sm">
+                          {/* Profile pic — initials avatar with gradient */}
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-400 via-amber-400 to-orange-400 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ring-2 ring-white">
                             {(l.employee.firstName[0] + (l.employee.lastName[0] || '')).toUpperCase()}
                           </div>
-                          <span className="text-[10px] text-amber-800 font-medium truncate max-w-[80px]">
+                          <span className="text-[11px] text-amber-900 font-medium truncate max-w-[100px]">
                             {l.employee.firstName} {l.employee.lastName}
+                          </span>
+                          {/* Status badge */}
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold flex-shrink-0 ${l.status === 'approved' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {l.status === 'approved' ? 'ON LEAVE' : 'PENDING'}
                           </span>
                         </div>
                       ))}
