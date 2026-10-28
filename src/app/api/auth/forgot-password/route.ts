@@ -273,6 +273,7 @@ export async function POST(request: Request) {
     return okResponse;
   } catch (error) {
     console.error('[ForgotPassword] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Internal server error', debug: process.env.NODE_ENV === 'production' ? undefined : errMsg }, { status: 500, headers: CORS });
   }
 }
