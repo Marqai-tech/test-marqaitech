@@ -89,35 +89,155 @@ export default function TrialRegisterPage() {
     }
   };
 
+  // TC_054-058: Logo upload with full file validation
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // TC_057: Size check — max 2MB
+    const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2 MB
+    if (file.size > MAX_LOGO_SIZE) {
+      toast.error('Maximum file size is 2 MB.');
+      e.target.value = ''; // reset input
+      return;
+    }
+
+    // TC_054/055/056: File type validation — only PNG, JPG, SVG allowed
+    const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+    const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg'];
+    const fileExtension = '.' + (file.name.split('.').pop() || '').toLowerCase();
+
+    if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+      toast.error('Only PNG, JPG, or SVG files are allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    // TC_058: Magic bytes validation — detect actual file content, not just extension
     const reader = new FileReader();
     reader.onload = () => {
-      setForm({ ...form, companyLogo: reader.result as string });
+      const arrayBuffer = reader.result as ArrayBuffer;
+      const uint8 = new Uint8Array(arrayBuffer);
+
+      // Check magic bytes for common image formats
+      // PNG: 89 50 4E 47 0D 0A 1A 0A
+      // JPEG: FF D8 FF
+      // SVG: check for XML/text starting with <?xml or <svg
+      const isPNG = uint8.length >= 8 &&
+        uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
+      const isJPEG = uint8.length >= 3 &&
+        uint8[0] === 0xFF && uint8[1] === 0xD8 && uint8[2] === 0xFF;
+      // SVG is XML text — check for <svg or <?xml
+      const headerStr = new TextDecoder().decode(uint8.slice(0, 256)).toLowerCase();
+      const isSVG = headerStr.includes('<svg') || headerStr.includes('<?xml');
+      // PDF: 25 50 44 46 (%PDF)
+      const isPDF = uint8.length >= 4 &&
+        uint8[0] === 0x25 && uint8[1] === 0x50 && uint8[2] === 0x44 && uint8[3] === 0x46;
+
+      if (isPDF) {
+        toast.error('Only PNG, JPG, or SVG files are allowed. PDF files are not accepted.');
+        e.target.value = '';
+        return;
+      }
+      if (!isPNG && !isJPEG && !isSVG) {
+        toast.error('Only PNG, JPG, or SVG files are allowed. The file content does not match a valid image format.');
+        e.target.value = '';
+        return;
+      }
+
+      // Valid image — convert to data URL and store
+      const dataUrlReader = new FileReader();
+      dataUrlReader.onload = () => {
+        setForm({ ...form, companyLogo: dataUrlReader.result as string });
+        toast.success('Logo uploaded successfully.');
+      };
+      dataUrlReader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+    reader.readAsArrayBuffer(file);
   };
 
-  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // TC_061-065: Employee data upload with xlsx/CSV parsing and validation
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result;
-      // Parse CSV for simplicity (Excel can be saved as CSV)
-      const lines = (data as string).split('\n').filter(l => l.trim());
-      if (lines.length < 2) return;
-      const headers = lines[0].split(',').map(h => h.trim());
-      const employees = lines.slice(1, 6).map(line => {
-        const values = line.split(',').map(v => v.trim());
-        const emp: any = {};
-        headers.forEach((h, i) => { emp[h] = values[i] || ''; });
-        return emp;
+
+    // TC_063: Reject PDF and other non-spreadsheet files
+    const ALLOWED_EXTENSIONS = ['.csv', '.xlsx', '.xls'];
+    const fileExtension = '.' + (file.name.split('.').pop() || '').toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+      toast.error('Please choose an Excel or CSV file.');
+      e.target.value = '';
+      return;
+    }
+
+    // File size limit (10MB for employee data — larger than logo)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('File is too large. Maximum size is 10 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      // Dynamically import xlsx library for proper Excel parsing
+      const xlsx = await import('xlsx');
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = xlsx.read(arrayBuffer, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!firstSheet) {
+        toast.error('The file does not contain any employee records.');
+        e.target.value = '';
+        return;
+      }
+      const rows: Record<string, unknown>[] = xlsx.utils.sheet_to_json(firstSheet, { defval: '' });
+
+      // TC_065: Empty file check
+      if (rows.length === 0) {
+        toast.error('The file does not contain any employee records.');
+        e.target.value = '';
+        return;
+      }
+
+      // TC_064: Max 5 employees check
+      if (rows.length > 5) {
+        toast.error(`Maximum 5 employees are allowed. Your file contains ${rows.length} employees.`);
+        e.target.value = '';
+        return;
+      }
+
+      // TC_065: Required columns validation
+      const REQUIRED_COLUMNS = ['EmployeeId', 'FirstName', 'LastName', 'Email', 'Phone', 'Department', 'Designation', 'DateOfJoining'];
+      const headers = Object.keys(rows[0]);
+      const missingColumns = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+      if (missingColumns.length > 0) {
+        toast.error(`Missing required columns: ${missingColumns.join(', ')}. Please download the template for the correct format.`);
+        e.target.value = '';
+        return;
+      }
+
+      // Validate each row has required fields
+      const invalidRows: number[] = [];
+      rows.forEach((row, i) => {
+        const hasAllRequired = REQUIRED_COLUMNS.every(col => {
+          const val = row[col];
+          return val !== undefined && val !== null && String(val).trim() !== '';
+        });
+        if (!hasAllRequired) invalidRows.push(i + 2); // +2 for 1-indexed + header row
       });
-      setForm({ ...form, employeeDataJson: JSON.stringify(employees) });
-    };
-    reader.readAsText(file);
+      if (invalidRows.length > 0) {
+        toast.error(`Row(s) ${invalidRows.join(', ')} are missing required fields. Please fill in all required columns.`);
+        e.target.value = '';
+        return;
+      }
+
+      // Valid — store as JSON
+      setForm({ ...form, employeeDataJson: JSON.stringify(rows) });
+      toast.success(`${rows.length} employee(s) loaded from ${file.name}.`);
+    } catch (err) {
+      console.error('Employee upload parse error:', err);
+      toast.error('Could not parse the file. Please ensure it is a valid Excel or CSV file with the correct columns.');
+      e.target.value = '';
+    }
   };
 
   const toggleModule = (key: string) => {
@@ -334,8 +454,13 @@ export default function TrialRegisterPage() {
 
             {/* Actions */}
             <div className="flex gap-3">
+              {/* TC_068: Navigate to trial login. On Vercel preview deploys the
+                  *.3boxeshrms.com wildcard may not resolve, so we use the same
+                  host with ?tenant=<slug> which middleware resolves via
+                  x-tenant-slug header. This avoids "Network error" when the
+                  custom domain DNS isn't configured. */}
               <button
-                onClick={() => router.push(`https://${registrationCode}.3boxeshrms.com/login`)}
+                onClick={() => router.push(`/login?tenant=${encodeURIComponent(registrationCode)}`)}
                 className="flex-1 py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg shadow-green-500/25"
               >
                 Go to My Trial Login →

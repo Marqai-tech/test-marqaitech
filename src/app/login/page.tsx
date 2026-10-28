@@ -396,7 +396,7 @@ export default function LoginPage() {
             {isPlatformSite && !tenantInfo
               ? 'Manage all tenants, approve trials, and control subscriptions.'
               : loginMode === 'user'
-                ? "Today is a new day. It's your day. You shape it. Sign in to start managing your projects."
+                ? "Today is a new day. It's your day. You shape it. Sign in to start managing your people and workforce with ease."
                 : 'Track your applications, optimize your resume, and find matching jobs.'}
           </p>
           {isPlatformSite && (
@@ -908,7 +908,14 @@ export default function LoginPage() {
               <div className="h-px flex-1 bg-slate-200" />
             </div>
             <p className="text-center text-sm text-slate-500 mb-4">
-              Don&apos;t you have an account?{' '}
+              {/* TC_077: "Sign up" and "New Company? Start Free Trial" both link to /register.
+                  This is intentional — /register is the free-trial company registration page.
+                  The in-form "Sign up" text link is a minimal entry point for existing users
+                  who don't have an account yet. The "Start Free Trial" card below is a more
+                  prominent promotional entry point with marketing copy. Both lead to the same
+                  registration flow since there is no separate "user sign-up" vs "company
+                  registration" distinction in the current product design. */}
+              Don&apos;t have an account?{' '}
               {tenantInfo ? (
                 <button
                   type="button"
@@ -977,17 +984,6 @@ export default function LoginPage() {
       {/* ════════════════ RIGHT — "Smarter HR Starts Here" illustration card ════════════════ */}
       <div className="hidden lg:flex lg:w-[56%] xl:w-[58%] items-stretch p-5 xl:p-8">
         <div className="relative w-full rounded-[32px] bg-gradient-to-br from-[#D8E9FA] via-[#E7F1FC] to-[#CBE2F6] overflow-hidden flex flex-col p-8 xl:p-10">
-          {/* Product logo badge — 3Boxes HRMS mark on the right-hand pane (Task 157) */}
-          <div className="absolute top-6 right-6 xl:top-8 xl:right-8 z-20">
-            <div className="flex items-center gap-2.5 pl-2.5 pr-4 py-2 rounded-2xl bg-white/85 backdrop-blur shadow-lg shadow-[#16254E]/10 ring-1 ring-white">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-9 h-9 rounded-lg object-contain" />
-              <div className="leading-tight">
-                <p className="text-[13px] font-extrabold text-[#16254E]">3Boxes <span className="text-emerald-500">HRMS</span></p>
-                <p className="text-[9px] font-medium text-slate-500">Manage People. Empower Growth.</p>
-              </div>
-            </div>
-          </div>
           {/* Decorative blobs */}
           <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-white/40 blur-2xl" />
           <div className="absolute top-1/3 -left-20 w-64 h-64 rounded-full bg-[#A9CBF0]/40 blur-2xl" />

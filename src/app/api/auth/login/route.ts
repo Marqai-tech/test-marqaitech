@@ -98,20 +98,19 @@ export async function POST(request: Request) {
         select: { id: true, status: true, name: true },
       });
       if (subdomainTenant) {
-        // ─── Tenant status check: block login for non-active tenants ───
-        // Super admins can still log in from any domain (they control tenant status).
-        // For all other roles, a suspended/inactive/pending_approval tenant
-        // means the user cannot log in.
-        if (subdomainTenant.status !== 'active') {
+        // ─── Tenant status check ───
+        // Super admins log in via the platform domain (no tenant slug) so this
+        // check never affects them. For all other roles:
+        //   - 'active'  → allowed
+        //   - 'trial'   → allowed (TC_069: trial tenants must be able to log in;
+        //                  the trial-expiry check later in this route handles expiry)
+        //   - suspended / inactive / pending_approval → blocked
+        if (subdomainTenant.status !== 'active' && subdomainTenant.status !== 'trial') {
           const statusMessages: Record<string, string> = {
             suspended: `Your tenant "${subdomainTenant.name}" has been suspended. Please contact the super admin to reactivate your account.`,
             inactive: `Your tenant "${subdomainTenant.name}" is inactive. Please contact the super admin.`,
             pending_approval: `Your tenant "${subdomainTenant.name}" is pending approval. You cannot log in until the super admin approves your account.`,
           };
-          // Note: We don't know the user's role yet at this point, but we
-          // check the tenant status first. Super admins log in via the
-          // platform domain (3boxeshrms.com) which has no tenant slug,
-          // so this check won't affect them.
           return NextResponse.json(
             { 
               error: statusMessages[subdomainTenant.status] || `Your tenant "${subdomainTenant.name}" is ${subdomainTenant.status}. Access denied.`,

@@ -97,6 +97,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ─── TC_054-058: Backend logo validation ───────────────────────
+    // Validate the companyLogo data URL if provided.
+    if (companyLogo && typeof companyLogo === 'string' && companyLogo.startsWith('data:')) {
+      // Check the data URL prefix is an allowed image type
+      const mimeMatch = companyLogo.match(/^data:(image\/(png|jpeg|jpg|svg\+xml));base64,/);
+      if (!mimeMatch) {
+        return NextResponse.json(
+          { error: 'Invalid logo format. Only PNG, JPG, or SVG files are allowed.' },
+          { status: 400 },
+        );
+      }
+      // Check decoded size ≤ 2 MB
+      const base64Data = companyLogo.split(',')[1] || '';
+      const decodedSize = Math.ceil(base64Data.length * 3 / 4);
+      if (decodedSize > 2 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: 'Maximum logo file size is 2 MB.' },
+          { status: 400 },
+        );
+      }
+    }
+
+    // ─── TC_061-065: Backend employee data validation ──────────────
+    // Validate the employeeDataJson if provided.
+    if (employeeDataJson && typeof employeeDataJson === 'string') {
+      try {
+        const parsed = JSON.parse(employeeDataJson);
+        if (!Array.isArray(parsed)) {
+          return NextResponse.json(
+            { error: 'Employee data must be an array of employee records.' },
+            { status: 400 },
+          );
+        }
+        if (parsed.length > 5) {
+          return NextResponse.json(
+            { error: 'Maximum 5 employees are allowed.' },
+            { status: 400 },
+          );
+        }
+        if (parsed.length > 0) {
+          const REQUIRED_COLUMNS = ['EmployeeId', 'FirstName', 'LastName', 'Email', 'Phone', 'Department', 'Designation', 'DateOfJoining'];
+          const headers = Object.keys(parsed[0]);
+          const missingColumns = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+          if (missingColumns.length > 0) {
+            return NextResponse.json(
+              { error: `Missing required columns: ${missingColumns.join(', ')}.` },
+              { status: 400 },
+            );
+          }
+        }
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid employee data format. Please upload a valid Excel or CSV file.' },
+          { status: 400 },
+        );
+      }
+    }
+
     // ─── 3. Idempotency: check for very recent duplicate (BUG_020) ─
     // If the same companyEmail was registered in the last 5 minutes,
     // return the existing registration instead of creating a duplicate.
@@ -254,6 +312,7 @@ export async function POST(request: NextRequest) {
           zipCode: zipCode || null,
           status: 'active',
           maxEmployees: Number(employeeCount) || 10,
+          logo: companyLogo || null, // TC_054: propagate uploaded logo to Company
         } as any,
       });
 

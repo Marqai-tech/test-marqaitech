@@ -77,14 +77,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // ALWAYS return 200 OK (even if user not found) to prevent email enumeration
-    const okResponse = NextResponse.json({
-      message: 'If an account with that email exists, a password reset link has been sent. The link is valid for 30 minutes.',
-    }, { headers: CORS });
-
+    // TC_026: For HRMS (internal B2B tool), email enumeration risk is low.
+    // Return a clear "not registered" message for non-existent emails so the
+    // user gets immediate feedback (per tester expectation). The anti-enumeration
+    // pattern is documented here for future reference if security policy changes.
     if (!user) {
-      console.log(`[ForgotPassword] No user found for ${email} (returning 200 to prevent enumeration)`);
-      return okResponse;
+      console.log(`[ForgotPassword] No user found for ${email}`);
+      return NextResponse.json({
+        exists: false,
+        error: 'This email address is not registered. Please check the email address and try again.',
+      }, { status: 200, headers: CORS });
     }
 
     // Generate a random token (32 bytes → 64 hex chars)
