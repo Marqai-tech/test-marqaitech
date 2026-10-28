@@ -274,6 +274,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[ForgotPassword] Error:', error);
     const errMsg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: 'Internal server error', debug: process.env.NODE_ENV === 'production' ? undefined : errMsg }, { status: 500, headers: CORS });
+    return NextResponse.json({ error: 'Internal server error', debug: errMsg }, { status: 500, headers: CORS });
   }
 }
