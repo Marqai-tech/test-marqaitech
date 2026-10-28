@@ -66,11 +66,11 @@ export async function POST(request: Request) {
         if (!user) {
           try {
             const rows = await tenantDb.$queryRawUnsafe(
-              `SELECT "id", "email", "name", "tenantId" FROM "User" WHERE LOWER("email") = $1 LIMIT 1`,
+              `SELECT "id", "email", "tenantId" FROM "User" WHERE LOWER("email") = $1 LIMIT 1`,
               email,
-            ) as Array<{ id: string; email: string; name: string | null; tenantId: string | null }>;
+            ) as Array<{ id: string; email: string; tenantId: string | null }>;
             if (rows && rows.length > 0) {
-              user = rows[0];
+              user = { id: rows[0].id, email: rows[0].email, name: null, tenantId: rows[0].tenantId };
               db = tenantDb;
             }
           } catch { /* fall through to platform DB */ }
@@ -95,11 +95,11 @@ export async function POST(request: Request) {
     if (!user) {
       try {
         const rows = await platformDb.$queryRawUnsafe(
-          `SELECT "id", "email", "name", "tenantId" FROM "User" WHERE LOWER("email") = $1 LIMIT 1`,
+          `SELECT "id", "email", "tenantId" FROM "User" WHERE LOWER("email") = $1 LIMIT 1`,
           email,
-        ) as Array<{ id: string; email: string; name: string | null; tenantId: string | null }>;
+        ) as Array<{ id: string; email: string; tenantId: string | null }>;
         if (rows && rows.length > 0) {
-          user = rows[0];
+          user = { id: rows[0].id, email: rows[0].email, name: null, tenantId: rows[0].tenantId };
           db = platformDb;
         }
       } catch (e) {
