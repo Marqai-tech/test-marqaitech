@@ -38,7 +38,7 @@ interface LeaveType { id: string; name: string; code: string; defaultDays: numbe
 interface LeaveBalance { id: string; total: number; used: number; remaining: number; year: number; leaveType: { id: string; name: string; code: string; }; }
 interface Holiday { id: string; name: string; date: string; type: string; }
 interface Employee { id: string; employeeId: string; firstName: string; lastName: string; avatar?: string | null; }
-interface TeamLeave { id: string; startDate: string; endDate: string; status: string; employee: { id: string; firstName: string; lastName: string; employeeId: string; }; leaveType?: { name: string; }; }
+interface TeamLeave { id: string; startDate: string; endDate: string; status: string; employee: { id: string; firstName: string; lastName: string; employeeId: string; departmentId?: string | null; }; leaveType?: { name: string; }; }
 
 interface LeaveFormState {
   leaveTypeId: string;
@@ -58,6 +58,7 @@ interface LeaveRequestPanelProps {
   employeeId: string;
   employeeName: string;
   employeeDateOfBirth?: string | null;
+  employeeDepartmentId?: string | null;
   scopeQuery: string;
   onCancel: () => void;
   onSubmit: () => void;
@@ -104,7 +105,7 @@ function getWeekdayShort(d: Date): string {
 /* ── Component ── */
 export default function LeaveRequestPanel({
   form, setForm, leaveTypes, leaveBalances, holidays,
-  employeeId, employeeName, employeeDateOfBirth,
+  employeeId, employeeName, employeeDateOfBirth, employeeDepartmentId,
   scopeQuery, onCancel, onSubmit, submitting, todayStr,
 }: LeaveRequestPanelProps) {
   // Floating day + birthday leave state
@@ -183,11 +184,29 @@ export default function LeaveRequestPanel({
       if (res.ok) {
         const data = await res.json();
         const all = data.leaveRequests || data.requests || data.data || [];
-        setTeamLeaves(all.filter((r: TeamLeave) => r.status === 'approved' || r.status === 'pending'));
+        // Filter to approved/pending only, AND same department as the logged-in
+        // employee (so the calendar only shows same-team members, not everyone).
+        const filtered = all
+          .filter((r: TeamLeave) => r.status === 'approved' || r.status === 'pending')
+          .filter((r: TeamLeave) => {
+            // If we know the employee's department, only show same-department leaves.
+            // If we don't know the department (e.g. super_admin without an employee
+            // record), show all leaves so the calendar isn't empty.
+            if (!employeeDepartmentId) return true;
+            // Exclude the current employee's own leaves from the "team" view —
+            // they already see their own leave in the form.
+            if (r.employee.id === employeeId) return false;
+            // Only show same-department team members.
+            // If the leave API doesn't return departmentId, we can't filter —
+            // include them (the collaborative-check API already does proper
+            // department-based filtering for the Team Alert).
+            return r.employee.departmentId === employeeDepartmentId || !r.employee.departmentId;
+          });
+        setTeamLeaves(filtered);
       }
     } catch { /* non-fatal */ }
     finally { setCalLoading(false); }
-  }, [calMonth, calYear, scopeQuery]);
+  }, [calMonth, calYear, scopeQuery, employeeDepartmentId, employeeId]);
 
   useEffect(() => { void fetchTeamLeaves(); }, [fetchTeamLeaves]);
 

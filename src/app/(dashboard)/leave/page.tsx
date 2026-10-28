@@ -780,6 +780,7 @@ function LeavePageContent() {
           employeeId={employee?.id || ''}
           employeeName={`${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()}
           employeeDateOfBirth={(employee as any)?.dateOfBirth || null}
+          employeeDepartmentId={(employee as any)?.departmentId || null}
           scopeQuery={scopeQuery()}
           onCancel={handleCancelForm}
           onSubmit={handleApply}
