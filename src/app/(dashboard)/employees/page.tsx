@@ -1828,7 +1828,9 @@ const handleExperienceLetterPick = (
   };
 
   const addStagedDoc = () => {
-    if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // Auto-generate document name from category + type if not provided
+    // (the Document Name field was removed from the form — name is auto-derived)
+    const autoName = docDraft.name.trim() || `${docDraft.category}-${docDraft.type}`;
     if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
     if (stagedDocs.some(doc => doc.category === docDraft.category && doc.type === docDraft.type)) { toast.error('A document of this type is already in the upload list.'); return; }
     // QA fix — Document Link Security: reject unsafe URLs (javascript:, data:text/html, etc.)
@@ -1836,7 +1838,7 @@ const handleExperienceLetterPick = (
       toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
       return;
     }
-    setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: docDraft.name.trim() }]);
+    setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: autoName }]);
     setDocDraft(emptyDocDraft());
     toast.success('Document added — it will be saved when you click "Add Employee"');
   };
@@ -1865,7 +1867,8 @@ const handleExperienceLetterPick = (
 
   const uploadLiveDoc = async () => {
     if (!editingId) return;
-    if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // Auto-generate document name from category + type if not provided
+    const autoName = docDraft.name.trim() || `${docDraft.category}-${docDraft.type}`;
     if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
     // QA fix — Document Link Security: reject unsafe URLs before they are persisted
     if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
@@ -1878,7 +1881,7 @@ const handleExperienceLetterPick = (
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          name: docDraft.name.trim(),
+          name: autoName,
           category: docDraft.category,
           type: docDraft.type,
           fileUrl: docDraft.fileUrl || undefined,

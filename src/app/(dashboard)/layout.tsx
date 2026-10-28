@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Toaster } from 'react-hot-toast';
+// Toaster import removed — the global Toaster in src/app/layout.tsx handles all toasts.
 import { useAuthStore } from '@/store/authStore';
 // CRITICAL: Install per-tab session token storage shim BEFORE any auth code runs.
 // This redirects localStorage['tb_token'] to sessionStorage so that two tabs
@@ -259,7 +259,10 @@ export default function DashboardLayout({
       <div className="min-h-screen bg-thb-background flex flex-col">
         <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
         <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
-        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '10px 14px', fontSize: '13px', maxWidth: '90vw' } }} />
+        {/* Toaster removed — the global Toaster in src/app/layout.tsx handles all toasts.
+            Having multiple Toasters caused duplicate toast notifications (one in top-center
+            from app/layout, one in top-center from here, one in top-right from here). */}
+        {/* <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '10px 14px', fontSize: '13px', maxWidth: '90vw' } }} /> */}
         <NotificationPopup />
         <header className="h-14 bg-white border-b border-slate-200 flex items-center px-3 gap-2 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -373,7 +376,8 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-thb-background">
       <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
       <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
-      <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '12px 16px', fontSize: '14px' } }} />
+      {/* Toaster removed — the global Toaster in src/app/layout.tsx handles all toasts. */}
+      {/* <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '12px 16px', fontSize: '14px' } }} /> */}
       <NotificationPopup />
       {/* Task 152/153 — floating closable AI bot on every dashboard page
           (per-page dismissal: navigating or reloading always brings it back) */}
