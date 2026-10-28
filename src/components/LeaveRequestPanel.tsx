@@ -273,11 +273,15 @@ export default function LeaveRequestPanel({
   }, [calMonth, calYear]);
 
   // Leaves on a specific calendar date
+  // Fix: extract date string directly from the API response instead of
+  // using new Date().toISOString() which can shift dates across timezones.
   const leavesOnDate = useCallback((dateStr: string | null) => {
     if (!dateStr) return [];
     return teamLeaves.filter(l => {
-      const ls = new Date(l.startDate).toISOString().split('T')[0];
-      const le = new Date(l.endDate).toISOString().split('T')[0];
+      // The API returns dates like "2026-10-28T00:00:00.000Z"
+      // Extract just the YYYY-MM-DD part directly — no timezone conversion
+      const ls = String(l.startDate).slice(0, 10);
+      const le = String(l.endDate).slice(0, 10);
       return dateStr >= ls && dateStr <= le;
     });
   }, [teamLeaves]);
@@ -679,38 +683,39 @@ export default function LeaveRequestPanel({
               const hasPending = dayLeaves.some(l => l.status === 'pending');
               const isSelected = selectedCalDate === cell.date;
               const isToday = cell.date === todayStr;
+              // Build hover tooltip: list team members on leave on this date
+              const tooltip = dayLeaves.length > 0
+                ? dayLeaves.map(l => `${l.employee.firstName} ${l.employee.lastName} (${l.status})`).join(', ')
+                : '';
 
               return (
                 <button key={i}
+                  title={tooltip}
                   onClick={() => {
-                    // Fix 2: clicking a calendar date auto-fills From/To dates
                     setSelectedCalDate(cell.date);
                     if (!form.startDate) {
-                      // No start date yet → set as start date
                       setForm(p => ({ ...p, startDate: cell.date! }));
                     } else if (form.startDate && !form.endDate) {
-                      // Start date set but no end → set as end date (swap if before start)
                       if (cell.date! < form.startDate) {
                         setForm(p => ({ ...p, endDate: p.startDate, startDate: cell.date! }));
                       } else {
                         setForm(p => ({ ...p, endDate: cell.date! }));
                       }
                     } else {
-                      // Both dates set → reset and use clicked date as new start
                       setForm(p => ({ ...p, startDate: cell.date!, endDate: '' }));
                     }
                   }}
                   className={`aspect-square rounded-lg text-xs flex flex-col items-center justify-center relative transition-all cursor-pointer
-                    ${isSelected ? 'ring-2 ring-green-500 bg-green-100' : ''}
-                    ${inRange && !isSelected ? 'bg-green-50 border border-green-200' : ''}
+                    ${isSelected ? 'ring-2 ring-green-500' : ''}
+                    ${inRange ? 'bg-green-50 border border-green-200' : ''}
                     ${isWeekend && !inRange && !hasApproved && !hasPending ? 'text-slate-300' : 'text-slate-700'}
-                    ${isHoliday && !inRange ? 'bg-teal-50 text-teal-600' : ''}
+                    ${isHoliday && !inRange && !hasApproved ? 'bg-teal-50 text-teal-600' : ''}
                     ${isToday ? 'ring-1 ring-blue-400' : ''}
-                    ${hasApproved && !inRange ? 'bg-red-100 text-red-700 font-bold' : ''}
-                    ${hasPending && !hasApproved && !inRange ? 'bg-amber-100 text-amber-700' : ''}
+                    ${hasApproved ? 'bg-red-100 text-red-700 font-bold ring-1 ring-red-300' : ''}
+                    ${hasPending && !hasApproved ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300' : ''}
                     hover:bg-slate-100`}>
-                  <span className={`font-medium ${inRange ? 'text-green-700' : ''} ${hasApproved ? 'text-red-700' : ''}`}>{cell.day}</span>
-                  {/* Status dots — still show for additional clarity */}
+                  <span className={`font-medium ${hasApproved ? 'text-red-700' : inRange ? 'text-green-700' : ''}`}>{cell.day}</span>
+                  {/* Status dots */}
                   {(hasApproved || hasPending) && (
                     <div className="absolute bottom-0.5 flex gap-0.5">
                       {hasApproved && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
@@ -777,9 +782,10 @@ export default function LeaveRequestPanel({
             const checkEnd = form.endDate || form.startDate;
             // Find team members on leave during the selected range
             const conflicts = teamLeaves.filter(l => {
-              const ls = new Date(l.startDate).toISOString().split('T')[0];
-              const le = new Date(l.endDate).toISOString().split('T')[0];
-              // Overlap check: leave starts before our end AND ends after our start
+              // Fix: use direct string slicing instead of new Date().toISOString()
+              // to avoid timezone-related date shifts
+              const ls = String(l.startDate).slice(0, 10);
+              const le = String(l.endDate).slice(0, 10);
               return ls <= checkEnd && le >= form.startDate;
             });
             if (conflicts.length === 0) return null;
