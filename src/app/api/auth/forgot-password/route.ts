@@ -270,7 +270,9 @@ export async function POST(request: Request) {
     });
     console.log(`[ForgotPassword] Reset email for ${user.email}: ${emailResult.success ? 'sent' : 'FAILED (' + emailResult.error + ')'}`);
 
-    return okResponse;
+    return NextResponse.json({
+      message: 'A password reset link has been sent. The link is valid for 30 minutes.',
+    }, { headers: CORS });
   } catch (error) {
     console.error('[ForgotPassword] Error:', error);
     const errMsg = error instanceof Error ? error.message : String(error);
