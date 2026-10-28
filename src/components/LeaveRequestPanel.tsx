@@ -177,7 +177,9 @@ export default function LeaveRequestPanel({
     try {
       const monthStart = new Date(calYear, calMonth, 1).toISOString().split('T')[0];
       const monthEnd = new Date(calYear, calMonth + 1, 0).toISOString().split('T')[0];
-      const res = await fetch(`/api/leave?startDate=${monthStart}&endDate=${monthEnd}&limit=200${scopeQuery ? `&${scopeQuery}` : ''}`, { headers: getAuthHeaders() });
+      // NOTE: the leave API uses fromDate/toDate params (not startDate/endDate)
+      // for filtering. Using the wrong names silently returns ALL leaves.
+      const res = await fetch(`/api/leave?fromDate=${monthStart}&toDate=${monthEnd}&limit=200${scopeQuery ? `&${scopeQuery}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const all = data.leaveRequests || data.requests || data.data || [];
