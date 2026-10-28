@@ -291,19 +291,11 @@ export default function LeaveRequestPanel({
   }, [form, selectedBalance, workingDays, actualLeaveDays, todayStr]);
 
   // ── Submit handler ──
+  // NOTE: All validation + toasts are handled by the parent's handleApply.
+  // We only append floating/birthday/notify info to the reason here, then
+  // call onSubmit. This prevents duplicate toasts (one from LeaveRequestPanel
+  // and one from the parent's handleApply).
   function handleSubmit() {
-    if (!form.leaveTypeId || !form.startDate || !form.endDate) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    if (!form.reason.trim()) {
-      toast.error('Please provide a reason for your leave');
-      return;
-    }
-    if (validationErrors.length > 0) {
-      toast.error(validationErrors[0]);
-      return;
-    }
     // Append floating/birthday/notify info to the reason
     let enhancedReason = form.reason;
     if (floatingDays.size > 0) {
@@ -400,12 +392,13 @@ export default function LeaveRequestPanel({
           {/* ── Floating Day & Birthday Leave ── */}
           {form.startDate && form.endDate && workingDays > 0 && (
             <div className="space-y-2">
-              {/* Floating day option — only show if there are holidays in range */}
-              {holidaysInRange.length > 0 && (
-                <div className="p-3 rounded-lg border border-blue-100 bg-blue-50/50">
-                  <p className="text-xs font-semibold text-blue-800 mb-2 flex items-center gap-1">
-                    <FiAnchor className="w-3.5 h-3.5" /> Floating Day Options
-                  </p>
+              {/* Floating day — always visible (user can mark any day as floating) */}
+              <div className="p-3 rounded-lg border border-blue-100 bg-blue-50/50">
+                <p className="text-xs font-semibold text-blue-800 mb-2 flex items-center gap-1">
+                  <FiAnchor className="w-3.5 h-3.5" /> Floating Day Options
+                </p>
+                {/* If there are holidays in range, show them as floating day options */}
+                {holidaysInRange.length > 0 ? (
                   <div className="space-y-1.5">
                     {holidaysInRange.map(h => {
                       const hd = new Date(h.date).toISOString().split('T')[0];
@@ -426,8 +419,40 @@ export default function LeaveRequestPanel({
                       );
                     })}
                   </div>
-                </div>
-              )}
+                ) : (
+                  /* No holidays in range — show a general floating day checkbox
+                     that lets the user pick a specific date as a floating day */
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
+                      <input type="checkbox"
+                        checked={floatingDays.size > 0}
+                        onChange={(e) => {
+                          if (e.target.checked && form.startDate) {
+                            // Default to the start date as the floating day
+                            setFloatingDays(new Set([form.startDate]));
+                          } else {
+                            setFloatingDays(new Set());
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20" />
+                      Use a floating day during this leave period
+                    </label>
+                    {floatingDays.size > 0 && (
+                      <div className="ml-6">
+                        <label className="text-xs text-slate-500 block mb-1">Select floating day date:</label>
+                        <input type="date" value={Array.from(floatingDays)[0] || form.startDate}
+                          min={form.startDate} max={form.endDate}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              setFloatingDays(new Set([e.target.value]));
+                            }
+                          }}
+                          className="px-2 py-1.5 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Birthday leave option — only show if birthday falls in range */}
               {birthdayInRange && (

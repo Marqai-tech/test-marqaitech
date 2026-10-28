@@ -368,6 +368,10 @@ function LeavePageContent() {
     setShowForm(true);
     setActionRowId(null);
     setAiWarning(null);
+    // Fix 2: scroll to the form so the user sees it immediately after clicking
+    setTimeout(() => {
+      document.getElementById('leave-request-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleCancelForm = () => {
@@ -766,6 +770,7 @@ function LeavePageContent() {
 
       {/* ── Apply Leave Form (Redesigned — LeaveRequestPanel) ── */}
       {showForm && (
+        <div id="leave-request-form">
         <LeaveRequestPanel
           form={form}
           setForm={setForm}
@@ -781,6 +786,7 @@ function LeavePageContent() {
           submitting={submitting}
           todayStr={todayStr}
         />
+        </div>
       )}
       <Panel
         title="Leave List"
