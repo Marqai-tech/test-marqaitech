@@ -16,6 +16,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientDemoMode } from '@/lib/site-mode';
 import ApproverChainPreview from '@/components/ApproverChainPreview';
+import LeaveRequestPanel from '@/components/LeaveRequestPanel';
 import { getLeaveCategory, normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 /* Task 156-a — shared SmartHR widgets: same gradient banner + white stat
    cards / panels as the Employee module dashboard restyle (Task 155). */
@@ -763,109 +764,23 @@ function LeavePageContent() {
         </Panel>
       )}
 
-      {/* ── Apply Leave Form (Inline) — SmartHR Panel (Task 156-a) ── */}
+      {/* ── Apply Leave Form (Redesigned — LeaveRequestPanel) ── */}
       {showForm && (
-        <Panel
-          title="Apply Leave"
-          icon={<FiPlus className="w-4 h-4" />}
-          accent="text-[#FF9B44]"
-          action={
-            <button onClick={handleCancelForm} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Close form">
-              <FiX className="w-4 h-4" />
-            </button>
-          }
-        >
-          <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type <span className="text-red-500 font-bold">*</span></label>
-                <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                  <option value="">Select Leave Type</option>
-                  {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.defaultDays} days)</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">From <span className="text-red-500 font-bold">*</span></label>
-                  <input type="date" value={form.startDate} min={todayStr} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">To <span className="text-red-500 font-bold">*</span></label>
-                  <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate || todayStr} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                </div>
-              </div>
-              {form.startDate && form.endDate && (
-                <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
-                  <span className="text-sm text-green-700 font-medium">
-                    <FiClock className="w-4 h-4 inline mr-1" />
-                    Duration: {(() => {
-                      const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
-                      const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
-                      return form.halfDay ? `${workingDays} working day(s) — 0.5 day for half day` : `${workingDays} working day(s)`;
-                    })()}
-                  </span>
-                  {/* Remaining days from balance */}
-                  {form.leaveTypeId && leaveBalances.length > 0 && (
-                    <span className="text-xs text-green-600 font-semibold">
-                      Remaining: {leaveBalances.find(lb => lb.leaveType.id === form.leaveTypeId)?.remaining || '—'} days
-                    </span>
-                  )}
-                </div>
-              )}
-              {/* Holiday Calendar Overlay */}
-              {holidaysInRange.length > 0 && (
-                <div className="p-3 rounded-lg bg-teal-50 border border-teal-200">
-                  <p className="text-xs font-semibold text-teal-800 mb-1.5">
-                    <FiCalendar className="w-3.5 h-3.5 inline mr-1" />Public Holidays in range:
-                  </p>
-                  <ul className="text-xs text-teal-700 space-y-0.5">
-                    {holidaysInRange.map(h => (
-                      <li key={h.id}>• {h.name} — {formatDate(h.date)} ({h.type})</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {/* AI Collaborative Check */}
-              {form.startDate && form.endDate && (
-                <div className={`p-3 rounded-lg border ${aiWarning ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                  {aiWarningLoading ? (
-                    <p className="text-xs text-slate-600 flex items-center gap-1"><FiClock className="w-3 h-3 animate-spin" /> Checking team availability...</p>
-                  ) : aiWarning ? (
-                    <p className="text-xs text-amber-800"><FiAlertCircle className="w-3.5 h-3.5 inline mr-1" /><strong>AI Warning:</strong> {aiWarning}</p>
-                  ) : (
-                    <p className="text-xs text-emerald-700"><FiCheck className="w-3.5 h-3.5 inline mr-1" /><strong>AI Check:</strong> No team conflicts detected.</p>
-                  )}
-                </div>
-              )}
-              {/* Approver Chain Preview — shows the employee who will approve their leave at each tier */}
-              <ApproverChainPreview module="leave" leaveTypeId={form.leaveTypeId || undefined} compact />
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Reason</label>
-                <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Provide a reason for your leave..." />
-              </div>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20" />
-                <span className="text-sm text-slate-700">Half Day Leave</span>
-              </label>
-              {form.halfDay && (
-                <div className="ml-7 flex gap-2">
-                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'first_half' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 text-slate-600'}`}>
-                    <input type="radio" checked={form.halfDaySlot === 'first_half'} onChange={() => setForm(p => ({ ...p, halfDaySlot: 'first_half' }))} className="hidden" />
-                    First Half
-                  </label>
-                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'second_half' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 text-slate-600'}`}>
-                    <input type="radio" checked={form.halfDaySlot === 'second_half'} onChange={() => setForm(p => ({ ...p, halfDaySlot: 'second_half' }))} className="hidden" />
-                    Second Half
-                  </label>
-                </div>
-              )}
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 shadow-sm transition-colors">
-                  {submitting ? 'Submitting...' : 'Add Leave'}
-                </button>
-              </div>
-          </div>
-        </Panel>
+        <LeaveRequestPanel
+          form={form}
+          setForm={setForm}
+          leaveTypes={leaveTypes}
+          leaveBalances={leaveBalances}
+          holidays={holidays}
+          employeeId={employee?.id || ''}
+          employeeName={`${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()}
+          employeeDateOfBirth={(employee as any)?.dateOfBirth || null}
+          scopeQuery={scopeQuery()}
+          onCancel={handleCancelForm}
+          onSubmit={handleApply}
+          submitting={submitting}
+          todayStr={todayStr}
+        />
       )}
       <Panel
         title="Leave List"
