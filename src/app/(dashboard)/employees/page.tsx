@@ -67,13 +67,10 @@ import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import BulkImportTab from '@/components/BulkImportTab';
 import CompanyNameAutocomplete from '@/components/CompanyNameAutocomplete';
-<<<<<<< HEAD
 // Note: CompanyLogo + useDebouncedValue were used by PreviousEmployerInput,
 // which was removed when origin's Task-137 dynamic-experiences UI (which has
 // its own autoFetchExperienceLogo) was merged. The /api/company-logo proxy
 // is still used by fetchCompanyLogoFromWeb above as the primary logo source.
-=======
->>>>>>> 2b6ad07c (Company search + logo for both admin and employee + profile photo fix)
 
 
 /* ── Employee Tips ── */
@@ -3328,7 +3325,6 @@ const handleExperienceLetterPick = (
               {/* Task 137 — Experience: dynamic entries (was: static 3 slots) */}
               {formTab === 'experience' && (
                 <div className="space-y-4">
-<<<<<<< HEAD
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Previous Experience</h4>
@@ -3562,40 +3558,6 @@ const handleExperienceLetterPick = (
                           return yrs > 0 ? `Computed from the entries above: ${yrs} yr${yrs === 1 ? '' : 's'} (overrides this field when shown)` : 'Leave blank to compute from the entries above';
                         })()}
                       </p>
-=======
-                  <div>
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Experience 1</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
-                        <CompanyNameAutocomplete
-                          value={form.previousEmployer1}
-                          onChange={(val) => updateForm('previousEmployer1', val)}
-                          onSelectLogo={(logoUrl) => updateForm('previousEmployer1Logo', logoUrl || '')}
-                          placeholder="e.g., Infosys or Microsoft"
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation1} onChange={e => updateForm('previousDesignation1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration1} onChange={e => updateForm('previousDuration1', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason1} onChange={e => updateForm('previousReason1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                      {form.previousEmployer1Logo && (
-                        <div className="sm:col-span-2 lg:col-span-3 flex items-center gap-2">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={form.previousEmployer1Logo} alt="Company logo" className="w-8 h-8 rounded object-contain border border-slate-200" />
-                          <span className="text-xs text-thb-text-muted">Logo auto-fetched — stored as previousEmployer1Logo</span>
-                        </div>
-                      )}
->>>>>>> 2b6ad07c (Company search + logo for both admin and employee + profile photo fix)
                     </div>
                   </div>
 
@@ -3603,66 +3565,8 @@ const handleExperienceLetterPick = (
                   <div className="pt-4 border-t border-thb-border/50 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-<<<<<<< HEAD
                         <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Achievements</h4>
                         <p className="text-[10px] text-thb-text-muted mt-0.5">Awards, certifications and recognitions from the previous company experience or any other source.</p>
-=======
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
-                        <CompanyNameAutocomplete
-                          value={form.previousEmployer2}
-                          onChange={(val) => updateForm('previousEmployer2', val)}
-                          onSelectLogo={(logoUrl) => updateForm('previousEmployer2Logo', logoUrl || '')}
-                          placeholder="e.g., Wipro or Google"
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation2} onChange={e => updateForm('previousDesignation2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration2} onChange={e => updateForm('previousDuration2', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason2} onChange={e => updateForm('previousReason2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pt-3 border-t border-thb-border/50">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Experience 3</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
-                        <CompanyNameAutocomplete
-                          value={form.previousEmployer3}
-                          onChange={(val) => updateForm('previousEmployer3', val)}
-                          onSelectLogo={(logoUrl) => updateForm('previousEmployer3Logo', logoUrl || '')}
-                          placeholder="e.g., TCS or Amazon"
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation3} onChange={e => updateForm('previousDesignation3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration3} onChange={e => updateForm('previousDuration3', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason3} onChange={e => updateForm('previousReason3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pt-3 border-t border-thb-border/50">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Total Experience</label>
-                        <input type="text" value={form.totalExperience} onChange={e => updateForm('totalExperience', e.target.value)} placeholder="e.g., 5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
->>>>>>> 2b6ad07c (Company search + logo for both admin and employee + profile photo fix)
                       </div>
                       <button
                         type="button"
