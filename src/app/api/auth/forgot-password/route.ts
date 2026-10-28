@@ -107,6 +107,56 @@ export async function POST(request: Request) {
       }
     }
 
+    // ─── Tenant DB sweep (Task 132 pattern from login route) ──────────
+    // If no tenant slug was provided AND the platform DB doesn't have the
+    // user, sweep ALL active tenant DBs to find the user. This handles
+    // test-platform hosts (test-marqaitech-ontt.vercel.app) where the
+    // middleware sets x-tenant-slug to empty (platform), but the user
+    // actually lives in the test-marqaitech tenant DB.
+    if (!user) {
+      try {
+        const { getDbForTenant } = await import('@/lib/tenant-db');
+        const sweepDbs = await platformDb.tenantDatabase.findMany({
+          where: { isActive: true },
+          select: { connectionString: true, tenant: { select: { slug: true } } },
+        });
+        for (const td of sweepDbs) {
+          if (!td.connectionString || !td.tenant?.slug) continue;
+          try {
+            const sweepTenantDb = await getDbForTenant(td.tenant.slug);
+            // Try Prisma first
+            let candidate = await sweepTenantDb.user.findUnique({
+              where: { email },
+              select: { id: true, email: true, tenantId: true },
+            }).catch(() => null);
+            // Raw SQL fallback for this tenant DB
+            if (!candidate) {
+              try {
+                const rows = await sweepTenantDb.$queryRawUnsafe(
+                  `SELECT "id", "email", "tenantId" FROM "User" WHERE LOWER("email") = $1 LIMIT 1`,
+                  email,
+                ) as Array<{ id: string; email: string; tenantId: string | null }>;
+                if (rows && rows.length > 0) {
+                  candidate = { id: rows[0].id, email: rows[0].email, tenantId: rows[0].tenantId };
+                }
+              } catch { /* try next tenant DB */ }
+            }
+            if (candidate) {
+              user = { ...candidate, name: null };
+              db = sweepTenantDb;
+              console.log(`[ForgotPassword] Found ${email} in tenant DB: ${td.tenant.slug}`);
+              break; // Found — stop sweeping
+            }
+          } catch (sweepDbErr) {
+            console.warn(`[ForgotPassword] Tenant sweep skipped ${td.tenant.slug}:`, sweepDbErr instanceof Error ? sweepDbErr.message : sweepDbErr);
+            continue;
+          }
+        }
+      } catch (sweepErr) {
+        console.error('[ForgotPassword] Tenant sweep failed:', sweepErr);
+      }
+    }
+
     // TC_026: For HRMS (internal B2B tool), email enumeration risk is low.
     // Return a clear "not registered" message for non-existent emails so the
     // user gets immediate feedback (per tester expectation). The anti-enumeration
