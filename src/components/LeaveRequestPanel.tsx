@@ -722,6 +722,55 @@ export default function LeaveRequestPanel({
               <FiClock className="w-3 h-3 animate-spin" /> Loading team leaves...
             </p>
           )}
+
+          {/* ── Team Alert: shows who else is on leave during the selected dates ── */}
+          {/* Appears below the calendar with profile pics of affected team members */}
+          {form.startDate && form.endDate && (() => {
+            // Find team members on leave during the selected range
+            const conflicts = teamLeaves.filter(l => {
+              const ls = new Date(l.startDate).toISOString().split('T')[0];
+              const le = new Date(l.endDate).toISOString().split('T')[0];
+              // Overlap check: leave starts before our end AND ends after our start
+              return ls <= form.endDate && le >= form.startDate;
+            });
+            if (conflicts.length === 0) return null;
+            // Deduplicate by employee ID
+            const seen = new Set<string>();
+            const uniqueMembers = conflicts.filter(l => {
+              if (seen.has(l.employee.id)) return false;
+              seen.add(l.employee.id);
+              return true;
+            });
+            const memberNames = uniqueMembers.map(l => `${l.employee.firstName} ${l.employee.lastName}`);
+            return (
+              <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <div className="flex items-start gap-2">
+                  <FiAlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-amber-800 mb-2">
+                      Team Alert
+                    </p>
+                    <p className="text-xs text-amber-700 mb-2">
+                      Warning: {uniqueMembers.length} other member(s) of your department team are on leave during these dates ({memberNames.join(', ')}). Project delivery may be impacted.
+                    </p>
+                    {/* Profile pictures / initials of team members on leave */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {uniqueMembers.map(l => (
+                        <div key={l.employee.id} className="flex items-center gap-1.5 bg-white rounded-full pl-0.5 pr-2 py-0.5 border border-amber-200">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
+                            {(l.employee.firstName[0] + (l.employee.lastName[0] || '')).toUpperCase()}
+                          </div>
+                          <span className="text-[10px] text-amber-800 font-medium truncate max-w-[80px]">
+                            {l.employee.firstName} {l.employee.lastName}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
