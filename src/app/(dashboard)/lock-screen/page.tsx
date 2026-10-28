@@ -7,7 +7,7 @@ import { FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { validatePasswordRequired } from '@/lib/validators';
 import { homeHrefForRole } from '@/lib/roleAccess';
-import { isRememberMe, persistAuthToken } from '@/lib/token-storage';
+import { isRememberMe, setToken } from '@/lib/token-storage';
 
 export default function LockScreenPage() {
   const router = useRouter();
@@ -44,8 +44,8 @@ export default function LockScreenPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.token) {
-          // Use persistAuthToken to respect the remember-me storage strategy
-          persistAuthToken(data.token, { remember: isRemember });
+          // Use setToken to respect the remember-me storage strategy
+          setToken(data.token, { remember: isRemember });
         }
         toast.success('Welcome back!');
         router.push(homeHrefForRole(user?.role));
