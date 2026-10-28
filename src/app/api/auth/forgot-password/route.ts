@@ -62,6 +62,19 @@ export async function POST(request: Request) {
           user = u;
           db = tenantDb;
         }
+        // Raw SQL fallback on tenant DB (schema drift safety)
+        if (!user) {
+          try {
+            const rows = await tenantDb.$queryRawUnsafe(
+              `SELECT "id", "email", "name", "tenantId" FROM "User" WHERE LOWER("email") = $1 LIMIT 1`,
+              email,
+            ) as Array<{ id: string; email: string; name: string | null; tenantId: string | null }>;
+            if (rows && rows.length > 0) {
+              user = rows[0];
+              db = tenantDb;
+            }
+          } catch { /* fall through to platform DB */ }
+        }
       } catch (e) {
         console.error('[ForgotPassword] Tenant DB lookup failed:', e);
       }
