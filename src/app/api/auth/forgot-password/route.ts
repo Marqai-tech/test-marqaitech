@@ -77,6 +77,23 @@ export async function POST(request: Request) {
       }
     }
 
+    // Cross-DB raw SQL fallback (Task 157 pattern) — if Prisma findUnique
+    // fails (e.g. schema drift), try a raw SQL query on the platform DB.
+    if (!user) {
+      try {
+        const rows = await platformDb.$queryRawUnsafe(
+          `SELECT "id", "email", "name", "tenantId" FROM "User" WHERE LOWER("email") = $1 LIMIT 1`,
+          email,
+        ) as Array<{ id: string; email: string; name: string | null; tenantId: string | null }>;
+        if (rows && rows.length > 0) {
+          user = rows[0];
+          db = platformDb;
+        }
+      } catch (e) {
+        console.warn('[ForgotPassword] Raw SQL fallback failed:', e instanceof Error ? e.message : e);
+      }
+    }
+
     // TC_026: For HRMS (internal B2B tool), email enumeration risk is low.
     // Return a clear "not registered" message for non-existent emails so the
     // user gets immediate feedback (per tester expectation). The anti-enumeration
