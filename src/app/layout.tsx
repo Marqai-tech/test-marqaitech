@@ -4,6 +4,7 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing, localeNames } from "@/i18n/routing";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -182,6 +183,10 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={activeLocale} messages={messages}>
           {children}
         </NextIntlClientProvider>
+        {/* Global Toaster — renders toast notifications on ALL pages including
+            login, forgot-password, reset-password (which are not under (public)
+            or (dashboard) route groups that have their own Toasters). */}
+        <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '12px 16px', fontSize: '14px', maxWidth: '90vw' } }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `
