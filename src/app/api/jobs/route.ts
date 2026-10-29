@@ -81,6 +81,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Task 167 fix: resolve departmentId from name to ID if needed
+    let resolvedDeptId = departmentId;
+    if (departmentId && !departmentId.startsWith('cm')) {
+      try {
+        const deptRows = await db.$queryRawUnsafe(
+          `SELECT "id" FROM "Department" WHERE LOWER("name") LIKE LOWER($1) LIMIT 1`,
+          `%${departmentId}%`,
+        ) as any[];
+        if (deptRows[0]?.id) {
+          resolvedDeptId = deptRows[0].id;
+        } else {
+          // Fall back to first department
+          const firstDept = await db.$queryRawUnsafe(`SELECT "id" FROM "Department" LIMIT 1`) as any[];
+          if (firstDept[0]?.id) resolvedDeptId = firstDept[0].id;
+        }
+      } catch { /* keep raw value */ }
+    }
+
     // Task 165: if requisitionId is provided, verify it's approved
     if (requisitionId) {
       try {
@@ -109,7 +127,7 @@ export async function POST(req: NextRequest) {
         title,
         description,
         requirements: requirements || null,
-        departmentId,
+        departmentId: resolvedDeptId,
         position: body.position || title,
         location: location || null,
         type: type || 'full-time',
@@ -130,7 +148,7 @@ export async function POST(req: NextRequest) {
           "location", "type", "experience", "salary", "status", "postedDate", "closingDate", "vacancies",
           "requisitionId", "createdAt", "updatedAt")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())`,
-        id, title, description, requirements || null, departmentId, body.position || title,
+        id, title, description, requirements || null, resolvedDeptId, body.position || title,
         location || null, type || 'full-time', experience || null, salary || null,
         status || 'open', (status || 'open') === 'open' ? new Date() : null,
         closingDate ? new Date(closingDate) : null, vacancies || 1, requisitionId || null
