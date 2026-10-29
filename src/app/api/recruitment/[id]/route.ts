@@ -334,6 +334,7 @@ export async function PATCH(
       // Task 166/167: notify the candidate of status change (email)
       if (status !== undefined && updated.candidateEmail) {
         try {
+          const { sendEmail } = await import('@/lib/email');
           const { sendTenantEmail } = await import('@/lib/notification-channels');
           const statusLabels: Record<string, string> = {
             screening: 'Under Screening',
@@ -365,12 +366,35 @@ export async function PATCH(
             <p>Thank you for your interest in joining our team.</p>
             <p>Regards,<br/>HR Team</p>
           </div>`;
-          const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
-            to: updated.candidateEmail,
-            subject: `Application Status Update: ${statusLabel}`,
-            html,
-          });
-          console.log(`[Recruitment PATCH] Candidate email to ${updated.candidateEmail}: ${emailRes.success ? 'sent' : 'failed'} — ${emailRes.error || ''}`);
+          // Try tenant SMTP first, then fall back to global sendEmail (which uses
+          // env SMTP → Resend). This ensures the email goes out even if the tenant
+          // SMTP is down or the circuit breaker is open.
+          let emailSent = false;
+          let emailError = '';
+          try {
+            const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+              to: updated.candidateEmail,
+              subject: `Application Status Update: ${statusLabel}`,
+              html,
+            });
+            emailSent = emailRes.success;
+            emailError = emailRes.error || '';
+          } catch {}
+          if (!emailSent) {
+            // Fallback: global sendEmail (env SMTP → Resend)
+            try {
+              const fallbackRes = await sendEmail({
+                to: updated.candidateEmail,
+                subject: `Application Status Update: ${statusLabel}`,
+                html,
+              });
+              emailSent = fallbackRes.success;
+              emailError = fallbackRes.error || '';
+            } catch (e) {
+              emailError = e instanceof Error ? e.message : String(e);
+            }
+          }
+          console.log(`[Recruitment PATCH] Candidate email to ${updated.candidateEmail}: ${emailSent ? 'SENT' : 'FAILED'} — ${emailError}`);
         } catch (emailErr) {
           console.warn('[Recruitment PATCH] Candidate email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
         }
