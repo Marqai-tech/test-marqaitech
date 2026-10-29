@@ -325,6 +325,47 @@ export default function RecruitmentPage() {
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [editAppStatus, setEditAppStatus] = useState('');
 
+  // Task 167: Interview scheduling state
+  const [scheduleAppId, setScheduleAppId] = useState<string | null>(null);
+  const [interviewForm, setInterviewForm] = useState({
+    type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '', panelMemberEmail: '',
+  });
+  const [schedulingInterview, setSchedulingInterview] = useState(false);
+
+  // Task 167: Schedule interview handler
+  const handleScheduleInterview = async () => {
+    if (!scheduleAppId || !interviewForm.date) { toast.error('Date is required'); return; }
+    if (!interviewForm.panelMemberEmail) { toast.error('Panel member email is required'); return; }
+    setSchedulingInterview(true);
+    try {
+      // Find the panel member's user ID by email
+      const res = await fetch('/api/interviews', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          jobApplicationId: scheduleAppId,
+          type: interviewForm.type,
+          date: interviewForm.date,
+          time: interviewForm.time,
+          duration: Number(interviewForm.duration) || 60,
+          location: interviewForm.location || undefined,
+          meetingUrl: interviewForm.meetingUrl || undefined,
+          panelMemberEmails: [interviewForm.panelMemberEmail],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to schedule interview');
+      toast.success(`Interview scheduled — ${interviewForm.panelMemberEmail} has been notified`);
+      setScheduleAppId(null);
+      setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '', panelMemberEmail: '' });
+      fetchData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to schedule interview');
+    } finally {
+      setSchedulingInterview(false);
+    }
+  };
+
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -1566,6 +1607,11 @@ export default function RecruitmentPage() {
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-end gap-1">
+                                  {isAdmin && (app.status === 'interview' || app.status === 'shortlisted' || app.status === 'screening') && (
+                                    <button onClick={() => setScheduleAppId(app.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors" title="Schedule Interview">
+                                      <FiCalendar className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   {isAdmin && (
                                     <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Status">
                                       <FiEdit2 className="w-4 h-4" />
@@ -2186,6 +2232,68 @@ function ParsedResumePanel({
               Raw resume text is stored on the server (ResumeParse.rawText). Open this record via /api/ats/parse-resume/{`{id}`} to view it.
             </pre>
           </details>
+        </div>
+      )}
+
+      {/* Task 167: Interview Scheduling Modal */}
+      {scheduleAppId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-thb-border">
+              <h2 className="text-lg font-bold text-thb-text-primary">Schedule Interview</h2>
+              <button onClick={() => setScheduleAppId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interview Type *</label>
+                <select value={interviewForm.type} onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
+                  <option value="technical">Technical Interview</option>
+                  <option value="hr">HR Interview</option>
+                  <option value="ai">AI Interview</option>
+                  <option value="offline_panel">Panel Interview (Offline)</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                  <input type="date" value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time</label>
+                  <input type="time" value={interviewForm.time} onChange={(e) => setInterviewForm({ ...interviewForm, time: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration (mins)</label>
+                  <input type="number" value={interviewForm.duration} onChange={(e) => setInterviewForm({ ...interviewForm, duration: Number(e.target.value) })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
+                  <input value={interviewForm.location} onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })} placeholder="e.g. Conference Room A" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Meeting Link (optional)</label>
+                <input value={interviewForm.meetingUrl} onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })} placeholder="e.g. https://meet.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Assign Panel Member (email) *</label>
+                <input value={interviewForm.panelMemberEmail} onChange={(e) => setInterviewForm({ ...interviewForm, panelMemberEmail: e.target.value })} placeholder="e.g. itadmin@marqaitech.com" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                <p className="text-xs text-thb-text-muted mt-1">This person will receive a notification and see the interview under My Interviews.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">
+              <button onClick={() => setScheduleAppId(null)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={handleScheduleInterview} disabled={schedulingInterview} className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+                {schedulingInterview ? 'Scheduling...' : 'Schedule Interview'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

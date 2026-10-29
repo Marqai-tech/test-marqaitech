@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const body = await req.json();
-    const { jobApplicationId, type, date, time, duration, location, meetingUrl, panelMemberIds } = body;
+    const { jobApplicationId, type, date, time, duration, location, meetingUrl, panelMemberIds, panelMemberEmails } = body;
 
     if (!jobApplicationId || !date) {
       return NextResponse.json({ error: 'Missing required fields: jobApplicationId, date' }, { status: 400, headers: corsHeaders() });
@@ -90,7 +90,21 @@ export async function POST(req: NextRequest) {
     const interviewType = validTypes.includes(type) ? type : 'technical';
 
     // Store panel member IDs as comma-separated string in the interviewer field
-    const panelMembers = Array.isArray(panelMemberIds) ? panelMemberIds.filter(Boolean) : [];
+    // Task 167: support both panelMemberIds (user IDs) and panelMemberEmails (emails)
+    let panelMembers: string[] = [];
+    if (Array.isArray(panelMemberIds) && panelMemberIds.length > 0) {
+      panelMembers = panelMemberIds.filter(Boolean);
+    } else if (Array.isArray(panelMemberEmails) && panelMemberEmails.length > 0) {
+      // Resolve emails to user IDs
+      for (const email of panelMemberEmails.filter(Boolean)) {
+        try {
+          const userRows = await db.$queryRawUnsafe(
+            `SELECT "id" FROM "User" WHERE LOWER("email") = LOWER($1) LIMIT 1`, email,
+          ) as any[];
+          if (userRows[0]?.id) panelMembers.push(userRows[0].id);
+        } catch {}
+      }
+    }
     const interviewerStr = panelMembers.join(',');
 
     // Create the interview via RAW SQL (schema-drift safe)
