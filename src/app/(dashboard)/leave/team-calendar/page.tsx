@@ -396,30 +396,23 @@ function TeamLeaveCalendarContent() {
                       )}
                     </div>
 
-                    {/* Avatars (max 3, "+N" for the rest) */}
+                    {/* Status dots row + count — kept lightweight (no avatars
+                        on the cells; avatars appear only in the day detail
+                        panel when you click a day). */}
                     {dayLeaves.length > 0 && (
-                      <div className="flex flex-wrap gap-0.5 mt-auto">
-                        {Array.from(uniquePeople.values()).slice(0, 3).map(emp => (
-                          <Avatar key={emp.id} member={emp} size="sm" />
-                        ))}
-                        {uniquePeople.size > 3 && (
-                          <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center justify-center border border-white">
-                            +{uniquePeople.size - 3}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Status dots row */}
-                    {dayLeaves.length > 0 && (
-                      <div className="flex flex-wrap gap-0.5">
-                        {dayLeaves.slice(0, 4).map(lv => (
-                          <span
-                            key={lv.id}
-                            className={`w-1.5 h-1.5 rounded-full ${lv.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                            title={`${lv.employee.firstName} ${lv.employee.lastName} — ${lv.leaveType.name} (${lv.status})`}
-                          />
-                        ))}
+                      <div className="mt-auto flex items-center gap-1">
+                        <div className="flex flex-wrap gap-0.5">
+                          {dayLeaves.slice(0, 4).map(lv => (
+                            <span
+                              key={lv.id}
+                              className={`w-1.5 h-1.5 rounded-full ${lv.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                              title={`${lv.employee.firstName} ${lv.employee.lastName} — ${lv.leaveType.name} (${lv.status})`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-semibold text-thb-text-secondary">
+                          {uniquePeople.size}
+                        </span>
                       </div>
                     )}
                   </button>
