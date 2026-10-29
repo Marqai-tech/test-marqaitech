@@ -172,15 +172,48 @@ export async function POST(req: NextRequest) {
     }
     const interviewerStr = panelMembers.join(',');
 
+    // Ensure extended columns exist on Interview table
+    const extendCols = [
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "round" INT DEFAULT 1',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "mode" TEXT DEFAULT \'online\'',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "confirmationDeadline" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "feedbackDeadline" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "instructions" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "evaluationAreas" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "panelLeadId" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "scheduledById" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "cancelReason" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "cancelledById" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "cancelledAt" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "candidateAttendance" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecision" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecisionReason" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecisionById" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecisionAt" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "panelLeadRecommendation" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "panelLeadNotes" TEXT',
+    ];
+    for (const sql of extendCols) {
+      try { await db.$executeRawUnsafe(sql); } catch {}
+    }
+
+    // Extract spec fields from body (round, mode, confirmationDeadline, feedbackDeadline, instructions, evaluationAreas, panelLeadId)
+    const { round, mode, confirmationDeadline, feedbackDeadline, instructions, evaluationAreas, panelLeadId } = body;
+
     // Create the interview via RAW SQL (schema-drift safe)
     const interviewId = `int-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
       await db.$executeRawUnsafe(
-        `INSERT INTO "Interview" ("id", "jobApplicationId", "type", "date", "time", "duration", "location", "meetingUrl", "interviewer", "status", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'scheduled', NOW(), NOW())`,
+        `INSERT INTO "Interview" ("id", "jobApplicationId", "type", "date", "time", "duration", "location", "meetingUrl", "interviewer", "status", "round", "mode", "confirmationDeadline", "feedbackDeadline", "instructions", "evaluationAreas", "panelLeadId", "scheduledById", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'scheduled', $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())`,
         interviewId, jobApplicationId, interviewType,
         new Date(date), time || null, duration || null,
         location || null, meetingUrl || null, interviewerStr || null,
+        round ? Number(round) : 1, mode || 'online',
+        confirmationDeadline ? new Date(confirmationDeadline) : null,
+        feedbackDeadline ? new Date(feedbackDeadline) : null,
+        instructions || null, evaluationAreas || null,
+        panelLeadId || null, decoded.userId,
       );
     } catch (insertErr) {
       console.error('[Interviews POST] insert failed:', insertErr);
@@ -205,12 +238,15 @@ export async function POST(req: NextRequest) {
         "status" TEXT NOT NULL DEFAULT 'pending',
         "reason" TEXT,
         "respondedAt" TIMESTAMP(3),
+        "attendance" TEXT,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
         CONSTRAINT "InterviewPanelMember_pkey" PRIMARY KEY ("id")
       )`);
       await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "InterviewPanelMember_interviewId_idx" ON "InterviewPanelMember"("interviewId")`);
       await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "InterviewPanelMember_userId_idx" ON "InterviewPanelMember"("userId")`);
+      // Ensure attendance column exists on older tables
+      await db.$executeRawUnsafe(`ALTER TABLE "InterviewPanelMember" ADD COLUMN IF NOT EXISTS "attendance" TEXT`).catch(() => {});
     } catch {}
 
     for (const memberId of panelMembers) {
@@ -223,6 +259,12 @@ export async function POST(req: NextRequest) {
         );
       } catch {}
     }
+
+    // Audit log — who scheduled the interview (pt 24)
+    await db.auditLog.create({
+      data: { userId: decoded.userId as string, action: 'INTERVIEW_SCHEDULED', module: 'recruitment',
+        details: `Interview ${interviewId} scheduled for ${jobApplicationId}. Type: ${interviewType}, Date: ${date}, Panel: ${panelMembers.length} member(s)${panelLeadId ? `, Lead: ${panelLeadId}` : ''}` },
+    }).catch(() => null);
 
     // Fetch the application details for notifications
     const appRows = await db.$queryRawUnsafe(
@@ -353,8 +395,16 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * PATCH /api/interviews — update interview (submit feedback/ratings, change status)
- * Body: { id, status?, feedback?, score? }
+ * PATCH /api/interviews — update interview (submit feedback/ratings, change status,
+ *   reschedule, cancel with reason, record attendance, HR final decision)
+ *
+ * Body variants:
+ *   { id, status?, feedback?, score? }                                     — basic update
+ *   { id, action: 'reschedule', newDate, newTime, newDuration? }           — reschedule
+ *   { id, action: 'cancel', cancelReason }                                 — cancel with reason
+ *   { id, action: 'attendance', candidateAttendance?, panelAttendance? }  — record attendance
+ *   { id, action: 'hr_decision', decision, reason? }                       — HR final decision
+ *   { id, action: 'panel_lead_recommendation', recommendation, notes? }   — panel lead debrief
  */
 export async function PATCH(req: NextRequest) {
   const db = await getDb(req);
@@ -365,10 +415,241 @@ export async function PATCH(req: NextRequest) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const body = await req.json();
-    const { id, status, feedback, score } = body;
+    const { id, status, feedback, score, action } = body;
 
     if (!id) return NextResponse.json({ error: 'Interview ID is required' }, { status: 400, headers: corsHeaders() });
 
+    // ─── Ensure extended columns exist on Interview table ─────────────
+    const extendCols = [
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "round" INT DEFAULT 1',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "mode" TEXT DEFAULT \'online\'',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "confirmationDeadline" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "feedbackDeadline" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "instructions" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "evaluationAreas" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "panelLeadId" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "scheduledById" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "cancelReason" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "cancelledById" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "cancelledAt" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "candidateAttendance" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecision" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecisionReason" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecisionById" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "hrDecisionAt" TIMESTAMP(3)',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "panelLeadRecommendation" TEXT',
+      'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "panelLeadNotes" TEXT',
+    ];
+    for (const sql of extendCols) {
+      try { await db.$executeRawUnsafe(sql); } catch {}
+    }
+
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+
+    // ─── Action: RESCHEDULE (pt 12) ──────────────────────────────────
+    if (action === 'reschedule') {
+      if (!HR_ROLES.includes((decoded.role as string) || '')) {
+        return NextResponse.json({ error: 'Only HR/Admin can reschedule interviews' }, { status: 403, headers: corsHeaders() });
+      }
+      const { newDate, newTime, newDuration } = body;
+      if (!newDate) return NextResponse.json({ error: 'newDate is required for reschedule' }, { status: 400, headers: corsHeaders() });
+
+      // Past date validation
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (new Date(newDate + 'T00:00:00') < today) {
+        return NextResponse.json({ error: 'Cannot reschedule to a past date' }, { status: 400, headers: corsHeaders() });
+      }
+
+      await db.$executeRawUnsafe(
+        `UPDATE "Interview" SET "date" = $1, "time" = $2, "duration" = $3, "status" = 'rescheduled', "updatedAt" = NOW() WHERE "id" = $4`,
+        new Date(newDate), newTime || null, newDuration ? Number(newDuration) : null, id,
+      );
+
+      // Reset all panel member confirmations to pending
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "InterviewPanelMember" SET "status" = 'pending', "reason" = NULL, "respondedAt" = NULL, "updatedAt" = NOW() WHERE "interviewId" = $1`,
+          id,
+        );
+      } catch {}
+
+      // Notify panel members of reschedule
+      try {
+        if (decoded.tenantId) {
+          const panelMembers = await db.$queryRawUnsafe(
+            `SELECT pm."userId", u."name", u."email" FROM "InterviewPanelMember" pm LEFT JOIN "User" u ON u."id" = pm."userId" WHERE pm."interviewId" = $1`,
+            id,
+          ) as any[];
+          for (const pm of panelMembers) {
+            await createNotification({
+              tenantId: decoded.tenantId as string, userId: pm.userId,
+              title: 'Interview Rescheduled',
+              message: `An interview has been rescheduled to ${newDate} at ${newTime || 'TBD'}. Please confirm your availability.`,
+              type: 'workflow', category: 'recruitment', link: '/my-interviews',
+            }).catch(() => null);
+          }
+        }
+      } catch {}
+
+      // Audit log
+      await db.auditLog.create({
+        data: { userId: decoded.userId as string, action: 'INTERVIEW_RESCHEDULED', module: 'recruitment',
+          details: `Interview ${id} rescheduled to ${newDate} at ${newTime || 'TBD'}` },
+      }).catch(() => null);
+
+      return NextResponse.json({ success: true, message: 'Interview rescheduled — panel members notified' }, { headers: corsHeaders() });
+    }
+
+    // ─── Action: CANCEL with reason (pt 13) ────────────────────────────
+    if (action === 'cancel') {
+      if (!HR_ROLES.includes((decoded.role as string) || '')) {
+        return NextResponse.json({ error: 'Only HR/Admin can cancel interviews' }, { status: 403, headers: corsHeaders() });
+      }
+      const { cancelReason } = body;
+      if (!cancelReason || !cancelReason.trim()) {
+        return NextResponse.json({ error: 'A cancellation reason is required' }, { status: 400, headers: corsHeaders() });
+      }
+
+      await db.$executeRawUnsafe(
+        `UPDATE "Interview" SET "status" = 'cancelled', "cancelReason" = $1, "cancelledById" = $2, "cancelledAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $3`,
+        cancelReason, decoded.userId, id,
+      );
+
+      // Notify panel members of cancellation
+      try {
+        if (decoded.tenantId) {
+          const panelMembers = await db.$queryRawUnsafe(
+            `SELECT pm."userId" FROM "InterviewPanelMember" pm WHERE pm."interviewId" = $1`, id,
+          ) as any[];
+          for (const pm of panelMembers) {
+            await createNotification({
+              tenantId: decoded.tenantId as string, userId: pm.userId,
+              title: 'Interview Cancelled',
+              message: `An interview has been cancelled. Reason: ${cancelReason}`,
+              type: 'warning', category: 'recruitment', link: '/my-interviews',
+            }).catch(() => null);
+          }
+        }
+      } catch {}
+
+      // Audit log
+      await db.auditLog.create({
+        data: { userId: decoded.userId as string, action: 'INTERVIEW_CANCELLED', module: 'recruitment',
+          details: `Interview ${id} cancelled by ${decoded.email || decoded.userId}. Reason: ${cancelReason}` },
+      }).catch(() => null);
+
+      return NextResponse.json({ success: true, message: 'Interview cancelled — panel members notified' }, { headers: corsHeaders() });
+    }
+
+    // ─── Action: ATTENDANCE (pt 15) ───────────────────────────────────
+    if (action === 'attendance') {
+      if (!HR_ROLES.includes((decoded.role as string) || '')) {
+        return NextResponse.json({ error: 'Only HR/Admin can record attendance' }, { status: 403, headers: corsHeaders() });
+      }
+      const { candidateAttendance, panelAttendance } = body;
+      const validCandidateAttendance = ['attended', 'late', 'no_show', 'reschedule_required'];
+      const validPanelAttendance = ['present', 'late', 'absent', 'replacement_joined'];
+
+      if (candidateAttendance && !validCandidateAttendance.includes(candidateAttendance)) {
+        return NextResponse.json({ error: `Invalid candidate attendance. Must be: ${validCandidateAttendance.join(', ')}` }, { status: 400, headers: corsHeaders() });
+      }
+
+      if (candidateAttendance) {
+        await db.$executeRawUnsafe(
+          `UPDATE "Interview" SET "candidateAttendance" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+          candidateAttendance, id,
+        );
+      }
+
+      // Record panel member attendance
+      if (panelAttendance && Array.isArray(panelAttendance)) {
+        for (const pa of panelAttendance) {
+          if (pa.userId && pa.attendance && validPanelAttendance.includes(pa.attendance)) {
+            try {
+              await db.$executeRawUnsafe(
+                `UPDATE "InterviewPanelMember" SET "attendance" = $1, "updatedAt" = NOW() WHERE "interviewId" = $2 AND "userId" = $3`,
+                pa.attendance, id, pa.userId,
+              );
+            } catch {}
+          }
+        }
+      }
+
+      // Audit log
+      await db.auditLog.create({
+        data: { userId: decoded.userId as string, action: 'INTERVIEW_ATTENDANCE_RECORDED', module: 'recruitment',
+          details: `Attendance recorded for interview ${id}: candidate=${candidateAttendance || 'N/A'}` },
+      }).catch(() => null);
+
+      return NextResponse.json({ success: true, message: 'Attendance recorded' }, { headers: corsHeaders() });
+    }
+
+    // ─── Action: HR FINAL DECISION (pt 19-20) ─────────────────────────
+    if (action === 'hr_decision') {
+      if (!HR_ROLES.includes((decoded.role as string) || '')) {
+        return NextResponse.json({ error: 'Only HR/Admin can make final decisions' }, { status: 403, headers: corsHeaders() });
+      }
+      const { decision, reason: decisionReason } = body;
+      const validDecisions = ['next_round', 'shortlist', 'hold', 'reject', 'offer', 'schedule_another'];
+      if (!decision || !validDecisions.includes(decision)) {
+        return NextResponse.json({ error: `Invalid decision. Must be: ${validDecisions.join(', ')}` }, { status: 400, headers: corsHeaders() });
+      }
+
+      await db.$executeRawUnsafe(
+        `UPDATE "Interview" SET "hrDecision" = $1, "hrDecisionReason" = $2, "hrDecisionById" = $3, "hrDecisionAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $4`,
+        decision, decisionReason || null, decoded.userId, id,
+      );
+
+      // Update JobApplication status based on decision
+      const decisionToAppStatus: Record<string, string> = {
+        next_round: 'interview', shortlist: 'screening', hold: 'interview',
+        reject: 'rejected', offer: 'offered', schedule_another: 'interview',
+      };
+      const newAppStatus = decisionToAppStatus[decision] || 'interview';
+      try {
+        const interviewRow = await db.$queryRawUnsafe(
+          `SELECT "jobApplicationId" FROM "Interview" WHERE "id" = $1 LIMIT 1`, id,
+        ) as any[];
+        if (interviewRow[0]?.jobApplicationId) {
+          await db.$executeRawUnsafe(
+            `UPDATE "JobApplication" SET "status" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+            newAppStatus, interviewRow[0].jobApplicationId,
+          );
+        }
+      } catch {}
+
+      // Audit log
+      await db.auditLog.create({
+        data: { userId: decoded.userId as string, action: 'INTERVIEW_HR_DECISION', module: 'recruitment',
+          details: `HR decision for interview ${id}: ${decision}${decisionReason ? ` — ${decisionReason}` : ''}` },
+      }).catch(() => null);
+
+      return NextResponse.json({ success: true, message: `Decision recorded: ${decision}`, newAppStatus }, { headers: corsHeaders() });
+    }
+
+    // ─── Action: PANEL LEAD RECOMMENDATION (pt 18) ────────────────────
+    if (action === 'panel_lead_recommendation') {
+      const { recommendation, notes } = body;
+      const validRecs = ['strong_hire', 'hire', 'hold', 'next_round', 'reject'];
+      if (!recommendation || !validRecs.includes(recommendation)) {
+        return NextResponse.json({ error: `Invalid recommendation. Must be: ${validRecs.join(', ')}` }, { status: 400, headers: corsHeaders() });
+      }
+
+      await db.$executeRawUnsafe(
+        `UPDATE "Interview" SET "panelLeadRecommendation" = $1, "panelLeadNotes" = $2, "updatedAt" = NOW() WHERE "id" = $3`,
+        recommendation, notes || null, id,
+      );
+
+      // Audit log
+      await db.auditLog.create({
+        data: { userId: decoded.userId as string, action: 'INTERVIEW_PANEL_LEAD_RECOMMENDATION', module: 'recruitment',
+          details: `Panel lead recommendation for interview ${id}: ${recommendation}` },
+      }).catch(() => null);
+
+      return NextResponse.json({ success: true, message: 'Panel lead recommendation submitted' }, { headers: corsHeaders() });
+    }
+
+    // ─── Basic status/feedback update (existing behavior) ─────────────
     const sets: string[] = [];
     const params: unknown[] = [];
     let pIdx = 1;
