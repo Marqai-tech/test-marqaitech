@@ -100,41 +100,55 @@ export async function POST(
       await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "InterviewFeedback_interviewId_userId_idx" ON "InterviewFeedback"("interviewId", "userId")`);
     } catch {}
 
-    // Check if feedback already exists for this interview + user
-    const existing = await db.$queryRawUnsafe(
-      `SELECT "id" FROM "InterviewFeedback" WHERE "interviewId" = $1 AND "userId" = $2 LIMIT 1`,
-      id, userId,
-    ) as any[];
-
     const validRecommendations = ['strong_hire', 'hire', 'hold', 'next_round', 'reject'];
     const finalRecommendation = validRecommendations.includes(recommendation) ? recommendation : 'hold';
+    const feedbackId = `fb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    if (existing.length > 0) {
-      // Update existing feedback
-      await db.$executeRawUnsafe(
-        `UPDATE "InterviewFeedback"
-         SET "technicalSkills" = $1, "communication" = $2, "experience" = $3, "problemSolving" = $4,
-             "roleSuitability" = $5, "culturalFit" = $6, "strengths" = $7, "concerns" = $8,
-             "rating" = $9, "recommendation" = $10, "comments" = $11, "updatedAt" = NOW()
-         WHERE "interviewId" = $12 AND "userId" = $13`,
-        technicalSkills || null, communication || null, experience || null, problemSolving || null,
-        roleSuitability || null, culturalFit || null, strengths || null, concerns || null,
-        rating ? Number(rating) : null, finalRecommendation, comments || null,
-        id, userId,
-      );
-    } else {
-      // Create new feedback
-      const feedbackId = `fb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // Use INSERT ... ON CONFLICT to handle both insert and update in one query.
+    // This avoids issues with old table schemas from previous deploys.
+    try {
       await db.$executeRawUnsafe(
         `INSERT INTO "InterviewFeedback"
          ("id", "interviewId", "userId", "technicalSkills", "communication", "experience", "problemSolving",
           "roleSuitability", "culturalFit", "strengths", "concerns", "rating", "recommendation", "comments", "submittedAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+         ON CONFLICT ("interviewId", "userId") DO UPDATE SET
+           "technicalSkills" = EXCLUDED."technicalSkills",
+           "communication" = EXCLUDED."communication",
+           "experience" = EXCLUDED."experience",
+           "problemSolving" = EXCLUDED."problemSolving",
+           "roleSuitability" = EXCLUDED."roleSuitability",
+           "culturalFit" = EXCLUDED."culturalFit",
+           "strengths" = EXCLUDED."strengths",
+           "concerns" = EXCLUDED."concerns",
+           "rating" = EXCLUDED."rating",
+           "recommendation" = EXCLUDED."recommendation",
+           "comments" = EXCLUDED."comments",
+           "updatedAt" = NOW()`,
         feedbackId, id, userId,
         technicalSkills || null, communication || null, experience || null, problemSolving || null,
         roleSuitability || null, culturalFit || null, strengths || null, concerns || null,
         rating ? Number(rating) : null, finalRecommendation, comments || null,
       );
+    } catch (upsertErr) {
+      // If ON CONFLICT fails (no unique constraint), try plain UPDATE then INSERT
+      console.warn('[Feedback] upsert failed, trying update then insert:', upsertErr instanceof Error ? upsertErr.message : upsertErr);
+      try {
+        const updRes = await db.$executeRawUnsafe(
+          `UPDATE "InterviewFeedback" SET "technicalSkills" = $1, "communication" = $2, "rating" = $3, "recommendation" = $4, "comments" = $5, "updatedAt" = NOW() WHERE "interviewId" = $6 AND "userId" = $7`,
+          technicalSkills || null, communication || null, rating ? Number(rating) : null, finalRecommendation, comments || null, id, userId,
+        );
+        if (updRes === 0) {
+          // No rows updated — do plain INSERT
+          await db.$executeRawUnsafe(
+            `INSERT INTO "InterviewFeedback" ("id", "interviewId", "userId", "rating", "recommendation", "comments", "submittedAt", "updatedAt")
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+            feedbackId, id, userId, rating ? Number(rating) : null, finalRecommendation, comments || null,
+          );
+        }
+      } catch (e2) {
+        throw e2;
+      }
     }
 
     // Audit log
