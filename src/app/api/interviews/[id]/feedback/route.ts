@@ -74,6 +74,25 @@ export async function POST(
         CONSTRAINT "InterviewFeedback_pkey" PRIMARY KEY ("id")
       )`);
     } catch (e) { console.warn('[Feedback] table create:', e instanceof Error ? e.message : e); }
+
+    // Add missing columns if the table already existed from a previous version
+    const addCols = [
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "userId" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "technicalSkills" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "communication" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "experience" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "problemSolving" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "roleSuitability" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "culturalFit" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "strengths" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "concerns" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "rating" INT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "recommendation" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "comments" TEXT',
+    ];
+    for (const sql of addCols) {
+      try { await db.$executeRawUnsafe(sql); } catch {}
+    }
     try {
       await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "InterviewFeedback_interviewId_userId_idx" ON "InterviewFeedback"("interviewId", "userId")`);
     } catch {}
