@@ -331,10 +331,10 @@ export async function PATCH(
             </div>`;
             let emailSent = false;
             let emailError = '';
-            // Use sendTenantEmail FIRST (tenant DB SMTP = same as leave notifications = WORKS),
-            // then sendEmail as fallback (env SMTP).
+            // Task 167: Use sendEmail FIRST — it has smart routing (SMTP for internal,
+            // Resend for external). sendTenantEmail has circuit breakers that may be open.
             try {
-              const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+              const emailRes = await sendEmail({
                 to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
               });
               emailSent = emailRes.success;
@@ -342,7 +342,7 @@ export async function PATCH(
             } catch (e) { emailError = e instanceof Error ? e.message : String(e); }
             if (!emailSent) {
               try {
-                const fallbackRes = await sendEmail({
+                const fallbackRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
                   to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
                 });
                 emailSent = fallbackRes.success;
@@ -431,13 +431,12 @@ export async function PATCH(
             <p>Thank you for your interest in joining our team.</p>
             <p>Regards,<br/>HR Team</p>
           </div>`;
-          // Task 167: Use sendTenantEmail FIRST (tenant DB SMTP — same path as leave
-          // notifications which WORK). Circuit breaker is reset after each deploy.
-          // Fallback to sendEmail (env SMTP) if tenant SMTP fails.
+          // Task 167: Use sendEmail FIRST — it has smart routing (SMTP for internal,
+          // Resend for external). sendTenantEmail has circuit breakers that may be open.
           let emailSent = false;
           let emailError = '';
           try {
-            const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+            const emailRes = await sendEmail({
               to: updated.candidateEmail,
               subject: `Application Status Update: ${statusLabel}`,
               html,
@@ -448,9 +447,9 @@ export async function PATCH(
             emailError = e instanceof Error ? e.message : String(e);
           }
           if (!emailSent) {
-            // Fallback: sendEmail (env SMTP → Resend)
+            // Fallback: sendTenantEmail (tenant SMTP → env SMTP → Resend)
             try {
-              const fallbackRes = await sendEmail({
+              const fallbackRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
                 to: updated.candidateEmail,
                 subject: `Application Status Update: ${statusLabel}`,
                 html,
