@@ -63,6 +63,42 @@ export async function GET(req: NextRequest) {
 
     const interviews = await db.$queryRawUnsafe(sql, ...params).catch(() => []) as any[];
 
+    // Task 167: For each interview, fetch panel members with their confirmation + feedback status
+    for (const interview of interviews) {
+      try {
+        const panelMembers = await db.$queryRawUnsafe(
+          `SELECT pm."id", pm."userId", pm."status", pm."reason", pm."respondedAt",
+                  u."name" AS "memberName", u."email" AS "memberEmail",
+                  e."firstName", e."lastName", e."designationId",
+                  des."title" AS "designation",
+                  CASE WHEN f."id" IS NOT NULL THEN true ELSE false END AS "hasFeedback",
+                  f."rating" AS "feedbackRating", f."recommendation" AS "feedbackRecommendation"
+           FROM "InterviewPanelMember" pm
+           LEFT JOIN "User" u ON u."id" = pm."userId"
+           LEFT JOIN "Employee" e ON e."userId" = pm."userId"
+           LEFT JOIN "Designation" des ON des."id" = e."designationId"
+           LEFT JOIN "InterviewFeedback" f ON f."interviewId" = pm."interviewId" AND f."userId" = pm."userId"
+           WHERE pm."interviewId" = $1`,
+          interview.id,
+        ) as any[];
+        interview.panelMembers = panelMembers.map(pm => ({
+          id: pm.id,
+          userId: pm.userId,
+          name: pm.memberName || `${pm.firstName || ''} ${pm.lastName || ''}`.trim() || pm.memberEmail,
+          email: pm.memberEmail,
+          designation: pm.designation || '—',
+          confirmationStatus: pm.status,
+          reason: pm.reason,
+          respondedAt: pm.respondedAt,
+          hasFeedback: pm.hasFeedback,
+          feedbackRating: pm.feedbackRating,
+          feedbackRecommendation: pm.feedbackRecommendation,
+        }));
+      } catch {
+        interview.panelMembers = [];
+      }
+    }
+
     return NextResponse.json({ data: interviews }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Interviews GET error:', error);
@@ -158,6 +194,35 @@ export async function POST(req: NextRequest) {
         jobApplicationId,
       );
     } catch { /* non-fatal */ }
+
+    // Task 167: Create InterviewPanelMember records for each panel member
+    // with status 'pending' (Pending Confirmation)
+    try {
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InterviewPanelMember" (
+        "id" TEXT NOT NULL,
+        "interviewId" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "reason" TEXT,
+        "respondedAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "InterviewPanelMember_pkey" PRIMARY KEY ("id")
+      )`);
+      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "InterviewPanelMember_interviewId_idx" ON "InterviewPanelMember"("interviewId")`);
+      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "InterviewPanelMember_userId_idx" ON "InterviewPanelMember"("userId")`);
+    } catch {}
+
+    for (const memberId of panelMembers) {
+      try {
+        const pmId = `pm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        await db.$executeRawUnsafe(
+          `INSERT INTO "InterviewPanelMember" ("id", "interviewId", "userId", "status", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, 'pending', NOW(), NOW())`,
+          pmId, interviewId, memberId,
+        );
+      } catch {}
+    }
 
     // Fetch the application details for notifications
     const appRows = await db.$queryRawUnsafe(
