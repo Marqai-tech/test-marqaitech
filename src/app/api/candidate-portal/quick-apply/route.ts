@@ -175,25 +175,51 @@ export async function POST(request: Request) {
   }
 
   // 6. Audit + notification (best-effort, non-blocking)
+  // GAP FIX #2: Use dispatchNotification instead of raw createMany — sends email + delivery log
   try {
     const tenantId = job.department?.company?.companyGroup?.tenant?.id;
     if (tenantId) {
       const tenantAdmins = await db.user.findMany({
-        where: { tenantId, role: { in: ['tenant_admin', 'ceo', 'hr_admin', 'recruiter'] } },
-        select: { id: true },
-      });
-      if (tenantAdmins.length > 0) {
-        await db.notification.createMany({
-          data: tenantAdmins.map((u) => ({
+        where: { tenantId, role: { in: ['tenant_admin', 'ceo', 'hr_admin', 'company_hr_admin', 'admin', 'recruiter'] }, status: 'active' },
+        select: { id: true, email: true },
+      }).catch(() => []);
+      // Avoid hr@marqaitech.com per user instruction
+      const safeAdmins = tenantAdmins.filter(u => !u.email?.includes('hr@marqaitech'));
+
+      if (safeAdmins.length > 0) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId,
+          module: 'recruitment',
+          eventKey: 'recruitment.candidate.applied',
+          recipients: safeAdmins.map(u => ({ userId: u.id })),
+          vars: {
+            Candidate_Name: application.candidateName || 'A candidate',
+            Job_Title: job.title,
+            Application_Date: new Date().toLocaleDateString('en-IN'),
+          },
+          entity: { type: 'job_application', id: application.id, link: '/recruitment' },
+        }).catch(() => null);
+      }
+
+      // Send candidate acknowledgment email
+      if (application.candidateEmail) {
+        try {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
             tenantId,
-            userId: u.id,
-            title: 'New job application received',
-            message: `${application.candidateName} applied for "${job.title}"`,
-            type: 'info',
-            category: 'recruitment',
-            link: '/recruitment',
-          })),
-        });
+            module: 'recruitment',
+            eventKey: 'recruitment.candidate.acknowledgment',
+            recipients: [{ name: application.candidateName, email: application.candidateEmail }],
+            vars: {
+              Candidate_Name: application.candidateName || 'Candidate',
+              Job_Title: job.title,
+              Application_Date: new Date().toLocaleDateString('en-IN'),
+            },
+            entity: { type: 'job_application', id: application.id, link: '/careers' },
+            suppressInApp: true,
+          }).catch(() => null);
+        } catch { /* non-fatal */ }
       }
     }
   } catch {

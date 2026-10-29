@@ -280,19 +280,42 @@ export async function PATCH(
           else if (action === 'submit') { notifTitle = 'Requisition Submitted'; notifMsg = `Your requisition ${existing.requisitionId} has been submitted for HR approval.`; }
 
           if (notifTitle) {
-            const notif = await createNotification({
-              tenantId: decoded.tenantId as string,
-              userId: existing.hiringManagerId,
-              title: notifTitle,
-              message: notifMsg,
-              type: action.includes('reject') ? 'warning' : action === 'return' ? 'info' : 'success',
-              category: 'recruitment',
-              link: '/requisitions',
-            }).catch(() => null);
-            // Send email too
-            const mgrUser = await db.user.findUnique({ where: { id: existing.hiringManagerId }, select: { email: true } }).catch(() => null);
-            if (notif?.id && mgrUser?.email) {
-              await sendNotificationEmail(db, decoded.tenantId as string, notif, mgrUser.email, notifTitle, `<p>${notifMsg}</p>`).catch(() => null);
+            // GAP FIX #3: Use dispatchNotification for fully-approved requisitions so the
+            // recruitment.requisition.approved event template is used (with proper email +
+            // delivery log). For other actions, keep the existing raw createNotification
+            // which already sends in-app + email.
+            if (action === 'finance_approve' && decoded.tenantId) {
+              try {
+                const { dispatchNotification } = await import('@/lib/notification-center');
+                await dispatchNotification({
+                  tenantId: decoded.tenantId as string,
+                  module: 'recruitment',
+                  eventKey: 'recruitment.requisition.approved',
+                  recipients: [{ userId: existing.hiringManagerId }],
+                  vars: {
+                    Requisition_Title: existing.requisitionId,
+                    Department: existing.department?.name || '—',
+                    Requested_By: empName,
+                    Openings: String(existing.numberOfOpenings || 1),
+                  },
+                  entity: { type: 'requisition', id: existing.id, link: '/requisitions' },
+                }).catch(() => null);
+              } catch { /* non-fatal */ }
+            } else {
+              // Keep existing raw notification for non-fully-approved actions
+              const notif = await createNotification({
+                tenantId: decoded.tenantId as string,
+                userId: existing.hiringManagerId,
+                title: notifTitle,
+                message: notifMsg,
+                type: action.includes('reject') ? 'warning' : action === 'return' ? 'info' : 'success',
+                category: 'recruitment',
+                link: '/requisitions',
+              }).catch(() => null);
+              const mgrUser = await db.user.findUnique({ where: { id: existing.hiringManagerId }, select: { email: true } }).catch(() => null);
+              if (notif?.id && mgrUser?.email) {
+                await sendNotificationEmail(db, decoded.tenantId as string, notif, mgrUser.email, notifTitle, `<p>${notifMsg}</p>`).catch(() => null);
+              }
             }
           }
         }

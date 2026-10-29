@@ -176,6 +176,49 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => null);
 
+    // GAP FIX #1: Auto-publish to internal_careers board so the job appears on /careers
+    // immediately. Previously HR had to manually POST to /api/job-board-postings —
+    // if they forgot, candidates couldn't see or apply for the job.
+    if ((jobPosting as any).status === 'open') {
+      try {
+        const jobBoardId = `jb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        await db.$executeRawUnsafe(
+          `INSERT INTO "JobBoardPosting" ("id", "jobPostingId", "board", "status", "externalUrl", "postedAt", "createdAt", "updatedAt")
+           VALUES ($1, $2, 'internal_careers', 'posted', $3, NOW(), NOW(), NOW())
+           ON CONFLICT DO NOTHING`,
+          jobBoardId, (jobPosting as any).id, `/careers?jobId=${(jobPosting as any).id}`,
+        );
+        console.log(`[Jobs POST] Auto-published to internal_careers: ${(jobPosting as any).id}`);
+      } catch (e) {
+        // Table may not exist — create it then retry
+        try {
+          await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "JobBoardPosting" (
+            "id" TEXT NOT NULL,
+            "jobPostingId" TEXT NOT NULL,
+            "board" TEXT NOT NULL,
+            "status" TEXT NOT NULL DEFAULT 'pending',
+            "externalUrl" TEXT,
+            "externalId" TEXT,
+            "postedAt" TIMESTAMP(3),
+            "error" TEXT,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            CONSTRAINT "JobBoardPosting_pkey" PRIMARY KEY ("id")
+          )`);
+          await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "JobBoardPosting_jobPostingId_idx" ON "JobBoardPosting"("jobPostingId")`);
+          const jobBoardId = `jb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          await db.$executeRawUnsafe(
+            `INSERT INTO "JobBoardPosting" ("id", "jobPostingId", "board", "status", "externalUrl", "postedAt", "createdAt", "updatedAt")
+             VALUES ($1, $2, 'internal_careers', 'posted', $3, NOW(), NOW(), NOW())`,
+            jobBoardId, (jobPosting as any).id, `/careers?jobId=${(jobPosting as any).id}`,
+          );
+          console.log(`[Jobs POST] Auto-published to internal_careers (after table create): ${(jobPosting as any).id}`);
+        } catch (e2) {
+          console.warn('[Jobs POST] Auto-publish to careers failed (non-fatal):', e2 instanceof Error ? e2.message : e2);
+        }
+      }
+    }
+
     return NextResponse.json(jobPosting, { status: 201 });
   } catch (error) {
     console.error('Jobs POST error:', error);
