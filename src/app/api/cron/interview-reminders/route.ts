@@ -14,7 +14,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformDb } from '@/lib/tenant-db';
-import { createNotification } from '@/lib/notifications';
+// GAP FIX #3: import dispatchNotification for proper email + delivery log
+import { dispatchNotification } from '@/lib/notification-center';
 
 function corsHeaders() {
   return {
@@ -77,11 +78,19 @@ export async function POST(req: NextRequest) {
             for (const pm of panelMembers) {
               if (pm.status === 'declined' || pm.status === 'no_response') continue;
               try {
-                await createNotification({
-                  tenantId, userId: pm.userId,
-                  title: 'Interview Reminder: Tomorrow',
-                  message: `Reminder: You have an interview with ${interview.candidateName || 'a candidate'} for ${interview.jobTitle || 'a position'} tomorrow at ${interview.time || 'TBD'}.${interview.location ? ` Location: ${interview.location}.` : ''}${interview.meetingUrl ? ` Meeting: ${interview.meetingUrl}.` : ''}`,
-                  type: 'info', category: 'recruitment', link: '/my-interviews',
+                await dispatchNotification({
+                  tenantId,
+                  module: 'recruitment',
+                  eventKey: 'recruitment.interview.reminder',
+                  recipients: [{ userId: pm.userId }],
+                  vars: {
+                    Candidate_Name: interview.candidateName || 'a candidate',
+                    Job_Title: interview.jobTitle || 'a position',
+                    Interview_Date: interview.time || 'TBD',
+                    Interview_Time: interview.time || 'TBD',
+                    Interview_Mode: interview.location || interview.meetingUrl || 'TBD',
+                  },
+                  entity: { type: 'interview', id: interview.id, link: '/my-interviews' },
                 });
               } catch {}
             }
@@ -111,11 +120,19 @@ export async function POST(req: NextRequest) {
 
             for (const pm of panelMembers) {
               try {
-                await createNotification({
-                  tenantId, userId: pm.userId,
-                  title: 'Interview Starting Soon',
-                  message: `Your interview with ${interview.candidateName || 'a candidate'} starts in 1 hour at ${interview.time}.`,
-                  type: 'warning', category: 'recruitment', link: '/my-interviews',
+                await dispatchNotification({
+                  tenantId,
+                  module: 'recruitment',
+                  eventKey: 'recruitment.interview.reminder',
+                  recipients: [{ userId: pm.userId }],
+                  vars: {
+                    Candidate_Name: interview.candidateName || 'a candidate',
+                    Job_Title: 'Interview',
+                    Interview_Date: 'Today',
+                    Interview_Time: interview.time || 'TBD',
+                    Interview_Mode: 'Starting in 1 hour',
+                  },
+                  entity: { type: 'interview', id: interview.id, link: '/my-interviews' },
                 });
               } catch {}
             }
@@ -151,11 +168,16 @@ export async function POST(req: NextRequest) {
 
             for (const pm of pendingMembers) {
               try {
-                await createNotification({
-                  tenantId, userId: pm.userId,
-                  title: 'Feedback Pending',
-                  message: `Please submit your feedback for the interview with ${interview.candidateName || 'a candidate'} (${interview.jobTitle || 'position'}). Deadline: ${interview.feedbackDeadline ? new Date(interview.feedbackDeadline).toLocaleString() : 'soon'}.`,
-                  type: 'warning', category: 'recruitment', link: '/my-interviews',
+                await dispatchNotification({
+                  tenantId,
+                  module: 'recruitment',
+                  eventKey: 'recruitment.interview.feedback_pending',
+                  recipients: [{ userId: pm.userId }],
+                  vars: {
+                    Candidate_Name: interview.candidateName || 'a candidate',
+                    Job_Title: interview.jobTitle || 'position',
+                  },
+                  entity: { type: 'interview', id: interview.id, link: '/my-interviews' },
                 });
               } catch {}
             }
@@ -196,11 +218,16 @@ export async function POST(req: NextRequest) {
               }).catch(() => []);
 
               for (const hr of hrUsers) {
-                await createNotification({
-                  tenantId, userId: hr.id,
-                  title: 'Panel Member Did Not Respond',
-                  message: `A panel member did not respond before the confirmation deadline for ${pm.candidateName || 'a candidate'}'s interview. Please extend the deadline or assign a replacement.`,
-                  type: 'warning', category: 'recruitment', link: '/recruitment',
+                await dispatchNotification({
+                  tenantId,
+                  module: 'recruitment',
+                  eventKey: 'recruitment.interview.feedback_pending',
+                  recipients: [{ userId: hr.id }],
+                  vars: {
+                    Candidate_Name: pm.candidateName || 'a candidate',
+                    Job_Title: 'Panel confirmation deadline expired',
+                  },
+                  entity: { type: 'interview', id: pm.interviewId, link: '/recruitment' },
                 }).catch(() => null);
               }
             } catch {}

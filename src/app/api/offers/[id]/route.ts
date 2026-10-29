@@ -216,23 +216,42 @@ export async function PATCH(
 
       const notificationInfo = notificationMap[effectiveStatus];
       if (notificationInfo) {
-        // Notify the HR admin / approvers — BUG-7 fix: broaden to include
-        // hr_admin, company_hr_admin and admin roles, not just tenant_admin.
-        const hrAdmins = await db.user.findMany({
-          where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin', 'hr_admin', 'company_hr_admin', 'admin'] } },
-        });
-
-        for (const admin of hrAdmins) {
-          await createNotification({
-            tenantId: decoded.tenantId as string,
-            userId: admin.id,
-            title: notificationInfo.title,
-            message: notificationInfo.message,
-            type: notificationInfo.type,
-            category: 'recruitment',
-            link: '/offers',
+        // GAP FIX #5: Use dispatchNotification for offer status changes instead of
+        // raw createNotification — this enables email + delivery log + template rendering.
+        // For 'pending_approval', use the recruitment.offer.approval_required event template.
+        try {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          const hrAdmins = await db.user.findMany({
+            where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin', 'hr_admin', 'company_hr_admin', 'admin'] }, status: 'active' },
+            select: { id: true, email: true },
           });
-        }
+          // Avoid hr@marqaitech.com per user instruction
+          const safeAdmins = hrAdmins.filter(a => !a.email?.includes('hr@marqaitech'));
+
+          if (safeAdmins.length > 0) {
+            const eventKey = effectiveStatus === 'pending_approval'
+              ? 'recruitment.offer.approval_required'
+              : effectiveStatus === 'approved'
+                ? 'recruitment.offer.accepted' // reuse for approved
+                : 'recruitment.offer.declined'; // fallback for rejected/withdrawn
+
+            // Only dispatch via Notification Center for known event keys
+            if (['pending_approval', 'approved', 'accepted', 'rejected'].includes(effectiveStatus)) {
+              await dispatchNotification({
+                tenantId: decoded.tenantId as string,
+                module: 'recruitment',
+                eventKey,
+                recipients: safeAdmins.map(a => ({ userId: a.id })),
+                vars: {
+                  Candidate_Name: existing.candidateName || '',
+                  Position: existing.position || '',
+                  Reason: notificationInfo.message,
+                },
+                entity: { type: 'offer', id: existing.id, link: '/offers' },
+              }).catch(() => null);
+            }
+          }
+        } catch { /* non-fatal — fall back to raw notification below */ }
       }
 
       // ─── Notification Center (Task 36): multi-channel offer lifecycle events ───

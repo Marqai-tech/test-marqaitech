@@ -282,7 +282,9 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
-    // Notify each panel member
+    // Notify each panel member via Notification Center (dispatchNotification)
+    // GAP FIX #2: Migrate from raw createNotification to dispatchNotification so the
+    // recruitment.interview.scheduled event fires with proper email + delivery log
     if (panelMembers.length > 0 && decoded.tenantId) {
       const typeLabels: Record<string, string> = {
         ai: 'AI Interview', technical: 'Technical Interview', hr: 'HR Interview', offline_panel: 'Panel Interview',
@@ -291,92 +293,66 @@ export async function POST(req: NextRequest) {
       const dateStr = new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
       const timeStr = time || 'TBD';
 
-      for (const memberId of panelMembers) {
-        try {
-          // In-app notification
-          const notif = await createNotification({
-            tenantId: decoded.tenantId as string,
-            userId: memberId,
-            title: `Interview Assigned: ${typeLabel}`,
-            message: `You have been assigned as a panel member for a ${typeLabel} for ${app?.candidateName || 'a candidate'} (${jobTitle}) on ${dateStr} at ${timeStr}.${location ? ` Location: ${location}.` : ''}${meetingUrl ? ` Meeting: ${meetingUrl}.` : ''}`,
-            type: 'workflow',
-            category: 'recruitment',
-            link: '/my-interviews',
-          }).catch(() => null);
-
-          // Email notification
-          if (notif?.id) {
-            const panelUser = await db.user.findUnique({ where: { id: memberId }, select: { email: true, name: true } }).catch(() => null);
-            if (panelUser?.email) {
-              await sendNotificationEmail(
-                db, decoded.tenantId as string, notif, panelUser.email,
-                `Interview Assigned: ${typeLabel}`,
-                `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                  <h2 style="color:#4f46e5;">Interview Panel Assignment</h2>
-                  <p>Dear ${panelUser.name || 'Panel Member'},</p>
-                  <p>You have been assigned as a panel member for a <strong>${typeLabel}</strong>.</p>
-                  <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-                    <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Candidate:</td><td style="padding:8px;border:1px solid #ddd;">${app?.candidateName || 'N/A'}</td></tr>
-                    <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Position:</td><td style="padding:8px;border:1px solid #ddd;">${jobTitle}</td></tr>
-                    <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Date:</td><td style="padding:8px;border:1px solid #ddd;">${dateStr}</td></tr>
-                    <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Time:</td><td style="padding:8px;border:1px solid #ddd;">${timeStr}</td></tr>
-                    ${location ? `<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Location:</td><td style="padding:8px;border:1px solid #ddd;">${location}</td></tr>` : ''}
-                    ${meetingUrl ? `<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Meeting Link:</td><td style="padding:8px;border:1px solid #ddd;"><a href="${meetingUrl}">${meetingUrl}</a></td></tr>` : ''}
-                  </table>
-                  <p>Please prepare for the interview. You can submit your feedback after the interview from the My Interviews page.</p>
-                  <p>Regards,<br/>HR Team</p>
-                </div>`,
-              ).catch(() => null);
-            }
-          }
-        } catch { /* non-fatal */ }
-      }
-    }
-
-    // Audit log
-    await db.auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'SCHEDULE_INTERVIEW',
-        module: 'recruitment',
-        details: `Scheduled ${interviewType} interview for ${app?.candidateName || jobApplicationId} on ${new Date(date).toLocaleDateString()}`,
-      },
-    }).catch(() => null);
-
-    // Task 167: notify the CANDIDATE of the interview schedule (email)
-    if (app?.candidateEmail) {
       try {
-        const { sendEmail } = await import('@/lib/email');
-        const typeLabels: Record<string, string> = {
-          ai: 'AI Interview', technical: 'Technical Interview', hr: 'HR Interview', offline_panel: 'Panel Interview',
-        };
-        const typeLabel = typeLabels[interviewType] || 'Interview';
-        const dateStr = new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-        const timeStr = time || 'TBD';
-        const candidateHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-          <h2 style="color:#4f46e5;">Interview Scheduled</h2>
-          <p>Dear ${app.candidateName},</p>
-          <p>Your <strong>${typeLabel}</strong> has been scheduled. Here are the details:</p>
-          <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Date:</td><td style="padding:8px;border:1px solid #ddd;">${dateStr}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Time:</td><td style="padding:8px;border:1px solid #ddd;">${timeStr}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Duration:</td><td style="padding:8px;border:1px solid #ddd;">${duration || 60} minutes</td></tr>
-            ${location ? `<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Location:</td><td style="padding:8px;border:1px solid #ddd;">${location}</td></tr>` : ''}
-            ${meetingUrl ? `<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Meeting Link:</td><td style="padding:8px;border:1px solid #ddd;"><a href="${meetingUrl}">${meetingUrl}</a></td></tr>` : ''}
-            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Panel Members:</td><td style="padding:8px;border:1px solid #ddd;">${panelMembers.length} assigned</td></tr>
-          </table>
-          <p>Please arrive 10 minutes before the scheduled time. If you need to reschedule, please contact HR as soon as possible.</p>
-          <p>Good luck!</p>
-          <p>Regards,<br/>HR Team</p>
-        </div>`;
-        await sendEmail({
-          to: app.candidateEmail,
-          subject: `Interview Scheduled: ${typeLabel} on ${dateStr}`,
-          html: candidateHtml,
-        }).catch(() => null);
-        console.log(`[Interviews POST] Candidate email sent to ${app.candidateEmail}`);
-      } catch (e) {
-        console.warn('[Interviews POST] Candidate email failed (non-fatal):', e instanceof Error ? e.message : e);
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        // Get panel member user details for email recipients
+        const panelUsers = await db.user.findMany({
+          where: { id: { in: panelMembers }, status: 'active' },
+          select: { id: true, email: true, name: true },
+        }).catch(() => []);
+        // Avoid hr@marqaitech.com per user instruction
+        const safePanelUsers = panelUsers.filter(u => !u.email?.includes('hr@marqaitech'));
+
+        if (safePanelUsers.length > 0) {
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: 'recruitment.interview.scheduled',
+            recipients: safePanelUsers.map(u => ({ userId: u.id, email: u.email, name: u.name })),
+            vars: {
+              Candidate_Name: app?.candidateName || 'a candidate',
+              Job_Title: jobTitle,
+              Interview_Date: dateStr,
+              Interview_Time: timeStr,
+              Interview_Mode: location ? `Offline — ${location}` : meetingUrl ? `Online — ${meetingUrl}` : 'TBD',
+              Interviewer_Name: typeLabel,
+            },
+            entity: { type: 'interview', id: interviewId, link: '/my-interviews' },
+          }).catch(() => null);
+        }
+      } catch { /* non-fatal */ }
+
+      // Audit log
+      await db.auditLog.create({
+        data: {
+          userId: decoded.userId as string,
+          action: 'SCHEDULE_INTERVIEW',
+          module: 'recruitment',
+          details: `Scheduled ${interviewType} interview for ${app?.candidateName || jobApplicationId} on ${new Date(date).toLocaleDateString()}`,
+        },
+      }).catch(() => null);
+
+      // GAP FIX #2: Also dispatch recruitment.interview.scheduled to the candidate (email-only)
+      if (app?.candidateEmail) {
+        try {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: 'recruitment.interview.scheduled',
+            recipients: [{ name: app.candidateName, email: app.candidateEmail }],
+            vars: {
+              Candidate_Name: app.candidateName,
+              Job_Title: jobTitle,
+              Interview_Date: dateStr,
+              Interview_Time: timeStr,
+              Interview_Mode: location ? `Offline — ${location}` : meetingUrl ? `Online — ${meetingUrl}` : 'TBD',
+              Interviewer_Name: typeLabel,
+            },
+            entity: { type: 'interview', id: interviewId, link: '/careers' },
+            suppressInApp: true, // email-only for candidate
+          }).catch(() => null);
+        } catch { /* non-fatal */ }
       }
     }
 
