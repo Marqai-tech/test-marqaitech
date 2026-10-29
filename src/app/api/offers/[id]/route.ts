@@ -257,6 +257,16 @@ export async function PATCH(
             suppressInApp: true,
             origin: originOff,
           });
+
+          // GAP FIX #7: Auto-flip JobApplication status to 'offered' when offer is sent
+          try {
+            if (offer.jobApplicationId) {
+              await db.$executeRawUnsafe(
+                `UPDATE "JobApplication" SET "status" = 'offered', "updatedAt" = NOW() WHERE "id" = $1`,
+                offer.jobApplicationId,
+              );
+            }
+          } catch { /* non-fatal */ }
         }
         if (effectiveStatus === 'accepted' && tenantIdOff) {
           // Recruiter/HR + IT & Admin provisioning trigger

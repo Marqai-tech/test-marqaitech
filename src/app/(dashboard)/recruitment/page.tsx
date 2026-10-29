@@ -1661,6 +1661,21 @@ export default function RecruitmentPage() {
                                       <FiCalendar className="w-4 h-4" />
                                     </button>
                                   )}
+                                  {/* GAP FIX #6: "Extend Offer" button — opens the offers page pre-filled with the candidate's data */}
+                                  {isAdmin && (app.status === 'interview' || app.status === 'shortlisted') && (
+                                    <button onClick={() => {
+                                      const params = new URLSearchParams({
+                                        candidateId: app.id,
+                                        candidateName: app.candidateName || '',
+                                        candidateEmail: app.candidateEmail || '',
+                                        jobApplicationId: app.id,
+                                        position: jobPostings.find(j => j.id === app.jobPostingId)?.title || '',
+                                      });
+                                      window.location.href = `/offers?${params.toString()}`;
+                                    }} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Extend Offer">
+                                      <FiFileText className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   {isAdmin && (
                                     <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Status">
                                       <FiEdit2 className="w-4 h-4" />

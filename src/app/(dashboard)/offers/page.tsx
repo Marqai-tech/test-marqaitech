@@ -69,6 +69,8 @@ export default function OffersPage() {
   const [deleting, setDeleting] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
+  // GAP FIX #6: Store jobApplicationId from URL params (when navigated from recruitment pipeline)
+  const [jobApplicationId, setJobApplicationId] = useState<string | null>(null);
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -79,7 +81,27 @@ export default function OffersPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { queueMicrotask(() => fetchOffers()); }, [fetchOffers]);
+  useEffect(() => {
+    queueMicrotask(() => fetchOffers());
+    // GAP FIX #6: Check URL params for pre-filled offer data (from "Extend Offer" button)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const candidateName = params.get('candidateName');
+      const candidateEmail = params.get('candidateEmail');
+      const jobAppId = params.get('jobApplicationId');
+      const position = params.get('position');
+      if (candidateName || candidateEmail || jobAppId) {
+        setForm({
+          ...initialForm,
+          candidateName: candidateName || '',
+          candidateEmail: candidateEmail || '',
+          position: position || '',
+        });
+        setJobApplicationId(jobAppId || null);
+        setShowForm(true);
+      }
+    }
+  }, [fetchOffers]);
 
   const handleAddNew = () => {
     setForm(initialForm);
@@ -121,7 +143,8 @@ export default function OffersPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Offer updated');
       } else {
-        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...form, candidateId: `candidate-${Date.now()}` }) });
+        // GAP FIX #6: Pass jobApplicationId when creating offer (links to recruitment pipeline)
+        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...form, candidateId: jobApplicationId || `candidate-${Date.now()}`, jobApplicationId: jobApplicationId || undefined }) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Offer created');
       }

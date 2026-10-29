@@ -262,6 +262,34 @@ export async function POST(request: Request) {
       // Non-fatal
     }
 
+    // GAP FIX #2: Notify HR/recruiters about the new referral
+    try {
+      if (decoded.tenantId) {
+        const hrUsers = await db.user.findMany({
+          where: { tenantId: decoded.tenantId, role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'recruiter'] }, status: 'active' },
+          select: { id: true },
+        }).catch(() => []);
+        // Avoid hr@marqaitech.com per user instruction
+        const safeHrUsers = hrUsers.filter(u => !u.id.includes('hr@marqaitech'));
+
+        if (safeHrUsers.length > 0) {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: 'recruitment.referral.submitted',
+            recipients: safeHrUsers.map(u => ({ userId: u.id })),
+            vars: {
+              Referrer_Name: `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'An employee',
+              Candidate_Name: candidateName,
+              Job_Title: jobPosting?.title || 'a position',
+            },
+            entity: { type: 'referral', id: referral.id, link: '/referrals' },
+          }).catch(() => null);
+        }
+      }
+    } catch { /* non-fatal */ }
+
     return NextResponse.json(
       { referral, trackToken: referral.trackToken },
       { status: 201, headers: corsHeaders() }

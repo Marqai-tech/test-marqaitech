@@ -165,6 +165,27 @@ export async function POST(
       },
     }).catch(() => null);
 
+    // GAP FIX #5: Notify HR when a panel member submits feedback
+    try {
+      if (decoded.tenantId) {
+        const hrUsers = await db.user.findMany({
+          where: { tenantId: decoded.tenantId, role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active' },
+          select: { id: true, email: true },
+        }).catch(() => []);
+        // Avoid hr@marqaitech.com per user instruction
+        const safeHrUsers = hrUsers.filter(u => !u.email?.includes('hr@marqaitech'));
+
+        for (const hr of safeHrUsers) {
+          await createNotification({
+            tenantId: decoded.tenantId as string, userId: hr.id,
+            title: 'Interview Feedback Submitted',
+            message: `A panel member has submitted feedback for interview ${id}. Rating: ${rating || 'N/A'}, Recommendation: ${finalRecommendation}.`,
+            type: 'info', category: 'recruitment', link: '/recruitment',
+          }).catch(() => null);
+        }
+      }
+    } catch { /* non-fatal */ }
+
     return NextResponse.json({ success: true, message: 'Feedback submitted' }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[InterviewFeedback] error:', error);

@@ -269,6 +269,38 @@ export async function PATCH(
       // Non-fatal
     }
 
+    // GAP FIX #3: Notify the referring employee when their referral status changes
+    try {
+      if (decoded.tenantId && updated.referrerEmployee?.id) {
+        // Find the user linked to the referring employee
+        const referrerUser = await db.user.findFirst({
+          where: { employeeId: updated.referrerEmployee.id, status: 'active' },
+          select: { id: true, email: true },
+        }).catch(() => null);
+
+        if (referrerUser) {
+          // Avoid hr@marqaitech.com per user instruction
+          if (!referrerUser.email?.includes('hr@marqaitech')) {
+            const { dispatchNotification } = await import('@/lib/notification-center');
+            const isHired = updated.status === 'hired';
+            await dispatchNotification({
+              tenantId: decoded.tenantId as string,
+              module: 'recruitment',
+              eventKey: isHired ? 'recruitment.referral.hired' : 'recruitment.referral.status_changed',
+              recipients: [{ userId: referrerUser.id }],
+              vars: {
+                Referrer_Name: `${updated.referrerEmployee?.firstName || ''} ${updated.referrerEmployee?.lastName || ''}`.trim(),
+                Candidate_Name: updated.candidateName,
+                Job_Title: updated.jobPosting?.title || 'a position',
+                Status: updated.status,
+              },
+              entity: { type: 'referral', id: updated.id, link: '/referrals' },
+            }).catch(() => null);
+          }
+        }
+      }
+    } catch { /* non-fatal */ }
+
     return NextResponse.json({ referral: updated }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Referral PATCH [id] error:', error);

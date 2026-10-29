@@ -491,6 +491,36 @@ export async function PATCH(req: NextRequest) {
         }
       } catch {}
 
+      // GAP FIX #4: Notify the CANDIDATE of reschedule (was missing)
+      try {
+        if (decoded.tenantId) {
+          const interviewRow = await db.$queryRawUnsafe(
+            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+             FROM "Interview" i
+             JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+             LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+             WHERE i."id" = $1 LIMIT 1`, id,
+          ) as any[];
+          if (interviewRow[0]?.candidateEmail) {
+            const { sendEmail } = await import('@/lib/email');
+            await sendEmail({
+              to: interviewRow[0].candidateEmail,
+              subject: 'Interview Rescheduled',
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#4f46e5;">Interview Rescheduled</h2>
+                <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
+                <p>Your interview for <strong>${interviewRow[0].jobTitle || 'the position'}</strong> has been rescheduled.</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                  <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">New Date:</td><td style="padding:8px;border:1px solid #ddd;">${newDate}</td></tr>
+                  <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">New Time:</td><td style="padding:8px;border:1px solid #ddd;">${newTime || 'TBD'}</td></tr>
+                </table>
+                <p>Please check your candidate portal for updated details.</p>
+              </div>`,
+            }).catch(() => null);
+          }
+        }
+      } catch {}
+
       // Audit log
       await db.auditLog.create({
         data: { userId: decoded.userId as string, action: 'INTERVIEW_RESCHEDULED', module: 'recruitment',
@@ -527,6 +557,33 @@ export async function PATCH(req: NextRequest) {
               title: 'Interview Cancelled',
               message: `An interview has been cancelled. Reason: ${cancelReason}`,
               type: 'warning', category: 'recruitment', link: '/my-interviews',
+            }).catch(() => null);
+          }
+        }
+      } catch {}
+
+      // GAP FIX #4: Notify the CANDIDATE of cancellation (was missing)
+      try {
+        if (decoded.tenantId) {
+          const interviewRow = await db.$queryRawUnsafe(
+            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+             FROM "Interview" i
+             JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+             LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+             WHERE i."id" = $1 LIMIT 1`, id,
+          ) as any[];
+          if (interviewRow[0]?.candidateEmail) {
+            const { sendEmail } = await import('@/lib/email');
+            await sendEmail({
+              to: interviewRow[0].candidateEmail,
+              subject: 'Interview Cancelled',
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#ef4444;">Interview Cancelled</h2>
+                <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
+                <p>Your interview for <strong>${interviewRow[0].jobTitle || 'the position'}</strong> has been cancelled.</p>
+                <p><strong>Reason:</strong> ${cancelReason}</p>
+                <p>If you have any questions, please contact the HR team.</p>
+              </div>`,
             }).catch(() => null);
           }
         }

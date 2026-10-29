@@ -278,8 +278,8 @@ export async function PATCH(
       where: tenantApplicationFilter(id, decodedRec),
     });
     if (application) {
-      // Task 166: validate status against enum
-      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'hired', 'rejected'];
+      // GAP FIX #10: Add 'withdrawn' and 'talent_pool' to valid statuses
+      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'hired', 'rejected', 'withdrawn', 'talent_pool'];
       if (status !== undefined && !validStatuses.includes(status)) {
         return NextResponse.json(
           { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },

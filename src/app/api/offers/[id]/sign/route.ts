@@ -145,6 +145,38 @@ export async function POST(
       },
     });
 
+    // GAP FIX #8: Dispatch offer accepted notification + update JobApplication to 'hired'
+    // (Previously the internal e-sign route set status='accepted' but dispatched NO notification
+    //  and didn't update the linked JobApplication — IT provisioning was never triggered)
+    try {
+      if (decoded.tenantId) {
+        const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+        const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
+        const itIds = await resolveRoleRecipients(db, ['it_admin', 'it_support', 'admin', 'system_admin'], 10);
+        const recipients = Array.from(new Set([...hrIds, ...itIds])).map((uid) => ({ userId: uid }));
+        if (recipients.length > 0) {
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: 'recruitment.offer.accepted',
+            recipients,
+            vars: {
+              Candidate_Name: offer.candidateName || '',
+              Position: offer.position || '',
+            },
+            entity: { type: 'offer', id, link: '/offers' },
+          }).catch(() => null);
+        }
+      }
+      // Update JobApplication to 'hired' if linked
+      if (offer.jobApplicationId) {
+        await db.$executeRawUnsafe(
+          `UPDATE "JobApplication" SET "status" = 'hired', "updatedAt" = NOW() WHERE "id" = $1`,
+          offer.jobApplicationId,
+        ).catch(() => null);
+      }
+    } catch { /* non-fatal */ }
+
     return NextResponse.json(
       {
         offer: updated,
