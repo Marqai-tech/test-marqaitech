@@ -287,6 +287,21 @@ export async function PATCH(
         );
       }
 
+      // Phase 7 fix: Prevent invalid status transitions
+      // Cannot jump directly to 'offered' or 'hired' without going through 'interview'
+      if (status === 'offered' && !['interview', 'offered', 'hired'].includes(application.status)) {
+        return NextResponse.json(
+          { error: 'Cannot move to Offered without completing the Interview stage first. Current status: ' + application.status },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      if (status === 'hired' && !['offered', 'hired'].includes(application.status)) {
+        return NextResponse.json(
+          { error: 'Cannot move to Hired without an Offer first. Current status: ' + application.status },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
       // Task 166/167: idempotency — don't re-update DB if status is the same,
       // BUT still send the candidate email (the user might be re-triggering the
       // notification manually). Only skip the DB write, not the email.

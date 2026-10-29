@@ -229,6 +229,18 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // Phase 2 fix: Add authentication + role check to jobs PUT
+    const { verifyToken, getTokenFromHeaders } = await import('@/lib/auth');
+    const token = getTokenFromHeaders(req as unknown as Request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can edit job postings' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -265,7 +277,7 @@ export async function PUT(req: NextRequest) {
         action: 'UPDATE_JOB_POSTING',
         entity: 'JobPosting',
         entityId: id,
-        userId: body.updatedBy || null,
+        userId: decoded.userId,
         details: `Updated job posting: ${existing.title}`,
       },
     }).catch(() => null);

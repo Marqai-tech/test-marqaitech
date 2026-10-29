@@ -126,7 +126,20 @@ export async function POST(
     } catch {}
 
     const validRecommendations = ['strong_hire', 'hire', 'hold', 'next_round', 'reject'];
-    const finalRecommendation = validRecommendations.includes(recommendation) ? recommendation : 'hold';
+    // Phase 11 fix: Reject invalid recommendations instead of silently defaulting to 'hold'
+    if (recommendation && !validRecommendations.includes(recommendation)) {
+      return NextResponse.json({ error: `Invalid recommendation. Must be one of: ${validRecommendations.join(', ')}` }, { status: 400, headers: corsHeaders() });
+    }
+    const finalRecommendation = recommendation || 'hold';
+
+    // Phase 11 fix: Validate rating range (1-5)
+    if (rating !== undefined && rating !== null && rating !== '') {
+      const ratingNum = Number(rating);
+      if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+        return NextResponse.json({ error: 'Rating must be between 1 and 5.' }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     const feedbackId = `fb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     // Use INSERT ... ON CONFLICT to handle both insert and update in one query.

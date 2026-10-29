@@ -394,6 +394,15 @@ export async function POST(request: Request) {
     }
 
     // Handle job posting creation
+    // Phase 2 fix: Enforce HR/Admin role check for job posting creation
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES.includes(decodedRec.role as string)) {
+      return NextResponse.json(
+        { error: 'Only HR/Admin can create job postings' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     const {
       title,
       departmentId,

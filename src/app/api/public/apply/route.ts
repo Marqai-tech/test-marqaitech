@@ -126,6 +126,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Phase 5 fix: Enforce closing date — reject applications past the deadline
+    try {
+      const closingDateRow = await db.$queryRawUnsafe(
+        `SELECT "closingDate" FROM "JobPosting" WHERE "id" = $1 LIMIT 1`,
+        jobPostingId,
+      ) as any[];
+      const closingDate = closingDateRow[0]?.closingDate;
+      if (closingDate && new Date(closingDate) < new Date()) {
+        return NextResponse.json(
+          { error: 'The application deadline for this job has passed.' },
+          { status: 410, headers: corsHeaders }
+        );
+      }
+    } catch { /* non-fatal — allow if closingDate column doesn't exist */ }
+
     // ===== Idempotency: prevent duplicate applications from same email =====
     const existing = await db.jobApplication.findFirst({
       where: {

@@ -106,6 +106,9 @@ export default function OffersPage() {
   const handleAddNew = () => {
     setForm(initialForm);
     setEditingId(null);
+    // Phase 13 fix: Clear jobApplicationId when opening a fresh offer form
+    // (previously it could retain the previous candidate's application link)
+    setJobApplicationId(null);
     setShowForm(true);
     setViewingId(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);

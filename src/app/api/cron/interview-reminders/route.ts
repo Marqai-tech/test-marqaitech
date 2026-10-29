@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
              FROM "Interview" i
              LEFT JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
              LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
-             WHERE i."status" = 'scheduled'
+             WHERE i."status" IN ('scheduled', 'rescheduled')
                AND i."date"::date = ($1::date + INTERVAL '1 day')::date`,
             now,
           ) as any[];
@@ -99,16 +99,19 @@ export async function POST(req: NextRequest) {
         } catch (e) { results.push(`24h reminder error: ${e instanceof Error ? e.message : e}`); }
 
         // 2. Reminders 1h before
+        // Phase 16 fix: The original SQL subtracted NOW from interview start,
+        // finding interviews ALREADY STARTED 30-90 min ago. Fixed to subtract
+        // NOW from interview start to find interviews STARTING in 30-90 min.
         try {
           const upcoming1h = await db.$queryRawUnsafe(
             `SELECT i."id", i."date", i."time", i."type", i."location", i."meetingUrl",
                     ja."candidateName"
              FROM "Interview" i
              LEFT JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
-             WHERE i."status" = 'scheduled'
+             WHERE i."status" IN ('scheduled', 'rescheduled')
                AND i."date"::date = $1::date
                AND i."time" IS NOT NULL
-               AND EXTRACT(EPOCH FROM (CAST($1 AS TIMESTAMP) - CAST(CONCAT(i."date"::date::text, ' ', i."time") AS TIMESTAMP))) / 3600 BETWEEN 0.5 AND 1.5`,
+               AND EXTRACT(EPOCH FROM (CAST(CONCAT(i."date"::date::text, ' ', i."time") AS TIMESTAMP) - CAST($1 AS TIMESTAMP))) / 3600 BETWEEN 0.5 AND 1.5`,
             now,
           ) as any[];
 

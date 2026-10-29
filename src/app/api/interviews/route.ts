@@ -154,6 +154,20 @@ export async function POST(req: NextRequest) {
     const validTypes = ['ai', 'technical', 'hr', 'offline_panel'];
     const interviewType = validTypes.includes(type) ? type : 'technical';
 
+    // Phase 8 fix: Validate duration (must be positive, max 480 min = 8 hours)
+    const durationNum = Number(duration) || 60;
+    if (durationNum < 5 || durationNum > 480) {
+      return NextResponse.json({ error: 'Duration must be between 5 and 480 minutes.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Phase 8 fix: Validate time is not in the past (if date is today)
+    if (time) {
+      const interviewDateTime = new Date(`${date}T${time}:00`);
+      if (interviewDateTime < new Date()) {
+        return NextResponse.json({ error: 'Interview time cannot be in the past.' }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     // Store panel member IDs as comma-separated string in the interviewer field
     // Task 167: support both panelMemberIds (user IDs) and panelMemberEmails (emails)
     let panelMembers: string[] = [];
@@ -634,8 +648,9 @@ export async function PATCH(req: NextRequest) {
       );
 
       // Update JobApplication status based on decision
+      // Phase 12 fix: shortlist should map to 'shortlisted' not 'screening'
       const decisionToAppStatus: Record<string, string> = {
-        next_round: 'interview', shortlist: 'screening', hold: 'interview',
+        next_round: 'interview', shortlist: 'shortlisted', hold: 'interview',
         reject: 'rejected', offer: 'offered', schedule_another: 'interview',
       };
       const newAppStatus = decisionToAppStatus[decision] || 'interview';

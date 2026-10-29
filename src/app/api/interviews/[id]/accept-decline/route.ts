@@ -48,6 +48,11 @@ export async function POST(
       return NextResponse.json({ error: 'You can only respond to interviews assigned to your own account.' }, { status: 403, headers: corsHeaders() });
     }
 
+    // Phase 9 fix: Decline and reschedule MUST include a reason
+    if ((action === 'decline' || action === 'request_reschedule') && (!reason || !reason.trim())) {
+      return NextResponse.json({ error: `A reason is required for ${action === 'decline' ? 'declining' : 'requesting a reschedule'}.` }, { status: 400, headers: corsHeaders() });
+    }
+
     // Ensure the InterviewPanelMember table exists
     try {
       await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InterviewPanelMember" (

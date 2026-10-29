@@ -251,7 +251,10 @@ export async function POST(request: Request) {
         expectedJoiningDate: expectedJoiningDate ? new Date(expectedJoiningDate) : null,
         approvalStatus,
         status: isDraft ? 'draft' : 'open',
-      },
+        // Phase 3 fix: persist positionTitle and reason (were only in SQL fallback)
+        positionTitle: positionTitle || null,
+        reason: reason || null,
+      } as any, // cast to any to allow optional fields not in the Prisma schema yet
       include: {
         department: { select: { id: true, name: true } },
         designation: { select: { id: true, title: true } },
