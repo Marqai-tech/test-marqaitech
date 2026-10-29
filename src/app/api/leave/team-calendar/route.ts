@@ -81,13 +81,17 @@ export async function GET(req: NextRequest) {
     const monthStart = new Date(Date.UTC(year, month, 1));
     const monthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
 
-    // Resolve the acting employee
+    // Resolve the acting employee (also for admins — they may have an
+    // employee record linked to their user account).
     const me = await db.employee.findFirst({
       where: { userId: scope.userId, status: 'active' },
-      select: { id: true, departmentId: true, companyId: true, firstName: true, lastName: true, employeeId: true },
+      select: { id: true, departmentId: true, companyId: true, firstName: true, lastName: true, employeeId: true, userId: true },
     });
 
-    const isAdminRole = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(auth.role);
+    // Admin roles — includes 'ceo' so the calendar works for every role
+    // that has company-wide visibility. Employees and managers see their
+    // own department.
+    const isAdminRole = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(auth.role);
 
     // Build the team-member filter
     //  - Employees & managers: same department (or all reporters if manager)
@@ -128,9 +132,26 @@ export async function GET(req: NextRequest) {
       }, { headers: corsHeaders() });
     }
 
-    // Exclude self if requested
-    if (!includeSelf && me) {
-      teamFilter = { ...teamFilter, id: { not: me.id } };
+    // Exclude self if requested.
+    // Two-pronged approach so it works for EVERY role:
+    //   1. me?.id       — excludes the user's employee record (employees,
+    //                     managers, admins with a linked employee record)
+    //   2. scope.userId — excludes any employee whose userId matches the
+    //                     acting user (catches admins who ALSO have an
+    //                     employee record under a different employee.id,
+    //                     and tenant_admin/super_admin who log in via User
+    //                     but don't have an employee row)
+    if (!includeSelf) {
+      const notIds: string[] = [];
+      if (me?.id) notIds.push(me.id);
+      teamFilter = {
+        ...teamFilter,
+        ...(notIds.length > 0 ? { id: { notIn: notIds } } : {}),
+        // Always also exclude by userId — catches the case where the acting
+        // user has an employee record but `me` didn't match (e.g., status
+        // not 'active', or different companyId).
+        userId: { not: scope.userId },
+      };
     }
 
     const teamMembers = await db.employee.findMany({
