@@ -144,6 +144,9 @@ function TeamLeaveCalendarContent() {
   const [data, setData] = useState<CalendarResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null); // YYYY-MM-DD
+  // Default: hide the user's own leaves — calendar shows OTHER team members
+  // only. Toggle on to also include self.
+  const [includeSelf, setIncludeSelf] = useState(false);
 
   const monthStr = `${year}-${pad(month + 1)}`;
 
@@ -151,7 +154,7 @@ function TeamLeaveCalendarContent() {
     setLoading(true);
     try {
       const sq = scopeQuery();
-      const url = `/api/leave/team-calendar?month=${monthStr}${sq ? `&${sq}` : ''}`;
+      const url = `/api/leave/team-calendar?month=${monthStr}&includeSelf=${includeSelf ? 'true' : 'false'}${sq ? `&${sq}` : ''}`;
       const r = await fetch(url, { headers: getAuthHeaders() });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
@@ -166,7 +169,7 @@ function TeamLeaveCalendarContent() {
     } finally {
       setLoading(false);
     }
-  }, [monthStr, scopeQuery]);
+  }, [monthStr, includeSelf, scopeQuery]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -265,6 +268,19 @@ function TeamLeaveCalendarContent() {
           >
             Today
           </button>
+          {/* Show/Hide my own leaves — by default OFF so the calendar
+              shows OTHER team members only (the user already knows their
+              own leaves). */}
+          <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border cursor-pointer transition-colors ${includeSelf ? 'bg-violet-50 border-violet-300 text-violet-700' : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'}`}>
+            <input
+              type="checkbox"
+              checked={includeSelf}
+              onChange={e => setIncludeSelf(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-slate-300 text-violet-500 focus:ring-violet-500/20"
+            />
+            <FiUser className="w-3.5 h-3.5" />
+            Show my leaves too
+          </label>
           <button
             onClick={fetchData}
             disabled={loading}
@@ -282,7 +298,7 @@ function TeamLeaveCalendarContent() {
         <div className="text-sm text-violet-800">
           <p className="font-medium mb-1">How to use this calendar</p>
           <p className="text-xs leading-relaxed">
-            Each day shows the team members who have approved or pending leave on that date.
+            Shows <strong>other team members</strong> who have approved or pending leave on each date — your own leaves are hidden by default (toggle "Show my leaves too" above to include them).
             Days with <span className="font-semibold">3+ team members out (or 30%+ of your team)</span> are marked as
             "high impact" — approval chances for new leave on those dates are lower. Click any day to see full details.
           </p>

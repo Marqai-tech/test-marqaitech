@@ -136,6 +136,22 @@ function dayKey(iso: string | null | undefined) {
   return String(iso).slice(0, 10);
 }
 
+/** Format a leave record's date range for the self-overlap warning.
+ *  e.g. "2026-11-05" → "Nov 5, 2026"
+ *       "2026-11-05 to 2026-11-08" → "Nov 5 – Nov 8, 2026" */
+function formatSelfRange(l: { startDate?: string | null; endDate?: string | null; halfDay?: boolean }): string {
+  const s = dayKey(l.startDate);
+  const e = dayKey(l.endDate);
+  if (!s) return '';
+  const sDate = new Date(`${s}T00:00:00`);
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (!e || s === e) {
+    return `${fmt(sDate)}${l.halfDay ? ' (half day)' : ''}`;
+  }
+  const eDate = new Date(`${e}T00:00:00`);
+  return `${fmt(sDate)} – ${fmt(eDate)}${l.halfDay ? ' (half day)' : ''}`;
+}
+
 function getDaysBetween(start: string, end: string, holidayDates: Set<string> = new Set()) {
   if (!start || !end) return 0;
   const s = new Date(`${start}T00:00:00`);
@@ -433,6 +449,61 @@ export default function LeaveRequestPanel({
     }
     return null;
   }, [form.startDate, teamOnLeaveDuringRange]);
+
+  /* ── Self-overlap check — does the user already have leave on the picked dates? ── */
+  // Fetches the user's OWN leaves (view=self) for the current month and
+  // checks if the picked [startDate, endDate] range overlaps with any
+  // existing pending/approved leave. If yes, shows a clear inline warning
+  // "You already have leave on these dates" — so the user finds out BEFORE
+  // hitting submit (which would return 409 "Duplicate leave request").
+  const [selfLeaves, setSelfLeaves] = useState<TeamLeave[]>([]);
+  useEffect(() => {
+    if (!employeeId) {
+      setSelfLeaves([]);
+      return;
+    }
+    // Fetch a wide date range (1 year around today) so we catch any
+    // existing leave regardless of which month the user picks.
+    const today = new Date();
+    const fromD = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+    const toD = new Date(today.getFullYear(), today.getMonth() + 6, 0);
+    const fromDate = isoDay(fromD);
+    const toDate = isoDay(toD);
+    const url =
+      `/api/leave?fromDate=${fromDate}&toDate=${toDate}&view=self&limit=200` +
+      (scopeQuery ? `&${scopeQuery}` : '');
+    let cancelled = false;
+    const runFetch = async () => {
+      try {
+        const r = await fetch(url, { headers: getAuthHeaders() });
+        if (cancelled) return;
+        if (!r.ok) { setSelfLeaves([]); return; }
+        const d = await r.json();
+        if (cancelled) return;
+        setSelfLeaves(d.leaveRequests || []);
+      } catch {
+        if (!cancelled) setSelfLeaves([]);
+      }
+    };
+    void runFetch();
+    return () => { cancelled = true; };
+  }, [employeeId, scopeQuery]);
+
+  // Compute overlap of the picked range with the user's own leaves
+  const selfOverlapLeaves = useMemo(() => {
+    if (!form.startDate || !form.endDate || selfLeaves.length === 0) return [];
+    const start = new Date(`${form.startDate}T00:00:00`);
+    const end = new Date(`${form.endDate}T00:00:00`);
+    return selfLeaves.filter((l) => {
+      if (l.status === 'cancelled' || l.status === 'rejected') return false;
+      const lStart = new Date(`${dayKey(l.startDate)}T00:00:00`);
+      const lEnd = new Date(`${dayKey(l.endDate)}T00:00:00`);
+      // Overlap condition
+      return lStart <= end && lEnd >= start;
+    });
+  }, [form.startDate, form.endDate, selfLeaves]);
+
+  const hasSelfOverlap = selfOverlapLeaves.length > 0;
 
   /* ── Notify employees search ── */
   const [empSearch, setEmpSearch] = useState('');
@@ -898,6 +969,33 @@ export default function LeaveRequestPanel({
             )}
           </div>
 
+          {/* 9b. Self-overlap warning — user already has leave on these dates */}
+          {form.startDate && form.endDate && hasSelfOverlap && (
+            <div className="p-3 rounded-lg border border-red-300 bg-red-50">
+              <p className="text-xs text-red-800 flex items-start gap-1.5">
+                <FiAlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <span>
+                  <strong>You already have leave on these dates.</strong>{' '}
+                  {selfOverlapLeaves.length === 1
+                    ? `Existing request: ${formatSelfRange(selfOverlapLeaves[0])}.`
+                    : `${selfOverlapLeaves.length} existing requests overlap with this range.`}
+                  {' '}
+                  Pick different dates, or cancel the existing request first.
+                </span>
+              </p>
+              <ul className="mt-1.5 space-y-0.5 pl-5">
+                {selfOverlapLeaves.slice(0, 3).map((l) => (
+                  <li key={l.id} className="text-xs text-red-700">
+                    • {formatSelfRange(l)} — <span className="font-medium">{l.leaveType?.name || 'Leave'}</span> ({l.status})
+                  </li>
+                ))}
+                {selfOverlapLeaves.length > 3 && (
+                  <li className="text-xs text-red-600 italic">+ {selfOverlapLeaves.length - 3} more…</li>
+                )}
+              </ul>
+            </div>
+          )}
+
           {/* 10. AI Collaborative Check — team-conflict warning */}
           {form.startDate && form.endDate && (
             <div
@@ -978,10 +1076,10 @@ export default function LeaveRequestPanel({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting || errors.length > 0}
+              disabled={submitting || errors.length > 0 || hasSelfOverlap}
               className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors"
             >
-              {submitting ? 'Submitting...' : 'Request Leave'}
+              {submitting ? 'Submitting...' : hasSelfOverlap ? 'Already on leave these dates' : 'Request Leave'}
             </button>
           </div>
         </div>

@@ -62,7 +62,12 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const monthParam = searchParams.get('month'); // YYYY-MM
-    const includeSelf = (searchParams.get('includeSelf') ?? 'true') === 'true';
+    // Default: hide the current user's own leaves — the calendar is meant to
+    // show OTHER team members' availability so the user can pick a date when
+    // fewer coworkers are out. The user already knows their own leaves.
+    // Pass ?includeSelf=true to also include self (e.g. for a "show my leaves
+    // too" toggle in the UI).
+    const includeSelf = (searchParams.get('includeSelf') ?? 'false') === 'true';
     const departmentId = searchParams.get('departmentId'); // optional filter
 
     // Default to current month if not specified
