@@ -73,6 +73,8 @@ export async function POST(
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
         CONSTRAINT "InterviewFeedback_pkey" PRIMARY KEY ("id")
       )`);
+    } catch (e) { console.warn('[Feedback] table create:', e instanceof Error ? e.message : e); }
+    try {
       await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "InterviewFeedback_interviewId_userId_idx" ON "InterviewFeedback"("interviewId", "userId")`);
     } catch {}
 
@@ -126,7 +128,7 @@ export async function POST(
     return NextResponse.json({ success: true, message: 'Feedback submitted' }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[InterviewFeedback] error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500, headers: corsHeaders() });
   }
 }
 
