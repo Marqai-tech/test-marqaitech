@@ -238,6 +238,18 @@ export async function POST(
             ai: 'AI Interview', technical: 'Technical Interview', hr: 'HR Interview', offline_panel: 'Panel Interview',
           };
           const typeLabel = typeLabels[interview.type] || 'Interview';
+
+          // Phase 9 fix: Also notify the OLD member they were replaced (access removed)
+          try {
+            await createNotification({
+              tenantId: decoded.tenantId as string, userId: oldUserId,
+              title: 'Panel Assignment Removed',
+              message: `You have been removed from the interview panel for ${interview.candidateName || 'a candidate'} (${interview.jobTitle || 'position'}) on ${dateStr}. Reason: ${reason || 'Replaced by HR'}. Your candidate access has been revoked.`,
+              type: 'info', category: 'recruitment', link: '/my-interviews',
+            });
+          } catch { /* non-fatal */ }
+
+          // Notify the new member
           await createNotification({
             tenantId: decoded.tenantId as string, userId: newUserId,
             title: `Interview Assigned: ${typeLabel} (Replacement)`,

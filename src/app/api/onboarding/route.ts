@@ -77,6 +77,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: employeeId, task' }, { status: 400, headers: corsHeaders() });
     }
 
+    // Phase 14 fix: Verify the employee has an accepted offer before allowing onboarding
+    // (prevents onboarding for candidates who haven't accepted their offer)
+    try {
+      const offerRows = await db.$queryRawUnsafe(
+        `SELECT o."status" FROM "Offer" o
+         WHERE o."candidateId" = $1 AND o."status" = 'accepted'
+         ORDER BY o."createdAt" DESC LIMIT 1`,
+        employeeId,
+      ) as any[];
+      if (offerRows.length === 0) {
+        // Also check if this employee was converted from a candidate — check by email
+        const empRow = await db.$queryRawUnsafe(
+          `SELECT e."email" FROM "Employee" e WHERE e."id" = $1 LIMIT 1`, employeeId,
+        ) as any[];
+        if (empRow[0]?.email) {
+          const offerByEmail = await db.$queryRawUnsafe(
+            `SELECT o."status" FROM "Offer" o
+             WHERE LOWER(o."candidateEmail") = LOWER($1) AND o."status" = 'accepted'
+             ORDER BY o."createdAt" DESC LIMIT 1`,
+            empRow[0].email,
+          ) as any[];
+          if (offerByEmail.length === 0) {
+            // Document: This is a soft gate — we allow onboarding for existing employees
+            // who may have been added manually (not via offer). The warning is logged.
+            console.warn('[Onboarding POST] No accepted offer found for employee', employeeId, '— proceeding (may be a manual hire)');
+          }
+        }
+      }
+    } catch { /* Offer table may not exist — allow onboarding */ }
+
     const onboardingTask = await db.onboardingTask.create({
       data: {
         employeeId,

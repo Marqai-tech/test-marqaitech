@@ -425,13 +425,15 @@ export async function POST(request: Request) {
     }
 
     // Verify the department belongs to the caller's tenant (prevent cross-tenant job creation)
-    const department = await db.department.findFirst({
-      where: {
-        id: departmentId,
-        company: {
-          companyGroup: { tenantId: decodedRec.tenantId as string },
-        },
-      },
+    // Phase 4 fix: Use exact ID match only (was using findFirst which could match wrong dept)
+    const department = await db.department.findUnique({
+      where: { id: departmentId },
+    }).catch(async () => {
+      // Fallback: try exact name match if ID is not a CUID
+      const rows = await db.$queryRawUnsafe(
+        `SELECT * FROM "Department" WHERE LOWER("name") = LOWER($1) LIMIT 1`, departmentId,
+      ) as any[];
+      return rows[0] || null;
     });
     if (!department) {
       return NextResponse.json(

@@ -725,6 +725,54 @@ export async function PATCH(req: NextRequest) {
           details: `HR decision for interview ${id}: ${decision}${decisionReason ? ` — ${decisionReason}` : ''}` },
       }).catch(() => null);
 
+      // Phase 12 fix: Notify HR team of the decision (was audit-log-only)
+      try {
+        if (decoded.tenantId) {
+          const hrUsers = await db.user.findMany({
+            where: { tenantId: decoded.tenantId, role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active' },
+            select: { id: true, email: true },
+          }).catch(() => []);
+          const safeHrUsers = hrUsers.filter(u => !u.email?.includes('hr@marqaitech'));
+          for (const hr of safeHrUsers) {
+            await createNotification({
+              tenantId: decoded.tenantId as string, userId: hr.id,
+              title: `Interview Decision: ${decision}`,
+              message: `HR decision recorded for interview ${id}: ${decision}${decisionReason ? ` — ${decisionReason}` : ''}`,
+              type: 'info', category: 'recruitment', link: '/recruitment',
+            }).catch(() => null);
+          }
+        }
+      } catch { /* non-fatal */ }
+
+      // Phase 12 fix: Send candidate email on reject/offer decision
+      if (decision === 'reject' || decision === 'offer') {
+        try {
+          const interviewRow = await db.$queryRawUnsafe(
+            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+             FROM "Interview" i
+             JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+             LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+             WHERE i."id" = $1 LIMIT 1`, id,
+          ) as any[];
+          if (interviewRow[0]?.candidateEmail) {
+            const { sendEmail } = await import('@/lib/email');
+            const decisionLabel = decision === 'reject' ? 'Unfortunately, you have not been selected' : 'Congratulations! You have been selected for an offer';
+            await sendEmail({
+              to: interviewRow[0].candidateEmail,
+              subject: decision === 'reject' ? 'Application Update' : 'Congratulations — Offer Update',
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:${decision === 'reject' ? '#ef4444' : '#10b981'};">${decisionLabel}</h2>
+                <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
+                <p>Regarding your application for <strong>${interviewRow[0].jobTitle || 'the position'}</strong>:</p>
+                <p>${decision === 'reject' ? 'Thank you for your interest. We appreciate the time you invested in the interview process. Unfortunately, we are unable to proceed with your application at this time.' : 'We are pleased to inform you that you have been selected. Our HR team will be in touch shortly with an offer.'}</p>
+                ${decisionReason ? `<p><strong>Notes:</strong> ${decisionReason}</p>` : ''}
+                <p>Thank you for your interest in joining our team.</p>
+              </div>`,
+            }).catch(() => null);
+          }
+        } catch { /* non-fatal */ }
+      }
+
       return NextResponse.json({ success: true, message: `Decision recorded: ${decision}`, newAppStatus }, { headers: corsHeaders() });
     }
 
@@ -735,6 +783,17 @@ export async function PATCH(req: NextRequest) {
       if (!recommendation || !validRecs.includes(recommendation)) {
         return NextResponse.json({ error: `Invalid recommendation. Must be: ${validRecs.join(', ')}` }, { status: 400, headers: corsHeaders() });
       }
+
+      // Phase 9 fix: Verify the caller is the assigned panel lead (or HR/Admin override)
+      try {
+        const leadRow = await db.$queryRawUnsafe(
+          `SELECT "panelLeadId" FROM "Interview" WHERE "id" = $1 LIMIT 1`, id,
+        ) as any[];
+        const panelLeadId = leadRow[0]?.panelLeadId;
+        if (panelLeadId && panelLeadId !== decoded.userId && !HR_ROLES.includes((decoded.role as string) || '')) {
+          return NextResponse.json({ error: 'Only the assigned panel lead or HR can submit the combined recommendation.' }, { status: 403, headers: corsHeaders() });
+        }
+      } catch { /* allow if column doesn't exist yet */ }
 
       await db.$executeRawUnsafe(
         `UPDATE "Interview" SET "panelLeadRecommendation" = $1, "panelLeadNotes" = $2, "updatedAt" = NOW() WHERE "id" = $3`,
