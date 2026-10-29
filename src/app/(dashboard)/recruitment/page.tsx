@@ -327,18 +327,29 @@ export default function RecruitmentPage() {
 
   // Task 167: Interview scheduling state
   const [scheduleAppId, setScheduleAppId] = useState<string | null>(null);
+  const [scheduleAppDept, setScheduleAppDept] = useState<string>('');
   const [interviewForm, setInterviewForm] = useState({
-    type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '', panelMemberEmail: '',
+    type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '',
   });
+  const [panelMembers, setPanelMembers] = useState<Array<{id: string; name: string; email: string; designation: string; department: string; availability: string; reason: string}>>([]);
+  const [selectedPanelEmails, setSelectedPanelEmails] = useState<string[]>([]);
+  const [loadingPanel, setLoadingPanel] = useState(false);
   const [schedulingInterview, setSchedulingInterview] = useState(false);
 
   // Task 167: Schedule interview handler
   const handleScheduleInterview = async () => {
     if (!scheduleAppId || !interviewForm.date) { toast.error('Date is required'); return; }
-    if (!interviewForm.panelMemberEmail) { toast.error('Panel member email is required'); return; }
+    if (selectedPanelEmails.length === 0) { toast.error('Select at least one panel member'); return; }
+    // Warn if any selected member is not Available
+    const busyMembers = selectedPanelEmails.filter(email => {
+      const m = panelMembers.find(p => p.email === email);
+      return m && m.availability !== 'Available';
+    });
+    if (busyMembers.length > 0) {
+      if (!window.confirm(`Some selected panel members are not available: ${busyMembers.join(', ')}. Continue anyway?`)) return;
+    }
     setSchedulingInterview(true);
     try {
-      // Find the panel member's user ID by email
       const res = await fetch('/api/interviews', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -350,14 +361,16 @@ export default function RecruitmentPage() {
           duration: Number(interviewForm.duration) || 60,
           location: interviewForm.location || undefined,
           meetingUrl: interviewForm.meetingUrl || undefined,
-          panelMemberEmails: [interviewForm.panelMemberEmail],
+          panelMemberEmails: selectedPanelEmails,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to schedule interview');
-      toast.success(`Interview scheduled — ${interviewForm.panelMemberEmail} has been notified`);
+      toast.success(`Interview scheduled — ${selectedPanelEmails.length} panel member(s) notified`);
       setScheduleAppId(null);
-      setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '', panelMemberEmail: '' });
+      setSelectedPanelEmails([]);
+      setPanelMembers([]);
+      setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
       fetchData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to schedule interview');
@@ -365,6 +378,35 @@ export default function RecruitmentPage() {
       setSchedulingInterview(false);
     }
   };
+
+  // Task 167: Fetch panel members with availability when date/time changes
+  const fetchPanelAvailability = useCallback(async () => {
+    if (!scheduleAppDept || !interviewForm.date) { setPanelMembers([]); return; }
+    setLoadingPanel(true);
+    try {
+      const params = new URLSearchParams({
+        departmentId: scheduleAppDept,
+        date: interviewForm.date,
+        time: interviewForm.time || '',
+        duration: String(interviewForm.duration || 60),
+        interviewType: interviewForm.type,
+      });
+      const res = await fetch(`/api/interviews/panel-availability?${params}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setPanelMembers(data.employees || []);
+      }
+    } catch { /* non-fatal */ }
+    finally { setLoadingPanel(false); }
+  }, [scheduleAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type]);
+
+  useEffect(() => {
+    if (scheduleAppId && interviewForm.date) {
+      fetchPanelAvailability();
+    } else {
+      setPanelMembers([]);
+    }
+  }, [scheduleAppId, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type, fetchPanelAvailability]);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -1608,7 +1650,12 @@ export default function RecruitmentPage() {
                               ) : (
                                 <div className="flex items-center justify-end gap-1">
                                   {isAdmin && (app.status === 'interview' || app.status === 'shortlisted' || app.status === 'screening') && (
-                                    <button onClick={() => setScheduleAppId(app.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors" title="Schedule Interview">
+                                    <button onClick={() => {
+                                      setScheduleAppId(app.id);
+                                      // Find the job posting's department
+                                      const job = jobPostings.find(j => j.id === app.jobPostingId);
+                                      setScheduleAppDept(job?.department?.name || job?.department?.id || '');
+                                    }} className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors" title="Schedule Interview">
                                       <FiCalendar className="w-4 h-4" />
                                     </button>
                                   )}
@@ -2280,9 +2327,50 @@ function ParsedResumePanel({
                 <input value={interviewForm.meetingUrl} onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })} placeholder="e.g. https://meet.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Assign Panel Member (email) *</label>
-                <input value={interviewForm.panelMemberEmail} onChange={(e) => setInterviewForm({ ...interviewForm, panelMemberEmail: e.target.value })} placeholder="e.g. itadmin@marqaitech.com" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
-                <p className="text-xs text-thb-text-muted mt-1">This person will receive a notification and see the interview under My Interviews.</p>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Panel Members (from {scheduleAppDept || 'department'}) *</label>
+                <p className="text-xs text-thb-text-muted mb-2">Only employees from the job's department are shown. Select one or more available members.</p>
+                {loadingPanel ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Loading panel members…</div>
+                ) : !interviewForm.date ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Pick a date to load available panel members</div>
+                ) : panelMembers.length === 0 ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">No employees found in this department</div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
+                    {panelMembers.map((m) => {
+                      const isSelected = selectedPanelEmails.includes(m.email);
+                      const availBadge: Record<string, string> = {
+                        Available: 'bg-emerald-50 text-emerald-700',
+                        Busy: 'bg-red-50 text-red-700',
+                        'On Leave': 'bg-amber-50 text-amber-700',
+                        Tentative: 'bg-blue-50 text-blue-700',
+                      };
+                      return (
+                        <label key={m.id} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'} ${m.availability === 'Busy' || m.availability === 'On Leave' ? 'opacity-60' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedPanelEmails([...selectedPanelEmails, m.email]);
+                              else setSelectedPanelEmails(selectedPanelEmails.filter(e => e !== m.email));
+                            }}
+                            className="w-4 h-4 rounded text-teal-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
+                            <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
+                          </div>
+                          <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`}>
+                            {m.availability}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {selectedPanelEmails.length > 0 && (
+                  <p className="text-xs text-teal-600 mt-1">{selectedPanelEmails.length} member(s) selected</p>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">

@@ -112,8 +112,6 @@ export default function RequisitionsPage() {
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [form, setForm] = useState(initialForm);
   const [scope, setScope] = useState<'all' | 'mine'>('all');
-  // Department + Designation dropdowns: fetched from the DB so the manager
-  // selects a valid record instead of typing free text that may not match.
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [designations, setDesignations] = useState<Array<{ id: string; title: string }>>([]);
 
