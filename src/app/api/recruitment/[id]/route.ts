@@ -287,10 +287,73 @@ export async function PATCH(
         );
       }
 
-      // Task 166: idempotency — don't re-update if status is the same
-      if (status !== undefined && status === application.status) {
+      // Task 166/167: idempotency — don't re-update DB if status is the same,
+      // BUT still send the candidate email (the user might be re-triggering the
+      // notification manually). Only skip the DB write, not the email.
+      const isSameStatus = status !== undefined && status === application.status;
+      if (isSameStatus) {
+        // Skip the DB update but continue to the email notification below.
+        // Set 'updated' to the existing application so the email code has the data.
+        const updated = application;
+        // Task 166/167: notify the candidate of status change (email)
+        if (status !== undefined && updated.candidateEmail) {
+          try {
+            const { sendEmail } = await import('@/lib/email');
+            const { sendTenantEmail } = await import('@/lib/notification-channels');
+            const statusLabels: Record<string, string> = {
+              screening: 'Under Screening',
+              shortlisted: 'Shortlisted',
+              interview: 'Selected for Interview',
+              offered: 'Offer Extended',
+              hired: 'Hired',
+              rejected: 'Rejected',
+            };
+            const statusLabel = statusLabels[status] || status;
+            let jobTitle = 'the position';
+            try {
+              const jobRows = await db.$queryRawUnsafe(
+                `SELECT jp."title" FROM "JobPosting" jp
+                 JOIN "JobApplication" ja ON ja."jobPostingId" = jp."id"
+                 WHERE ja."id" = $1 LIMIT 1`, id,
+              ) as any[];
+              if (jobRows[0]?.title) jobTitle = jobRows[0].title;
+            } catch {}
+
+            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <h2 style="color:#4f46e5;">Application Status Update</h2>
+              <p>Dear ${updated.candidateName},</p>
+              <p>Your application for <strong>${jobTitle}</strong> has been updated to: <strong>${statusLabel}</strong>.</p>
+              ${status === 'rejected' ? '<p>We appreciate your interest and wish you the best in your job search.</p>' : ''}
+              ${status === 'interview' ? '<p>Please watch for further communication regarding interview scheduling.</p>' : ''}
+              ${status === 'offered' ? '<p>Congratulations! Please check your email for offer details.</p>' : ''}
+              <p>Thank you for your interest in joining our team.</p>
+              <p>Regards,<br/>HR Team</p>
+            </div>`;
+            let emailSent = false;
+            let emailError = '';
+            try {
+              const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+                to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
+              });
+              emailSent = emailRes.success;
+              emailError = emailRes.error || '';
+            } catch {}
+            if (!emailSent) {
+              try {
+                const fallbackRes = await sendEmail({
+                  to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
+                });
+                emailSent = fallbackRes.success;
+                emailError = fallbackRes.error || '';
+              } catch (e) { emailError = e instanceof Error ? e.message : String(e); }
+            }
+            console.log(`[Recruitment PATCH] Candidate email (re-send) to ${updated.candidateEmail}: ${emailSent ? 'SENT' : 'FAILED'} — ${emailError}`);
+          } catch (emailErr) {
+            console.warn('[Recruitment PATCH] Candidate email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
+          }
+        }
         return NextResponse.json(
-          { application, message: 'Status unchanged' },
+          { application, message: 'Status unchanged — notification re-sent' },
           { headers: corsHeaders() }
         );
       }
