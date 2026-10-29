@@ -16,8 +16,8 @@ function getAuthHeaders() {
 }
 
 interface Requisition {
-  id: string; requisitionId: string; positionType: string; numberOfOpenings: number; employmentType: string; priority: string; approvalStatus: string; status: string; skillsRequired: string | null; experienceRequired: string | null; qualification: string | null; salaryBudget: string | null; expectedJoiningDate: string | null; companyId?: string; hiringManagerId?: string;
-  department?: { name: string } | null; designation?: { title: string } | null;
+  id: string; requisitionId: string; positionType: string; numberOfOpenings: number; employmentType: string; priority: string; approvalStatus: string; status: string; skillsRequired: string | null; experienceRequired: string | null; qualification: string | null; salaryBudget: string | null; expectedJoiningDate: string | null; companyId?: string; hiringManagerId?: string; positionTitle?: string;
+  department?: { id?: string; name: string } | null; designation?: { id?: string; title: string } | null;
 }
 
 interface ApprovalHistoryEntry {
@@ -112,6 +112,34 @@ export default function RequisitionsPage() {
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [form, setForm] = useState(initialForm);
   const [scope, setScope] = useState<'all' | 'mine'>('all');
+  // Department + Designation dropdowns: fetched from the DB so the manager
+  // selects a valid record instead of typing free text that may not match.
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [designations, setDesignations] = useState<Array<{ id: string; title: string }>>([]);
+
+  // Fetch departments + designations for the dropdowns.
+  const fetchDeptDesignations = useCallback(async () => {
+    try {
+      const [deptRes, desigRes] = await Promise.all([
+        fetch('/api/departments?limit=100', { headers: getAuthHeaders() }).catch(() => null),
+        fetch('/api/designations?limit=100', { headers: getAuthHeaders() }).catch(() => null),
+      ]);
+      if (deptRes?.ok) {
+        const deptData = await deptRes.json();
+        const deptList = deptData.departments || deptData.data || (Array.isArray(deptData) ? deptData : []);
+        setDepartments(deptList.map((d: any) => ({ id: d.id, name: d.name })));
+      }
+    } catch { /* non-fatal — fallback to text input */ }
+    try {
+      if (desigRes?.ok) {
+        const desigData = await desigRes.json();
+        const desigList = desigData.designations || desigData.data || (Array.isArray(desigData) ? desigData : []);
+        setDesignations(desigList.map((d: any) => ({ id: d.id, title: d.title })));
+      }
+    } catch { /* non-fatal — fallback to text input */ }
+  }, []);
+
+  useEffect(() => { fetchDeptDesignations(); }, [fetchDeptDesignations]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -134,8 +162,9 @@ export default function RequisitionsPage() {
 
   const handleEdit = (item: Requisition) => {
     setForm({
-      departmentId: item.department?.name || '',
-      designationId: item.designation?.title || '',
+      departmentId: item.department?.id || item.department?.name || '',
+      designationId: item.designation?.id || item.designation?.title || '',
+      positionTitle: item.positionTitle || item.designation?.title || '',
       positionType: item.positionType || 'new',
       numberOfOpenings: item.numberOfOpenings || 1,
       employmentType: item.employmentType || 'full-time',
@@ -411,11 +440,25 @@ export default function RequisitionsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500 font-bold">*</span></label>
-                <input required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} placeholder="Department name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                {departments.length > 0 ? (
+                  <select required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                    <option value="">Select department…</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                ) : (
+                  <input required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} placeholder="Department name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position / Designation</label>
-                <input value={form.positionTitle} onChange={(e) => setForm({ ...form, positionTitle: e.target.value, designationId: e.target.value })} placeholder="e.g. Data Engineer 2" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                {designations.length > 0 ? (
+                  <select value={form.designationId} onChange={(e) => { const desig = designations.find(d => d.id === e.target.value); setForm({ ...form, designationId: e.target.value, positionTitle: desig?.title || form.positionTitle }); }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                    <option value="">Select designation…</option>
+                    {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                  </select>
+                ) : (
+                  <input value={form.positionTitle} onChange={(e) => setForm({ ...form, positionTitle: e.target.value, designationId: e.target.value })} placeholder="e.g. Data Engineer 2" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position Type</label>

@@ -166,33 +166,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Could not resolve company. Please contact admin.' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Resolve departmentId: if it's a name (not a CUID), look it up
+    // Resolve departmentId: if it's a name (not a CUID), look it up or create it
     if (resolvedDepartmentId && !resolvedDepartmentId.startsWith('cm')) {
       const deptRows = await db.$queryRawUnsafe(
-        `SELECT "id" FROM "Department" WHERE LOWER("name") LIKE LOWER($1) LIMIT 1`,
-        `%${resolvedDepartmentId}%`,
+        `SELECT "id" FROM "Department" WHERE LOWER("name") = LOWER($1) LIMIT 1`,
+        resolvedDepartmentId,
       ).catch(() => []) as any[];
       if (deptRows[0]?.id) {
         resolvedDepartmentId = deptRows[0].id;
       } else {
-        // Use the employee's department
-        const empDept = await db.$queryRawUnsafe(
-          `SELECT "departmentId" FROM "Employee" WHERE "userId" = $1 LIMIT 1`, decoded.userId,
-        ).catch(() => []) as any[];
-        if (empDept[0]?.departmentId) resolvedDepartmentId = empDept[0].departmentId;
+        // No matching department — create a new one with the typed name
+        // (per user request: "if no dropdowns, whatever we provide should be taken")
+        const newDeptId = `cm${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+        try {
+          await db.$executeRawUnsafe(
+            `INSERT INTO "Department" ("id", "name", "companyId") VALUES ($1, $2, $3)`,
+            newDeptId, resolvedDepartmentId, resolvedCompanyId,
+          );
+          resolvedDepartmentId = newDeptId;
+        } catch (createErr) {
+          // If create fails (e.g. missing columns), fall back to first available department
+          const firstDept = await db.$queryRawUnsafe(
+            `SELECT "id" FROM "Department" WHERE "companyId" = $1 LIMIT 1`, resolvedCompanyId,
+          ).catch(() => []) as any[];
+          if (firstDept[0]?.id) resolvedDepartmentId = firstDept[0].id;
+        }
       }
     }
 
-    // Resolve designationId: if it's a name (not a CUID), look it up
+    // Resolve designationId: if it's a name (not a CUID), look it up or create it
     if (resolvedDesignationId && !resolvedDesignationId.startsWith('cm')) {
       const desigRows = await db.$queryRawUnsafe(
-        `SELECT "id" FROM "Designation" WHERE LOWER("title") LIKE LOWER($1) LIMIT 1`,
-        `%${resolvedDesignationId}%`,
+        `SELECT "id" FROM "Designation" WHERE LOWER("title") = LOWER($1) LIMIT 1`,
+        resolvedDesignationId,
       ).catch(() => []) as any[];
       if (desigRows[0]?.id) {
         resolvedDesignationId = desigRows[0].id;
       } else {
-        resolvedDesignationId = null; // not found — make it optional
+        // No matching designation — create a new one with the typed title
+        const newDesigId = `cm${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+        try {
+          await db.$executeRawUnsafe(
+            `INSERT INTO "Designation" ("id", "title") VALUES ($1, $2)`,
+            newDesigId, resolvedDesignationId,
+          );
+          resolvedDesignationId = newDesigId;
+        } catch (createErr) {
+          // If create fails, leave it null (designation is optional)
+          resolvedDesignationId = null;
+        }
       }
     }
 
