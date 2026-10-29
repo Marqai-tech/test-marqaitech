@@ -278,6 +278,23 @@ export async function PATCH(
       where: tenantApplicationFilter(id, decodedRec),
     });
     if (application) {
+      // Task 166: validate status against enum
+      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'hired', 'rejected'];
+      if (status !== undefined && !validStatuses.includes(status)) {
+        return NextResponse.json(
+          { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      // Task 166: idempotency — don't re-update if status is the same
+      if (status !== undefined && status === application.status) {
+        return NextResponse.json(
+          { application, message: 'Status unchanged' },
+          { headers: corsHeaders() }
+        );
+      }
+
       const updateData: Record<string, unknown> = {};
       if (status !== undefined) updateData.status = status;
       // AI-generated rejection feedback stored as JSON in `notes` field
@@ -312,7 +329,35 @@ export async function PATCH(
           module: 'recruitment',
           details: `Updated application status for ${updated.candidateName} to ${status}`,
         },
-      });
+      }).catch(() => null);
+
+      // Task 166: notify the candidate of status change (email)
+      if (status !== undefined && updated.candidateEmail) {
+        try {
+          const { sendEmail } = await import('@/lib/email');
+          const statusLabels: Record<string, string> = {
+            screening: 'Under Screening',
+            shortlisted: 'Shortlisted',
+            interview: 'Selected for Interview',
+            offered: 'Offer Extended',
+            hired: 'Hired',
+            rejected: 'Rejected',
+          };
+          const statusLabel = statusLabels[status] || status;
+          const jobTitle = jobPosting?.title || 'the position';
+          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#4f46e5;">Application Status Update</h2>
+            <p>Dear ${updated.candidateName},</p>
+            <p>Your application for <strong>${jobTitle}</strong> has been updated to: <strong>${statusLabel}</strong>.</p>
+            ${status === 'rejected' ? '<p>We appreciate your interest and wish you the best in your job search.</p>' : ''}
+            ${status === 'interview' ? '<p>Please watch for further communication regarding interview scheduling.</p>' : ''}
+            ${status === 'offered' ? '<p>Congratulations! Please check your email for offer details.</p>' : ''}
+            <p>Thank you for your interest in joining our team.</p>
+            <p>Regards,<br/>HR Team</p>
+          </div>`;
+          await sendEmail({ to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html }).catch(() => null);
+        } catch { /* non-fatal */ }
+      }
 
       return NextResponse.json(
         { application: updated },

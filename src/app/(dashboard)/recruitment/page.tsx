@@ -182,12 +182,13 @@ function getAppStatusBadge(status: string) {
   const map: Record<string, string> = {
     applied: 'thb-badge thb-badge-info',
     screening: 'bg-teal-50 text-teal-700 thb-badge',
+    shortlisted: 'bg-violet-50 text-violet-700 thb-badge',
     interview: 'bg-amber-50 text-amber-700 thb-badge',
     offered: 'thb-badge thb-badge-success',
     hired: 'bg-emerald-50 text-emerald-700 thb-badge',
     rejected: 'thb-badge thb-badge-error',
   };
-  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', interview: 'Interview', offered: 'Offered', hired: 'Hired', rejected: 'Rejected' };
+  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', offered: 'Offered', hired: 'Hired', rejected: 'Rejected' };
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
@@ -745,7 +746,7 @@ export default function RecruitmentPage() {
   const totalApplications = displayApplications.length;
   const interviewsScheduled = displayApplications.filter(a => a.status === 'interview').length;
   const offersPending = displayApplications.filter(a => a.status === 'offered').length;
-  const shortlisted = displayApplications.filter(a => a.status === 'screening').length;
+  const shortlisted = displayApplications.filter(a => a.status === 'screening' || a.status === 'shortlisted').length;
   const hired = displayApplications.filter(a => a.status === 'hired').length;
 
   /* ─── Filtered Data ─── */
@@ -1333,6 +1334,7 @@ export default function RecruitmentPage() {
                                                       >
                                                         <option value="applied">Applied</option>
                                                         <option value="screening">Screening</option>
+                                                        <option value="shortlisted">Shortlisted</option>
                                                         <option value="interview">Interview</option>
                                                         <option value="offered">Offered</option>
                                                         <option value="hired">Hired</option>
@@ -1542,6 +1544,7 @@ export default function RecruitmentPage() {
                                 >
                                   <option value="applied">Applied</option>
                                   <option value="screening">Screening</option>
+                                  <option value="shortlisted">Shortlisted</option>
                                   <option value="interview">Interview</option>
                                   <option value="offered">Offered</option>
                                   <option value="hired">Hired</option>
