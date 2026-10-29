@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward, companyId,
-            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled } = body;
+            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled,
+            maxConsecutiveDays, minAdvanceDays, accrualFrequency, accrualAmount,
+            maxBalance, leaveExpiryDays, negativeBalanceAllowed } = body;
 
     if (!name || !code) {
       return NextResponse.json({ error: 'Name and code are required' }, { status: 400, headers: corsHeaders() });
@@ -136,6 +138,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `A leave type with name "${name}" already exists for this company` }, { status: 409, headers: corsHeaders() });
     }
 
+
+    // ─── Ensure new leave-type columns exist (runtime schema sync) ───
+    const newColumns = [
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "maxConsecutiveDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "minAdvanceDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "accrualFrequency" TEXT DEFAULT 'yearly'`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "accrualAmount" DOUBLE PRECISION DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "maxBalance" DOUBLE PRECISION DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "leaveExpiryDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "negativeBalanceAllowed" BOOLEAN DEFAULT false`,
+    ];
+    for (const sql of newColumns) {
+      try { await db.$executeRawUnsafe(sql); } catch { /* ignore */ }
+    }
+
     const leaveType = await db.leaveType.create({
       data: {
         name,
@@ -154,6 +171,13 @@ export async function POST(req: NextRequest) {
           ? String(employeeStatus) : 'all',
         probationRestricted: probationRestricted ?? false,
         sandwichRuleEnabled: sandwichRuleEnabled ?? true,
+      maxConsecutiveDays: Number(maxConsecutiveDays) || 0,
+      minAdvanceDays: Number(minAdvanceDays) || 0,
+      accrualFrequency: accrualFrequency || 'yearly',
+      accrualAmount: Number(accrualAmount) || 0,
+      maxBalance: Number(maxBalance) || 0,
+      leaveExpiryDays: Number(leaveExpiryDays) || 0,
+      negativeBalanceAllowed: Boolean(negativeBalanceAllowed),
       },
     });
 

@@ -63,6 +63,13 @@ function LeaveTypeDialog({ open, mode, editItem, onClose, onSaved }: {
   const [employeeStatus, setEmployeeStatus] = useState('all');
   const [probationRestricted, setProbationRestricted] = useState(false);
   const [sandwichRule, setSandwichRule] = useState(true);
+  const [maxConsecutiveDays, setMaxConsecutiveDays] = useState('');
+  const [minAdvanceDays, setMinAdvanceDays] = useState('');
+  const [accrualFrequency, setAccrualFrequency] = useState('yearly');
+  const [accrualAmount, setAccrualAmount] = useState('');
+  const [maxBalance, setMaxBalance] = useState('');
+  const [leaveExpiryDays, setLeaveExpiryDays] = useState('');
+  const [negativeBalance, setNegativeBalance] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -78,6 +85,13 @@ function LeaveTypeDialog({ open, mode, editItem, onClose, onSaved }: {
       setEmployeeStatus(editItem.employeeStatus || 'all');
       setProbationRestricted(editItem.probationRestricted ?? false);
       setSandwichRule(editItem.sandwichRuleEnabled ?? true);
+      setMaxConsecutiveDays(String(editItem.maxConsecutiveDays || ''));
+      setMinAdvanceDays(String(editItem.minAdvanceDays || ''));
+      setAccrualFrequency(editItem.accrualFrequency || 'yearly');
+      setAccrualAmount(String(editItem.accrualAmount || ''));
+      setMaxBalance(String(editItem.maxBalance || ''));
+      setLeaveExpiryDays(String(editItem.leaveExpiryDays || ''));
+      setNegativeBalance(editItem.negativeBalanceAllowed ?? false);
     } else if (open && mode === 'add') {
       setName(''); setCode(''); setQuota(''); setCarryFwd(false); setMaxCarry('');
       setPaid(true); setDescription(''); setEmploymentType('all'); setEmployeeStatus('all');
@@ -296,15 +310,17 @@ export default function LeaveTypesPage() {
                 <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Quota</th>
                 <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Carry Fwd</th>
                 <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Paid</th>
+                <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Accrual</th>
+                <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Max Consec.</th>
                 <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Scope</th>
                 {isAdmin && <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-slate-400">Loading...</td></tr>
+                <tr><td colSpan={isAdmin ? 9 : 8} className="text-center py-8 text-slate-400">Loading...</td></tr>
               ) : leaveTypes.length === 0 ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center py-12 text-slate-500">No leave types configured yet. Click "Add Leave Type" to create one.</td></tr>
+                <tr><td colSpan={isAdmin ? 9 : 8} className="text-center py-12 text-slate-500">No leave types configured yet. Click "Add Leave Type" to create one.</td></tr>
               ) : leaveTypes.map((lt) => (
                 <tr key={lt.id} className="border-b border-thb-border last:border-b-0 hover:bg-slate-50">
                   <td className="px-5 py-3">

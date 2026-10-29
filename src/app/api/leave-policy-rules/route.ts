@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
       leaveTypeAllocations, sandwichRuleEnabled, proRataEnabled,
       probationRestriction, probationMonths, encashmentAllowed,
       carryForwardGlobal, maxCarryForwardDays, priority, status,
+      genderApplicability, employeeIds, yearEndProcessingMode,
+      yearEndMaxCarryForward, yearEndMaxEncashment, yearEndExpiryDays,
+      effectiveFromDate, effectiveToDate,
     } = body;
 
     if (!name) {
@@ -77,6 +80,22 @@ export async function POST(req: NextRequest) {
     }
     if (!resolvedCompanyId) {
       return NextResponse.json({ error: 'companyId is required' }, { status: 400, headers: corsHeaders() });
+    }
+
+
+    // ─── Ensure new LeavePolicyRule columns exist ───
+    const policyColumns = [
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "genderApplicability" TEXT DEFAULT 'all'`,
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "employeeIds" TEXT`,
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "yearEndProcessingMode" TEXT DEFAULT 'carry_forward'`,
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "yearEndMaxCarryForward" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "yearEndMaxEncashment" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "yearEndExpiryDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "effectiveFromDate" TIMESTAMP(3)`,
+      `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "effectiveToDate" TIMESTAMP(3)`,
+    ];
+    for (const sql of policyColumns) {
+      try { await db.$executeRawUnsafe(sql); } catch { /* ignore */ }
     }
 
     const rule = await db.leavePolicyRule.create({
@@ -99,6 +118,14 @@ export async function POST(req: NextRequest) {
         maxCarryForwardDays: maxCarryForwardDays ?? 5,
         priority: priority ?? 0,
         status: status || 'active',
+      genderApplicability: genderApplicability || 'all',
+      employeeIds: employeeIds || null,
+      yearEndProcessingMode: yearEndProcessingMode || 'carry_forward',
+      yearEndMaxCarryForward: Number(yearEndMaxCarryForward) || 0,
+      yearEndMaxEncashment: Number(yearEndMaxEncashment) || 0,
+      yearEndExpiryDays: Number(yearEndExpiryDays) || 0,
+      effectiveFromDate: effectiveFromDate ? new Date(effectiveFromDate) : null,
+      effectiveToDate: effectiveToDate ? new Date(effectiveToDate) : null,
       },
       include: {
         branch: { select: { id: true, name: true } },
