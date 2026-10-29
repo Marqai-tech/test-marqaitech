@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   FiCalendar, FiClock, FiCheck, FiX, FiAlertCircle,
   FiChevronLeft, FiChevronRight, FiSearch, FiUser,
@@ -902,7 +903,7 @@ export default function LeaveRequestPanel({
             <div
               className={`p-3 rounded-lg border ${
                 aiWarning
-                  ? 'bg-amber-50 border-amber-200'
+                  ? 'bg-amber-50 border-amber-300'
                   : 'bg-emerald-50 border-emerald-200'
               }`}
             >
@@ -911,16 +912,35 @@ export default function LeaveRequestPanel({
                   <FiLoader className="w-3 h-3 animate-spin" /> Checking team availability...
                 </p>
               ) : aiWarning ? (
-                <p className="text-xs text-amber-800 flex items-start gap-1.5">
-                  <FiAlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  <span>
-                    <strong>Team Conflict:</strong> {aiWarning}
-                  </span>
-                </p>
+                <div className="space-y-1.5">
+                  <p className="text-xs text-amber-800 flex items-start gap-1.5">
+                    <FiAlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>Team Conflict:</strong> {aiWarning}
+                    </span>
+                  </p>
+                  <p className="text-xs text-amber-900 font-semibold pl-5">
+                    → Approval chances are lower. Consider applying for a different date.
+                  </p>
+                  <Link
+                    href="/leave/team-calendar"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 underline hover:text-amber-900 pl-5"
+                  >
+                    <FiCalendar className="w-3 h-3" /> View Team Leave Calendar
+                  </Link>
+                </div>
               ) : (
-                <p className="text-xs text-emerald-700 flex items-center gap-1.5">
-                  <FiCheck className="w-3.5 h-3.5" /> No team conflicts detected.
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-emerald-700 flex items-center gap-1.5">
+                    <FiCheck className="w-3.5 h-3.5" /> No team conflicts detected — approval chances are normal.
+                  </p>
+                  <Link
+                    href="/leave/team-calendar"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 underline hover:text-emerald-900 flex-shrink-0"
+                  >
+                    <FiCalendar className="w-3 h-3" /> Team calendar
+                  </Link>
+                </div>
               )}
             </div>
           )}

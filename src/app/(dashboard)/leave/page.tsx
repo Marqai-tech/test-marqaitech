@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   FiCalendar, FiPlus, FiCheck, FiX, FiClock,
   FiAlertCircle, FiGrid, FiFileText, FiEye,
