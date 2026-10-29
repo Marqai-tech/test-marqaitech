@@ -182,10 +182,11 @@ export default async function RootLayout({
         />
         <NextIntlClientProvider locale={activeLocale} messages={messages}>
           {children}
-          {/* Global Toaster — handles all toasts for every route group
-              (dashboard, public, candidate-portal, client-portal, etc.).
-              Individual route-group layouts must NOT add their own Toaster
-              to prevent duplicate toast notifications. */}
+          {/* Global Toaster — the ONLY Toaster in the entire app.
+              Renders toast notifications on ALL pages (dashboard, public,
+              candidate-portal, login, etc.). Do NOT add another <Toaster>
+              in any route-group layout — that causes every toast to fire
+              twice. */}
           <Toaster
             position="top-right"
             toastOptions={{
@@ -202,10 +203,6 @@ export default async function RootLayout({
             }}
           />
         </NextIntlClientProvider>
-        {/* Global Toaster — renders toast notifications on ALL pages including
-            login, forgot-password, reset-password (which are not under (public)
-            or (dashboard) route groups that have their own Toasters). */}
-        <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '12px 16px', fontSize: '14px', maxWidth: '90vw' } }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `

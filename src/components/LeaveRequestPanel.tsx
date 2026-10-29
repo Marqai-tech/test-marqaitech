@@ -297,6 +297,32 @@ export default function LeaveRequestPanel({
   const [teamLeaves, setTeamLeaves] = useState<TeamLeave[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
 
+  // Resolve the current user's REAL employee.id by calling /api/auth/me.
+  // We can't rely on the `employeeId` prop because the parent page
+  // (/leave/page.tsx) resolves `employee` by matching user.email against
+  // the employees list — which fails for managers/admins whose Employee.email
+  // differs from their User.email. This fetch guarantees we have the correct
+  // id to filter self out of the team calendar.
+  const [myEmployeeId, setMyEmployeeId] = useState<string>('');
+  useEffect(() => {
+    let cancelled = false;
+    const runFetch = async () => {
+      try {
+        const r = await fetch('/api/auth/me', { headers: getAuthHeaders() });
+        if (cancelled) return;
+        if (!r.ok) return;
+        const d = await r.json();
+        if (cancelled) return;
+        const eid = d?.employee?.id;
+        if (eid) setMyEmployeeId(eid);
+      } catch {
+        // non-fatal — fall back to the `employeeId` prop
+      }
+    };
+    void runFetch();
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     const firstDay = new Date(calMonth.year, calMonth.month, 1);
     const lastDay = new Date(calMonth.year, calMonth.month + 1, 0);
@@ -308,10 +334,6 @@ export default function LeaveRequestPanel({
       `/api/leave?fromDate=${monthStart}&toDate=${monthEnd}&view=team&limit=200` +
       (scopeQuery ? `&${scopeQuery}` : '');
     let cancelled = false;
-    // Wrap setState calls inside an async function so the React Compiler
-    // does not flag them as synchronous setState-in-effect (which would
-    // trigger cascading renders). The async function is invoked synchronously
-    // but its body runs as a microtask.
     const runFetch = async () => {
       setTeamLoading(true);
       try {
@@ -322,19 +344,17 @@ export default function LeaveRequestPanel({
         if (cancelled) return;
         // Filter OUT the current user — the right-side team calendar is
         // for seeing OTHER team members' availability, not the user's own
-        // leaves (the user already knows their own leaves; their own leaves
-        // are surfaced separately via the self-overlap warning above).
-        // We match by employee.id (preferred) and fall back to
-        // employee.userId if the API response shape varies.
-        const list = (d.leaveRequests || []).filter(
-          (l: TeamLeave) => {
-            // Drop if no employee object
-            if (!l.employee) return true;
-            // Drop if the employee id matches the current user's employeeId
-            if (employeeId && l.employee.id === employeeId) return false;
-            return true;
-          },
-        );
+        // leaves. We try BOTH the `employeeId` prop AND `myEmployeeId`
+        // (from /api/auth/me) because the prop can be empty for managers/
+        // admins whose Employee.email doesn't match their User.email.
+        const selfIds = new Set<string>();
+        if (employeeId) selfIds.add(employeeId);
+        if (myEmployeeId) selfIds.add(myEmployeeId);
+        const list = (d.leaveRequests || []).filter((l: TeamLeave) => {
+          if (!l.employee) return true;
+          if (selfIds.has(l.employee.id)) return false;
+          return true;
+        });
         setTeamLeaves(list);
         setTeamLoading(false);
       } catch {
@@ -346,7 +366,7 @@ export default function LeaveRequestPanel({
     };
     void runFetch();
     return () => { cancelled = true; };
-  }, [calMonth.year, calMonth.month, scopeQuery, employeeId]);
+  }, [calMonth.year, calMonth.month, scopeQuery, employeeId, myEmployeeId]);
 
   /* ── Map: date → leaves covering that date ── */
   const leavesByDate = useMemo(() => {
@@ -473,12 +493,10 @@ export default function LeaveRequestPanel({
   // hitting submit (which would return 409 "Duplicate leave request").
   const [selfLeaves, setSelfLeaves] = useState<TeamLeave[]>([]);
   useEffect(() => {
-    if (!employeeId) {
-      setSelfLeaves([]);
-      return;
-    }
-    // Fetch a wide date range (1 year around today) so we catch any
-    // existing leave regardless of which month the user picks.
+    // The /api/leave?view=self endpoint auto-filters by the authenticated
+    // user's own employee record — no employeeId needed. We fetch a wide
+    // date range (9 months around today) so we catch any existing leave
+    // regardless of which month the user picks.
     const today = new Date();
     const fromD = new Date(today.getFullYear(), today.getMonth() - 3, 1);
     const toD = new Date(today.getFullYear(), today.getMonth() + 6, 0);
@@ -502,7 +520,7 @@ export default function LeaveRequestPanel({
     };
     void runFetch();
     return () => { cancelled = true; };
-  }, [employeeId, scopeQuery]);
+  }, [scopeQuery]);
 
   // Compute overlap of the picked range with the user's own leaves
   const selfOverlapLeaves = useMemo(() => {
