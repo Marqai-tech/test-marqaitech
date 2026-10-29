@@ -331,16 +331,17 @@ export async function PATCH(
             </div>`;
             let emailSent = false;
             let emailError = '';
+            // Use sendEmail FIRST (verified working), then sendTenantEmail as fallback
             try {
-              const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+              const emailRes = await sendEmail({
                 to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
               });
               emailSent = emailRes.success;
               emailError = emailRes.error || '';
-            } catch {}
+            } catch (e) { emailError = e instanceof Error ? e.message : String(e); }
             if (!emailSent) {
               try {
-                const fallbackRes = await sendEmail({
+                const fallbackRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
                   to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
                 });
                 emailSent = fallbackRes.success;
@@ -429,24 +430,26 @@ export async function PATCH(
             <p>Thank you for your interest in joining our team.</p>
             <p>Regards,<br/>HR Team</p>
           </div>`;
-          // Try tenant SMTP first, then fall back to global sendEmail (which uses
-          // env SMTP → Resend). This ensures the email goes out even if the tenant
-          // SMTP is down or the circuit breaker is open.
+          // Task 167: Use sendEmail (lib/email.ts) FIRST — it has its own SMTP
+          // connection that we've verified works. Only fall back to sendTenantEmail
+          // (which has circuit breakers that may be open) if sendEmail fails.
           let emailSent = false;
           let emailError = '';
           try {
-            const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+            const emailRes = await sendEmail({
               to: updated.candidateEmail,
               subject: `Application Status Update: ${statusLabel}`,
               html,
             });
             emailSent = emailRes.success;
             emailError = emailRes.error || '';
-          } catch {}
+          } catch (e) {
+            emailError = e instanceof Error ? e.message : String(e);
+          }
           if (!emailSent) {
-            // Fallback: global sendEmail (env SMTP → Resend)
+            // Fallback: sendTenantEmail (tenant SMTP → env SMTP → Resend)
             try {
-              const fallbackRes = await sendEmail({
+              const fallbackRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
                 to: updated.candidateEmail,
                 subject: `Application Status Update: ${statusLabel}`,
                 html,
