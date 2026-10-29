@@ -1286,56 +1286,18 @@ export default function LeaveRequestPanel({
           </div>
         </div>
 
-        {/* Selected date events — profile pic avatars */}
-        {selectedCalDate && selectedDateLeaves.length > 0 && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-            <h4 className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
-              <FiUser className="w-3.5 h-3.5" />
-              On leave — {selectedCalDate}
-            </h4>
-            <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-              {selectedDateLeaves.map((l, i) => {
-                const name = l.employee
-                  ? `${l.employee.firstName} ${l.employee.lastName}`.trim()
-                  : 'Unknown';
-                const badge =
-                  l.status === 'approved'
-                    ? 'bg-red-100 text-red-700'
-                    : l.status === 'pending'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-slate-100 text-slate-600';
-                const label =
-                  l.status === 'approved'
-                    ? 'ON LEAVE'
-                    : l.status === 'pending'
-                      ? 'PENDING'
-                      : (l.status || '').toUpperCase();
-                return (
-                  <li key={`${l.id || ''}-${i}`} className="flex items-center gap-2">
-                    {renderAvatar(name, 'w-7 h-7', l.employee?.avatar)}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-700 truncate">{name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {l.leaveType?.name || 'Leave'}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${badge}`}
-                    >
-                      {label}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
+        {/* The 'On leave — {date}' per-day detail card was REMOVED per user
+            request (2026-10-29): 'the first card remove okay'. Clicking a day
+            in the calendar still selects it (for the date picker), but no
+            separate card with avatars appears below. The calendar cells
+            themselves already show status dots + count, and the yellow
+            'Team Conflict' AI warning in the form fields section covers the
+            team-overlap alert. */}
 
         {/* The duplicate "Team Alert" yellow card with profile pics was
             removed per user request (2026-10-29) — the inline AI
             Collaborative Check warning above already covers team-conflict
-            alerts without duplicating the avatar list. The "On leave" card
-            above (per-day detail) remains. */}
+            alerts without duplicating the avatar list. */}
 
         {/* The consolidated team-on-leave breakdown card that used to live
             here has been REMOVED per user request (2026-10-29): 'below the
