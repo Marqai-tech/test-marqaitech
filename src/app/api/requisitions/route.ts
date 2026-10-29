@@ -111,6 +111,7 @@ export async function POST(request: Request) {
       projectId, clientId, priority, expectedJoiningDate,
       reason, // Task 164: reason/justification for hiring
       action, // Task 164: 'draft' | 'submit' (default: 'submit')
+      positionTitle, // Task 167: raw position name (e.g. "Data Engineer 2")
     } = body;
 
     if (!departmentId) {
@@ -197,6 +198,11 @@ export async function POST(request: Request) {
 
     const requisitionId = await generateRequisitionId(db);
 
+    // Task 167: ensure positionTitle column exists at runtime
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "positionTitle" TEXT`);
+    } catch { /* already exists */ }
+
     // Task 164: draft vs submit
     const isDraft = action === 'draft';
     const approvalStatus = isDraft ? 'draft' : 'pending';
@@ -236,16 +242,16 @@ export async function POST(request: Request) {
         `INSERT INTO "Requisition" ("id", "requisitionId", "companyId", "branchId", "departmentId", "designationId",
           "hiringManagerId", "positionType", "replacementEmployeeId", "numberOfOpenings", "employmentType",
           "skillsRequired", "experienceRequired", "qualification", "salaryBudget", "projectId", "clientId",
-          "priority", "expectedJoiningDate", "approvalStatus", "status", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW())`,
+          "priority", "expectedJoiningDate", "approvalStatus", "status", "positionTitle", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW(), NOW())`,
         id, requisitionId, resolvedCompanyId, branchId || null, resolvedDepartmentId, resolvedDesignationId || null,
         decoded.userId, positionType || 'new', replacementEmployeeId || null, numberOfOpenings ?? 1, employmentType || 'full-time',
         skillsRequired || null, experienceRequired || null, qualification || null, salaryBudget || null,
         projectId || null, clientId || null, priority || 'medium',
         expectedJoiningDate ? new Date(expectedJoiningDate) : null,
-        approvalStatus, isDraft ? 'draft' : 'open'
+        approvalStatus, isDraft ? 'draft' : 'open', positionTitle || null
       );
-      return { id, requisitionId, ...body, department: { name: departmentId }, designation: { title: designationId || '' } };
+      return { id, requisitionId, ...body, positionTitle, department: { name: departmentId }, designation: { title: positionTitle || designationId || '' } };
     });
 
     await db.auditLog.create({

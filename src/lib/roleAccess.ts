@@ -23,7 +23,6 @@
 /** Roles that only get employee self-service menus (not HR / finance / IT admin suites). */
 export const SELF_SERVICE_ROLE_KEYS = [
   'employee',
-  'finance_admin',
   'finance',
   'it_admin',
   'candidate',
@@ -55,7 +54,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   dashboard: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   employees: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   company: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
-  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'finance_admin'],
   onboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
   attendance: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   leave: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
@@ -93,7 +92,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   // Admin-only sub-areas (Collaboration Settings, SMTP Email Config,
   // Collaboration Reports) are restricted via per-item `roles` in navData.
   collaboration: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
-  requisitions: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  requisitions: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'finance_admin'],
   offers: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
   job_portal: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
   ai_interview: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
@@ -462,7 +461,7 @@ export const LEGACY_ROLE_MAP: Record<string, string> = {
   ceo: 'ceo', // Task 129 — first-class role (NOT degraded to employee)
   hr_admin: 'admin',
   company_hr_admin: 'admin',
-  finance_admin: 'employee',
+  finance_admin: 'admin',
   finance: 'employee',
   it_admin: 'employee',
   manager: 'manager',

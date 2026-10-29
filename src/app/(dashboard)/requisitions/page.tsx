@@ -45,7 +45,7 @@ const requisitionsWorkflowSteps = [
 ];
 
 const initialForm = {
-  departmentId: '', designationId: '', positionType: 'new', numberOfOpenings: 1, employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '', reason: '',
+  departmentId: '', designationId: '', positionTitle: '', positionType: 'new', numberOfOpenings: 1, employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '', reason: '',
 };
 
 // Task 164: user-facing status labels
@@ -415,7 +415,7 @@ export default function RequisitionsPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position / Designation</label>
-                <input value={form.designationId} onChange={(e) => setForm({ ...form, designationId: e.target.value })} placeholder="e.g. Senior Software Engineer" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                <input value={form.positionTitle} onChange={(e) => setForm({ ...form, positionTitle: e.target.value, designationId: e.target.value })} placeholder="e.g. Data Engineer 2" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position Type</label>
