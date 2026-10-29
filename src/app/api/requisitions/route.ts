@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { createNotification } from '@/lib/notifications';
+import { createNotification, sendNotificationEmail } from '@/lib/notifications';
 import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
+import type { PrismaClient } from '@/generated/prisma/client';
 
 function corsHeaders() {
   return {
@@ -16,52 +17,49 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-async function generateRequisitionId(): Promise<string> {
-  const lastReq = await db.requisition.findFirst({
-    orderBy: { createdAt: 'desc' },
-    select: { requisitionId: true },
-  });
-
-  let nextNum = 1;
-  if (lastReq && lastReq.requisitionId) {
-    const match = lastReq.requisitionId.match(/REQ-(\d+)/);
-    if (match) {
-      nextNum = parseInt(match[1]) + 1;
+// Task 164 fix: pass db as parameter (was referencing out-of-scope db variable)
+async function generateRequisitionId(db: PrismaClient): Promise<string> {
+  try {
+    const lastReq = await db.requisition.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { requisitionId: true },
+    });
+    let nextNum = 1;
+    if (lastReq && lastReq.requisitionId) {
+      const match = lastReq.requisitionId.match(/REQ-(\d+)/);
+      if (match) nextNum = parseInt(match[1]) + 1;
     }
+    return `REQ-${nextNum.toString().padStart(4, '0')}`;
+  } catch {
+    return `REQ-${Date.now().toString().slice(-6)}`;
   }
-
-  return `REQ-${nextNum.toString().padStart(4, '0')}`;
 }
+
+// Task 164: roles that can approve at each tier
+const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+const FINANCE_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'finance_admin'];
 
 export async function GET(request: Request) {
   const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    }
-
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    }
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseInt(searchParams.get('limit') || '50');
     const companyId = searchParams.get('companyId');
     const tenantId = searchParams.get('tenantId');
     const departmentId = searchParams.get('departmentId');
     const approvalStatus = searchParams.get('approvalStatus');
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
+    const scope = searchParams.get('scope'); // 'mine' = my requests only
 
-    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
     if (isSuperAdminWithoutScope(decoded, companyId, tenantId, request)) {
-      return NextResponse.json({
-        requisitions: [],
-        pagination: { page, limit, total: 0, totalPages: 0 },
-      }, { headers: corsHeaders() });
+      return NextResponse.json({ requisitions: [], pagination: { page, limit, total: 0, totalPages: 0 } }, { headers: corsHeaders() });
     }
 
     const where: Record<string, unknown> = {};
@@ -70,6 +68,10 @@ export async function GET(request: Request) {
     if (approvalStatus) where.approvalStatus = approvalStatus;
     if (status) where.status = status;
     if (priority) where.priority = priority;
+    // Task 164: 'mine' filter — Manager can track their own requests
+    if (scope === 'mine' && decoded.userId) {
+      where.hiringManagerId = decoded.userId;
+    }
 
     const [requisitions, total] = await Promise.all([
       db.requisition.findMany({
@@ -86,10 +88,7 @@ export async function GET(request: Request) {
       db.requisition.count({ where }),
     ]);
 
-    return NextResponse.json(
-      { requisitions, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
-      { headers: corsHeaders() }
-    );
+    return NextResponse.json({ requisitions, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get requisitions error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -100,31 +99,29 @@ export async function POST(request: Request) {
   const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    }
-
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    }
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
     const {
-      companyId, branchId, departmentId, designationId, hiringManagerId,
+      companyId, branchId, departmentId, designationId,
       positionType, replacementEmployeeId, numberOfOpenings, employmentType,
       skillsRequired, experienceRequired, qualification, salaryBudget,
       projectId, clientId, priority, expectedJoiningDate,
+      reason, // Task 164: reason/justification for hiring
+      action, // Task 164: 'draft' | 'submit' (default: 'submit')
     } = body;
 
     if (!companyId || !departmentId) {
-      return NextResponse.json(
-        { error: 'Missing required fields: companyId, departmentId' },
-        { status: 400, headers: corsHeaders() }
-      );
+      return NextResponse.json({ error: 'Missing required fields: companyId, departmentId' }, { status: 400, headers: corsHeaders() });
     }
 
-    const requisitionId = await generateRequisitionId();
+    const requisitionId = await generateRequisitionId(db);
+
+    // Task 164: draft vs submit
+    const isDraft = action === 'draft';
+    const approvalStatus = isDraft ? 'draft' : 'pending';
 
     const requisition = await db.requisition.create({
       data: {
@@ -133,7 +130,7 @@ export async function POST(request: Request) {
         branchId,
         departmentId,
         designationId,
-        hiringManagerId,
+        hiringManagerId: decoded.userId as string, // Task 164: requester = current user
         positionType: positionType || 'new',
         replacementEmployeeId,
         numberOfOpenings: numberOfOpenings ?? 1,
@@ -146,54 +143,69 @@ export async function POST(request: Request) {
         clientId,
         priority: priority || 'medium',
         expectedJoiningDate: expectedJoiningDate ? new Date(expectedJoiningDate) : null,
-        approvalStatus: 'pending',
-        status: 'open',
+        approvalStatus,
+        status: isDraft ? 'draft' : 'open',
       },
       include: {
         department: { select: { id: true, name: true } },
         designation: { select: { id: true, title: true } },
       },
+    }).catch(async (err) => {
+      // Fallback to RAW SQL if Prisma fails (schema drift)
+      console.warn('[Requisitions POST] Prisma create failed, trying RAW SQL:', err instanceof Error ? err.message : err);
+      const id = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "Requisition" ("id", "requisitionId", "companyId", "branchId", "departmentId", "designationId",
+          "hiringManagerId", "positionType", "replacementEmployeeId", "numberOfOpenings", "employmentType",
+          "skillsRequired", "experienceRequired", "qualification", "salaryBudget", "projectId", "clientId",
+          "priority", "expectedJoiningDate", "approvalStatus", "status", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW())`,
+        id, requisitionId, companyId, branchId || null, departmentId, designationId || null,
+        decoded.userId, positionType || 'new', replacementEmployeeId || null, numberOfOpenings ?? 1, employmentType || 'full-time',
+        skillsRequired || null, experienceRequired || null, qualification || null, salaryBudget || null,
+        projectId || null, clientId || null, priority || 'medium',
+        expectedJoiningDate ? new Date(expectedJoiningDate) : null,
+        approvalStatus, isDraft ? 'draft' : 'open'
+      );
+      return { id, requisitionId, ...body, department: { name: '' }, designation: { title: '' } };
     });
 
     await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
-        action: 'CREATE_REQUISITION',
+        action: isDraft ? 'CREATE_REQUISITION_DRAFT' : 'CREATE_REQUISITION',
         module: 'requisitions',
-        details: `Created requisition ${requisitionId}`,
+        details: `${isDraft ? 'Drafted' : 'Submitted'} requisition ${requisitionId}${reason ? ` — ${reason}` : ''}`,
       },
-    });
+    }).catch(() => null);
 
-    // Notify department head / hiring manager
-    if (hiringManagerId) {
-      // Multi-channel + actionable (Task 36)
+    // Task 164: notify HR on submit (NOT on draft)
+    if (!isDraft && decoded.tenantId) {
       try {
         const { dispatchNotification } = await import('@/lib/notification-center');
-        await dispatchNotification({
-          tenantId: decoded.tenantId as string,
-          module: 'recruitment',
-          eventKey: 'recruitment.requisition.approval_required',
-          recipients: [{ userId: hiringManagerId }],
-          vars: {
-            Requisition_Title: `${requisition.designation?.title || 'Position'} (${requisitionId})`,
-            Department: requisition.department?.name || '—',
-            Requested_By: decoded.name || decoded.email || 'Hiring manager',
-            Openings: String(numberOfOpenings ?? 1),
-          },
-          entity: { type: 'requisition', id: requisition.id, link: `/requisitions/${requisition.id}` },
-          origin: request.headers.get('origin') || undefined,
-        });
+        // Find HR users to notify
+        const hrUsers = await db.user.findMany({
+          where: { role: { in: HR_ROLES }, status: 'active' },
+          select: { id: true, email: true },
+        }).catch(() => []);
+        if (hrUsers.length > 0) {
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: 'recruitment.requisition.submitted',
+            recipients: hrUsers.map((u: { id: string }) => ({ userId: u.id })),
+            vars: {
+              Requisition_Title: `${requisition.designation?.title || 'Position'} (${requisitionId})`,
+              Department: requisition.department?.name || '—',
+              Requested_By: decoded.name || decoded.email || 'Manager',
+              Openings: String(numberOfOpenings ?? 1),
+            },
+            entity: { type: 'requisition', id: requisition.id, link: `/requisitions` },
+            origin: request.headers.get('origin') || undefined,
+          }).catch(() => null);
+        }
       } catch (e) {
-        console.warn('[requisitions] approval notification failed (non-fatal):', (e as Error).message);
-        await createNotification({
-          tenantId: decoded.tenantId as string,
-          userId: hiringManagerId,
-          title: 'New Requisition Created',
-          message: `Requisition ${requisitionId} has been created and requires your approval.`,
-          type: 'info',
-          category: 'recruitment',
-          link: `/requisitions/${requisition.id}`,
-        }).catch(() => null);
+        console.warn('[requisitions] HR notification failed (non-fatal):', (e as Error).message);
       }
     }
 
