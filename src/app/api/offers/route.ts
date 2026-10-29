@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       candidateId, jobPostingId, candidateName, candidateEmail,
       position, department, offeredSalary, offeredCurrency,
       offeredCTC, salaryBreakdown, joiningDate, probationPeriod,
-      reportingTo,
+      reportingTo, jobApplicationId, // Task 167: link to JobApplication
     } = body;
 
     if (!candidateId || !candidateName || !candidateEmail || !position || !offeredSalary || !joiningDate) {
@@ -96,6 +96,13 @@ export async function POST(request: Request) {
         { error: 'Missing required fields: candidateId, candidateName, candidateEmail, position, offeredSalary, joiningDate' },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // Task 167: ensure jobApplicationId column exists on Offer at runtime
+    if (jobApplicationId) {
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`);
+      } catch { /* already exists */ }
     }
 
     const offer = await db.offer.create({
@@ -115,7 +122,32 @@ export async function POST(request: Request) {
         reportingTo,
         status: 'draft',
       },
+    }).catch(async (err) => {
+      // RAW SQL fallback
+      console.warn('[Offers POST] Prisma failed, trying RAW SQL:', err instanceof Error ? err.message : err);
+      const id = `offer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "Offer" ("id", "candidateId", "jobPostingId", "candidateName", "candidateEmail",
+          "position", "department", "offeredSalary", "offeredCurrency", "offeredCTC", "salaryBreakdown",
+          "joiningDate", "probationPeriod", "reportingTo", "status", "jobApplicationId", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'draft', $15, NOW(), NOW())`,
+        id, candidateId, jobPostingId || null, candidateName, candidateEmail,
+        position, department || null, offeredSalary, offeredCurrency || 'INR', offeredCTC || null,
+        salaryBreakdown || null, new Date(joiningDate), probationPeriod ?? 90, reportingTo || null,
+        jobApplicationId || null,
+      );
+      return { id, ...body, status: 'draft' };
     });
+
+    // Task 167: if jobApplicationId was provided, write it to the Offer row
+    if (jobApplicationId && (offer as any).id) {
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "Offer" SET "jobApplicationId" = $1 WHERE "id" = $2`,
+          jobApplicationId, (offer as any).id,
+        );
+      } catch { /* non-fatal */ }
+    }
 
     await db.auditLog.create({
       data: {

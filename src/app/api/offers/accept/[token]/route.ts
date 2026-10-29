@@ -100,6 +100,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     const updated = await (db as any).offer.update({ where: { id: offer.id }, data: updateData });
 
+    // Task 167: if the candidate accepts, automatically set the JobApplication status to 'hired'
+    if (action === 'accept') {
+      try {
+        // Check if the Offer has a jobApplicationId
+        const offerRows = await db.$queryRawUnsafe(
+          `SELECT "jobApplicationId" FROM "Offer" WHERE "id" = $1 LIMIT 1`,
+          offer.id,
+        ) as any[];
+        const jobAppId = offerRows[0]?.jobApplicationId;
+        if (jobAppId) {
+          await db.$executeRawUnsafe(
+            `UPDATE "JobApplication" SET "status" = 'hired', "updatedAt" = NOW() WHERE "id" = $1`,
+            jobAppId,
+          );
+          console.log(`[Offer Accept] JobApplication ${jobAppId} status set to 'hired'`);
+        }
+      } catch (e) {
+        console.warn('[Offer Accept] Failed to update JobApplication status to hired (non-fatal):', e instanceof Error ? e.message : e);
+      }
+    }
+
     // Notify tenant admins + HR
     try {
       const admins = await (db as any).user.findMany({
