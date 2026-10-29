@@ -331,10 +331,10 @@ export async function PATCH(
         },
       }).catch(() => null);
 
-      // Task 166: notify the candidate of status change (email)
+      // Task 166/167: notify the candidate of status change (email)
       if (status !== undefined && updated.candidateEmail) {
         try {
-          const { sendEmail } = await import('@/lib/email');
+          const { sendTenantEmail } = await import('@/lib/notification-channels');
           const statusLabels: Record<string, string> = {
             screening: 'Under Screening',
             shortlisted: 'Shortlisted',
@@ -344,7 +344,17 @@ export async function PATCH(
             rejected: 'Rejected',
           };
           const statusLabel = statusLabels[status] || status;
-          const jobTitle = jobPosting?.title || 'the position';
+          // Fetch the job title via RAW SQL (jobPosting variable might be null)
+          let jobTitle = 'the position';
+          try {
+            const jobRows = await db.$queryRawUnsafe(
+              `SELECT jp."title" FROM "JobPosting" jp
+               JOIN "JobApplication" ja ON ja."jobPostingId" = jp."id"
+               WHERE ja."id" = $1 LIMIT 1`, id,
+            ) as any[];
+            if (jobRows[0]?.title) jobTitle = jobRows[0].title;
+          } catch {}
+
           const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
             <h2 style="color:#4f46e5;">Application Status Update</h2>
             <p>Dear ${updated.candidateName},</p>
@@ -355,8 +365,15 @@ export async function PATCH(
             <p>Thank you for your interest in joining our team.</p>
             <p>Regards,<br/>HR Team</p>
           </div>`;
-          await sendEmail({ to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html }).catch(() => null);
-        } catch { /* non-fatal */ }
+          const emailRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+            to: updated.candidateEmail,
+            subject: `Application Status Update: ${statusLabel}`,
+            html,
+          });
+          console.log(`[Recruitment PATCH] Candidate email to ${updated.candidateEmail}: ${emailRes.success ? 'sent' : 'failed'} — ${emailRes.error || ''}`);
+        } catch (emailErr) {
+          console.warn('[Recruitment PATCH] Candidate email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
+        }
       }
 
       return NextResponse.json(
