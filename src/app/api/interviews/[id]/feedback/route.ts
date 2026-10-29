@@ -77,6 +77,7 @@ export async function POST(
 
     // Add missing columns if the table already existed from a previous version
     const addCols = [
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "interviewId" TEXT',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "userId" TEXT',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "technicalSkills" TEXT',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "communication" TEXT',
@@ -89,6 +90,8 @@ export async function POST(
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "rating" INT',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "recommendation" TEXT',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "comments" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3) DEFAULT NOW()',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) DEFAULT NOW()',
     ];
     for (const sql of addCols) {
       try { await db.$executeRawUnsafe(sql); } catch {}
