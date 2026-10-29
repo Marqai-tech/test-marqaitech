@@ -342,19 +342,13 @@ export default function LeaveRequestPanel({
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const d = await r.json();
         if (cancelled) return;
-        // Filter OUT the current user — the right-side team calendar is
-        // for seeing OTHER team members' availability, not the user's own
-        // leaves. We try BOTH the `employeeId` prop AND `myEmployeeId`
-        // (from /api/auth/me) because the prop can be empty for managers/
-        // admins whose Employee.email doesn't match their User.email.
-        const selfIds = new Set<string>();
-        if (employeeId) selfIds.add(employeeId);
-        if (myEmployeeId) selfIds.add(myEmployeeId);
-        const list = (d.leaveRequests || []).filter((l: TeamLeave) => {
-          if (!l.employee) return true;
-          if (selfIds.has(l.employee.id)) return false;
-          return true;
-        });
+        // Per user request (2026-10-29): the calendar now shows the
+        // logged-in user's OWN leaves too — so they can see themselves on
+        // the calendar alongside their team. Self is flagged with a "YOU"
+        // badge in the team-on-leave breakdown card below the calendar.
+        // We keep myEmployeeId around so the breakdown card can mark which
+        // entries belong to the current user.
+        const list: TeamLeave[] = (d.leaveRequests || []) as TeamLeave[];
         setTeamLeaves(list);
         setTeamLoading(false);
       } catch {
@@ -1097,80 +1091,6 @@ export default function LeaveRequestPanel({
             </div>
           )}
 
-          {/* 10b. Detailed team-on-leave breakdown — list each person on leave
-                during the user's selected date range, with their name, the
-                specific dates they're out, leave type, and status. Helps the
-                user see exactly who they'd be overlapping with. */}
-          {form.startDate && form.endDate && teamOnLeaveDuringRange.length > 0 && !teamLoading && (
-            <div className="p-3 rounded-lg border border-amber-200 bg-white">
-              <p className="text-xs font-semibold text-amber-800 mb-2 flex items-center gap-1.5">
-                <FiUser className="w-3.5 h-3.5" />
-                {teamOnLeaveDuringRange.length} team member(s) on leave during {form.startDate} → {form.endDate}
-              </p>
-              <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-                {teamOnLeaveDuringRange.map((l, i) => {
-                  const name = l.employee
-                    ? `${l.employee.firstName} ${l.employee.lastName}`.trim()
-                    : 'Unknown';
-                  const lvStart = dayKey(l.startDate);
-                  const lvEnd = dayKey(l.endDate);
-                  // Format the leave's specific date range for the user
-                  const fmt = (d: string) => {
-                    const dt = new Date(`${d}T00:00:00`);
-                    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                  };
-                  const dateRange = lvStart === lvEnd
-                    ? fmt(lvStart)
-                    : `${fmt(lvStart)} – ${fmt(lvEnd)}`;
-                  // Highlight if the leave OVERLAPS the user's selected range
-                  // (all entries here do, but show the overlap days explicitly)
-                  const userStart = form.startDate!;
-                  const userEnd = form.endDate || form.startDate!;
-                  const overlapStart = lvStart > userStart ? lvStart : userStart;
-                  const overlapEnd = lvEnd < userEnd ? lvEnd : userEnd;
-                  const overlapStr = overlapStart === overlapEnd
-                    ? fmt(overlapStart)
-                    : `${fmt(overlapStart)} – ${fmt(overlapEnd)}`;
-                  const isApproved = l.status === 'approved';
-                  return (
-                    <li
-                      key={`${l.id || ''}-${i}`}
-                      className="flex items-start gap-2 p-2 rounded-md bg-amber-50/50 border border-amber-100"
-                    >
-                      {renderAvatar(name, 'w-7 h-7', l.employee?.avatar)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-slate-800 truncate">
-                          {name}
-                          <span className="ml-1.5 text-[10px] font-normal text-slate-500">
-                            {l.leaveType?.name || 'Leave'}
-                          </span>
-                        </p>
-                        <p className="text-[10px] text-slate-600 mt-0.5">
-                          <span className="text-slate-500">On leave:</span>{' '}
-                          <span className="font-medium text-slate-700">{dateRange}</span>
-                          {l.halfDay && <span className="ml-1 italic text-slate-500">(half day)</span>}
-                        </p>
-                        <p className="text-[10px] text-amber-700 mt-0.5">
-                          <FiAlertCircle className="w-2.5 h-2.5 inline mr-0.5" />
-                          Overlaps your selection on: <strong>{overlapStr}</strong>
-                        </p>
-                      </div>
-                      <span
-                        className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
-                          isApproved
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-amber-100 text-amber-700'
-                        }`}
-                      >
-                        {isApproved ? 'ON LEAVE' : 'PENDING'}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
           {/* 11. Approver Chain Preview */}
           <ApproverChainPreview
             module="leave"
@@ -1412,6 +1332,90 @@ export default function LeaveRequestPanel({
             Collaborative Check warning above already covers team-conflict
             alerts without duplicating the avatar list. The "On leave" card
             above (per-day detail) remains. */}
+
+        {/* Team-on-leave breakdown — BELOW the calendar. Lists each team
+            member (including the logged-in user — the calendar now shows
+            self too) who has approved/pending leave overlapping the user's
+            selected date range, with their name, the specific dates they're
+            out, leave type, and status. */}
+        {form.startDate && form.endDate && teamOnLeaveDuringRange.length > 0 && !teamLoading && (
+          <div className="p-3 rounded-xl border border-amber-200 bg-white shadow-sm">
+            <p className="text-xs font-semibold text-amber-800 mb-2 flex items-center gap-1.5">
+              <FiUser className="w-3.5 h-3.5" />
+              {teamOnLeaveDuringRange.length} on leave during {form.startDate} → {form.endDate}
+            </p>
+            <ul className="space-y-1.5 max-h-60 overflow-y-auto">
+              {teamOnLeaveDuringRange.map((l, i) => {
+                const name = l.employee
+                  ? `${l.employee.firstName} ${l.employee.lastName}`.trim()
+                  : 'Unknown';
+                const lvStart = dayKey(l.startDate);
+                const lvEnd = dayKey(l.endDate);
+                const fmt = (d: string) => {
+                  const dt = new Date(`${d}T00:00:00`);
+                  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                };
+                const dateRange = lvStart === lvEnd
+                  ? fmt(lvStart)
+                  : `${fmt(lvStart)} – ${fmt(lvEnd)}`;
+                const userStart = form.startDate!;
+                const userEnd = form.endDate || form.startDate!;
+                const overlapStart = lvStart > userStart ? lvStart : userStart;
+                const overlapEnd = lvEnd < userEnd ? lvEnd : userEnd;
+                const overlapStr = overlapStart === overlapEnd
+                  ? fmt(overlapStart)
+                  : `${fmt(overlapStart)} – ${fmt(overlapEnd)}`;
+                const isApproved = l.status === 'approved';
+                // Badge "YOU" if this leave belongs to the logged-in user
+                const isMe = (employeeId && l.employee?.id === employeeId) ||
+                             (myEmployeeId && l.employee?.id === myEmployeeId);
+                return (
+                  <li
+                    key={`${l.id || ''}-${i}`}
+                    className={`flex items-start gap-2 p-2 rounded-md border ${
+                      isMe
+                        ? 'bg-violet-50/50 border-violet-200'
+                        : 'bg-amber-50/50 border-amber-100'
+                    }`}
+                  >
+                    {renderAvatar(name, 'w-7 h-7', l.employee?.avatar)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-800 truncate">
+                        {name}
+                        {isMe && (
+                          <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-violet-100 text-violet-700 font-semibold">
+                            YOU
+                          </span>
+                        )}
+                        <span className="ml-1.5 text-[10px] font-normal text-slate-500">
+                          {l.leaveType?.name || 'Leave'}
+                        </span>
+                      </p>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        <span className="text-slate-500">On leave:</span>{' '}
+                        <span className="font-medium text-slate-700">{dateRange}</span>
+                        {l.halfDay && <span className="ml-1 italic text-slate-500">(half day)</span>}
+                      </p>
+                      <p className="text-[10px] text-amber-700 mt-0.5">
+                        <FiAlertCircle className="w-2.5 h-2.5 inline mr-0.5" />
+                        Overlaps your selection on: <strong>{overlapStr}</strong>
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                        isApproved
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {isApproved ? 'ON LEAVE' : 'PENDING'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );
