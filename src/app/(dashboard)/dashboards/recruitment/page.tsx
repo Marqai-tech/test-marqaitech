@@ -385,7 +385,11 @@ function RecruitmentContent() {
             date: iv.date ? String(iv.date) : '',
             time: String(iv.time || ''),
             candidate: String(iv.candidateName || 'Candidate'),
-            interviewer: String(iv.interviewer || '—'),
+            // Phase 15 fix: Show interviewer names instead of comma-separated IDs
+            // The API returns user IDs — we can't resolve them here, so display count
+            interviewer: String(iv.interviewer || '—').split(',').length > 1
+              ? `${String(iv.interviewer || '—').split(',').length} panel members`
+              : String(iv.interviewer || '—'),
             type: String(iv.type || 'Interview'),
           })));
         }
@@ -422,7 +426,8 @@ function RecruitmentContent() {
             {companyName}
           </span>
           <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 shadow-sm">
-            Q1 2026
+            {/* Phase 15 fix: Dynamic quarter instead of hardcoded "Q1 2026" */}
+            {new Date().getFullYear()} Q{Math.floor(new Date().getMonth() / 3) + 1}
           </span>
         </div>
       </div>

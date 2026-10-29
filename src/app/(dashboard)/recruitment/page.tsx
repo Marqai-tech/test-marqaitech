@@ -2187,6 +2187,10 @@ export default function RecruitmentPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
                             <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
+                            {/* Phase 8 fix: Show workload (previous interview assignments count) */}
+                            {m.availability === 'Available' && (
+                              <p className="text-[10px] text-slate-400">Workload: {m.reason || 'No conflicts'}</p>
+                            )}
                           </div>
                           <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`} title={m.reason}>
                             {m.availability}{m.conflictTime ? ` (${m.conflictTime})` : ''}
