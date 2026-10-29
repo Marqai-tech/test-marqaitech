@@ -244,6 +244,25 @@ export default function RequisitionsPage() {
     setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
+  // Task 165: create job posting from an approved requisition
+  const handleCreateJobPosting = async (r: Requisition) => {
+    if (!isHr) { toast.error('Only HR can create job postings'); return; }
+    if (r.approvalStatus !== 'budget_approved') { toast.error('Requisition must be fully approved'); return; }
+    // Navigate to job-portal with pre-filled data from the requisition
+    const params = new URLSearchParams({
+      requisitionId: r.id,
+      title: r.designation?.title || 'Position',
+      departmentId: r.department?.name || '',
+      vacancies: String(r.numberOfOpenings || 1),
+      type: r.employmentType || 'full-time',
+      experience: r.experienceRequired || '',
+      salary: r.salaryBudget || '',
+      skills: r.skillsRequired || '',
+      qualification: r.qualification || '',
+    });
+    window.location.href = `/job-portal?${params.toString()}`;
+  };
+
   // Task 164: determine which approval buttons to show based on role + status
   const getApprovalButtons = (r: Requisition) => {
     const buttons: React.ReactNode[] = [];
@@ -281,6 +300,15 @@ export default function RequisitionsPage() {
         </button>,
         <button key="fin_reject" onClick={() => handleApproval(r.id, 'finance_reject')} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 flex items-center gap-1">
           <FiXCircle className="w-3 h-3" />Reject
+        </button>
+      );
+    }
+
+    // Task 165: HR can create job posting from approved requisition
+    if (isHr && r.approvalStatus === 'budget_approved') {
+      buttons.push(
+        <button key="create_job" onClick={() => handleCreateJobPosting(r)} className="px-2 py-1 text-xs font-medium text-violet-700 bg-violet-50 rounded hover:bg-violet-100 flex items-center gap-1">
+          <FiPlus className="w-3 h-3" />Create Job Posting
         </button>
       );
     }

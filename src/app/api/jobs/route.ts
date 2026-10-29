@@ -60,10 +60,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // Task 165: require auth for creating job postings
+    const { verifyToken, getTokenFromHeaders } = await import('@/lib/auth');
+    const token = getTokenFromHeaders(req as unknown as Request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
     const body = await req.json();
     const {
       title, description, requirements, departmentId, location,
       type, experience, salary, closingDate, vacancies, status,
+      requisitionId, // Task 165: link to approved requisition
     } = body;
 
     if (!title || !description || !departmentId) {
@@ -72,6 +80,29 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Task 165: if requisitionId is provided, verify it's approved
+    if (requisitionId) {
+      try {
+        const reqRows = await db.$queryRawUnsafe(
+          `SELECT "approvalStatus", "status" FROM "Requisition" WHERE "id" = $1 LIMIT 1`,
+          requisitionId,
+        ) as any[];
+        if (!reqRows[0]) {
+          return NextResponse.json({ error: 'Requisition not found' }, { status: 404 });
+        }
+        if (reqRows[0].approvalStatus !== 'budget_approved' || reqRows[0].status !== 'approved') {
+          return NextResponse.json({ error: 'Requisition must be fully approved before creating a job posting' }, { status: 400 });
+        }
+      } catch {
+        // Requisition table might not exist — non-fatal
+      }
+    }
+
+    // Task 165: ensure requisitionId column exists on JobPosting
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "requisitionId" TEXT`);
+    } catch { /* already exists */ }
 
     const jobPosting = await db.jobPosting.create({
       data: {
@@ -90,15 +121,40 @@ export async function POST(req: NextRequest) {
         vacancies: vacancies || 1,
       },
       include: { department: { select: { id: true, name: true, companyId: true } } },
+    }).catch(async (err) => {
+      // RAW SQL fallback for schema drift
+      console.warn('[Jobs POST] Prisma create failed, trying RAW SQL:', err instanceof Error ? err.message : err);
+      const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "JobPosting" ("id", "title", "description", "requirements", "departmentId", "position",
+          "location", "type", "experience", "salary", "status", "postedDate", "closingDate", "vacancies",
+          "requisitionId", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())`,
+        id, title, description, requirements || null, departmentId, body.position || title,
+        location || null, type || 'full-time', experience || null, salary || null,
+        status || 'open', (status || 'open') === 'open' ? new Date() : null,
+        closingDate ? new Date(closingDate) : null, vacancies || 1, requisitionId || null
+      );
+      return { id, ...body, department: { name: '' } };
     });
+
+    // Task 165: link the requisition to this job posting
+    if (requisitionId) {
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "Requisition" SET "jobPostingId" = $1, "status" = 'in_progress' WHERE "id" = $2`,
+          (jobPosting as any).id, requisitionId,
+        );
+      } catch { /* non-fatal */ }
+    }
 
     await db.auditLog.create({
       data: {
         action: 'CREATE_JOB_POSTING',
         entity: 'JobPosting',
-        entityId: jobPosting.id,
-        userId: body.createdBy || null,
-        details: `Created job posting: ${title}`,
+        entityId: (jobPosting as any).id,
+        userId: decoded.userId,
+        details: `Created job posting: ${title}${requisitionId ? ` from requisition` : ''}`,
       },
     }).catch(() => null);
 

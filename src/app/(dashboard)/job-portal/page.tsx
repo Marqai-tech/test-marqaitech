@@ -182,6 +182,11 @@ export default function JobPortalPage() {
       <ModuleTips moduleKey="job_portal" title="Job Portal Tips" tips={jobPortalTips} userRole={user?.role} />
       <ModuleWorkflow moduleKey="job_portal" title="How to Manage the Job Portal" subtitle="Follow this workflow to set up and manage your career portal" steps={jobPortalWorkflowSteps} accentColor="cyan" userRole={user?.role} />
 
+      {/* Task 165: Create Job Posting form (from approved requisition) */}
+      {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('requisitionId') && (
+        <CreateJobPostingForm />
+      )}
+
       {/* Search Bar */}
       <div className="thb-card p-6 bg-gradient-to-r from-sky-50 to-green-50 border-sky-200">
         <div className="flex flex-col sm:flex-row gap-3">
@@ -374,6 +379,123 @@ export default function JobPortalPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Task 165: Create Job Posting form — appears when navigated from an approved requisition
+function CreateJobPostingForm() {
+  const [form, setForm] = useState({
+    title: '', description: '', requirements: '', departmentId: '', location: '',
+    type: 'full-time', experience: '', salary: '', closingDate: '', vacancies: 1,
+  });
+  const [saving, setSaving] = useState(false);
+  const [requisitionId, setRequisitionId] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setRequisitionId(params.get('requisitionId') || '');
+    setForm({
+      title: params.get('title') || '',
+      description: '',
+      requirements: params.get('skills') ? `Required skills: ${params.get('skills')}${params.get('qualification') ? `\nQualification: ${params.get('qualification')}` : ''}` : '',
+      departmentId: params.get('departmentId') || '',
+      location: '',
+      type: params.get('type') || 'full-time',
+      experience: params.get('experience') || '',
+      salary: params.get('salary') || '',
+      closingDate: '',
+      vacancies: parseInt(params.get('vacancies') || '1'),
+    });
+  }, []);
+
+  const handlePublish = async (status: 'open' | 'draft') => {
+    if (!form.title || !form.description || !form.departmentId) {
+      toast.error('Title, description, and department are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...form, status, requisitionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(status === 'open' ? 'Job posting published!' : 'Job posting saved as draft');
+      // Clear the query params and reload
+      window.location.href = '/job-portal';
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="thb-card border-l-4 border-l-violet-500">
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-semibold text-thb-text-primary">Create Job Posting from Requisition</h2>
+            <p className="text-xs text-thb-text-muted mt-0.5">Requisition details are pre-filled. Add public-facing details and publish.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title <span className="text-red-500">*</span></label>
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500">*</span></label>
+            <input value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
+            <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="e.g. Bangalore, India" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employment Type</label>
+            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+              <option value="full-time">Full-time</option>
+              <option value="part-time">Part-time</option>
+              <option value="contract">Contract</option>
+              <option value="internship">Internship</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Experience</label>
+            <input value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} placeholder="e.g. 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Range</label>
+            <input value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} placeholder="e.g. 500000-700000 INR" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Vacancies</label>
+            <input type="number" min={1} value={form.vacancies} onChange={(e) => setForm({ ...form, vacancies: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Application Deadline</label>
+            <input type="date" value={form.closingDate} onChange={(e) => setForm({ ...form, closingDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Description <span className="text-red-500">*</span></label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} placeholder="Describe the role, responsibilities, and what the candidate will do..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requirements</label>
+            <textarea value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} rows={3} placeholder="List required skills, qualifications, certifications..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+          <a href="/job-portal" className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</a>
+          <button onClick={() => handlePublish('draft')} disabled={saving} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 disabled:opacity-50 transition-colors">{saving ? 'Saving...' : 'Save as Draft'}</button>
+          <button onClick={() => handlePublish('open')} disabled={saving} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">{saving ? 'Publishing...' : 'Preview & Publish'}</button>
+        </div>
+      </div>
     </div>
   );
 }
