@@ -530,7 +530,8 @@ export default function CandidateDashboardPage() {
                 <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
                   <FiBriefcase className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm text-slate-500">You haven't applied to any jobs yet.</p>
-                  <Link href="/recruitment" className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 mt-2">
+                  {/* Phase 10 fix: Empty-state should link to public /careers, not internal /recruitment */}
+                  <Link href="/careers" className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 mt-2">
                     Browse open positions <FiArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
@@ -1076,7 +1077,7 @@ export default function CandidateDashboardPage() {
         {/* Footer */}
         <footer className="pt-4 pb-2 text-center">
           <p className="text-[11px] text-slate-400">
-            Candidate Portal · Powered by 3Boxes HRMS · <Link href="/recruitment/pii-policy" className="underline">Privacy Policy</Link>
+            Candidate Portal · Powered by 3Boxes HRMS · <Link href="/privacy-policy" className="underline">Privacy Policy</Link>
           </p>
         </footer>
       </main>

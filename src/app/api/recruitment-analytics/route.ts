@@ -202,7 +202,10 @@ export async function GET(request: Request) {
       return created >= thirtyDaysAgo;
     });
 
-    // Per-hire cost = offeredSalary * 0.1 (hiring cost) + 50000 (fixed)
+    // Phase 15 fix: Cost per Hire is an ESTIMATE (salary * 10% + INR 50,000 fixed).
+    // This is documented as an estimate — actual recorded recruitment expenses are
+    // not available in the current schema. To use real expenses, add a RecruitmentExpense
+    // table and sum actual costs here instead.
     let totalHiringCostINR = 0;
     const hireCount = Math.max(recentHires.length, recentAcceptedOffers.length, 0);
 

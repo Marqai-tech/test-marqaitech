@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
             now,
           ) as any[];
 
+          // Phase 16 fix: Also send candidate reminder email (was described but never sent)
           for (const interview of upcoming24h) {
             const panelMembers = await db.$queryRawUnsafe(
               `SELECT pm."userId", pm."status", u."name", u."email"
@@ -94,6 +95,28 @@ export async function POST(req: NextRequest) {
                 });
               } catch {}
             }
+
+            // Phase 16 fix: Send candidate reminder email (was missing)
+            if (interview.candidateEmail) {
+              try {
+                await dispatchNotification({
+                  tenantId,
+                  module: 'recruitment',
+                  eventKey: 'recruitment.interview.reminder',
+                  recipients: [{ name: interview.candidateName, email: interview.candidateEmail }],
+                  vars: {
+                    Candidate_Name: interview.candidateName || 'Candidate',
+                    Job_Title: interview.jobTitle || 'a position',
+                    Interview_Date: interview.date ? new Date(interview.date).toLocaleDateString() : 'TBD',
+                    Interview_Time: interview.time || 'TBD',
+                    Interview_Mode: interview.location || interview.meetingUrl || 'TBD',
+                  },
+                  entity: { type: 'interview', id: interview.id, link: '/careers' },
+                  suppressInApp: true,
+                });
+              } catch { /* non-fatal */ }
+            }
+
             results.push(`24h reminder sent for interview ${interview.id}`);
           }
         } catch (e) { results.push(`24h reminder error: ${e instanceof Error ? e.message : e}`); }
