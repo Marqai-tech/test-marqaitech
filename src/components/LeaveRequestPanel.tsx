@@ -626,16 +626,37 @@ export default function LeaveRequestPanel({
   };
 
   /* ── Avatar helper ── */
-  const renderAvatar = (name: string, size = 'w-7 h-7') => (
-    <div
-      className={`${size} rounded-full bg-gradient-to-br ${getAvatarGradient(
-        name,
-      )} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}
-      aria-hidden="true"
-    >
-      {getInitials(name)}
-    </div>
-  );
+  // Renders an actual profile photo if `avatarUrl` is a non-empty string
+  // (data URL or http URL). Otherwise falls back to a colored circle with
+  // the user's initials.
+  const renderAvatar = (
+    name: string,
+    size = 'w-7 h-7',
+    avatarUrl?: string | null,
+  ) => {
+    // Normalize — treat empty string / "null" / "undefined" as no avatar
+    const url = avatarUrl && typeof avatarUrl === 'string' && avatarUrl.length > 0 ? avatarUrl : null;
+    if (url) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt={name}
+          className={`${size} rounded-full object-cover border border-white shadow-sm flex-shrink-0`}
+        />
+      );
+    }
+    return (
+      <div
+        className={`${size} rounded-full bg-gradient-to-br ${getAvatarGradient(
+          name,
+        )} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}
+        aria-hidden="true"
+      >
+        {getInitials(name)}
+      </div>
+    );
+  };
 
   /* ───────────────────────────────────────────────────────────────────────
      Render
@@ -945,7 +966,7 @@ export default function LeaveRequestPanel({
                         isSelected ? 'bg-green-50' : ''
                       }`}
                     >
-                      {renderAvatar(name, 'w-6 h-6')}
+                      {renderAvatar(name, 'w-6 h-6', e.avatar)}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-slate-700 truncate">{name}</p>
                         <p className="text-[10px] text-slate-400 truncate">
@@ -967,7 +988,7 @@ export default function LeaveRequestPanel({
                       key={e.id}
                       className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-50 border border-green-200"
                     >
-                      {renderAvatar(name, 'w-5 h-5')}
+                      {renderAvatar(name, 'w-5 h-5', e.avatar)}
                       <span className="text-[11px] font-medium text-slate-700">{name}</span>
                       <button
                         type="button"
@@ -1275,7 +1296,7 @@ export default function LeaveRequestPanel({
                       : (l.status || '').toUpperCase();
                 return (
                   <li key={`${l.id || ''}-${i}`} className="flex items-center gap-2">
-                    {renderAvatar(name, 'w-7 h-7')}
+                    {renderAvatar(name, 'w-7 h-7', l.employee?.avatar)}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-slate-700 truncate">{name}</p>
                       <p className="text-[10px] text-slate-400 truncate">

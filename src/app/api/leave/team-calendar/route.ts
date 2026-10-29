@@ -34,6 +34,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { resolveCompanyScope, getAuthInfo } from '@/lib/companyScope';
+import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
+import { getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
   return {
@@ -226,6 +228,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Replace raw base64 avatar blobs with lightweight photo-proxy URLs.
+    // The Employee.avatar column stores a ~145KB base64 data URL per photo.
+    // Returning that inline for every team member + every leave record would
+    // make the response huge (1.4MB+ for a 10-person team). Instead, build
+    // a set of employee IDs that have a stored photo, then map each to the
+    // /api/employees/{id}/photo proxy URL (which the browser fetches as a
+    // separate cached <img> request). Mirrors the pattern used by
+    // /api/employees and /api/attendance.
+    const allEmployeeIds = Array.from(new Set([
+      ...teamMembers.map(m => m.id),
+      ...leaves.map(lv => lv.employee?.id).filter(Boolean) as string[],
+    ]));
+    const hasPhoto = await employeeIdsWithStoredPhoto(db, allEmployeeIds);
+    const token = getTokenFromHeaders(req);
+    const photoUrlFor = (empId: string | undefined): string | null => {
+      if (!empId || !hasPhoto.has(empId)) return null;
+      return employeePhotoApiPath(empId, req.url, token);
+    };
+
     return NextResponse.json({
       teamSize: teamMembers.length,
       month: `${year}-${String(month + 1).padStart(2, '0')}`,
@@ -238,7 +259,10 @@ export async function GET(req: NextRequest) {
         halfDaySlot: lv.halfDaySlot,
         reason: lv.reason, // OK to expose to team — helps plan around the absence
         leaveType: lv.leaveType,
-        employee: lv.employee,
+        employee: lv.employee ? {
+          ...lv.employee,
+          avatar: photoUrlFor(lv.employee.id),
+        } : lv.employee,
       })),
       byDate,
       team: teamMembers.map(m => ({
@@ -246,7 +270,7 @@ export async function GET(req: NextRequest) {
         firstName: m.firstName,
         lastName: m.lastName,
         employeeCode: m.employeeId,
-        avatar: m.avatar,
+        avatar: photoUrlFor(m.id),
       })),
       me: me ? { id: me.id, firstName: me.firstName, lastName: me.lastName } : null,
     }, { headers: corsHeaders() });
