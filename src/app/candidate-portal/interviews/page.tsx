@@ -10,7 +10,11 @@ export default function CandidateInterviewsPage() {
   const [responding, setResponding] = useState<string | null>(null);
 
   const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('candidate_token') || localStorage.getItem('tb_token') : null;
+    // CRITICAL FIX #3: Candidate login stores tb_candidate_token, not candidate_token.
+    // Check all possible token keys so the candidate's session works.
+    const token = typeof window !== 'undefined'
+      ? localStorage.getItem('tb_candidate_token') || localStorage.getItem('candidate_token') || localStorage.getItem('tb_token')
+      : null;
     return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   };
 

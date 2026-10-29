@@ -575,6 +575,9 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/assets',
     // Bug 5 fix: employees must be able to reach the Org Chart page
     '/org-chart',
+    // CRITICAL FIX #2: employees must be able to reach My Interviews and Referrals
+    '/my-interviews',
+    '/referrals',
   ];
   return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

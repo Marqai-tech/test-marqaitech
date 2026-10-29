@@ -83,6 +83,24 @@ export async function PATCH(
         );
       }
 
+      // CRITICAL FIX #6: Enforce offer approval before send — cannot send an
+      // unapproved offer. This prevents bypassing the approval chain.
+      if (status === 'sent' && existing.status !== 'approved') {
+        return NextResponse.json(
+          { error: 'Offer must be approved before it can be sent to the candidate. Current status: ' + existing.status },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      // CRITICAL FIX #6: Prevent status regression — once sent/accepted, cannot go back to draft
+      const lockedStatuses = ['sent', 'accepted', 'rejected'];
+      if (lockedStatuses.includes(existing.status) && !['accepted', 'rejected', 'withdrawn'].includes(status)) {
+        return NextResponse.json(
+          { error: `Offer is already ${existing.status} and cannot be changed to ${status}` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
       // ─── Sequential tier approval, driven by the recruitment workflow config ───
       if (status === 'approved') {
         const wf = await resolveRecruitmentConfig(db, decoded.tenantId as string, null).catch(() => null);

@@ -15,6 +15,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+// CRITICAL FIX #8: import createNotification so HR feedback notification actually fires
+import { createNotification } from '@/lib/notifications';
 
 function corsHeaders() {
   return {
@@ -52,13 +54,32 @@ export async function POST(
       return NextResponse.json({ error: 'userId is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Ensure the InterviewFeedback table exists with correct schema
-    // Drop the old table (from AI interview feature) and recreate with our schema
+    // CRITICAL FIX #7: The userId in the body MUST match the signed-in user's ID.
+    // Previously anyone with a valid token could submit feedback on behalf of another user.
+    if (decoded.userId !== userId) {
+      return NextResponse.json({ error: 'You can only submit feedback as yourself.' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // CRITICAL FIX #7: Verify the user is actually assigned as a panel member
+    // for this interview before allowing feedback submission.
     try {
-      await db.$executeRawUnsafe(`DROP TABLE IF EXISTS "InterviewFeedback"`);
-    } catch {}
+      const assignment = await db.$queryRawUnsafe(
+        `SELECT "id", "status" FROM "InterviewPanelMember" WHERE "interviewId" = $1 AND "userId" = $2 LIMIT 1`,
+        id, userId,
+      ) as any[];
+      if (!assignment[0]) {
+        return NextResponse.json({ error: 'You are not assigned as a panel member for this interview.' }, { status: 403, headers: corsHeaders() });
+      }
+      if (assignment[0].status === 'declined') {
+        return NextResponse.json({ error: 'You have declined this interview and cannot submit feedback.' }, { status: 403, headers: corsHeaders() });
+      }
+    } catch { /* table may not exist yet — proceed */ }
+
+    // CRITICAL FIX #1: NEVER drop the table — this destroys ALL existing feedback.
+    // Instead, use CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS to ensure
+    // the table has all required columns without losing any data.
     try {
-      await db.$executeRawUnsafe(`CREATE TABLE "InterviewFeedback" (
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InterviewFeedback" (
         "id" TEXT NOT NULL,
         "interviewId" TEXT NOT NULL,
         "userId" TEXT NOT NULL,

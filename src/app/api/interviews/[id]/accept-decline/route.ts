@@ -42,6 +42,12 @@ export async function POST(
       return NextResponse.json({ error: 'userId and action (accept|decline|request_reschedule) are required' }, { status: 400, headers: corsHeaders() });
     }
 
+    // CRITICAL FIX #7: The userId in the body MUST match the signed-in user's ID.
+    // Previously anyone with a valid token could respond on behalf of another user.
+    if (decoded.userId !== userId) {
+      return NextResponse.json({ error: 'You can only respond to interviews assigned to your own account.' }, { status: 403, headers: corsHeaders() });
+    }
+
     // Ensure the InterviewPanelMember table exists
     try {
       await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InterviewPanelMember" (

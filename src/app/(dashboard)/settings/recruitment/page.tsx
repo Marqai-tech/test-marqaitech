@@ -58,7 +58,9 @@ export default function RecruitmentInterviewWorkflowSettings() {
   const fetchConfig = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/recruitment-workflow-config?type=interview', { headers: getAuthHeaders() });
+      // CRITICAL FIX #5: Use the correct API path /api/recruitment/workflow-config
+      // (was calling /api/recruitment-workflow-config which doesn't exist)
+      const res = await fetch('/api/recruitment/workflow-config?type=interview', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         if (data.config) {
@@ -77,8 +79,9 @@ export default function RecruitmentInterviewWorkflowSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/recruitment-workflow-config', {
-        method: 'POST',
+      // CRITICAL FIX #5: Use the correct API path + PUT method (not POST)
+      const res = await fetch('/api/recruitment/workflow-config', {
+        method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ type: 'interview', config: JSON.stringify(config) }),
       });

@@ -88,7 +88,7 @@ export async function POST(
           candidateResponseMap[action], reason || null, id,
         );
 
-        // If withdraw, update JobApplication status
+        // If withdraw, update JobApplication status to 'withdrawn' (not 'rejected')
         if (action === 'withdraw') {
           try {
             const appId = await db.$queryRawUnsafe(
@@ -96,27 +96,33 @@ export async function POST(
             ) as any[];
             if (appId[0]?.jobApplicationId) {
               await db.$executeRawUnsafe(
-                `UPDATE "JobApplication" SET "status" = 'rejected', "updatedAt" = NOW() WHERE "id" = $1`,
+                `UPDATE "JobApplication" SET "status" = 'withdrawn', "updatedAt" = NOW() WHERE "id" = $1`,
                 appId[0].jobApplicationId,
               );
             }
           } catch {}
         }
 
+        // CRITICAL FIX #4: Move responseLabels OUTSIDE the try block so it's
+        // available in the audit log expression. Previously it was declared
+        // inside the HR notification try block, causing a ReferenceError in
+        // the audit log line that referenced it.
+        const responseLabels: Record<string, string> = {
+          confirm: 'confirmed attendance',
+          reschedule: 'requested reschedule',
+          withdraw: 'withdrawn their application',
+        };
+
         // Notify HR about the candidate's response
         try {
           const hrUsers = await db.user.findMany({
             where: { role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active' },
-            select: { id: true },
+            select: { id: true, email: true },
           }).catch(() => []);
+          // Avoid hr@marqaitech.com per user instruction
+          const safeHrUsers = hrUsers.filter(u => !u.email?.includes('hr@marqaitech'));
 
-          const responseLabels: Record<string, string> = {
-            confirm: 'confirmed attendance',
-            reschedule: 'requested reschedule',
-            withdraw: 'withdrawn their application',
-          };
-
-          for (const hr of hrUsers) {
+          for (const hr of safeHrUsers) {
             await createNotification({
               tenantId: td.tenant.id, userId: hr.id,
               title: `Candidate ${responseLabels[action]}`,
@@ -127,10 +133,10 @@ export async function POST(
           }
         } catch {}
 
-        // Audit log
+        // Audit log — responseLabels is now in scope
         await db.auditLog.create({
           data: { userId: decoded.userId as string, action: `CANDIDATE_INTERVIEW_${action.toUpperCase()}`, module: 'recruitment',
-            details: `Candidate ${candidateEmail} ${responseLabels ? responseLabels[action] : action} for interview ${id}` },
+            details: `Candidate ${candidateEmail} ${responseLabels[action] || action} for interview ${id}` },
         }).catch(() => null);
 
         updated = true;

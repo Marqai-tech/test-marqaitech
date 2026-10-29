@@ -82,8 +82,9 @@ export async function POST(
       try {
         const deptId = interview.departmentId;
         if (deptId) {
+          // FIX #9: Correct the placeholder numbering — $1 is deptId, excluded IDs start at $2
           const placeholders = excludeIds.length > 0
-            ? excludeIds.map((_: string, i: number) => `$${i + 3}`).join(',')
+            ? excludeIds.map((_: string, i: number) => `$${i + 2}`).join(',')
             : 'NULL';
           eligibleEmployees = await db.$queryRawUnsafe(
             `SELECT e."id", e."firstName", e."lastName", e."email", e."userId",
