@@ -71,6 +71,21 @@ export async function PATCH(
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // Phase 13 fix: Prevent editing core offer fields after approval or send
+    const lockedStatuses = ['sent', 'accepted', 'rejected'];
+    if (lockedStatuses.includes(existing.status)) {
+      // Only allow status changes (accepted/rejected/withdrawn) after send
+      // Block editing of candidate, salary, position, joining date
+      if (candidateName !== undefined || candidateEmail !== undefined || position !== undefined ||
+          department !== undefined || offeredSalary !== undefined || offeredCurrency !== undefined ||
+          joiningDate !== undefined || probationPeriod !== undefined) {
+        return NextResponse.json(
+          { error: `Offer is already ${existing.status}. Core fields (candidate, salary, position, joining date) cannot be edited after the offer is sent.` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+    }
+
     const updateData: Record<string, unknown> = {};
 
     // Handle status changes
@@ -247,14 +262,20 @@ export async function PATCH(
           const safeAdmins = hrAdmins.filter(a => !a.email?.includes('hr@marqaitech'));
 
           if (safeAdmins.length > 0) {
-            const eventKey = effectiveStatus === 'pending_approval'
-              ? 'recruitment.offer.approval_required'
-              : effectiveStatus === 'approved'
-                ? 'recruitment.offer.accepted' // reuse for approved
-                : 'recruitment.offer.declined'; // fallback for rejected/withdrawn
+            // Phase 16 fix: Correct notification event mapping
+            // approved → recruitment.offer.approval_required is wrong; use no special template for approved
+            // accepted → recruitment.offer.accepted
+            // rejected/withdrawn → recruitment.offer.declined
+            const eventKeyMap: Record<string, string> = {
+              pending_approval: 'recruitment.offer.approval_required',
+              accepted: 'recruitment.offer.accepted',
+              rejected: 'recruitment.offer.declined',
+              withdrawn: 'recruitment.offer.declined',
+            };
+            const eventKey = eventKeyMap[effectiveStatus];
 
             // Only dispatch via Notification Center for known event keys
-            if (['pending_approval', 'approved', 'accepted', 'rejected'].includes(effectiveStatus)) {
+            if (eventKey) {
               await dispatchNotification({
                 tenantId: decoded.tenantId as string,
                 module: 'recruitment',

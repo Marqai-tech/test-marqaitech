@@ -689,11 +689,16 @@ export default function RecruitmentPage() {
     if (appForm.candidatePhone) { const r = validatePhone(appForm.candidatePhone); if (!r.valid) { toast.error(r.error); return } }
     try {
       setSubmittingApp(true);
-      await fetch('/api/recruitment', {
+      // Phase 7 fix: Check response.ok before showing success
+      const res = await fetch('/api/recruitment', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ action: 'apply', ...appForm }),
       });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to submit application');
+      }
       toast.success('Application submitted successfully');
       handleCancelAppForm();
       fetchData();
@@ -715,12 +720,15 @@ export default function RecruitmentPage() {
     setEditAppStatus('');
   };
 
-  const handleSaveAppStatus = async (appId: string) => {
+  const handleSaveAppStatus = async (appId: string, overrideStatus?: string) => {
+    // Phase 7 fix: accept optional overrideStatus to avoid React async state race
+    const statusToSend = overrideStatus || editAppStatus;
+    if (!statusToSend) { toast.error('No status selected'); return; }
     try {
       const res = await fetch(`/api/recruitment/${appId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ status: editAppStatus }),
+        body: JSON.stringify({ status: statusToSend }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success('Application status updated');
@@ -1786,14 +1794,14 @@ export default function RecruitmentPage() {
                         {isAdmin && !isDemo && (
                           <>
                             <button
-                              onClick={() => { handleOpenAppEdit(app); setCandidateViewMode('list'); }}
+                              onClick={() => { handleSaveAppStatus(app.id, 'shortlisted'); }}
                               className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                               title="Shortlist"
                             >
                               <FiUserCheck className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => { setEditAppStatus('rejected'); setEditingAppId(app.id); handleSaveAppStatus(app.id); }}
+                              onClick={() => { handleSaveAppStatus(app.id, 'rejected'); }}
                               className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
                               title="Reject"
                             >

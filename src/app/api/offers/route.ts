@@ -83,6 +83,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     }
 
+    // Phase 13 fix: Only HR/Admin can create offers
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can create offers' }, { status: 403, headers: corsHeaders() });
+    }
+
     const body = await request.json();
     const {
       candidateId, jobPostingId, candidateName, candidateEmail,

@@ -118,6 +118,20 @@ export async function PATCH(
     if (priority !== undefined) updateData.priority = priority;
     if (expectedJoiningDate !== undefined) updateData.expectedJoiningDate = expectedJoiningDate ? new Date(expectedJoiningDate) : null;
 
+    // Phase 3 fix: Persist positionTitle and reason in PATCH (were destructured but never stored)
+    if (body.positionTitle !== undefined) (updateData as any).positionTitle = body.positionTitle || null;
+    if (reason !== undefined) (updateData as any).reason = reason || null;
+
+    // Phase 3 fix: Only allow field edits if requester or admin AND status is draft/returned
+    if (Object.keys(updateData).length > 0 && !action) {
+      if (!isRequester && !isHr) {
+        return NextResponse.json({ error: 'Only the requester or HR can edit requisition fields' }, { status: 403, headers: corsHeaders() });
+      }
+      if (!['draft', 'returned'].includes(existing.approvalStatus)) {
+        return NextResponse.json({ error: 'Cannot edit a requisition that is already ' + existing.approvalStatus + '. Return it first.' }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     // ─── Task 164: approval actions ───
     // Flow: draft → pending (submit) → hr_approved → budget_approved → approved
     //                                → rejected (at any stage)
@@ -393,6 +407,17 @@ export async function DELETE(
       return rows[0] || null;
     });
     if (!existing) return NextResponse.json({ error: 'Requisition not found' }, { status: 404, headers: corsHeaders() });
+
+    // Phase 3 fix: Only requester or HR/Admin can delete, and only if draft/returned
+    const userRole = (decoded.role as string) || '';
+    const isHrOrAdmin = HR_ROLES.includes(userRole);
+    const isRequester = existing.hiringManagerId === decoded.userId;
+    if (!isRequester && !isHrOrAdmin) {
+      return NextResponse.json({ error: 'Only the requester or HR/Admin can delete a requisition' }, { status: 403, headers: corsHeaders() });
+    }
+    if (!['draft', 'returned'].includes(existing.approvalStatus)) {
+      return NextResponse.json({ error: 'Cannot delete a requisition that has been submitted or approved. Cancel it instead.' }, { status: 400, headers: corsHeaders() });
+    }
 
     await db.requisition.delete({ where: { id } }).catch(async () => {
       await db.$executeRawUnsafe(`DELETE FROM "Requisition" WHERE "id" = $1`, id);
