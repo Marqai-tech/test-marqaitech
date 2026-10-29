@@ -2077,6 +2077,108 @@ export default function RecruitmentPage() {
           )}
         </div>
       )}
+      {/* Task 167: Interview Scheduling Modal */}
+      {scheduleAppId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-thb-border">
+              <h2 className="text-lg font-bold text-thb-text-primary">Schedule Interview</h2>
+              <button onClick={() => setScheduleAppId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interview Type *</label>
+                <select value={interviewForm.type} onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
+                  <option value="technical">Technical Interview</option>
+                  <option value="hr">HR Interview</option>
+                  <option value="ai">AI Interview</option>
+                  <option value="offline_panel">Panel Interview (Offline)</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                  <input type="date" value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time</label>
+                  <input type="time" value={interviewForm.time} onChange={(e) => setInterviewForm({ ...interviewForm, time: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration (mins)</label>
+                  <input type="number" value={interviewForm.duration} onChange={(e) => setInterviewForm({ ...interviewForm, duration: Number(e.target.value) })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
+                  <input value={interviewForm.location} onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })} placeholder="e.g. Conference Room A" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Meeting Link (optional)</label>
+                <input value={interviewForm.meetingUrl} onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })} placeholder="e.g. https://meet.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Panel Members (from {scheduleAppDept || 'department'}) *</label>
+                <p className="text-xs text-thb-text-muted mb-2">Only employees from the job's department are shown. Select one or more available members.</p>
+                {loadingPanel ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Loading panel members…</div>
+                ) : !interviewForm.date ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Pick a date to load available panel members</div>
+                ) : panelMembers.length === 0 ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">No employees found in this department</div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
+                    {panelMembers.map((m) => {
+                      const isSelected = selectedPanelEmails.includes(m.email);
+                      const availBadge: Record<string, string> = {
+                        Available: 'bg-emerald-50 text-emerald-700',
+                        Busy: 'bg-red-50 text-red-700',
+                        'On Leave': 'bg-amber-50 text-amber-700',
+                        Tentative: 'bg-blue-50 text-blue-700',
+                      };
+                      return (
+                        <label key={m.id} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'} ${m.availability === 'Busy' || m.availability === 'On Leave' ? 'opacity-60' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedPanelEmails([...selectedPanelEmails, m.email]);
+                              else setSelectedPanelEmails(selectedPanelEmails.filter(e => e !== m.email));
+                            }}
+                            className="w-4 h-4 rounded text-teal-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
+                            <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
+                          </div>
+                          <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`}>
+                            {m.availability}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {selectedPanelEmails.length > 0 && (
+                  <p className="text-xs text-teal-600 mt-1">{selectedPanelEmails.length} member(s) selected</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">
+              <button onClick={() => setScheduleAppId(null)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={handleScheduleInterview} disabled={schedulingInterview} className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+                {schedulingInterview ? 'Scheduling...' : 'Schedule Interview'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2282,108 +2384,7 @@ function ParsedResumePanel({
         </div>
       )}
 
-      {/* Task 167: Interview Scheduling Modal */}
-      {scheduleAppId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-thb-border">
-              <h2 className="text-lg font-bold text-thb-text-primary">Schedule Interview</h2>
-              <button onClick={() => setScheduleAppId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interview Type *</label>
-                <select value={interviewForm.type} onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
-                  <option value="technical">Technical Interview</option>
-                  <option value="hr">HR Interview</option>
-                  <option value="ai">AI Interview</option>
-                  <option value="offline_panel">Panel Interview (Offline)</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
-                  <input type="date" value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time</label>
-                  <input type="time" value={interviewForm.time} onChange={(e) => setInterviewForm({ ...interviewForm, time: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration (mins)</label>
-                  <input type="number" value={interviewForm.duration} onChange={(e) => setInterviewForm({ ...interviewForm, duration: Number(e.target.value) })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
-                  <input value={interviewForm.location} onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })} placeholder="e.g. Conference Room A" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Meeting Link (optional)</label>
-                <input value={interviewForm.meetingUrl} onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })} placeholder="e.g. https://meet.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Panel Members (from {scheduleAppDept || 'department'}) *</label>
-                <p className="text-xs text-thb-text-muted mb-2">Only employees from the job's department are shown. Select one or more available members.</p>
-                {loadingPanel ? (
-                  <div className="py-4 text-center text-sm text-thb-text-muted">Loading panel members…</div>
-                ) : !interviewForm.date ? (
-                  <div className="py-4 text-center text-sm text-thb-text-muted">Pick a date to load available panel members</div>
-                ) : panelMembers.length === 0 ? (
-                  <div className="py-4 text-center text-sm text-thb-text-muted">No employees found in this department</div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
-                    {panelMembers.map((m) => {
-                      const isSelected = selectedPanelEmails.includes(m.email);
-                      const availBadge: Record<string, string> = {
-                        Available: 'bg-emerald-50 text-emerald-700',
-                        Busy: 'bg-red-50 text-red-700',
-                        'On Leave': 'bg-amber-50 text-amber-700',
-                        Tentative: 'bg-blue-50 text-blue-700',
-                      };
-                      return (
-                        <label key={m.id} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'} ${m.availability === 'Busy' || m.availability === 'On Leave' ? 'opacity-60' : ''}`}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) setSelectedPanelEmails([...selectedPanelEmails, m.email]);
-                              else setSelectedPanelEmails(selectedPanelEmails.filter(e => e !== m.email));
-                            }}
-                            className="w-4 h-4 rounded text-teal-600"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
-                            <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
-                          </div>
-                          <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`}>
-                            {m.availability}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                {selectedPanelEmails.length > 0 && (
-                  <p className="text-xs text-teal-600 mt-1">{selectedPanelEmails.length} member(s) selected</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">
-              <button onClick={() => setScheduleAppId(null)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">
-                Cancel
-              </button>
-              <button onClick={handleScheduleInterview} disabled={schedulingInterview} className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
-                {schedulingInterview ? 'Scheduling...' : 'Schedule Interview'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
