@@ -113,8 +113,86 @@ export async function POST(request: Request) {
       action, // Task 164: 'draft' | 'submit' (default: 'submit')
     } = body;
 
-    if (!companyId || !departmentId) {
-      return NextResponse.json({ error: 'Missing required fields: companyId, departmentId' }, { status: 400, headers: corsHeaders() });
+    if (!departmentId) {
+      return NextResponse.json({ error: 'Missing required field: departmentId' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Task 167 fix: resolve companyId + departmentId from names to IDs if needed.
+    // The frontend sends user.tenantId as companyId (which is the tenant ID, not
+    // a company ID) and the user types department/designation names (not IDs).
+    // We need to resolve these to valid FK IDs before creating the Requisition.
+    let resolvedCompanyId = companyId;
+    let resolvedDepartmentId = departmentId;
+    let resolvedDesignationId = designationId;
+
+    // Resolve companyId: if it looks like a tenant ID (not a company ID),
+    // find the first company for this tenant.
+    if (resolvedCompanyId) {
+      const isCompanyId = await db.$queryRawUnsafe(
+        `SELECT "id" FROM "Company" WHERE "id" = $1 LIMIT 1`, resolvedCompanyId,
+      ).catch(() => []) as any[];
+      if (isCompanyId.length === 0) {
+        // It's not a valid company ID — find the employee's company
+        const empRows = await db.$queryRawUnsafe(
+          `SELECT "companyId" FROM "Employee" WHERE "userId" = $1 LIMIT 1`, decoded.userId,
+        ).catch(() => []) as any[];
+        if (empRows[0]?.companyId) {
+          resolvedCompanyId = empRows[0].companyId;
+        } else {
+          // Fall back to first company in the tenant DB
+          const firstCompany = await db.$queryRawUnsafe(
+            `SELECT "id" FROM "Company" LIMIT 1`,
+          ).catch(() => []) as any[];
+          if (firstCompany[0]?.id) resolvedCompanyId = firstCompany[0].id;
+        }
+      }
+    } else {
+      // No companyId provided — find from employee record
+      const empRows = await db.$queryRawUnsafe(
+        `SELECT "companyId" FROM "Employee" WHERE "userId" = $1 LIMIT 1`, decoded.userId,
+      ).catch(() => []) as any[];
+      if (empRows[0]?.companyId) {
+        resolvedCompanyId = empRows[0].companyId;
+      } else {
+        const firstCompany = await db.$queryRawUnsafe(
+          `SELECT "id" FROM "Company" LIMIT 1`,
+        ).catch(() => []) as any[];
+        if (firstCompany[0]?.id) resolvedCompanyId = firstCompany[0].id;
+      }
+    }
+
+    if (!resolvedCompanyId) {
+      return NextResponse.json({ error: 'Could not resolve company. Please contact admin.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Resolve departmentId: if it's a name (not a CUID), look it up
+    if (resolvedDepartmentId && !resolvedDepartmentId.startsWith('cm')) {
+      const deptRows = await db.$queryRawUnsafe(
+        `SELECT "id" FROM "Department" WHERE LOWER("name") LIKE LOWER($1) LIMIT 1`,
+        `%${resolvedDepartmentId}%`,
+      ).catch(() => []) as any[];
+      if (deptRows[0]?.id) {
+        resolvedDepartmentId = deptRows[0].id;
+      } else {
+        // Use the employee's department
+        const empDept = await db.$queryRawUnsafe(
+          `SELECT "departmentId" FROM "Employee" WHERE "userId" = $1 LIMIT 1`, decoded.userId,
+        ).catch(() => []) as any[];
+        if (empDept[0]?.departmentId) resolvedDepartmentId = empDept[0].departmentId;
+      }
+    }
+
+    // Resolve designationId: if it's a name (not a CUID), look it up
+    if (resolvedDesignationId && !resolvedDesignationId.startsWith('cm')) {
+      const desigRows = await db.$queryRawUnsafe(
+        `SELECT "id" FROM "Designation" WHERE LOWER("title") LIKE LOWER($1) LIMIT 1`,
+        `%${resolvedDesignationId}%`,
+      ).catch(() => []) as any[];
+      if (desigRows[0]?.id) {
+        resolvedDesignationId = desigRows[0].id;
+      } else {
+        resolvedDesignationId = null; // not found — make it optional
+      }
     }
 
     const requisitionId = await generateRequisitionId(db);
@@ -126,11 +204,11 @@ export async function POST(request: Request) {
     const requisition = await db.requisition.create({
       data: {
         requisitionId,
-        companyId,
+        companyId: resolvedCompanyId,
         branchId,
-        departmentId,
-        designationId,
-        hiringManagerId: decoded.userId as string, // Task 164: requester = current user
+        departmentId: resolvedDepartmentId,
+        designationId: resolvedDesignationId,
+        hiringManagerId: decoded.userId as string,
         positionType: positionType || 'new',
         replacementEmployeeId,
         numberOfOpenings: numberOfOpenings ?? 1,
@@ -160,14 +238,14 @@ export async function POST(request: Request) {
           "skillsRequired", "experienceRequired", "qualification", "salaryBudget", "projectId", "clientId",
           "priority", "expectedJoiningDate", "approvalStatus", "status", "createdAt", "updatedAt")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW())`,
-        id, requisitionId, companyId, branchId || null, departmentId, designationId || null,
+        id, requisitionId, resolvedCompanyId, branchId || null, resolvedDepartmentId, resolvedDesignationId || null,
         decoded.userId, positionType || 'new', replacementEmployeeId || null, numberOfOpenings ?? 1, employmentType || 'full-time',
         skillsRequired || null, experienceRequired || null, qualification || null, salaryBudget || null,
         projectId || null, clientId || null, priority || 'medium',
         expectedJoiningDate ? new Date(expectedJoiningDate) : null,
         approvalStatus, isDraft ? 'draft' : 'open'
       );
-      return { id, requisitionId, ...body, department: { name: '' }, designation: { title: '' } };
+      return { id, requisitionId, ...body, department: { name: departmentId }, designation: { title: designationId || '' } };
     });
 
     await db.auditLog.create({
