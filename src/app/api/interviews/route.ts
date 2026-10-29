@@ -78,12 +78,41 @@ export async function POST(req: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
+    // Task 167: permission check — only HR/admin can schedule interviews
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can schedule interviews' }, { status: 403, headers: corsHeaders() });
+    }
+
     const body = await req.json();
     const { jobApplicationId, type, date, time, duration, location, meetingUrl, panelMemberIds, panelMemberEmails } = body;
 
     if (!jobApplicationId || !date) {
       return NextResponse.json({ error: 'Missing required fields: jobApplicationId, date' }, { status: 400, headers: corsHeaders() });
     }
+
+    // Task 167: past date validation
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const interviewDate = new Date(date + 'T00:00:00');
+    if (interviewDate < today) {
+      return NextResponse.json({ error: 'Cannot schedule interviews in the past' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Task 167: duplicate scheduling prevention — check if there's already a
+    // scheduled interview for this candidate on the same date + same time
+    try {
+      const existing = await db.$queryRawUnsafe(
+        `SELECT "id" FROM "Interview"
+         WHERE "jobApplicationId" = $1 AND "date"::date = $2::date
+           AND "time" = $3 AND "status" = 'scheduled'
+         LIMIT 1`,
+        jobApplicationId, date, time || null,
+      ) as any[];
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'An interview is already scheduled for this candidate on the same date and time' }, { status: 409, headers: corsHeaders() });
+      }
+    } catch {}
 
     // Validate interview type
     const validTypes = ['ai', 'technical', 'hr', 'offline_panel'];
@@ -206,6 +235,43 @@ export async function POST(req: NextRequest) {
         details: `Scheduled ${interviewType} interview for ${app?.candidateName || jobApplicationId} on ${new Date(date).toLocaleDateString()}`,
       },
     }).catch(() => null);
+
+    // Task 167: notify the CANDIDATE of the interview schedule (email)
+    if (app?.candidateEmail) {
+      try {
+        const { sendEmail } = await import('@/lib/email');
+        const typeLabels: Record<string, string> = {
+          ai: 'AI Interview', technical: 'Technical Interview', hr: 'HR Interview', offline_panel: 'Panel Interview',
+        };
+        const typeLabel = typeLabels[interviewType] || 'Interview';
+        const dateStr = new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+        const timeStr = time || 'TBD';
+        const candidateHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <h2 style="color:#4f46e5;">Interview Scheduled</h2>
+          <p>Dear ${app.candidateName},</p>
+          <p>Your <strong>${typeLabel}</strong> has been scheduled. Here are the details:</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Date:</td><td style="padding:8px;border:1px solid #ddd;">${dateStr}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Time:</td><td style="padding:8px;border:1px solid #ddd;">${timeStr}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Duration:</td><td style="padding:8px;border:1px solid #ddd;">${duration || 60} minutes</td></tr>
+            ${location ? `<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Location:</td><td style="padding:8px;border:1px solid #ddd;">${location}</td></tr>` : ''}
+            ${meetingUrl ? `<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Meeting Link:</td><td style="padding:8px;border:1px solid #ddd;"><a href="${meetingUrl}">${meetingUrl}</a></td></tr>` : ''}
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Panel Members:</td><td style="padding:8px;border:1px solid #ddd;">${panelMembers.length} assigned</td></tr>
+          </table>
+          <p>Please arrive 10 minutes before the scheduled time. If you need to reschedule, please contact HR as soon as possible.</p>
+          <p>Good luck!</p>
+          <p>Regards,<br/>HR Team</p>
+        </div>`;
+        await sendEmail({
+          to: app.candidateEmail,
+          subject: `Interview Scheduled: ${typeLabel} on ${dateStr}`,
+          html: candidateHtml,
+        }).catch(() => null);
+        console.log(`[Interviews POST] Candidate email sent to ${app.candidateEmail}`);
+      } catch (e) {
+        console.warn('[Interviews POST] Candidate email failed (non-fatal):', e instanceof Error ? e.message : e);
+      }
+    }
 
     return NextResponse.json({
       id: interviewId,

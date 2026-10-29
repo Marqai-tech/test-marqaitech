@@ -14,23 +14,27 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// Task 167: roles that can schedule interviews
+const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+
 /**
  * GET /api/interviews/panel-availability
  *
  * Query params:
- *   - departmentId: the department name or ID (from the job posting)
+ *   - departmentId: the department ID (CUID)
  *   - date: the interview date (YYYY-MM-DD)
  *   - time: the interview start time (HH:MM)
  *   - duration: interview duration in minutes
  *   - interviewType: technical | hr | ai | offline_panel
  *
- * Returns a list of eligible employees from the department with their
- * availability status: Available | Busy | On Leave | Tentative
+ * Returns employees from the department with availability:
+ *   Available | Busy (with conflict time) | On Leave | Tentative
  *
- * Availability check combines:
- *   1. Approved leave (LeaveRequest with status='approved' overlapping the date)
- *   2. Existing interviews (Interview on the same date/time)
- *   3. Employee status (must be 'active')
+ * Checks:
+ *   1. Approved leave overlapping the date
+ *   2. Existing interviews with TIME OVERLAP (not just same date)
+ *   3. Employee status (must be active)
+ *   4. Past date validation
  */
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
@@ -51,33 +55,55 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'departmentId and date are required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // 1. Get all employees in the department
+    // Task 167: past date validation
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const interviewDate = new Date(date + 'T00:00:00');
+    if (interviewDate < today) {
+      return NextResponse.json({ employees: [], warning: 'Cannot schedule interviews in the past' }, { headers: corsHeaders() });
+    }
+
+    // Calculate the time range for overlap checking
+    const interviewStart = time ? new Date(`${date}T${time}:00`) : null;
+    const interviewEnd = interviewStart ? new Date(interviewStart.getTime() + duration * 60000) : null;
+
+    // 1. Get all employees in the department — use EXACT department ID
     let deptEmployees: any[] = [];
     try {
-      // If departmentId looks like a CUID, match by ID; otherwise match by name
       if (departmentId.startsWith('cm')) {
+        // Exact ID match
         deptEmployees = await db.$queryRawUnsafe(
           `SELECT e."id", e."firstName", e."lastName", e."email", e."userId",
-                  e."designationId", d."name" AS "deptName", des."title" AS "desgTitle"
+                  e."designationId", d."name" AS "deptName", des."title" AS "desgTitle",
+                  u."role"
            FROM "Employee" e
            LEFT JOIN "Department" d ON d."id" = e."departmentId"
            LEFT JOIN "Designation" des ON des."id" = e."designationId"
+           LEFT JOIN "User" u ON u."id" = e."userId"
            WHERE e."departmentId" = $1 AND e."status" = 'active'
            ORDER BY e."firstName" ASC`,
           departmentId,
         ) as any[];
       } else {
-        // Match by department name (case-insensitive)
-        deptEmployees = await db.$queryRawUnsafe(
-          `SELECT e."id", e."firstName", e."lastName", e."email", e."userId",
-                  e."designationId", d."name" AS "deptName", des."title" AS "desgTitle"
-           FROM "Employee" e
-           LEFT JOIN "Department" d ON d."id" = e."departmentId"
-           LEFT JOIN "Designation" des ON des."id" = e."designationId"
-           WHERE LOWER(d."name") LIKE LOWER($1) AND e."status" = 'active'
-           ORDER BY e."firstName" ASC`,
-          `%${departmentId}%`,
+        // Name match — resolve to ID first, then query by ID
+        const deptRows = await db.$queryRawUnsafe(
+          `SELECT "id" FROM "Department" WHERE LOWER("name") = LOWER($1) LIMIT 1`,
+          departmentId,
         ) as any[];
+        if (deptRows[0]?.id) {
+          deptEmployees = await db.$queryRawUnsafe(
+            `SELECT e."id", e."firstName", e."lastName", e."email", e."userId",
+                    e."designationId", d."name" AS "deptName", des."title" AS "desgTitle",
+                    u."role"
+             FROM "Employee" e
+             LEFT JOIN "Department" d ON d."id" = e."departmentId"
+             LEFT JOIN "Designation" des ON des."id" = e."designationId"
+             LEFT JOIN "User" u ON u."id" = e."userId"
+             WHERE e."departmentId" = $1 AND e."status" = 'active'
+             ORDER BY e."firstName" ASC`,
+            deptRows[0].id,
+          ) as any[];
+        }
       }
     } catch (err) {
       console.error('[PanelAvailability] Failed to fetch employees:', err);
@@ -87,6 +113,7 @@ export async function GET(req: NextRequest) {
     // 2. For HR interview type, also include HR/admin employees from any department
     if (interviewType === 'hr') {
       try {
+        const existingIds = deptEmployees.map(e => e.id);
         const hrEmployees = await db.$queryRawUnsafe(
           `SELECT e."id", e."firstName", e."lastName", e."email", e."userId",
                   e."designationId", d."name" AS "deptName", des."title" AS "desgTitle",
@@ -97,58 +124,69 @@ export async function GET(req: NextRequest) {
            LEFT JOIN "User" u ON u."id" = e."userId"
            WHERE e."status" = 'active'
              AND u."role" IN ('tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'ceo')
-             AND e."id" NOT IN (SELECT unnest($1::text[]))
+             ${existingIds.length > 0 ? `AND e."id" NOT IN (${existingIds.map((_, i) => `$${i + 2}`).join(',')})` : ''}
            ORDER BY e."firstName" ASC`,
-          deptEmployees.map(e => e.id),
+          ...existingIds,
         ) as any[];
         deptEmployees = [...deptEmployees, ...hrEmployees];
       } catch {}
     }
 
-    // 3. For each employee, check availability
-    const interviewDate = new Date(date);
-    const dayOfWeek = interviewDate.getDay(); // 0=Sunday, 6=Saturday
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[dayOfWeek];
-
+    // 3. For each employee, check availability with TIME OVERLAP
+    const dayOfWeek = interviewDate.getDay();
     const results = await Promise.all(deptEmployees.map(async (emp) => {
       let availability = 'Available';
       let reason = 'No conflicts';
+      let conflictTime = '';
 
       // Check 1: Approved leave on this date
       try {
         const leaveRows = await db.$queryRawUnsafe(
-          `SELECT COUNT(*)::int AS cnt FROM "LeaveRequest"
+          `SELECT "startDate", "endDate" FROM "LeaveRequest"
            WHERE "employeeId" = $1 AND "status" = 'approved'
              AND $2::date >= "startDate" AND $2::date <= "endDate"`,
           emp.id, date,
         ) as any[];
-        if (leaveRows[0]?.cnt > 0) {
+        if (leaveRows.length > 0) {
           availability = 'On Leave';
-          reason = 'Approved leave on this date';
+          reason = `On leave from ${new Date(leaveRows[0].startDate).toLocaleDateString()} to ${new Date(leaveRows[0].endDate).toLocaleDateString()}`;
         }
       } catch {}
 
-      // Check 2: Existing interview on the same date
-      if (availability === 'Available') {
+      // Check 2: Existing interviews with TIME OVERLAP
+      if (availability === 'Available' && interviewStart && interviewEnd) {
         try {
-          const interviewRows = await db.$queryRawUnsafe(
-            `SELECT COUNT(*)::int AS cnt FROM "Interview" i
+          // Find interviews where this employee is a panelist (interviewer field contains userId)
+          // AND the interview is on the same date AND time overlaps
+          const conflictRows = await db.$queryRawUnsafe(
+            `SELECT i."date", i."time", i."duration", i."type", i."status",
+                    ja."candidateName"
+             FROM "Interview" i
              JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
-             WHERE ja."candidateId" IS NOT NULL
-               AND i."date"::date = $1::date
-               AND i."interviewer" LIKE $2
-               AND i."status" = 'scheduled'`,
-            date, `%${emp.userId || ''}%`,
+             WHERE i."interviewer" LIKE $1
+               AND i."status" = 'scheduled'
+               AND i."date"::date = $2::date
+               AND i."time" IS NOT NULL`,
+            `%${emp.userId || ''}%`, date,
           ) as any[];
-          if (interviewRows[0]?.cnt > 0) {
-            availability = 'Busy';
-            reason = 'Has another interview scheduled';
+
+          for (const conflict of conflictRows) {
+            const cStart = new Date(`${date}T${conflict.time}:00`);
+            const cEnd = new Date(cStart.getTime() + (conflict.duration || 60) * 60000);
+            // Check overlap: interviewStart < cEnd AND interviewEnd > cStart
+            if (interviewStart < cEnd && interviewEnd > cStart) {
+              availability = 'Busy';
+              const sTime = conflict.time;
+              const eTime = new Date(cEnd.getTime()).toTimeString().substring(0, 5);
+              conflictTime = `${sTime}–${eTime}`;
+              reason = `Interview with ${conflict.candidateName} from ${sTime} to ${eTime}`;
+              break;
+            }
           }
         } catch {}
       }
 
-      // Check 3: Weekend (tentative — need to confirm)
+      // Check 3: Weekend (tentative)
       if (availability === 'Available' && (dayOfWeek === 0 || dayOfWeek === 6)) {
         availability = 'Tentative';
         reason = 'Weekend — confirmation needed';
@@ -156,13 +194,15 @@ export async function GET(req: NextRequest) {
 
       return {
         id: emp.id,
+        userId: emp.userId,
         name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
         email: emp.email,
         designation: emp.desgTitle || '—',
         department: emp.deptName || '—',
-        userId: emp.userId,
+        role: emp.role || 'employee',
         availability,
         reason,
+        conflictTime,
       };
     }));
 

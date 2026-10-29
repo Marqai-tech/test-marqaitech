@@ -331,22 +331,24 @@ export default function RecruitmentPage() {
   const [interviewForm, setInterviewForm] = useState({
     type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '',
   });
-  const [panelMembers, setPanelMembers] = useState<Array<{id: string; name: string; email: string; designation: string; department: string; availability: string; reason: string}>>([]);
-  const [selectedPanelEmails, setSelectedPanelEmails] = useState<string[]>([]);
+  const [panelMembers, setPanelMembers] = useState<Array<{id: string; userId: string; name: string; email: string; designation: string; department: string; role: string; availability: string; reason: string; conflictTime: string}>>([]);
+  const [selectedPanelIds, setSelectedPanelIds] = useState<string[]>([]); // user IDs
   const [loadingPanel, setLoadingPanel] = useState(false);
   const [schedulingInterview, setSchedulingInterview] = useState(false);
 
   // Task 167: Schedule interview handler
   const handleScheduleInterview = async () => {
     if (!scheduleAppId || !interviewForm.date) { toast.error('Date is required'); return; }
-    if (selectedPanelEmails.length === 0) { toast.error('Select at least one panel member'); return; }
-    // Warn if any selected member is not Available
-    const busyMembers = selectedPanelEmails.filter(email => {
-      const m = panelMembers.find(p => p.email === email);
-      return m && m.availability !== 'Available';
+    if (selectedPanelIds.length === 0) { toast.error('Select at least one panel member'); return; }
+    // Task 167: BLOCK Busy/On Leave from being selected (not just warn)
+    const unavailableMembers = selectedPanelIds.filter(uid => {
+      const m = panelMembers.find(p => p.userId === uid);
+      return m && (m.availability === 'Busy' || m.availability === 'On Leave');
     });
-    if (busyMembers.length > 0) {
-      if (!window.confirm(`Some selected panel members are not available: ${busyMembers.join(', ')}. Continue anyway?`)) return;
+    if (unavailableMembers.length > 0) {
+      const names = unavailableMembers.map(uid => panelMembers.find(p => p.userId === uid)?.name).join(', ');
+      toast.error(`Cannot select unavailable members: ${names}. Please remove them and try again.`);
+      return;
     }
     setSchedulingInterview(true);
     try {
@@ -361,14 +363,14 @@ export default function RecruitmentPage() {
           duration: Number(interviewForm.duration) || 60,
           location: interviewForm.location || undefined,
           meetingUrl: interviewForm.meetingUrl || undefined,
-          panelMemberEmails: selectedPanelEmails,
+          panelMemberIds: selectedPanelIds, // send user IDs, not emails
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to schedule interview');
-      toast.success(`Interview scheduled — ${selectedPanelEmails.length} panel member(s) notified`);
+      toast.success(`Interview scheduled — ${selectedPanelIds.length} panel member(s) notified`);
       setScheduleAppId(null);
-      setSelectedPanelEmails([]);
+      setSelectedPanelIds([]);
       setPanelMembers([]);
       setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
       fetchData();
@@ -2133,7 +2135,8 @@ export default function RecruitmentPage() {
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
                     {panelMembers.map((m) => {
-                      const isSelected = selectedPanelEmails.includes(m.email);
+                      const isSelected = selectedPanelIds.includes(m.userId);
+                      const isBlocked = m.availability === 'Busy' || m.availability === 'On Leave';
                       const availBadge: Record<string, string> = {
                         Available: 'bg-emerald-50 text-emerald-700',
                         Busy: 'bg-red-50 text-red-700',
@@ -2141,13 +2144,14 @@ export default function RecruitmentPage() {
                         Tentative: 'bg-blue-50 text-blue-700',
                       };
                       return (
-                        <label key={m.id} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'} ${m.availability === 'Busy' || m.availability === 'On Leave' ? 'opacity-60' : ''}`}>
+                        <label key={m.id} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isBlocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'}`}>
                           <input
                             type="checkbox"
                             checked={isSelected}
+                            disabled={isBlocked}
                             onChange={(e) => {
-                              if (e.target.checked) setSelectedPanelEmails([...selectedPanelEmails, m.email]);
-                              else setSelectedPanelEmails(selectedPanelEmails.filter(e => e !== m.email));
+                              if (e.target.checked) setSelectedPanelIds([...selectedPanelIds, m.userId]);
+                              else setSelectedPanelIds(selectedPanelIds.filter(uid => uid !== m.userId));
                             }}
                             className="w-4 h-4 rounded text-teal-600"
                           />
@@ -2155,16 +2159,16 @@ export default function RecruitmentPage() {
                             <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
                             <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
                           </div>
-                          <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`}>
-                            {m.availability}
+                          <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`} title={m.reason}>
+                            {m.availability}{m.conflictTime ? ` (${m.conflictTime})` : ''}
                           </span>
                         </label>
                       );
                     })}
                   </div>
                 )}
-                {selectedPanelEmails.length > 0 && (
-                  <p className="text-xs text-teal-600 mt-1">{selectedPanelEmails.length} member(s) selected</p>
+                {selectedPanelIds.length > 0 && (
+                  <p className="text-xs text-teal-600 mt-1">{selectedPanelIds.length} member(s) selected</p>
                 )}
               </div>
             </div>
