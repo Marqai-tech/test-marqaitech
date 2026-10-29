@@ -129,8 +129,6 @@ export default function RequisitionsPage() {
         const deptList = deptData.departments || deptData.data || (Array.isArray(deptData) ? deptData : []);
         setDepartments(deptList.map((d: any) => ({ id: d.id, name: d.name })));
       }
-    } catch { /* non-fatal — fallback to text input */ }
-    try {
       if (desigRes?.ok) {
         const desigData = await desigRes.json();
         const desigList = desigData.designations || desigData.data || (Array.isArray(desigData) ? desigData : []);
