@@ -3,29 +3,18 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { FiFileText, FiSliders, FiLayers, FiCheckSquare } from 'react-icons/fi';
-import ModuleSettingsPanel, { leaveSections } from '@/components/ModuleSettingsPanel';
 import ModuleSettingsShell from '@/components/ModuleSettingsShell';
+import { LeaveConfigurationContent } from '@/app/(dashboard)/leave/configuration/page';
 
 /**
- * Leave Settings page — Task 87 structure.
+ * Leave Settings page
  *
- * Per the Task 87 request ("keep the approver workflows and configuration in
- * all the modules separate and remove them from the current
- * options/configurations"), this page no longer embeds a Configuration tab or
- * an Approver Workflow tab. It keeps only:
- *   1. Policy → cross-links to /leave/leave-policy?tab=documents
- *   2. Rules  → ModuleSettingsPanel with leaveSections (Leave Year &
- *               Carry Forward, Leave Application Rules, Special Leaves &
- *               Calendar)
- *
- * The separated surfaces now live on their own pages (each with its own
- * sidebar entry):
- *   - Leave Configuration   → /leave/configuration
- *   - Approval Workflows    → /leave/approval-workflows
- *
- * The shell renders only the tabs whose content is provided.
+ * Policy tab: cross-links to leave policy documents, configuration, approval workflows
+ * Rules tab: replaced with the new 8-step Leave Configuration UI
+ *   (Leave Quota → Accrual → Apply Leave → Restrictions → Holidays →
+ *    Approval → Year-End Processing → Encashment)
  */
-function LeaveSettingsContent() {
+function LeaveSettingsPageContent() {
   return (
     <ModuleSettingsShell
       moduleName="Leave"
@@ -33,7 +22,7 @@ function LeaveSettingsContent() {
       basePath="/leave/settings"
       policy={
         <div className="space-y-4">
-          {/* Task 87: Configuration & Approval Workflows are separate pages now */}
+          {/* Configuration & Approval Workflows cross-links */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Link href="/leave/configuration" className="thb-card p-4 flex items-start gap-3 hover:border-green-300 hover:shadow-sm transition-all group">
               <div className="p-2 rounded-lg bg-green-50 text-green-600 flex-shrink-0">
@@ -42,7 +31,7 @@ function LeaveSettingsContent() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-thb-text-primary group-hover:text-green-700">Leave Configuration</p>
                 <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
-                  Leave year &amp; carry-forward, leave application rules, special leaves &amp; calendar — moved to its own page.
+                  8-step wizard: Leave Quota, Accrual, Apply Leave, Restrictions, Holidays, Approval, Year-End Processing, Encashment.
                 </p>
               </div>
             </Link>
@@ -53,17 +42,19 @@ function LeaveSettingsContent() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-thb-text-primary group-hover:text-violet-700">Approval Workflows</p>
                 <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
-                  Multi-tier approver chain, workflow options and leave policy rules — moved to its own page.
+                  Multi-tier approver chain, workflow options and leave policy rules.
                 </p>
               </div>
             </Link>
           </div>
+
+          {/* Leave Policy Documents */}
           <div className="thb-card p-5">
             <h2 className="text-base font-semibold text-thb-text-primary mb-3">Leave Policy Documents</h2>
             <p className="text-xs text-thb-text-muted mb-4">
               The Leave Policy documents (employee-facing leave policy PDFs, holiday calendar, sandwich rule
               definitions, pro-rata rules, probation restrictions) are maintained on the dedicated Leave Policy
-              page. Use the links below to view or edit them.
+              page.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Link href="/leave/leave-policy?tab=documents" className="flex items-start gap-2 p-3 rounded-lg border border-thb-border hover:bg-slate-50 transition-colors">
@@ -89,10 +80,14 @@ function LeaveSettingsContent() {
               </Link>
             </div>
           </div>
-          <ModuleSettingsPanel sections={leaveSections} />
         </div>
       }
-      rules={<ModuleSettingsPanel sections={leaveSections} />}
+      rules={
+        /* Rules tab replaced with the new 8-step Leave Configuration UI
+           (Leave Quota → Accrual → Apply Leave → Restrictions → Holidays →
+            Approval → Year-End Processing → Encashment) */
+        <LeaveConfigurationContent />
+      }
     />
   );
 }
@@ -100,7 +95,7 @@ function LeaveSettingsContent() {
 export default function LeaveSettingsPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-sm text-thb-text-muted">Loading Leave Settings…</div>}>
-      <LeaveSettingsContent />
+      <LeaveSettingsPageContent />
     </Suspense>
   );
 }

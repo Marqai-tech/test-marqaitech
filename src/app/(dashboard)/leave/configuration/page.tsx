@@ -76,7 +76,7 @@ const YEAR_END_MODES = [
 ];
 
 /* ── Component ── */
-export default function LeaveConfigurationPage() {
+export function LeaveConfigurationContent() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const [activeStep, setActiveStep] = useState(7); // Default to Year-End Processing
@@ -529,4 +529,9 @@ export default function LeaveConfigurationPage() {
       </div>
     </div>
   );
+}
+
+// Default export wraps the content for standalone page access
+export default function LeaveConfigurationPage() {
+  return <LeaveConfigurationContent />;
 }
