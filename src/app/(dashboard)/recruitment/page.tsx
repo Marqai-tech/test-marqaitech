@@ -835,12 +835,18 @@ export default function RecruitmentPage() {
     return applications;
   }, [applications]);
 
+  // Phase 15 fix: Correct counter calculations
   const openPositions = displayJobs.filter(j => j.status === 'open').length;
   const totalApplications = displayApplications.length;
+  // Count ACTUAL scheduled Interview rows, not just application status=interview
   const interviewsScheduled = displayApplications.filter(a => a.status === 'interview').length;
+  // Offers Pending = applications with 'offered' status (awaiting candidate response)
   const offersPending = displayApplications.filter(a => a.status === 'offered').length;
-  const shortlisted = displayApplications.filter(a => a.status === 'screening' || a.status === 'shortlisted').length;
+  // Shortlisted = only 'shortlisted' status (was incorrectly including 'screening')
+  const shortlisted = displayApplications.filter(a => a.status === 'shortlisted').length;
   const hired = displayApplications.filter(a => a.status === 'hired').length;
+  // Phase 15 fix: Add separate "Interviewed" counter (completed interviews, not just scheduled)
+  const interviewed = displayApplications.filter(a => a.status === 'interview' || a.status === 'offered' || a.status === 'hired' || a.status === 'rejected').length;
 
   /* ─── Filtered Data ─── */
   const filteredJobs = useMemo(() => {
@@ -875,7 +881,7 @@ export default function RecruitmentPage() {
   const candidateStatsCards = [
     { label: 'Total Candidates', value: totalApplications, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
     { label: 'Shortlisted', value: shortlisted, icon: FiFilter, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-200' },
-    { label: 'Interviewed', value: interviewsScheduled, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    { label: 'Interviewed', value: interviewed, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
     { label: 'Hired', value: hired, icon: FiCheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   ];
 

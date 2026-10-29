@@ -186,6 +186,59 @@ export async function POST(req: NextRequest) {
     }
     const interviewerStr = panelMembers.join(',');
 
+    // Phase 8 fix: Backend revalidation of panel members before saving
+    // Check that each panel member is still active, not on leave, and has no time conflict
+    if (panelMembers.length > 0) {
+      const interviewStart = time ? new Date(`${date}T${time}:00`) : null;
+      const interviewEnd = interviewStart ? new Date(interviewStart.getTime() + durationNum * 60000) : null;
+      const dateStr = new Date(date).toISOString().slice(0, 10);
+
+      for (const memberId of panelMembers) {
+        // Check active status
+        try {
+          const empRows = await db.$queryRawUnsafe(
+            `SELECT e."status" FROM "Employee" e WHERE e."userId" = $1 LIMIT 1`, memberId,
+          ) as any[];
+          if (!empRows[0] || empRows[0].status !== 'active') {
+            return NextResponse.json({ error: `Panel member ${memberId} is not an active employee.` }, { status: 400, headers: corsHeaders() });
+          }
+        } catch { /* allow if Employee table lookup fails */ }
+
+        // Check approved leave
+        if (interviewStart) {
+          try {
+            const leaveRows = await db.$queryRawUnsafe(
+              `SELECT lr."startDate", lr."endDate" FROM "LeaveRequest" lr
+               JOIN "Employee" e ON e."id" = lr."employeeId"
+               WHERE e."userId" = $1 AND lr."status" = 'approved'
+                 AND $2::date >= lr."startDate" AND $2::date <= lr."endDate" LIMIT 1`,
+              memberId, dateStr,
+            ) as any[];
+            if (leaveRows.length > 0) {
+              return NextResponse.json({ error: `Panel member is on approved leave on ${dateStr}. Cannot assign.` }, { status: 400, headers: corsHeaders() });
+            }
+          } catch { /* allow if LeaveRequest table doesn't exist */ }
+
+          // Check interview time overlap
+          try {
+            const conflictRows = await db.$queryRawUnsafe(
+              `SELECT i."time", i."duration" FROM "Interview" i
+               WHERE i."interviewer" LIKE $1 AND i."status" IN ('scheduled', 'rescheduled')
+                 AND i."date"::date = $2::date AND i."time" IS NOT NULL`,
+              `%${memberId}%`, dateStr,
+            ) as any[];
+            for (const c of conflictRows) {
+              const cStart = new Date(`${dateStr}T${c.time}:00`);
+              const cEnd = new Date(cStart.getTime() + (c.duration || 60) * 60000);
+              if (interviewStart! < cEnd && interviewEnd! > cStart) {
+                return NextResponse.json({ error: `Panel member has a conflicting interview at ${c.time}.` }, { status: 409, headers: corsHeaders() });
+              }
+            }
+          } catch { /* allow if check fails */ }
+        }
+      }
+    }
+
     // Ensure extended columns exist on Interview table
     const extendCols = [
       'ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "round" INT DEFAULT 1',

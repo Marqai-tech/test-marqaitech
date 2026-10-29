@@ -94,6 +94,7 @@ export async function POST(
         "rating" INT,
         "recommendation" TEXT,
         "comments" TEXT,
+        "isFinal" BOOLEAN DEFAULT false,
         "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
         CONSTRAINT "InterviewFeedback_pkey" PRIMARY KEY ("id")
@@ -115,6 +116,7 @@ export async function POST(
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "rating" INT',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "recommendation" TEXT',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "comments" TEXT',
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "isFinal" BOOLEAN DEFAULT false',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3) DEFAULT NOW()',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) DEFAULT NOW()',
     ];
@@ -140,6 +142,19 @@ export async function POST(
       }
     }
 
+    // Phase 11 fix: Check if feedback is already final — if so, don't allow overwrite
+    // unless HR has reopened it. isFinal=false means it's a draft (can still edit).
+    try {
+      const existingFb = await db.$queryRawUnsafe(
+        `SELECT "isFinal" FROM "InterviewFeedback" WHERE "interviewId" = $1 AND "userId" = $2 LIMIT 1`,
+        id, userId,
+      ) as any[];
+      if (existingFb[0]?.isFinal === true) {
+        return NextResponse.json({ error: 'Feedback has been finalized and cannot be edited. Ask HR to reopen it.' }, { status: 403, headers: corsHeaders() });
+      }
+    } catch { /* table or column may not exist yet — allow */ }
+
+    const isFinalFlag = body.isFinal === true;
     const feedbackId = `fb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     // Use INSERT ... ON CONFLICT to handle both insert and update in one query.
@@ -148,8 +163,8 @@ export async function POST(
       await db.$executeRawUnsafe(
         `INSERT INTO "InterviewFeedback"
          ("id", "interviewId", "userId", "technicalSkills", "communication", "experience", "problemSolving",
-          "roleSuitability", "culturalFit", "strengths", "concerns", "rating", "recommendation", "comments", "submittedAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+          "roleSuitability", "culturalFit", "strengths", "concerns", "rating", "recommendation", "comments", "isFinal", "submittedAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
          ON CONFLICT ("interviewId", "userId") DO UPDATE SET
            "technicalSkills" = EXCLUDED."technicalSkills",
            "communication" = EXCLUDED."communication",
@@ -162,11 +177,13 @@ export async function POST(
            "rating" = EXCLUDED."rating",
            "recommendation" = EXCLUDED."recommendation",
            "comments" = EXCLUDED."comments",
+           "isFinal" = EXCLUDED."isFinal",
            "updatedAt" = NOW()`,
         feedbackId, id, userId,
         technicalSkills || null, communication || null, experience || null, problemSolving || null,
         roleSuitability || null, culturalFit || null, strengths || null, concerns || null,
         rating ? Number(rating) : null, finalRecommendation, comments || null,
+        isFinalFlag,
       );
     } catch (upsertErr) {
       // If ON CONFLICT fails (no unique constraint), try plain UPDATE then INSERT
