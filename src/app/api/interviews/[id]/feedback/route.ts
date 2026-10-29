@@ -52,9 +52,13 @@ export async function POST(
       return NextResponse.json({ error: 'userId is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Ensure the InterviewFeedback table exists
+    // Ensure the InterviewFeedback table exists with correct schema
+    // Drop the old table (from AI interview feature) and recreate with our schema
     try {
-      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InterviewFeedback" (
+      await db.$executeRawUnsafe(`DROP TABLE IF EXISTS "InterviewFeedback"`);
+    } catch {}
+    try {
+      await db.$executeRawUnsafe(`CREATE TABLE "InterviewFeedback" (
         "id" TEXT NOT NULL,
         "interviewId" TEXT NOT NULL,
         "userId" TEXT NOT NULL,
