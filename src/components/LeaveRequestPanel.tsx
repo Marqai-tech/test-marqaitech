@@ -320,7 +320,22 @@ export default function LeaveRequestPanel({
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const d = await r.json();
         if (cancelled) return;
-        setTeamLeaves(d.leaveRequests || []);
+        // Filter OUT the current user — the right-side team calendar is
+        // for seeing OTHER team members' availability, not the user's own
+        // leaves (the user already knows their own leaves; their own leaves
+        // are surfaced separately via the self-overlap warning above).
+        // We match by employee.id (preferred) and fall back to
+        // employee.userId if the API response shape varies.
+        const list = (d.leaveRequests || []).filter(
+          (l: TeamLeave) => {
+            // Drop if no employee object
+            if (!l.employee) return true;
+            // Drop if the employee id matches the current user's employeeId
+            if (employeeId && l.employee.id === employeeId) return false;
+            return true;
+          },
+        );
+        setTeamLeaves(list);
         setTeamLoading(false);
       } catch {
         if (!cancelled) {
@@ -331,7 +346,7 @@ export default function LeaveRequestPanel({
     };
     void runFetch();
     return () => { cancelled = true; };
-  }, [calMonth.year, calMonth.month, scopeQuery]);
+  }, [calMonth.year, calMonth.month, scopeQuery, employeeId]);
 
   /* ── Map: date → leaves covering that date ── */
   const leavesByDate = useMemo(() => {
@@ -1279,43 +1294,11 @@ export default function LeaveRequestPanel({
           </div>
         )}
 
-        {/* Team Alert box — below calendar, shows when form.startDate is set */}
-        {form.startDate && teamOnLeaveDuringRange.length > 0 && (
-          <div className="bg-white rounded-xl border border-amber-200 shadow-sm p-3">
-            <h4 className="text-xs font-semibold text-amber-800 mb-2 flex items-center gap-1.5">
-              <FiAlertCircle className="w-3.5 h-3.5" />
-              Team Alert — {teamOnLeaveDuringRange.length} member(s) on leave during your selected dates
-            </h4>
-            <ul className="space-y-1.5 max-h-60 overflow-y-auto">
-              {teamOnLeaveDuringRange.map((l, i) => {
-                const name = l.employee
-                  ? `${l.employee.firstName} ${l.employee.lastName}`.trim()
-                  : 'Unknown';
-                const isApproved = l.status === 'approved';
-                const badge = isApproved
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-amber-100 text-amber-700';
-                const label = isApproved ? 'ON LEAVE' : 'PENDING';
-                return (
-                  <li key={`${l.id || ''}-${i}`} className="flex items-center gap-2">
-                    {renderAvatar(name, 'w-7 h-7')}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-700 truncate">{name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {dayKey(l.startDate)} → {dayKey(l.endDate)}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${badge}`}
-                    >
-                      {label}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
+        {/* The duplicate "Team Alert" yellow card with profile pics was
+            removed per user request (2026-10-29) — the inline AI
+            Collaborative Check warning above already covers team-conflict
+            alerts without duplicating the avatar list. The "On leave" card
+            above (per-day detail) remains. */}
       </div>
     </div>
   );
