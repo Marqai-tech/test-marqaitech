@@ -132,7 +132,7 @@ export default function LeaveEncashmentPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Convert unused leave to payout · auto-computed from salary basis · country-specific tax</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
+        <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">
           <FiPlus className="w-4 h-4" /> Request Encashment
         </button>
       </div>
@@ -157,7 +157,7 @@ export default function LeaveEncashmentPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type <span className="text-red-500 font-bold">*</span></label>
-                  <select value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })} className="3boxes-input w-full">
+                  <select value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })} className="w-full px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white">
                     <option value="">Select leave type...</option>
                     {eligibleTypes.map(lt => (
                       <option key={lt.id} value={lt.id}>
@@ -168,7 +168,7 @@ export default function LeaveEncashmentPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Days <span className="text-red-500 font-bold">*</span></label>
-                  <input type="number" min="0.5" step="0.5" value={form.days} onChange={e => setForm({ ...form, days: Number(e.target.value) })} className="3boxes-input w-full" />
+                  <input type="number" min="0.5" step="0.5" value={form.days} onChange={e => setForm({ ...form, days: Number(e.target.value) })} className="w-full px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" />
                 </div>
               </div>
               <div className="mt-4 p-3 bg-green-50 border border-green-100 rounded-lg">
@@ -178,8 +178,8 @@ export default function LeaveEncashmentPage() {
                 </p>
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
-                <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
+                <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm font-medium text-thb-text-secondary border border-thb-border rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
                   {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
                   Submit Request
                 </button>
