@@ -290,13 +290,14 @@ export async function GET(request: Request) {
         const emp = employeeById.get(matchingOffer.candidateId)
           || (matchingOffer.candidateEmail ? employeeByEmail.get(matchingOffer.candidateEmail.toLowerCase()) : undefined);
         if (emp) {
-        const days = daysBetween(a.appliedDate, emp.dateOfJoining);
-        if (days !== null && days >= 0) {
-          tthValues.push(days);
-          const deptName = emp.department?.name || (a.jobPosting?.department?.name ?? 'Unknown');
-          const arr = tthByDeptMap.get(deptName) || [];
-          arr.push(days);
-          tthByDeptMap.set(deptName, arr);
+          const days = daysBetween(a.appliedDate, emp.dateOfJoining);
+          if (days !== null && days >= 0) {
+            tthValues.push(days);
+            const deptName = emp.department?.name || (a.jobPosting?.department?.name ?? 'Unknown');
+            const arr = tthByDeptMap.get(deptName) || [];
+            arr.push(days);
+            tthByDeptMap.set(deptName, arr);
+          }
         }
       }
     });
