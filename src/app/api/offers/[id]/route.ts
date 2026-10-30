@@ -319,21 +319,51 @@ export async function PATCH(
         const originOff = request.headers.get('origin') || undefined;
 
         if (effectiveStatus === 'sent' && tenantIdOff) {
-          // Offer letter available → candidate email with the accept link
+          // C-24 FIX: Offer letter available → candidate email with the accept link.
+          // Previously this used dispatchNotification → sendTenantEmail, which tries
+          // tenant SMTP first (circuit breaker may be open) and silently fails.
+          // Now we use sendEmail() FIRST (smart routing — SMTP for internal, Resend
+          // for external) with sendTenantEmail as fallback. Same pattern as the
+          // interview-scheduled email fix. Logs the result so Vercel logs show
+          // whether the email was actually sent.
           const offerUrl = offer.accessToken ? `${resolveBaseUrl(originOff)}/offer/${offer.accessToken}` : '';
-          await dispatchNotification({
-            tenantId: tenantIdOff,
-            module: 'recruitment',
-            eventKey: 'recruitment.offer.issued',
-            recipients: offer.candidateEmail ? [{ email: offer.candidateEmail, name: offer.candidateName }] : [],
-            vars: {
-              Candidate_Name: offer.candidateName || '',
-              Position: offer.position || '',
-              Offer_Url: offerUrl,
-            },
-            suppressInApp: true,
-            origin: originOff,
-          });
+          if (offer.candidateEmail) {
+            try {
+              const { sendEmail } = await import('@/lib/email');
+              const { sendTenantEmail } = await import('@/lib/notification-channels');
+              const subject = `Your Offer Letter — ${offer.candidateName} — ${offer.position}`;
+              const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#10b981;">Your Offer Letter is Ready</h2>
+                <p>Dear ${offer.candidateName},</p>
+                <p>We are pleased to share your offer letter for the <strong>${offer.position}</strong> position.</p>
+                <p>Please review and respond to your offer by clicking the link below:</p>
+                <p><a href="${offerUrl}" style="display:inline-block;padding:12px 28px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View & Respond to Offer</a></p>
+                <p>This link is secure and unique to you. Please do not share it with others.</p>
+                <p>Regards,<br/>HR Team</p>
+              </div>`;
+              let emailSent = false;
+              let emailError = '';
+              try {
+                const res = await sendEmail({ to: offer.candidateEmail, subject, html });
+                emailSent = res.success;
+                emailError = res.error || '';
+              } catch (e) {
+                emailError = e instanceof Error ? e.message : String(e);
+              }
+              if (!emailSent) {
+                try {
+                  const fbRes = await sendTenantEmail(db, tenantIdOff, { to: offer.candidateEmail, subject, html });
+                  emailSent = fbRes.success;
+                  emailError = emailError || fbRes.error || '';
+                } catch (e) {
+                  emailError = emailError + ' | fallback failed: ' + (e instanceof Error ? e.message : String(e));
+                }
+              }
+              console.log(`[Offer PATCH] Offer-issued email to ${offer.candidateEmail}: ${emailSent ? 'SENT' : 'FAILED'} — ${emailError}`);
+            } catch (emailErr) {
+              console.warn('[Offer PATCH] Offer-issued email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
+            }
+          }
 
           // GAP FIX #7: Auto-flip JobApplication status to 'offered' when offer is sent
           try {
