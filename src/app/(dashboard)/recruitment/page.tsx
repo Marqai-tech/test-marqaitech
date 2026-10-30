@@ -1490,7 +1490,7 @@ export default function RecruitmentPage() {
                                                     <div className="flex items-center gap-2">
                                                       <span className={appBadge.className}>{appBadge.label}</span>
                                                       {isAdmin && (
-                                                        <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit Status">
+                                                        <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Change Hiring Stage">
                                                           <FiEdit2 className="w-3.5 h-3.5" />
                                                         </button>
                                                       )}
@@ -1735,7 +1735,7 @@ export default function RecruitmentPage() {
                                     </button>
                                   )}
                                   {isAdmin && (
-                                    <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Status">
+                                    <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Change Hiring Stage">
                                       <FiEdit2 className="w-4 h-4" />
                                     </button>
                                   )}

@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
         candidatePhone: candidatePhone ? String(candidatePhone).trim() : null,
         coverLetter: coverLetter ? String(coverLetter).trim() : null,
         expectedSalary: expectedSalary ? String(expectedSalary).trim() : null,
-        source: source || 'website',
+        source: source || (referralToken ? 'referral' : 'website'),
         status: 'applied',
         // Store the resume as a data URL — works on serverless (Vercel) since
         // it lives in the DB, not the filesystem. For large deployments you

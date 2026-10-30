@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   FiCalendar, FiClock, FiVideo, FiMapPin, FiUser, FiStar, FiCheck, FiX,
   FiAlertCircle, FiBriefcase, FiXCircle,
-  FiFilter, FiEye, FiCheckCircle, FiAward,
+  FiFilter, FiEye, FiCheckCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -65,6 +65,7 @@ interface Interview {
   panelMembers?: PanelMember[];
   hrDecision?: string | null;
   hrDecisionReason?: string | null;
+  round?: number | null;
 }
 
 /* ── Constants ── */
@@ -143,22 +144,6 @@ export default function InterviewsPage() {
   const [panelCandidates, setPanelCandidates] = useState<Array<{ id: string; name: string; email: string; designation: string }>>([]);
 
   // Helper to construct a fresh decision-modal state — used by every button
-  // that opens the modal. Pre-fills sensible defaults so HR can quickly
-  // submit without typing for common cases.
-  const makeDecisionModal = (interviewId: string) => ({
-    interviewId,
-    decision: '',
-    reason: '',
-    nextDate: '',
-    nextTime: '10:00',
-    nextDuration: 60,
-    nextType: 'technical',
-    nextLocation: '',
-    nextMeetingUrl: '',
-    nextPanelMemberIds: [] as string[],
-    sendHoldEmail: false,
-  });
-
   // Fetch candidate panel members (all users in the tenant — HR can pick any).
   // We use a lightweight endpoint that's already authenticated.
   // NOTE: /api/employees returns e.designation as an OBJECT {id, title} (Prisma
@@ -533,6 +518,11 @@ export default function InterviewsPage() {
                       <span className="thb-badge thb-badge-primary">
                         {typeLabels[interview.type] || interview.type}
                       </span>
+                      {interview.round && interview.round > 1 && (
+                        <span className="thb-badge bg-purple-50 text-purple-700">
+                          Round {interview.round}
+                        </span>
+                      )}
                       {interview.hrDecision && (
                         <span className="thb-badge bg-indigo-50 text-indigo-700">
                           Decision: {decisionLabels[interview.hrDecision] || interview.hrDecision}
@@ -638,14 +628,9 @@ export default function InterviewsPage() {
                     </>
                   )}
                   {interview.status === 'completed' && !interview.hrDecision && (
-                    <button
-                      onClick={() => setDecisionModal(makeDecisionModal(interview.id))}
-                      disabled={actionLoading === interview.id + '-decision'}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      <FiAward className="w-3.5 h-3.5" />
-                      {actionLoading === interview.id + '-decision' ? 'Recording…' : 'Record HR Decision'}
-                    </button>
+                    <span className="text-xs text-thb-text-muted px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
+                      Change the candidate&apos;s hiring stage on the Recruitment page →
+                    </span>
                   )}
                   {interview.hrDecision && (
                     <span className="text-xs text-thb-text-muted ml-auto">
@@ -765,14 +750,9 @@ export default function InterviewsPage() {
                 Close
               </button>
               {selectedInterview.status === 'completed' && !selectedInterview.hrDecision && (
-                <button
-                  onClick={() => {
-                    setDecisionModal(makeDecisionModal(selectedInterview.id));
-                  }}
-                  className="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
-                >
-                  Record HR Decision
-                </button>
+                <span className="text-xs text-thb-text-muted px-3 py-2.5">
+                  Change hiring stage on Recruitment page →
+                </span>
               )}
               {selectedInterview.status === 'scheduled' && (
                 <button

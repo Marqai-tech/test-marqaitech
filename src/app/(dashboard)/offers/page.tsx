@@ -470,7 +470,7 @@ export default function OffersPage() {
                                 the candidate — not just "Advance". We relabel the post-approval
                                 button to "Send Offer Letter" so HR understands what happens. */}
                             {nextStatus(o.status) && o.status !== 'approved' && (
-                              <button onClick={() => handleStatusChange(o.id, nextStatus(o.status))} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1"><FiCheck className="w-3 h-3" />Advance</button>
+                              <button onClick={() => handleStatusChange(o.id, nextStatus(o.status))} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1"><FiCheck className="w-3 h-3" />{o.status === 'draft' ? 'Submit for Approval' : 'Approve'}</button>
                             )}
                             {o.status === 'approved' && (
                               <button onClick={() => handleStatusChange(o.id, 'sent')} className="px-2 py-1 text-xs font-medium text-teal-700 bg-teal-100 rounded hover:bg-teal-200 flex items-center gap-1" title="Send the offer letter to the candidate's email with the secure accept/decline link">
