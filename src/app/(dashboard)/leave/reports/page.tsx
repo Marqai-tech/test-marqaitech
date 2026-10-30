@@ -171,15 +171,27 @@ export default function LeaveReportsPage() {
               </>
             )}
             {activeTab === 'department' && (
-              <div className="text-center py-8">
-                <p className="text-sm text-thb-text-secondary">Department-wise leave report will appear here.</p>
-                <p className="text-xs text-thb-text-muted mt-1">This report shows leave usage broken down by department.</p>
+              <div className="text-center py-12">
+                <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                  <FiCalendar className="w-5 h-5 text-slate-400" />
+                </div>
+                <p className="text-sm font-medium text-thb-text-primary">Department-wise Report — Coming Soon</p>
+                <p className="text-xs text-thb-text-muted mt-1 max-w-md mx-auto">
+                  This report will show leave usage broken down by department. Currently in development.
+                  Use the Summary tab for now, or export the raw data via the Export button.
+                </p>
               </div>
             )}
             {activeTab === 'absenteeism' && (
-              <div className="text-center py-8">
-                <p className="text-sm text-thb-text-secondary">Absenteeism report will appear here.</p>
-                <p className="text-xs text-thb-text-muted mt-1">This report shows absenteeism trends and patterns.</p>
+              <div className="text-center py-12">
+                <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                  <FiClock className="w-5 h-5 text-slate-400" />
+                </div>
+                <p className="text-sm font-medium text-thb-text-primary">Absenteeism Report — Coming Soon</p>
+                <p className="text-xs text-thb-text-muted mt-1 max-w-md mx-auto">
+                  This report will show absenteeism trends and patterns. Currently in development.
+                  Use the Summary tab for now, or export the raw data via the Export button.
+                </p>
               </div>
             )}
           </div>

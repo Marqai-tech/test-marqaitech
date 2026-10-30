@@ -210,18 +210,15 @@ function LeavePolicyPageContent() {
   const [mappingSaving, setMappingSaving] = useState(false)
 
   // ── Global Config state ──
-  const [carryForward, setCarryForward] = useState(true);
-  const [maxCarryForward, setMaxCarryForward] = useState(5);
-  const [proRateJoining, setProRateJoining] = useState(true);
-  const [sandwichRule, setSandwichRule] = useState(false);
-  const [minAdvanceNotice, setMinAdvanceNotice] = useState(3);
-  const [probationRestriction, setProbationRestriction] = useState(true);
-  const [casualLeavePerYear, setCasualLeavePerYear] = useState(12);
-  const [sickLeavePerYear, setSickLeavePerYear] = useState(10);
-  const [earnedLeavePerYear, setEarnedLeavePerYear] = useState(15);
-  const [leaveEncashment, setLeaveEncashment] = useState(true);
-  const [probationLeaveQuota, setProbationLeaveQuota] = useState(5);
-  const [saving, setSaving] = useState(false);
+  // NOTE: The 12 useState variables that used to live here (carryForward,
+  // maxCarryForward, proRateJoining, sandwichRule, minAdvanceNotice,
+  // probationRestriction, casualLeavePerYear, sickLeavePerYear,
+  // earnedLeavePerYear, leaveEncashment, probationLeaveQuota, saving) were
+  // REMOVED on 2026-10-29 — they were dead code (never bound to any input)
+  // and the associated handleSaveConfig() showed a FAKE success toast when
+  // the API returned non-OK (lying to the user about save success).
+  // Global leave policy config is now managed exclusively on
+  // /leave/configuration (the 8-step wizard) and /leave/approval-workflows.
 
   // ── Derived values ──
   const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400'
@@ -508,34 +505,14 @@ function LeavePolicyPageContent() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ── Global Config handler ──
+  // ── Global Config handler — REMOVED 2026-10-29 ──
+  // The handleSaveConfig() function that used to live here was dead code
+  // (no UI button called it) AND it showed a fake success toast when the
+  // API returned non-OK (it waited 800ms then called toast.success
+  // regardless of the response status — lying to the user about save
+  // success). Global leave policy config is now managed exclusively on
+  // /leave/configuration (the 8-step wizard) and /leave/approval-workflows.
   // ═══════════════════════════════════════════════════════════
-
-  const handleSaveConfig = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/leave-policy-config', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          carryForward, maxCarryForward, proRateJoining,
-          sandwichRule, minAdvanceNotice, probationRestriction,
-          casualLeavePerYear, sickLeavePerYear, earnedLeavePerYear,
-          leaveEncashment, probationLeaveQuota,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Leave policy config saved successfully');
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        toast.success('Leave policy config saved successfully');
-      }
-    } catch {
-      toast.error('Failed to save settings');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // ═══════════════════════════════════════════════════════════
   // ── RENDER ──
