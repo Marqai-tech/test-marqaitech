@@ -147,6 +147,8 @@ export async function PATCH(
           status: true,
           hiredAt: true,
           bonusPaidAt: true,
+          bonusAmount: true,
+          bonusCurrency: true,
         },
       })
     );
@@ -206,6 +208,11 @@ export async function PATCH(
         // Auto-set lifecycle timestamps when crossing into hired/bonus_paid.
         if (body.status === 'hired' && !existing.hiredAt) {
           data.hiredAt = new Date();
+        }
+        // C-23: auto-set bonus to 5000 when marking as hired (if not already set)
+        if (body.status === 'hired' && (existing.bonusAmount === null || existing.bonusAmount === undefined)) {
+          data.bonusAmount = 5000;
+          data.bonusCurrency = 'INR';
         }
         if (body.status === 'bonus_paid' && !existing.bonusPaidAt) {
           data.bonusPaidAt = new Date();
