@@ -100,7 +100,13 @@ export async function syncReferralStatus(
   jobTitle: string,
   options?: { trackToken?: string; origin?: string },
 ): Promise<void> {
-  if (!candidateEmail || !tenantId) return;
+  if (!candidateEmail) return; // can't sync without an email to match on
+
+  // tenantId may be empty when called from a public (no-auth) endpoint
+  // like /api/offers/accept/[token]. In that case we still do the DB
+  // update (referral status + bonus) but skip the in-app notification
+  // dispatch (which needs a tenantId for the Notification table).
+  const hasTenantId = Boolean(tenantId);
 
   const referralStatus = appStatusToReferralStatus(newAppStatus);
   if (!referralStatus) return; // status not in the map → nothing to sync
@@ -177,11 +183,16 @@ export async function syncReferralStatus(
       }).catch(() => null);
 
       if (referrerUser) {
-        const { createNotification } = await import('@/lib/notifications');
         const referrerName = referrerUser.name || 'there';
         const isHired = referralStatus === 'hired';
         const bonusAmount = (updateData.bonusAmount as number) || referral.bonusAmount || DEFAULT_BONUS_AMOUNT;
         const bonusCurrency = (updateData.bonusCurrency as string) || referral.bonusCurrency || DEFAULT_BONUS_CURRENCY;
+
+        // In-app notification only when we have a tenantId (public endpoints
+        // like /api/offers/accept/[token] don't have one — the DB update still
+        // runs, but the in-app notification is skipped).
+        if (hasTenantId) {
+        const { createNotification } = await import('@/lib/notifications');
 
         await createNotification({
           tenantId,
@@ -196,8 +207,11 @@ export async function syncReferralStatus(
           category: 'recruitment',
           link: '/referrals',
         }).catch(() => null);
+        } // end if (hasTenantId)
 
         // Also send email to the referrer via sendEmail (smart routing)
+        // This works even without a tenantId because sendEmail uses
+        // SMTP/Resend directly, not the tenant Notification table.
         if (referrerUser.email) {
           const { sendEmail } = await import('@/lib/email');
           await sendEmail({
