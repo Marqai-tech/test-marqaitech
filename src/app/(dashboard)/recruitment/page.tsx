@@ -1719,6 +1719,43 @@ export default function RecruitmentPage() {
                                       <FiCalendar className="w-4 h-4" />
                                     </button>
                                   )}
+                                  {/* Reschedule Interview — fetches the latest scheduled interview for this app and reschedules it */}
+                                  {isAdmin && app.status === 'interview' && (
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(`/api/interviews?jobApplicationId=${app.id}&status=scheduled&limit=1`, { headers: getAuthHeaders() });
+                                          if (res.ok) {
+                                            const data = await res.json();
+                                            const ints = data.data || [];
+                                            if (ints.length > 0) {
+                                              const iid = ints[0].id;
+                                              const newDate = prompt('Enter new date (YYYY-MM-DD):');
+                                              if (!newDate) return;
+                                              const newTime = prompt('Enter new time (HH:MM):', '10:00') || '10:00';
+                                              const patchRes = await fetch('/api/interviews', {
+                                                method: 'PATCH',
+                                                headers: getAuthHeaders(),
+                                                body: JSON.stringify({ id: iid, action: 'reschedule', newDate, newTime, newDuration: 60 }),
+                                              });
+                                              if (patchRes.ok) {
+                                                toast.success(`Interview rescheduled to ${newDate} ${newTime}`);
+                                              } else {
+                                                const d = await patchRes.json();
+                                                toast.error(d.error || 'Reschedule failed');
+                                              }
+                                            } else {
+                                              toast.error('No scheduled interview found for this candidate. Use the Schedule Interview button first.');
+                                            }
+                                          }
+                                        } catch { toast.error('Failed to reschedule'); }
+                                      }}
+                                      className="p-2 rounded-lg text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                      title="Reschedule Interview"
+                                    >
+                                      <FiRefreshCw className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   {/* GAP FIX #6: "Extend Offer" button — opens the offers page pre-filled with the candidate's data */}
                                   {isAdmin && (app.status === 'interview' || app.status === 'shortlisted') && (
                                     <button onClick={() => {

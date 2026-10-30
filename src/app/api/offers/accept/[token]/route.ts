@@ -213,17 +213,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     try {
       const admins = await (db as any).user.findMany({
         where: { role: { in: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'] }, status: 'active' },
-        select: { id: true },
+        select: { id: true, email: true },
         take: 20,
       });
       const label = action === 'accept' ? 'accepted' : 'declined';
+      // C-27 FIX: use `offer` (the original findUnique result) instead of `updated`
+      // (which is a {count:N} object from updateMany — all fields are undefined)
+      const candidateName = offer.candidateName || 'Candidate';
+      const position = offer.position || 'the position';
       for (const a of admins) {
         try {
           await (db as any).notification.create({
             data: {
               userId: a.id,
-              title: `Offer ${label} — ${updated.candidateName}`,
-              message: `${updated.candidateName} has ${label} the offer for the ${updated.position} position.${comments ? `\n\nCandidate comments: ${comments}` : ''}`,
+              title: `Offer ${label} — ${candidateName}`,
+              message: `${candidateName} has ${label} the offer for the ${position} position.${comments ? `\n\nCandidate comments: ${comments}` : ''}`,
               type: action === 'accept' ? 'success' : 'warning',
               category: 'recruitment',
               link: '/offers',
@@ -231,6 +235,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
               isEmailSent: false,
             },
           }).catch(() => null);
+          // Also send email to HR/admin (smart routing — internal goes via SMTP)
+          if (a.email) {
+            try {
+              const { sendEmail } = await import('@/lib/email');
+              await sendEmail({
+                to: a.email,
+                subject: `Offer ${label} — ${candidateName} — ${position}`,
+                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:${action === 'accept' ? '#10b981' : '#f59e0b'};">Offer ${label}</h2>
+                  <p>${candidateName} has ${label} the offer for the ${position} position.</p>
+                  ${comments ? `<p><strong>Candidate comments:</strong> ${comments}</p>` : ''}
+                  <p>View the offer details on the Offers page.</p>
+                </div>`,
+              }).catch(() => null);
+            } catch { /* non-fatal */ }
+          }
         } catch { /* non-critical */ }
       }
     } catch { /* non-critical */ }
@@ -239,10 +259,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     try {
       const { getPlatformDb } = await import('@/lib/tenant-db');
       const platformDbAcc = getPlatformDb();
-      const slugAcc = _req.headers.get('x-tenant-slug') || new URL(_req.url).searchParams.get('tenant') || '';
+      // C-27 FIX: use `req` (the function parameter) not `_req` (the old GET handler param name)
+      const slugAcc = req.headers.get('x-tenant-slug') || new URL(req.url).searchParams.get('tenant') || '';
       const tenantAcc = slugAcc ? await platformDbAcc.tenant.findUnique({ where: { slug: slugAcc }, select: { id: true } }) : null;
       if (tenantAcc?.id) {
         const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+        // C-27 FIX: use `offer` object (not `updated` which is {count:N})
+        const candidateName = offer.candidateName || '';
+        const position = offer.position || '';
+        const department = (offer as Record<string, unknown>).department as string || '—';
+        const joiningDate = offer.joiningDate ? new Date(offer.joiningDate as string).toLocaleDateString('en-IN') : 'TBD';
         if (action === 'accept') {
           const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
           const itIds = await resolveRoleRecipients(db, ['it_admin', 'it_support', 'admin', 'system_admin'], 10);
@@ -252,13 +278,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
             eventKey: 'recruitment.offer.accepted',
             recipients: Array.from(new Set([...hrIds, ...itIds])).map((uid) => ({ userId: uid })),
             vars: {
-              Candidate_Name: updated.candidateName || '',
-              Position: updated.position || '',
-              Department: updated.department || '—',
-              Joining_Date: updated.joiningDate ? new Date(updated.joiningDate).toLocaleDateString('en-IN') : 'TBD',
+              Candidate_Name: candidateName,
+              Position: position,
+              Department: department,
+              Joining_Date: joiningDate,
             },
-            entity: { type: 'offer', id: updated.id, link: '/offers' },
-            origin: new URL(_req.url).origin,
+            entity: { type: 'offer', id: offer.id, link: '/offers' },
+            origin: new URL(req.url).origin,
           });
         } else {
           const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin', 'ceo'], 10);
@@ -268,12 +294,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
             eventKey: 'recruitment.offer.declined',
             recipients: hrIds.map((uid) => ({ userId: uid })),
             vars: {
-              Candidate_Name: updated.candidateName || '',
-              Position: updated.position || '',
+              Candidate_Name: candidateName,
+              Position: position,
               Reason: comments || '—',
             },
-            entity: { type: 'offer', id: updated.id, link: '/offers' },
-            origin: new URL(_req.url).origin,
+            entity: { type: 'offer', id: offer.id, link: '/offers' },
+            origin: new URL(req.url).origin,
           });
         }
       }
