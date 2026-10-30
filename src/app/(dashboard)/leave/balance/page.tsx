@@ -25,7 +25,6 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { normalizeLeaveBalances, type LeaveBalanceLike } from '@/lib/leave-balance-rules';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -116,8 +115,6 @@ export default function LeaveBalancePage() {
       const headers = getAuthHeaders();
 
       // ── 1. Get the current user's employee.id ──
-      // The balance API for admins returns ALL employees' data unless we
-      // pass ?employeeId=. We need the user's OWN employee.id to filter.
       let employeeId = '';
       try {
         const meRes = await fetch('/api/auth/me', { headers });
@@ -132,59 +129,81 @@ export default function LeaveBalancePage() {
         }
       } catch { /* non-fatal */ }
 
-      // ── 2. Fetch leave balances (filtered to own employeeId) ──
+      // ── 2. Fetch ALL leave types from the DB (the source of truth) ──
+      // This ensures every leave type in the company shows a card, even if
+      // the balance API hasn't created a LeaveBalance row yet.
+      const ltRes = await fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers });
+      let leaveTypes: Array<{
+        id: string; name: string; code: string; defaultDays: number;
+        isPaid: boolean; carryForward: boolean; maxCarryForward: number;
+      }> = [];
+      if (ltRes.ok) {
+        const ltData = await ltRes.json();
+        leaveTypes = (ltData.data || ltData.leaveTypes || []).map((lt: Record<string, unknown>) => ({
+          id: String(lt.id || ''),
+          name: String(lt.name || ''),
+          code: String(lt.code || ''),
+          defaultDays: Number(lt.defaultDays || 0),
+          isPaid: Boolean(lt.isPaid),
+          carryForward: Boolean(lt.carryForward),
+          maxCarryForward: Number(lt.maxCarryForward || 0),
+        }));
+      }
+
+      // ── 3. Fetch leave balances (filtered to own employeeId) ──
+      // Overlay the balance data (used/remaining) on top of the leave types.
       const balUrl = employeeId
         ? `/api/leave/balance?employeeId=${employeeId}${sq ? `&${sq}` : ''}`
         : `/api/leave/balance${sq ? `?${sq}` : ''}`;
       const balRes = await fetch(balUrl, { headers });
+      let balanceMap = new Map<string, { total: number; used: number; remaining: number; carryForward: number }>();
       if (balRes.ok) {
         const balData = await balRes.json();
-        const rawBalances = (balData.balances || balData.leaveBalances || []) as LeaveBalanceLike[];
-        const normalized = normalizeLeaveBalances(rawBalances, {
-          gender: balData.gender,
-          probation: Boolean(balData.probation),
-        });
-
-        // ── Deduplicate by leave type code ──
-        // The balance API may return multiple entries for the same leave type
-        // (from different companies or synthetic fallbacks). Keep only the
-        // first entry per code, preferring entries with non-zero total.
-        const byCode = new Map<string, LeaveBalanceLike>();
-        for (const b of normalized) {
+        const rawBalances = (balData.balances || balData.leaveBalances || []) as Array<{
+          leaveType?: { code?: string } | null;
+          total?: number; used?: number; remaining?: number; carryForward?: number;
+        }>;
+        for (const b of rawBalances) {
           const code = String(b.leaveType?.code || '');
           if (!code) continue;
-          const existing = byCode.get(code);
-          if (!existing || (Number(b.total ?? 0) > 0 && Number(existing.total ?? 0) === 0)) {
-            byCode.set(code, b);
+          // Keep the first non-zero entry per code (dedupe cross-company dupes)
+          const existing = balanceMap.get(code);
+          if (!existing || (Number(b.total ?? 0) > 0 && existing.total === 0)) {
+            balanceMap.set(code, {
+              total: Number(b.total ?? 0),
+              used: Number(b.used ?? 0),
+              remaining: Number(b.remaining ?? 0),
+              carryForward: Number(b.carryForward ?? 0),
+            });
           }
         }
-
-        const mapped: LeaveBalanceCard[] = Array.from(byCode.values()).map((b, idx: number) => {
-          const colors = CARD_STYLES[idx % CARD_STYLES.length];
-          const legacy = b as unknown as Record<string, unknown>;
-          const total = Number(b.total ?? legacy.annualQuota ?? 0);
-          const used = Number(b.used ?? 0);
-          const remaining = Number(b.remaining ?? 0);
-          const carryForward = Number(b.carryForward ?? 0);
-          const pending = Number(legacy.pending ?? 0);
-          return {
-            id: String(b.id || b.leaveType?.id || `synthetic-${idx}`),
-            type: String(b.leaveType?.name || legacy.leaveTypeName || legacy.type || legacy.name || ''),
-            code: String(b.leaveType?.code || legacy.leaveTypeCode || legacy.code || ''),
-            total,
-            used,
-            remaining: remaining || Math.max(0, total - used),
-            carryForward,
-            pending,
-            isPaid: true, // all synthetic types are paid by default
-            ...colors,
-          };
-        });
-
-        setBalances(mapped);
-      } else {
-        setBalances([]);
       }
+
+      // ── 4. Build cards: one per leave type from the DB ──
+      // For each leave type, use the balance data if available; otherwise
+      // fall back to the leave type's defaultDays as the total with 0 used.
+      const mapped: LeaveBalanceCard[] = leaveTypes.map((lt, idx) => {
+        const colors = CARD_STYLES[idx % CARD_STYLES.length];
+        const bal = balanceMap.get(lt.code);
+        const total = bal?.total ?? lt.defaultDays;
+        const used = bal?.used ?? 0;
+        const remaining = bal?.remaining ?? Math.max(0, total - used);
+        const carryForward = bal?.carryForward ?? 0;
+        return {
+          id: lt.id,
+          type: lt.name,
+          code: lt.code,
+          total,
+          used,
+          remaining,
+          carryForward,
+          pending: 0,
+          isPaid: lt.isPaid,
+          ...colors,
+        };
+      });
+
+      setBalances(mapped);
 
       // ── 3. Fetch recent leave history ──
       const histUrl = `/api/leave?view=self&limit=5${sq ? `&${sq}` : ''}`;
