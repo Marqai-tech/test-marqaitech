@@ -121,8 +121,65 @@ export default function InterviewsPage() {
   const [feedbackList, setFeedbackList] = useState<FeedbackDetail[]>([]);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [decisionModal, setDecisionModal] = useState<{ interviewId: string; decision: string; reason: string } | null>(null);
+  const [decisionModal, setDecisionModal] = useState<{
+    interviewId: string;
+    decision: string;
+    reason: string;
+    // For next_round + schedule_another: the new schedule details
+    nextDate: string;
+    nextTime: string;
+    nextDuration: number;
+    nextType: string;
+    nextLocation: string;
+    nextMeetingUrl: string;
+    nextPanelMemberIds: string[];
+    // For hold: whether to send the candidate a "decision pending" email
+    sendHoldEmail: boolean;
+  } | null>(null);
   const [attendanceModal, setAttendanceModal] = useState<{ interviewId: string; candidateAttendance: string; panelAttendance: Record<string, string> } | null>(null);
+
+  // For next_round / schedule_another: candidate panel members to choose from
+  const [panelCandidates, setPanelCandidates] = useState<Array<{ id: string; name: string; email: string; designation: string }>>([]);
+
+  // Helper to construct a fresh decision-modal state — used by every button
+  // that opens the modal. Pre-fills sensible defaults so HR can quickly
+  // submit without typing for common cases.
+  const makeDecisionModal = (interviewId: string) => ({
+    interviewId,
+    decision: '',
+    reason: '',
+    nextDate: '',
+    nextTime: '10:00',
+    nextDuration: 60,
+    nextType: 'technical',
+    nextLocation: '',
+    nextMeetingUrl: '',
+    nextPanelMemberIds: [] as string[],
+    sendHoldEmail: false,
+  });
+
+  // Fetch candidate panel members (all users in the tenant — HR can pick any).
+  // We use a lightweight endpoint that's already authenticated.
+  const fetchPanelCandidates = useCallback(async () => {
+    if (panelCandidates.length > 0) return;
+    try {
+      // /api/employees?limit=200 returns tenant users with name/email/designation.
+      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const rawList: Array<Record<string, unknown>> = (data.employees || data.data || []) as Array<Record<string, unknown>>;
+        const list = rawList
+          .map((e) => ({
+            id: (e.userId || e.id) as string,
+            name: `${(e.firstName as string) || ''} ${(e.lastName as string) || ''}`.trim() || (e.name as string) || (e.email as string),
+            email: (e.email as string) || '',
+            designation: (e.designation as string) || (e.designationName as string) || '—',
+          }))
+          .filter((u) => u.id && u.email);
+        if (list.length > 0) setPanelCandidates(list);
+      }
+    } catch { /* non-fatal */ }
+  }, [panelCandidates.length]);
 
   const fetchInterviews = useCallback(async () => {
     try {
@@ -148,6 +205,16 @@ export default function InterviewsPage() {
       queueMicrotask(() => fetchInterviews());
     }
   }, [isAdmin, fetchInterviews]);
+
+  // When the decision modal opens, pre-fetch the candidate panel member list
+  // (only fetches once per page mount via the cache guard inside).
+  useEffect(() => {
+    if (decisionModal) {
+      // Defer to a microtask so the setState call inside fetchPanelCandidates
+      // doesn't run synchronously inside the effect body (React 19 lint rule).
+      queueMicrotask(() => fetchPanelCandidates());
+    }
+  }, [decisionModal, fetchPanelCandidates]);
 
   const fetchFeedback = async (interviewId: string) => {
     setLoadingFeedback(true);
@@ -247,21 +314,59 @@ export default function InterviewsPage() {
   const handleHrDecision = async () => {
     if (!decisionModal) return;
     if (!decisionModal.decision) { toast.error('Please select a decision'); return; }
+
+    // Validate next_round / schedule_another require a date.
+    if ((decisionModal.decision === 'next_round' || decisionModal.decision === 'schedule_another') && !decisionModal.nextDate) {
+      toast.error('Please pick a date for the next interview round');
+      return;
+    }
+
     setActionLoading(decisionModal.interviewId + '-decision');
     try {
+      const payload: Record<string, unknown> = {
+        id: decisionModal.interviewId,
+        action: 'hr_decision',
+        decision: decisionModal.decision,
+        reason: decisionModal.reason || undefined,
+      };
+      if (decisionModal.decision === 'next_round' || decisionModal.decision === 'schedule_another') {
+        payload.nextRound = {
+          date: decisionModal.nextDate,
+          time: decisionModal.nextTime || undefined,
+          duration: decisionModal.nextDuration || 60,
+          type: decisionModal.nextType,
+          location: decisionModal.nextLocation || undefined,
+          meetingUrl: decisionModal.nextMeetingUrl || undefined,
+          panelMemberIds: decisionModal.nextPanelMemberIds,
+        };
+      }
+      if (decisionModal.decision === 'hold') {
+        payload.sendHoldEmail = decisionModal.sendHoldEmail;
+      }
+
       const res = await fetch('/api/interviews', {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          id: decisionModal.interviewId,
-          action: 'hr_decision',
-          decision: decisionModal.decision,
-          reason: decisionModal.reason || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
-      toast.success(`HR decision recorded: ${decisionLabels[decisionModal.decision] || decisionModal.decision}`);
+
+      // Surface the full result so HR knows if the email was actually sent
+      // (per spec: don't show success if the email failed).
+      const label = decisionLabels[decisionModal.decision as keyof typeof decisionLabels] || decisionModal.decision;
+      let msg = `HR decision recorded: ${label}. App status: ${data.newAppStatus || '-'}.`;
+      if (data.newInterviewId) msg += ` New interview ${data.newInterviewId}.`;
+      if (data.newOfferId) msg += ` Draft offer ${data.newOfferId} created.`;
+      if (data.emailSent === false) {
+        msg += ` ⚠️ Candidate email was NOT sent${data.emailError ? ` — ${data.emailError}` : ''}.`;
+        toast.error(msg);
+      } else {
+        msg += ` ✅ Candidate email sent.`;
+        toast.success(msg);
+      }
+      console.log('[Interviews /interviews] hr_decision result:', data);
+
       setDecisionModal(null);
       fetchInterviews();
       if (selectedInterview?.id === decisionModal.interviewId) {
@@ -516,7 +621,7 @@ export default function InterviewsPage() {
                   )}
                   {interview.status === 'completed' && !interview.hrDecision && (
                     <button
-                      onClick={() => setDecisionModal({ interviewId: interview.id, decision: '', reason: '' })}
+                      onClick={() => setDecisionModal(makeDecisionModal(interview.id))}
                       disabled={actionLoading === interview.id + '-decision'}
                       className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
                     >
@@ -630,7 +735,7 @@ export default function InterviewsPage() {
               {selectedInterview.status === 'completed' && !selectedInterview.hrDecision && (
                 <button
                   onClick={() => {
-                    setDecisionModal({ interviewId: selectedInterview.id, decision: '', reason: '' });
+                    setDecisionModal(makeDecisionModal(selectedInterview.id));
                   }}
                   className="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
                 >
@@ -654,7 +759,7 @@ export default function InterviewsPage() {
       {/* ─── HR Decision modal ─── */}
       {decisionModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-thb-border">
               <h2 className="text-lg font-bold text-thb-text-primary">HR Final Decision</h2>
               <button
@@ -674,33 +779,161 @@ export default function InterviewsPage() {
                 >
                   <option value="">Select decision…</option>
                   <option value="next_round">Next Round — schedule another interview round</option>
+                  <option value="schedule_another">Schedule Another — reschedule to a new slot</option>
                   <option value="shortlist">Shortlist — move to shortlisted status</option>
                   <option value="hold">Hold — keep in interview status pending more info</option>
                   <option value="reject">Reject — reject the candidate, send rejection email</option>
-                  <option value="offer">Offer — move to offered status, trigger offer workflow</option>
-                  <option value="schedule_another">Schedule Another — different interview slot</option>
+                  <option value="offer">Offer — move to offered status, create draft Offer</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                  Reason (optional, shown in audit log + candidate email for reject/offer)
+                  Reason (optional — shown in audit log; included in reject/offer email body if present)
                 </label>
                 <textarea
                   value={decisionModal.reason}
                   onChange={(e) => setDecisionModal({ ...decisionModal, reason: e.target.value })}
-                  rows={3}
-                  placeholder="e.g. Strong technical skills, good cultural fit. Recommending offer."
+                  rows={2}
+                  placeholder="e.g. Strong technical skills, good cultural fit."
                   className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
+
+              {/* ─── Next Round / Schedule Another: schedule sub-form ─── */}
+              {(decisionModal.decision === 'next_round' || decisionModal.decision === 'schedule_another') && (
+                <div className="border border-thb-border rounded-lg p-3 space-y-3 bg-slate-50">
+                  <p className="text-xs font-semibold text-thb-text-secondary">
+                    {decisionModal.decision === 'next_round'
+                      ? '📅 New round schedule (a new Interview row will be created)'
+                      : '🔄 New schedule (the same interview will be rescheduled)'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                      <input
+                        type="date"
+                        value={decisionModal.nextDate}
+                        onChange={(e) => setDecisionModal({ ...decisionModal, nextDate: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time</label>
+                      <input
+                        type="time"
+                        value={decisionModal.nextTime}
+                        onChange={(e) => setDecisionModal({ ...decisionModal, nextTime: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration (min)</label>
+                      <input
+                        type="number"
+                        value={decisionModal.nextDuration}
+                        onChange={(e) => setDecisionModal({ ...decisionModal, nextDuration: Number(e.target.value) || 60 })}
+                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type</label>
+                      <select
+                        value={decisionModal.nextType}
+                        onChange={(e) => setDecisionModal({ ...decisionModal, nextType: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm bg-white"
+                      >
+                        <option value="technical">Technical</option>
+                        <option value="hr">HR</option>
+                        <option value="ai">AI</option>
+                        <option value="offline_panel">Panel (Offline)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
+                      <input
+                        value={decisionModal.nextLocation}
+                        onChange={(e) => setDecisionModal({ ...decisionModal, nextLocation: e.target.value })}
+                        placeholder="e.g. Conference Room A"
+                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Meeting Link</label>
+                      <input
+                        value={decisionModal.nextMeetingUrl}
+                        onChange={(e) => setDecisionModal({ ...decisionModal, nextMeetingUrl: e.target.value })}
+                        placeholder="https://meet.google.com/..."
+                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">
+                      Panel Members (optional — these users will get an interview-scheduled notification)
+                    </label>
+                    <div className="space-y-1 max-h-32 overflow-y-auto border border-thb-border rounded-lg p-2 bg-white">
+                      {panelCandidates.length === 0 ? (
+                        <p className="text-xs text-thb-text-muted py-2 text-center">Loading tenant users…</p>
+                      ) : (
+                        panelCandidates.map((cand) => {
+                          const isSelected = decisionModal.nextPanelMemberIds.includes(cand.id);
+                          return (
+                            <label
+                              key={cand.id}
+                              className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${isSelected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const next = e.target.checked
+                                    ? [...decisionModal.nextPanelMemberIds, cand.id]
+                                    : decisionModal.nextPanelMemberIds.filter((uid) => uid !== cand.id);
+                                  setDecisionModal({ ...decisionModal, nextPanelMemberIds: next });
+                                }}
+                                className="w-4 h-4 rounded text-teal-600"
+                              />
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-sm text-thb-text-primary truncate">{cand.name}</span>
+                                <span className="block text-xs text-thb-text-muted truncate">{cand.designation} · {cand.email}</span>
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── Hold: send-email toggle ─── */}
+              {decisionModal.decision === 'hold' && (
+                <div className="border border-thb-border rounded-lg p-3 bg-amber-50">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={decisionModal.sendHoldEmail}
+                      onChange={(e) => setDecisionModal({ ...decisionModal, sendHoldEmail: e.target.checked })}
+                      className="w-4 h-4 rounded"
+                    />
+                    <span>Send the candidate a &ldquo;decision pending / on hold&rdquo; email (default: off)</span>
+                  </label>
+                  <p className="text-xs text-thb-text-muted mt-1">
+                    An HR follow-up reminder is always created regardless of this setting.
+                  </p>
+                </div>
+              )}
+
               {(decisionModal.decision === 'reject' || decisionModal.decision === 'offer') && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
                   <strong>Note:</strong> This decision will send an automated email to the candidate
-                  ({decisionModal.decision === 'reject' ? 'notifying them of rejection' : 'notifying them of selection'}).
+                  ({decisionModal.decision === 'reject'
+                    ? 'notifying them of rejection (the email body contains the reason only if you entered one)'
+                    : 'notifying them of selection — a real draft Offer is also created and linked to this application; HR advances it through approval → sent; the secure offer link is sent later by the offer-sent flow'}).
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border sticky bottom-0 bg-white">
               <button
                 onClick={() => setDecisionModal(null)}
                 className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50"

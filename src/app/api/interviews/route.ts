@@ -843,94 +843,55 @@ export async function PATCH(req: NextRequest) {
       if (!HR_ROLES.includes((decoded.role as string) || '')) {
         return NextResponse.json({ error: 'Only HR/Admin can make final decisions' }, { status: 403, headers: corsHeaders() });
       }
-      const { decision, reason: decisionReason } = body;
-      const validDecisions = ['next_round', 'shortlist', 'hold', 'reject', 'offer', 'schedule_another'];
-      if (!decision || !validDecisions.includes(decision)) {
-        return NextResponse.json({ error: `Invalid decision. Must be: ${validDecisions.join(', ')}` }, { status: 400, headers: corsHeaders() });
+      const { decision, reason: decisionReason, nextRound, sendHoldEmail } = body;
+
+      // Delegate to the shared decision service so the HR Decision dropdown
+      // (on /interviews) and the Candidate Status dropdown's interview-related
+      // transitions (on /recruitment) can both use the exact same code path —
+      // no possibility of divergent rules or duplicate emails.
+      const { recordHrDecision, HR_DECISIONS } = await import('@/lib/interview-decision');
+      if (!decision || !HR_DECISIONS.includes(decision)) {
+        return NextResponse.json(
+          { error: `Invalid decision. Must be one of: ${HR_DECISIONS.join(', ')}` },
+          { status: 400, headers: corsHeaders() },
+        );
       }
 
-      await db.$executeRawUnsafe(
-        `UPDATE "Interview" SET "hrDecision" = $1, "hrDecisionReason" = $2, "hrDecisionById" = $3, "hrDecisionAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $4`,
-        decision, decisionReason || null, decoded.userId, id,
+      const result = await recordHrDecision({
+        db,
+        tenantId: String(decoded.tenantId || ''),
+        actingUserId: String(decoded.userId || ''),
+        actingUserEmail: ((decoded as Record<string, unknown>).email as string) || '',
+        interviewId: id,
+        decision,
+        reason: decisionReason,
+        nextRound,
+        sendHoldEmail,
+        origin: new URL(req.url).origin,
+      });
+
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error || 'Failed to record decision' },
+          { status: 400, headers: corsHeaders() },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: `Decision recorded: ${decision}`,
+          decision: result.decision,
+          newAppStatus: result.newAppStatus,
+          newInterviewId: result.newInterviewId,
+          newOfferId: result.newOfferId,
+          emailSent: result.emailSent,
+          emailError: result.emailError,
+          hrNotified: result.hrNotified,
+          auditLogged: result.auditLogged,
+        },
+        { headers: corsHeaders() },
       );
-
-      // Update JobApplication status based on decision
-      // Phase 12 fix: shortlist should map to 'shortlisted' not 'screening'
-      const decisionToAppStatus: Record<string, string> = {
-        next_round: 'interview', shortlist: 'shortlisted', hold: 'interview',
-        reject: 'rejected', offer: 'offered', schedule_another: 'interview',
-      };
-      const newAppStatus = decisionToAppStatus[decision] || 'interview';
-      try {
-        const interviewRow = await db.$queryRawUnsafe(
-          `SELECT "jobApplicationId" FROM "Interview" WHERE "id" = $1 LIMIT 1`, id,
-        ) as any[];
-        if (interviewRow[0]?.jobApplicationId) {
-          await db.$executeRawUnsafe(
-            `UPDATE "JobApplication" SET "status" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
-            newAppStatus, interviewRow[0].jobApplicationId,
-          );
-        }
-      } catch {}
-
-      // Audit log
-      await db.auditLog.create({
-        data: { userId: decoded.userId as string, action: 'INTERVIEW_HR_DECISION', module: 'recruitment',
-          details: `HR decision for interview ${id}: ${decision}${decisionReason ? ` — ${decisionReason}` : ''}` },
-      }).catch(() => null);
-
-      // Phase 12 fix: Notify HR team of the decision (was audit-log-only)
-      try {
-        if (decoded.tenantId) {
-          const hrUsers = await db.user.findMany({
-            where: { tenantId: decoded.tenantId, role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active' },
-            select: { id: true, email: true },
-          }).catch(() => []);
-          // NOTE: a previous band-aid filter (`!u.email?.includes('hr@marqaitech')`)
-          // silently excluded HR users whose email matched that pattern from
-          // decision notifications. Removed per user instruction — every
-          // active HR user receives the decision notification.
-          for (const hr of hrUsers) {
-            await createNotification({
-              tenantId: decoded.tenantId as string, userId: hr.id,
-              title: `Interview Decision: ${decision}`,
-              message: `HR decision recorded for interview ${id}: ${decision}${decisionReason ? ` — ${decisionReason}` : ''}`,
-              type: 'info', category: 'recruitment', link: '/recruitment',
-            }).catch(() => null);
-          }
-        }
-      } catch { /* non-fatal */ }
-
-      // Phase 12 fix: Send candidate email on reject/offer decision
-      if (decision === 'reject' || decision === 'offer') {
-        try {
-          const interviewRow = await db.$queryRawUnsafe(
-            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
-             FROM "Interview" i
-             JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
-             LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
-             WHERE i."id" = $1 LIMIT 1`, id,
-          ) as any[];
-          if (interviewRow[0]?.candidateEmail) {
-            const { sendEmail } = await import('@/lib/email');
-            const decisionLabel = decision === 'reject' ? 'Unfortunately, you have not been selected' : 'Congratulations! You have been selected for an offer';
-            await sendEmail({
-              to: interviewRow[0].candidateEmail,
-              subject: decision === 'reject' ? 'Application Update' : 'Congratulations — Offer Update',
-              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                <h2 style="color:${decision === 'reject' ? '#ef4444' : '#10b981'};">${decisionLabel}</h2>
-                <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
-                <p>Regarding your application for <strong>${interviewRow[0].jobTitle || 'the position'}</strong>:</p>
-                <p>${decision === 'reject' ? 'Thank you for your interest. We appreciate the time you invested in the interview process. Unfortunately, we are unable to proceed with your application at this time.' : 'We are pleased to inform you that you have been selected. Our HR team will be in touch shortly with an offer.'}</p>
-                ${decisionReason ? `<p><strong>Notes:</strong> ${decisionReason}</p>` : ''}
-                <p>Thank you for your interest in joining our team.</p>
-              </div>`,
-            }).catch(() => null);
-          }
-        } catch { /* non-fatal */ }
-      }
-
-      return NextResponse.json({ success: true, message: `Decision recorded: ${decision}`, newAppStatus }, { headers: corsHeaders() });
     }
 
     // ─── Action: PANEL LEAD RECOMMENDATION (pt 18) ────────────────────
