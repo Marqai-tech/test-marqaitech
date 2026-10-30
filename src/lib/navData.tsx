@@ -259,6 +259,7 @@ export const navSections: NavSection[] = [
       // ── Leave Balance ──
       { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isDivider: true },
       { label: 'Team Leave Calendar', href: '/leave/team-calendar', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Holidays', href: '/leave/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'] },
 
       // ── Settings (admin-only) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isDivider: true },
