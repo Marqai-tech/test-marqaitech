@@ -9,7 +9,7 @@ const T = { 'Content-Type': 'application/json' };
 
 const login = await fetch(BASE + '/api/auth/login', {
   method: 'POST', headers: T,
-  body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+  body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
 });
 const ld = await login.json();
 const token = ld.token || ld.accessToken;

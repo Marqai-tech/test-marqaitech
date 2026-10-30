@@ -367,7 +367,7 @@ export async function POST(req: NextRequest) {
           where: { id: { in: panelMembers }, status: 'active' },
           select: { id: true, email: true, name: true },
         }).catch(() => []);
-        // Avoid hr@marqaitech.com per user instruction
+        // Avoid hr@gmail.com per user instruction
         const safePanelUsers = panelUsers.filter(u => !u.email?.includes('hr@marqaitech'));
 
         if (safePanelUsers.length > 0) {

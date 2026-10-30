@@ -103,7 +103,7 @@ function phoneCandidates(rawPhone, dialCode) {
 }
 const c1 = phoneCandidates('98288 03789', '+91');
 ok('phone candidates: 10-digit + dial variants', c1.length === 4 && c1.includes('919828803789'), c1.join(','));
-ok('phone candidates: email identity yields none', phoneCandidates('hr@marqaitech.com', '+91').length === 0);
+ok('phone candidates: email identity yields none', phoneCandidates('hr@gmail.com', '+91').length === 0);
 
 console.log(results.join('\n'));
 console.log(`\n${pass} passed, ${fail} failed (${pass + fail} total)`);

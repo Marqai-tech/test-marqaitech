@@ -279,7 +279,7 @@ export async function PATCH(
         }).catch(() => null);
 
         if (referrerUser) {
-          // Avoid hr@marqaitech.com per user instruction
+          // Avoid hr@gmail.com per user instruction
           if (!referrerUser.email?.includes('hr@marqaitech')) {
             const { dispatchNotification } = await import('@/lib/notification-center');
             const isHired = updated.status === 'hired';

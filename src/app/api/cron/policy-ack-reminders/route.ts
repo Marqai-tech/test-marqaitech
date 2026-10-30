@@ -39,7 +39,7 @@ const REPEAT_DAYS = 7;       // follow-up reminder interval (configurable)
 
 // HR / Admin audience for the 30-day alert (matches leave-notify fallbacks —
 // includes tenant_admin so customers whose HR account uses that role, e.g.
-// hr@marqaitech.com on LIVE, are covered).
+// hr@gmail.com on LIVE, are covered).
 const HR_ROLES = ['hr_admin', 'admin', 'tenant_admin', 'ceo', 'company_hr_admin'];
 
 function cors() {

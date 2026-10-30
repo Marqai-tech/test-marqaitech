@@ -5,7 +5,7 @@
 //     and DOES contain the new breadcrumb trail ["Employee","Dashboard"] +
 //     the shared SmartHR gradient signature + SmartHR widget strings.
 //  3. Auth still healthy: superadmin apex login + tenant login for
-//     hr@marqaitech.com (login must be untouched by this UI change).
+//     hr@gmail.com (login must be untouched by this UI change).
 //  4. app-version still serves 1.8.0 (36) (no accidental version change).
 const TENANT = 'https://marqaitechgroup.3boxeshrms.com';
 const APEX = 'https://3boxeshrms.com';
@@ -53,10 +53,10 @@ ok('apex (nexus-hrms-demo) superadmin login 200', !!sa && sa.status === 200, sa 
 
 const hr = await fetch(`${TENANT}/api/auth/login`, {
   method: 'POST', headers: T,
-  body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+  body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
   signal: AbortSignal.timeout(30000),
 }).catch(() => null);
-ok('tenant hr@marqaitech.com login 200', !!hr && hr.status === 200, hr ? `status=${hr.status}` : 'no response');
+ok('tenant hr@gmail.com login 200', !!hr && hr.status === 200, hr ? `status=${hr.status}` : 'no response');
 if (hr && hr.ok) {
   const hd = await hr.json().catch(() => null);
   const token = hd?.token || hd?.accessToken;

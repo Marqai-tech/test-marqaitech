@@ -269,7 +269,7 @@ export async function POST(request: Request) {
           where: { tenantId: decoded.tenantId, role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'recruiter'] }, status: 'active' },
           select: { id: true },
         }).catch(() => []);
-        // Avoid hr@marqaitech.com per user instruction
+        // Avoid hr@gmail.com per user instruction
         const safeHrUsers = hrUsers.filter(u => !u.id.includes('hr@marqaitech'));
 
         if (safeHrUsers.length > 0) {

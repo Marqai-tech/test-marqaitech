@@ -85,13 +85,13 @@ async function hitModules(label, workspace, token) {
   }
 }
 
-// ============ Scenario 1: tenant admin hr@marqaitech.com (fresh install, demo default) ============
-console.log('\n========== TENANT ADMIN hr@marqaitech.com (fresh install) ==========');
+// ============ Scenario 1: tenant admin hr@gmail.com (fresh install, demo default) ============
+console.log('\n========== TENANT ADMIN hr@gmail.com (fresh install) ==========');
 log('tenant-admin', '--- CURRENT BUILD (buggy /login path) ---');
-const r1a = await ladderLogin(DEMO, 'hr@marqaitech.com', 'MarqAI@2026', false);
+const r1a = await ladderLogin(DEMO, 'hr@gmail.com', 'MarqAI@2026', false);
 log('tenant-admin', r1a.ok ? `LOGGED IN at ${r1a.workspace}` : `LOGIN FAILED status=${r1a.lastStatus} err="${r1a.lastError}" tried=${r1a.triedUrls.join(' | ')}`, r1a.ok);
 log('tenant-admin', '--- WITH FIX (strip /login) ---');
-const r1b = await ladderLogin(DEMO, 'hr@marqaitech.com', 'MarqAI@2026', true);
+const r1b = await ladderLogin(DEMO, 'hr@gmail.com', 'MarqAI@2026', true);
 log('tenant-admin', r1b.ok ? `LOGGED IN at ${r1b.workspace}` : `LOGIN FAILED status=${r1b.lastStatus} err="${r1b.lastError}" tried=${r1b.triedUrls.join(' | ')}`, r1b.ok);
 if (r1b.ok) await hitModules('tenant-admin', r1b.workspace, r1b.token);
 
@@ -121,7 +121,7 @@ if (r5.ok) await hitModules('demo-manager', r5.workspace, r5.token);
 // ============ Scenario 5: tenant manager (real LIVE account) ============
 console.log('\n========== LIVE TENANT — try common accounts at marqaitechgroup ==========');
 // Direct login at the tenant subdomain (as if workspace manually set)
-const r6 = await attemptLogin('https://marqaitechgroup.3boxeshrms.com', 'hr@marqaitech.com', 'MarqAI@2026');
+const r6 = await attemptLogin('https://marqaitechgroup.3boxeshrms.com', 'hr@gmail.com', 'MarqAI@2026');
 log('live-tenant', `direct tenant login hr@ → ${r6.status}`, r6.status === 200);
 if (r6.status === 200) {
   await hitModules('live-tenant', 'https://marqaitechgroup.3boxeshrms.com', r6.data.token);

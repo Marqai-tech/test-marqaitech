@@ -9,7 +9,7 @@ const SLUG = 'marqaitechgroup';
 async function main() {
   const login = await fetch(`${LIVE}/api/auth/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+    body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
     signal: AbortSignal.timeout(30000),
   }).then(r => r.json());
   const H = { Authorization: `Bearer ${login.token}`, 'x-tenant-slug': SLUG };

@@ -17,7 +17,7 @@ const evidence = [
   'LIVE bundle scan (scripts/task156-postdeploy-verify.mjs): 36/36 content+auth checks PASS (app-version parse key was wrong in the script; direct curl shows 1.8.0(36) unchanged)',
   'ALL 25 pages on marqaitechgroup.3boxeshrms.com serve the shared royal→violet gradient banner + their new sidebar-matched titles (leave/attendance/payroll/group/recruitment/onboarding/preboarding/performance/learning/PM/travel/assets/it-admin/accounts/crm/clients/helpdesk/governance/super-admin/tenant-admin/company/dashboards picker/dashboards-employee/dashboards-payroll/employees-dashboard)',
   'apex (nexus-hrms-demo.vercel.app) spot checks: /crm /helpdesk /it-admin /payroll carry the same banners',
-  'auth untouched: apex superadmin + tenant hr@marqaitech.com logins 200',
+  'auth untouched: apex superadmin + tenant hr@gmail.com logins 200',
   'APIs healthy: /api/leave, /api/employees, /api/payroll/dashboard all 200 on tenant',
   'real-browser walkthrough (agent-browser, tenant HR): /crm single banner + royal tab pills + New Deal orange CTA + pastel Panels; /leave banner + glass CSV/Excel/PDF chips + orange Add Leave + 4 shared StatCards + Leave List Panel; /attendance + /onboarding single banner, action rows intact; no duplicate headers anywhere',
   'app-version unchanged: versionName 1.8.0, versionCode 36 (web-only change, no bump, APK untouched)',

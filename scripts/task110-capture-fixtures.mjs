@@ -4,14 +4,14 @@ const LIVE = 'https://marqaitechgroup.3boxeshrms.com';
 const OUT = '/home/z/my-project/hrms_app/test/fixtures';
 mkdirSync(OUT, { recursive: true });
 
-const login = await fetch(LIVE + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }) });
+const login = await fetch(LIVE + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }) });
 const L = await login.json();
 const tok = L.token;
 console.log('login', login.status, L.user?.name);
 const H = { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' };
 
 const targets = [
-  ['login.json', '/api/auth/login', 'POST', { email: 'hr@marqaitech.com', password: 'MarqAI@2026' }],
+  ['login.json', '/api/auth/login', 'POST', { email: 'hr@gmail.com', password: 'MarqAI@2026' }],
   ['me.json', '/api/auth/me', 'GET', null],
   ['employees.json', '/api/employees?page=1&limit=20', 'GET', null],
   ['employee_detail.json', '/api/employees/cmtl5fbju000004juglc5grf9', 'GET', null],

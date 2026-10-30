@@ -2,7 +2,7 @@
  * E2E verify — confirm SMTP works from the VERCEL RUNTIME (the environment
  * that actually sends notification emails) on BOTH sites:
  *
- *   LIVE: https://marqaitechgroup.3boxeshrms.com  (hr@marqaitech.com)
+ *   LIVE: https://marqaitechgroup.3boxeshrms.com  (hr@gmail.com)
  *   DEMO: https://nexus-hrms-mu.vercel.app        (admin@3boxeshrms.com)
  *
  * 1. POST /api/auth/login  { email, password }              -> Bearer token
@@ -24,7 +24,7 @@ const SITES = [
     label: 'LIVE',
     url: 'https://marqaitechgroup.3boxeshrms.com',
     tenantSlug: 'marqaitechgroup',
-    email: 'hr@marqaitech.com',
+    email: 'hr@gmail.com',
     password: 'MarqAI@2026',
     db: 'tenant_marqaitechgroup',
   },

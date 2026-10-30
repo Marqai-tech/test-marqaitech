@@ -5,7 +5,7 @@ const LIVE = 'https://3boxeshrms.com';
 const accounts = [
   { label: 'Demo Tenant Admin (app default)', base: BASE, email: 'admin@acme-global.com', password: 'MarqAI@2026' },
   { label: 'Super Admin (demo link)', base: BASE, email: 'superadmin@3boxeshrms.com', password: 'MarqAI@2026' },
-  { label: 'LIVE Tenant Admin (hr@marqaitech)', base: LIVE, email: 'hr@marqaitech.com', password: 'MarqAI@2026' },
+  { label: 'LIVE Tenant Admin (hr@marqaitech)', base: LIVE, email: 'hr@gmail.com', password: 'MarqAI@2026' },
   { label: 'LIVE Super Admin', base: LIVE, email: 'superadmin@3boxeshrms.com', password: 'MarqAI@2026' },
 ];
 

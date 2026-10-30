@@ -3,7 +3,7 @@ const TENANT = 'https://marqaitechgroup.3boxeshrms.com';
 const T = { 'Content-Type': 'application/json' };
 
 const login = await fetch(`${TENANT}/api/auth/login`, {
-  method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+  method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
 });
 const j = await login.json();
 const token = j.token;

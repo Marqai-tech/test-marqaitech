@@ -183,7 +183,7 @@ export async function POST(request: Request) {
         where: { tenantId, role: { in: ['tenant_admin', 'ceo', 'hr_admin', 'company_hr_admin', 'admin', 'recruiter'] }, status: 'active' },
         select: { id: true, email: true },
       }).catch(() => []);
-      // Avoid hr@marqaitech.com per user instruction
+      // Avoid hr@gmail.com per user instruction
       const safeAdmins = tenantAdmins.filter(u => !u.email?.includes('hr@marqaitech'));
 
       if (safeAdmins.length > 0) {

@@ -11,7 +11,7 @@
  *  4. login twice more → bell total must NOT grow (no per-login writes)
  */
 const SITES = [
-  { name: 'LIVE', url: 'https://marqaitechgroup.3boxeshrms.com', slug: 'marqaitechgroup', email: 'hr@marqaitech.com', password: 'MarqAI@2026' },
+  { name: 'LIVE', url: 'https://marqaitechgroup.3boxeshrms.com', slug: 'marqaitechgroup', email: 'hr@gmail.com', password: 'MarqAI@2026' },
   { name: 'DEMO', url: 'https://nexus-hrms-mu.vercel.app', slug: '3boxes-hrms-demo', email: 'admin@3boxeshrms.com', password: 'MarqAI@2026' },
 ];
 

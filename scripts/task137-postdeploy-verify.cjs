@@ -12,7 +12,7 @@ if (!PLATFORM) { console.error('FATAL: source .env.production.local first'); pro
 const DEMO = 'https://nexus-hrms-demo.vercel.app';
 const MARQ = 'https://marqaitechgroup.3boxeshrms.com';
 const ADMIN = { email: 'admin@techstart.com', password: 'MarqAI@2026' }; // demo tenant_admin (can edit employees)
-const HR = { email: 'hr@marqaitech.com', password: 'MarqAI@2026' };
+const HR = { email: 'hr@gmail.com', password: 'MarqAI@2026' };
 
 let pass = 0, fail = 0;
 const results = [];

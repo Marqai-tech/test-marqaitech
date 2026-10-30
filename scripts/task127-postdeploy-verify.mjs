@@ -29,7 +29,7 @@ try {
 // 3. tenant login + attendance/payslip/validations probes
 const TENANT = hosts[0];
 const T = { 'Content-Type': 'application/json' };
-const login = await fetch(`${TENANT}/api/auth/login`, { method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }) });
+const login = await fetch(`${TENANT}/api/auth/login`, { method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }) });
 const { token } = await login.json();
 ok('tenant admin login', Boolean(token));
 const H = { Authorization: `Bearer ${token}` };

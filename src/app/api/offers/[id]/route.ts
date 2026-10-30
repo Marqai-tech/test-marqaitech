@@ -258,7 +258,7 @@ export async function PATCH(
             where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin', 'hr_admin', 'company_hr_admin', 'admin'] }, status: 'active' },
             select: { id: true, email: true },
           });
-          // Avoid hr@marqaitech.com per user instruction
+          // Avoid hr@gmail.com per user instruction
           const safeAdmins = hrAdmins.filter(a => !a.email?.includes('hr@marqaitech'));
 
           if (safeAdmins.length > 0) {

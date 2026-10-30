@@ -12,7 +12,7 @@
 //     data source) so /leave/approval-workflows renders live config
 //  6. Module Dashboard heading present in the SSR shell of /employees/dashboard
 const SITES = [
-  { name: 'LIVE', base: 'https://marqaitechgroup.3boxeshrms.com', email: 'hr@marqaitech.com', pass: 'MarqAI@2026' },
+  { name: 'LIVE', base: 'https://marqaitechgroup.3boxeshrms.com', email: 'hr@gmail.com', pass: 'MarqAI@2026' },
   { name: 'DEMO', base: 'https://nexus-hrms-mu.vercel.app', email: 'admin@3boxeshrms.com', pass: 'MarqAI@2026' },
 ];
 

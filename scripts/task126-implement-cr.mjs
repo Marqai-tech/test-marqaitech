@@ -15,7 +15,7 @@ const res = await fetch(`${BASE}/api/super-admin/change-requests/${CR_ID}`, {
   body: JSON.stringify({
     action: 'implement',
     implementationNotes:
-      'Deployed to LIVE via commit a963aef5. LIVE E2E (headless browser, marqaitechgroup tenant as hr@marqaitech.com): ' +
+      'Deployed to LIVE via commit a963aef5. LIVE E2E (headless browser, marqaitechgroup tenant as hr@gmail.com): ' +
       'BEFORE: opening a validation record crashed the page (reproduced — TypeError v.errors.map is not a function → "Something went wrong" error boundary; GET /api/payroll/validations/[id] returned 404 on an EXISTING record because the handler referenced `db` without resolving it). ' +
       'AFTER: detail opens cleanly — MISSING SALARY BASIS section expands showing Sonali Naik (MARQ005), terminations section renders, zero page errors. ' +
       'BIOMETRIC BACKFILL (tenant DB, audited): Team Office probe proved device history from Apr 24, 2026; 2,368 employee-matched punches + PunchEvents imported (Apr 24 → Oct 22) replicating sync semantics (recordKey dedupe, MARQ mapping, classifyBiometricDay, late >10:00, half_day when finalized && workHours < 8 or 3rd+ late, mandatory 60-min break); 990 attendance day-rows created/updated; 46 ABSENT rows derived on punch-less working days (Mon-Fri minus holidays) for the 8 staff; 63 auto-PRESENT rows for Vardhani (management auto-present policy). ' +

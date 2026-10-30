@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
     // Task 107: admin roles (scope 'all') skip the employee lookup inside
     // resolveCompanyScope for performance — but tenant admins / HR heads
-    // often ARE linked to an Employee row (e.g. hr@marqaitech.com). Do a
+    // often ARE linked to an Employee row (e.g. hr@gmail.com). Do a
     // best-effort lookup so their personal summary + mobile punch identity
     // resolve; only 404 when no linked row exists.
     let effectiveEmployeeId = employeeId;

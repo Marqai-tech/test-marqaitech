@@ -22,7 +22,7 @@ async function login(base, email, password) {
   /* 1 + 2 — hero card data chain for management logins */
   for (const [label, email, pw] of [
     ['CEO', 'mahesh@marqaitech.com', 'MarqAI@2026'],
-    ['HR (tenant_admin)', 'hr@marqaitech.com', 'MarqAI@2026'],
+    ['HR (tenant_admin)', 'hr@gmail.com', 'MarqAI@2026'],
   ]) {
     const token = await login(base, email, pw);
     ok(`${label} login`, !!token);

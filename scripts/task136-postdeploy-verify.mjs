@@ -5,7 +5,7 @@
  * REAL employee (amrutha@marqaitech.com), remember her originalBirthday, set
  * it to TODAY via the tenant DB (direct), then:
  *   1. GET /api/birthdays shows her under `today`.
- *   2. POST /api/birthdays/wish (hr@marqaitech.com sender) → success +
+ *   2. POST /api/birthdays/wish (hr@gmail.com sender) → success +
  *      delivered counters; repeat → alreadyWished (idempotent).
  *   3. Admin-JWT cron run (sweeps ONLY marqaitechgroup) → greetingsSent >= 1
  *      with an auto row for her.
@@ -18,7 +18,7 @@ const require = createRequire(import.meta.url);
 const { neon } = require('@neondatabase/serverless');
 
 const TENANT = 'https://marqaitechgroup.3boxeshrms.com';
-const HR_EMAIL = 'hr@marqaitech.com';
+const HR_EMAIL = 'hr@gmail.com';
 const HR_PW = 'MarqAI@2026';
 const TARGET_EMAIL = 'amrutha@marqaitech.com';
 
@@ -53,7 +53,7 @@ async function main() {
   // ── 1. login HR ──
   const hr = await j(`${TENANT}/api/auth/login`, { method: 'POST', body: JSON.stringify({ email: HR_EMAIL, password: HR_PW }) });
   const hrToken = hr.body?.token || hr.body?.data?.token;
-  ok('hr@marqaitech.com login', hr.status === 200 && hrToken, `status ${hr.status}`);
+  ok('hr@gmail.com login', hr.status === 200 && hrToken, `status ${hr.status}`);
   if (!hrToken) process.exit(1);
   const H = { Authorization: `Bearer ${hrToken}` };
 

@@ -5,7 +5,7 @@
 //  4. Requester + approver notifications dispatched (email + in-app)
 //  5. Cleanup: cancel the test request
 const SITES = [
-  { name: 'LIVE', base: 'https://marqaitechgroup.3boxeshrms.com', email: 'hr@marqaitech.com', pass: 'MarqAI@2026' },
+  { name: 'LIVE', base: 'https://marqaitechgroup.3boxeshrms.com', email: 'hr@gmail.com', pass: 'MarqAI@2026' },
   { name: 'DEMO', base: 'https://nexus-hrms-mu.vercel.app', email: 'admin@3boxeshrms.com', pass: 'MarqAI@2026' },
 ];
 let passCount = 0, failCount = 0;

@@ -77,6 +77,6 @@ await superAdminBlock('LIVE production', 'https://3boxeshrms.com');
 await superAdminBlock('OLD test link (frozen)', 'https://nexus-hrms-mu.vercel.app');
 await superAdminBlock('NEW test link (current)', 'https://nexus-hrms-demo.vercel.app');
 
-await tenantAdminBlock('LIVE production tenant', 'https://marqaitechgroup.3boxeshrms.com', 'hr@marqaitech.com');
+await tenantAdminBlock('LIVE production tenant', 'https://marqaitechgroup.3boxeshrms.com', 'hr@gmail.com');
 await tenantAdminBlock('OLD test link', 'https://nexus-hrms-mu.vercel.app', 'admin@acme-global.com');
 await tenantAdminBlock('NEW test link', 'https://nexus-hrms-demo.vercel.app', 'admin@acme-global.com');

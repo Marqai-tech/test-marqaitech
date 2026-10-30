@@ -103,8 +103,8 @@ if (live) {
   const T = { 'Content-Type': 'application/json' };
   const sa = await fetch(`${APEX}/api/auth/login`, { method: 'POST', headers: T, body: JSON.stringify({ email: 'superadmin@3boxeshrms.com', password: 'MarqAI@2026' }), signal: AbortSignal.timeout(30000) }).catch(() => null);
   ok('apex superadmin login 200 (auth untouched)', !!sa && sa.status === 200);
-  const tn = await fetch(`${TENANT}/api/auth/login`, { method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }), signal: AbortSignal.timeout(30000) }).catch(() => null);
-  ok('tenant hr@marqaitech.com login 200', !!tn && tn.status === 200);
+  const tn = await fetch(`${TENANT}/api/auth/login`, { method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }), signal: AbortSignal.timeout(30000) }).catch(() => null);
+  ok('tenant hr@gmail.com login 200', !!tn && tn.status === 200);
 
   /* 5 — APIs behind the restyled pages still healthy */
   if (tn && tn.ok) {

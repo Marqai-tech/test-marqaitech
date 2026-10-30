@@ -66,7 +66,7 @@ await hostMatrix(DEMO, 'DEMO', [
 ]);
 // LIVE tenant: hr@ is tenant_admin (scope all — sees everyone).
 await hostMatrix(LIVE, 'LIVE TENANT', [
-  { email: 'hr@marqaitech.com', password: 'MarqAI@2026', expectScope: 'admin-all', min: 5, max: null },
+  { email: 'hr@gmail.com', password: 'MarqAI@2026', expectScope: 'admin-all', min: 5, max: null },
 ]);
 // Apex: super-admin version + APK only (tenant login 403 by design).
 console.log(`\n=== APEX (${APEX}) ===`);

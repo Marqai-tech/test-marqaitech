@@ -163,7 +163,7 @@ curl https://marqaitechgroup.3boxeshrms.com/api/public/tenant-info?slug=marqaite
 2. You should see the login page with "MarqAI Tech Group" branding
 3. Login with:
    - **Tenant Admin**: `admin@marqaitechgroup.com` / `MarqAI@2026`
-   - **HR Admin (MarqAI Tech)**: `hr@marqaitech.com` / `MarqAI@2026`
+   - **HR Admin (MarqAI Tech)**: `hr@gmail.com` / `MarqAI@2026`
    - **Employee (MarqAI Tech)**: `rajesh.kumar@marqaitech.com` / `MarqAI@2026`
 4. Verify the Company Switcher shows all 5 MarqAI companies for tenant admin
 

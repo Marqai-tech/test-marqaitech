@@ -72,7 +72,7 @@ export async function POST(
             where: { role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active', tenantId: td.tenant.id },
             select: { id: true, email: true },
           }).catch(() => []);
-          // Avoid hr@marqaitech.com per user instruction
+          // Avoid hr@gmail.com per user instruction
           const safeHrUsers = hrUsers.filter(u => !u.email?.includes('hr@marqaitech'));
 
           for (const hr of safeHrUsers) {

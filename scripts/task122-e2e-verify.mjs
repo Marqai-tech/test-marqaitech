@@ -11,7 +11,7 @@ const j = async (r) => { const d = await r.json().catch(() => ({})); return { st
 // ── tenant admin ──────────────────────────────────────────────────────────
 const lg = await j(await fetch(BASE + '/api/auth/login', {
   method: 'POST', headers: T,
-  body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+  body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
 }));
 const H = { ...T, Authorization: `Bearer ${lg.token}` };
 console.log('1. admin login:', lg.token ? 'ok' : 'FAIL');

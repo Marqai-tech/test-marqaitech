@@ -10,7 +10,7 @@ const cfgs = await db`SELECT id, name, "workflowType", "isActive", config, "upda
 console.log('ALL EmployeeWorkflowConfig rows on LIVE:', JSON.stringify(cfgs, null, 1));
 
 // Login as tenant admin
-const login = await fetch(LIVE + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }) });
+const login = await fetch(LIVE + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }) });
 const lb = await login.json();
 const bearer = lb?.token || '';
 console.log('login:', login.status, bearer ? 'OK' : 'FAIL');
@@ -20,7 +20,7 @@ const api = async (path, opts = {}) => {
   return { status: res.status, body: b };
 };
 
-// 1. Inbox as hr@marqaitech.com (tier-1 approver of the stuck request)
+// 1. Inbox as hr@gmail.com (tier-1 approver of the stuck request)
 const inbox = await api('/api/employees/update-requests?scope=inbox');
 console.log('\ninbox:', inbox.status, 'requests:', (inbox.body?.requests || []).length, JSON.stringify((inbox.body?.requests || []).map(r => ({ f: r.fieldLabel, s: r.status }))));
 

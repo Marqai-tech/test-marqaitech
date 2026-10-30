@@ -45,7 +45,7 @@ async function api(base, path, { method = 'GET', token, body } = {}) {
   const ceo = await api(MARQAI, '/api/auth/login', { method: 'POST', body: { email: 'mahesh@marqaitech.com', password: 'MarqAI@2026' } });
   let T = ceo.json?.token;
   if (!T) {
-    const hr = await api(MARQAI, '/api/auth/login', { method: 'POST', body: { email: 'hr@marqaitech.com', password: 'MarqAI@2026' } });
+    const hr = await api(MARQAI, '/api/auth/login', { method: 'POST', body: { email: 'hr@gmail.com', password: 'MarqAI@2026' } });
     T = hr.json?.token;
   }
   ok('marqai admin/HR login', !!T);

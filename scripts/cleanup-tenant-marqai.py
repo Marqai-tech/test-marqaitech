@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Clean up the tenant_marqaitechgroup database:
-- Keep only 1 employee (HR Admin - hr@marqaitech.com) as the admin login
+- Keep only 1 employee (HR Admin - hr@gmail.com) as the admin login
 - Remove all other employees and their users
 - Clean up all modules' dummy data (attendance, leave, payroll, etc.)
 """
@@ -27,7 +27,7 @@ print("CLEANING tenant_marqaitechgroup DATABASE")
 print("=" * 60)
 
 # EMPLOYEES TO REMOVE (keep HR Admin as the admin login)
-KEEP_EMPLOYEE_ID = "cmrmrwc0eir6899070e89fd62db"  # HR Admin - hr@marqaitech.com
+KEEP_EMPLOYEE_ID = "cmrmrwc0eir6899070e89fd62db"  # HR Admin - hr@gmail.com
 REMOVE_EMPLOYEE_IDS = [
     "cmrmrwc0euuc10d20697cd8b3d8",  # Rajesh Kumar
     "cmrmrwc0fiyd086f18c959e63a3",  # Priya Sharma
@@ -36,7 +36,7 @@ REMOVE_EMPLOYEE_IDS = [
 # USERS TO REMOVE (keep tenant_admin, HR admin user, and super_admin)
 KEEP_USER_IDS = [
     "cmrmrwc019z8c6772f879e5f31b",  # superadmin@3boxeshrms.com
-    "cmrmrwc0ecq3ca9f187d28dfb0f",  # hr@marqaitech.com (HR Admin)
+    "cmrmrwc0ecq3ca9f187d28dfb0f",  # hr@gmail.com (HR Admin)
     "cmrmrwc01g1f729abb99bd0e990",  # admin@marqaitechgroup.com (tenant_admin)
 ]
 REMOVE_USER_IDS = [

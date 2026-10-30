@@ -37,9 +37,9 @@ async function main() {
     ok(`APK 200 on ${label}`, apk?.status === 200, `${apk?.status ?? 'ERR'} ${apkUrl} ${(apk?.headers?.get('content-length') || '')}`);
   }
 
-  // ── 2. tenant-admin (hr@marqaitech.com) on the TENANT host: release gate E2E ──
-  const admin = await login(HOSTS.tenant, 'hr@marqaitech.com', 'MarqAI@2026');
-  ok('tenant admin login (hr@marqaitech.com)', admin.status === 200 && !!admin.token, `role=${admin.role}`);
+  // ── 2. tenant-admin (hr@gmail.com) on the TENANT host: release gate E2E ──
+  const admin = await login(HOSTS.tenant, 'hr@gmail.com', 'MarqAI@2026');
+  ok('tenant admin login (hr@gmail.com)', admin.status === 200 && !!admin.token, `role=${admin.role}`);
   const H = { ...T, Authorization: `Bearer ${admin.token}` };
 
   // company context: find MarqAI Tech company id

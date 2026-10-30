@@ -1,6 +1,6 @@
 // Task 112 — one-off avatar round-trip on the LIVE tenant (with restore).
 const BASE = 'https://marqaitechgroup.3boxeshrms.com';
-const CREDS = { email: 'hr@marqaitech.com', password: 'MarqAI@2026' };
+const CREDS = { email: 'hr@gmail.com', password: 'MarqAI@2026' };
 const tiny = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 async function j(method, url, token, body) {

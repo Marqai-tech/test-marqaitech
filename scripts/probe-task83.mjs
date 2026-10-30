@@ -5,7 +5,7 @@
  * 3. Biometric punch-log: what does the API return?
  */
 const BASE = 'https://marqaitechgroup.3boxeshrms.com';
-const EMAIL = 'hr@marqaitech.com';
+const EMAIL = 'hr@gmail.com';
 const PASSWORD = 'MarqAI@2026';
 
 async function api(path, opts = {}) {
