@@ -123,6 +123,18 @@ export async function PATCH(req: NextRequest) {
 
     const updateData: Record<string, unknown> = {};
     if (status) {
+      // C-009 fix: Enforce state machine transitions
+      const validTransitions: Record<string, string[]> = {
+        'initiated': ['in_progress', 'cancelled'],
+        'in_progress': ['cleared', 'failed', 'cancelled'],
+        'cleared': [],
+        'failed': [],
+        'cancelled': [],
+      };
+      const existingCheck = await (db as any).backgroundCheck?.findUnique({ where: { id } });
+      if (existingCheck && validTransitions[existingCheck.status] && !validTransitions[existingCheck.status].includes(status)) {
+        return NextResponse.json({ error: `Cannot transition from '${existingCheck.status}' to '${status}'` }, { status: 400, headers: corsHeaders() });
+      }
       updateData.status = status;
       if (['cleared', 'failed', 'cancelled'].includes(status)) updateData.completedAt = new Date();
     }

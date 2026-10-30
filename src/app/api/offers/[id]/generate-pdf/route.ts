@@ -56,11 +56,16 @@ export async function POST(
     }
 
     // Resolve template: explicit > offer.templateId > first active for tenant
+    // C-003 fix: Tenant-scope the template lookup
     let template = null as Awaited<ReturnType<typeof db.offerTemplate.findFirst>> | null;
     const tenantId = (decoded.tenantId as string) || 'default-tenant';
     const candidates = [requestedTemplateId, offer.templateId].filter(Boolean) as string[];
     for (const tid of candidates) {
       template = await withSchemaSync(() => db.offerTemplate.findUnique({ where: { id: tid } }));
+      // C-003 fix: Verify template belongs to caller's tenant
+      if (template && template.tenantId && template.tenantId !== tenantId && template.tenantId !== 'global') {
+        template = null; // reject cross-tenant template
+      }
       if (template) break;
     }
     if (!template) {
@@ -123,17 +128,23 @@ export async function POST(
     }
 
     // Store rendered HTML — the download link will trigger window.print() for PDF.
-    // Phase 13 fix: Change content-type hint to trigger PDF download behavior.
+    // C-016 fix: Don't overwrite generatedPdfUrl after approval/sent/accepted
+    const lockedStatuses = ['sent', 'accepted', 'rejected'];
     const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`;
+
+    const updateData: Record<string, unknown> = {
+      generatedAt: new Date(),
+    };
+    // C-016 fix: Only update generatedPdfUrl and templateId if offer is still in draft/pending_approval
+    if (!lockedStatuses.includes(offer.status)) {
+      updateData.templateId = template?.id || null;
+      updateData.generatedPdfUrl = dataUrl;
+    }
 
     const updated = await withSchemaSync(() =>
       db.offer.update({
         where: { id },
-        data: {
-          templateId: template?.id || null,
-          generatedPdfUrl: dataUrl,
-          generatedAt: new Date(),
-        },
+        data: updateData as any,
       })
     );
 

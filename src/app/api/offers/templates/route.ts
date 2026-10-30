@@ -91,7 +91,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    // C-013 fix: Only HR/Admin can create offer templates
+    const HR_ROLES_TPL = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES_TPL.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can create offer templates' }, { status: 403, headers: corsHeaders() });
+    }
     const { name, country, language, body: templateBody, header, footer, clauses, isActive } = body;
 
     if (!name || !templateBody) {

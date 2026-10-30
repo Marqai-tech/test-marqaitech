@@ -358,6 +358,7 @@ function PreboardingContent() {
 
   const handleCancelForm = () => { setShowForm(false); setEditingId(null); setForm(initialForm); };
 
+  // C-018 fix: Call the actual API instead of only updating local state
   const handleSubmit = async () => {
     if (!form.name || !form.email || !form.position) {
       toast.error('Please fill in required fields: Name, Email, Position');
@@ -366,20 +367,26 @@ function PreboardingContent() {
     try {
       setSubmitting(true);
       if (editingId) {
-        setCandidates(prev => prev.map(c => c.id === editingId ? { ...c, name: form.name, email: form.email, position: form.position, stage: form.stage, startDate: form.startDate || c.startDate } : c));
+        // C-018 fix: Call the API to update
+        const res = await fetch(`/api/preboarding/${editingId}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ candidateName: form.name, candidateEmail: form.email, jobTitle: form.position, status: form.stage, joiningDate: form.startDate }),
+        });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to update'); }
         toast.success('Candidate updated successfully');
       } else {
-        const newCandidate: PreboardingCandidate = {
-          id: Date.now().toString(),
-          name: form.name, email: form.email, position: form.position, stage: form.stage,
-          startDate: form.startDate || new Date().toISOString().split('T')[0],
-          documents: DOC_TYPES.map(t => ({ type: t, status: 'pending' as const })),
-          bgv: null, hrVerified: false,
-        };
-        setCandidates(prev => [newCandidate, ...prev]);
+        // C-018 fix: Call the API to create
+        const res = await fetch('/api/preboarding', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ candidateName: form.name, candidateEmail: form.email, jobTitle: form.position, status: form.stage, joiningDate: form.startDate }),
+        });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to create'); }
         toast.success('Candidate added successfully');
       }
       handleCancelForm();
+      fetchData(); // C-018 fix: Refresh from server after success
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Operation failed');
     } finally {
@@ -387,11 +394,20 @@ function PreboardingContent() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    setCandidates(prev => prev.filter(c => c.id !== id));
-    toast.success('Candidate removed');
-    setDeleteConfirmId(null);
-    setDeleting(false);
+  // C-018 fix: Call the actual API to delete
+  const handleDelete = async (id: string) => {
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/preboarding/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to delete'); }
+      toast.success('Candidate removed');
+      setDeleteConfirmId(null);
+      fetchData(); // C-018 fix: Refresh from server
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleAdvanceStage = async (id: string) => {
@@ -443,9 +459,23 @@ function PreboardingContent() {
     }
   };
 
-  const toggleHRVerify = (id: string) => {
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, hrVerified: !c.hrVerified } : c));
-    toast.success('HR verification toggled');
+  // C-019 fix: Persist HR verify toggle through the API
+  const toggleHRVerify = async (id: string) => {
+    try {
+      const current = candidates.find(c => c.id === id);
+      if (!current) return;
+      const newValue = !current.hrVerified;
+      const res = await fetch(`/api/preboarding/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ hrVerified: newValue }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to toggle'); }
+      setCandidates(prev => prev.map(c => c.id === id ? { ...c, hrVerified: newValue } : c));
+      toast.success(newValue ? 'HR verification enabled' : 'HR verification disabled');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to toggle verification');
+    }
   };
 
   const tabs = [

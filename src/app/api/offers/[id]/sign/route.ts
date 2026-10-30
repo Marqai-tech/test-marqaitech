@@ -58,6 +58,23 @@ export async function POST(
     if (!offer) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
+
+    // C-002 fix: Verify caller is the candidate named on the offer or HR/Admin
+    const HR_ROLES_SIGN = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    const isHrOrAdmin = HR_ROLES_SIGN.includes((decoded.role as string) || '');
+    const callerEmail = (decoded as any).email || '';
+    const isCandidate = offer.candidateEmail && callerEmail.toLowerCase() === offer.candidateEmail.toLowerCase();
+    if (!isHrOrAdmin && !isCandidate) {
+      return NextResponse.json({ error: 'Only the candidate named on this offer or HR/Admin can sign it.' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // C-002 fix: Require a valid envelope ID if e-sign was used
+    if (offer.esignProvider && offer.esignProvider !== 'internal' && !envelopeId) {
+      return NextResponse.json({ error: 'Envelope ID is required for external e-sign providers.' }, { status: 400, headers: corsHeaders() });
+    }
+    if (offer.esignEnvelopeId && envelopeId && envelopeId !== offer.esignEnvelopeId) {
+      return NextResponse.json({ error: 'Envelope ID does not match the offer record.' }, { status: 400, headers: corsHeaders() });
+    }
     if (!offer.generatedPdfUrl) {
       return NextResponse.json(
         { error: 'Offer has no generated PDF/HTML to sign' },

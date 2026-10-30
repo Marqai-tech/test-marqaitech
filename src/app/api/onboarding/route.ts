@@ -77,6 +77,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: employeeId, task' }, { status: 400, headers: corsHeaders() });
     }
 
+    // C-004 fix: Only HR/Admin/managers can create onboarding tasks
+    const HR_ROLES_ONBOARD = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'manager'];
+    if (!HR_ROLES_ONBOARD.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin/Managers can create onboarding tasks' }, { status: 403, headers: corsHeaders() });
+    }
+
     // Phase 14 fix: Verify the employee has an accepted offer before allowing onboarding
     // (prevents onboarding for candidates who haven't accepted their offer)
     try {

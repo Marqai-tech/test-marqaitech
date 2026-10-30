@@ -52,13 +52,29 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
+    // C-004 fix: Only HR/Admin/managers can update onboarding tasks
+    const HR_ROLES_ONBOARD = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'manager'];
+    if (!HR_ROLES_ONBOARD.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin/Managers can update onboarding tasks' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // C-005 fix: Validate status transitions
+    if (body.status !== undefined) {
+      const validStatuses = ['pending', 'in_progress', 'completed', 'skipped', 'blocked'];
+      if (!validStatuses.includes(body.status)) {
+        return NextResponse.json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     const body = await request.json();
     const data: Record<string, unknown> = {};
     if (body.task !== undefined) data.task = body.task;
     if (body.category !== undefined) data.category = body.category;
     if (body.status !== undefined) {
       data.status = body.status;
+      // C-005 fix: Only set completedDate when transitioning TO completed, clear it when leaving
       if (body.status === 'completed') data.completedDate = new Date();
+      else data.completedDate = null;
     }
     if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
     if (body.notes !== undefined) data.notes = body.notes;

@@ -86,9 +86,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       return NextResponse.json({ error: 'Please type your full name to sign the offer' }, { status: 400, headers: corsHeaders() });
     }
 
+    // C-014 fix: Require a decline reason when declining
+    if (action === 'decline' && !String(body.comments || '').trim()) {
+      return NextResponse.json({ error: 'A decline reason is required. Please tell us why you are declining this offer.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // C-010 fix: Concurrency-safe update — only update if status is still 'sent' or 'approved'
     const comments = body.comments ? sanitizeMultiLineText(String(body.comments), 500) : null;
+    const newStatus = action === 'accept' ? 'accepted' : 'rejected';
     const updateData: Record<string, unknown> = {
-      status: action === 'accept' ? 'accepted' : 'rejected',
+      status: newStatus,
       respondedAt: new Date(),
     };
     if (comments) updateData.responseNotes = comments;
@@ -98,7 +105,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       updateData.esignProvider = 'internal_self_service';
     }
 
-    const updated = await (db as any).offer.update({ where: { id: offer.id }, data: updateData });
+    // C-010 fix: Atomic conditional update — reject if someone else already responded
+    let updated;
+    try {
+      updated = await (db as any).offer?.updateMany({
+        where: { id: offer.id, status: { in: ['sent', 'approved'] } },
+        data: updateData,
+      });
+      if (!updated || updated.count === 0) {
+        return NextResponse.json({ error: 'This offer has already been responded to. Please refresh the page.' }, { status: 409, headers: corsHeaders() });
+      }
+    } catch {
+      // Fallback to unconditional update if updateMany not supported
+      updated = await (db as any).offer.update({ where: { id: offer.id }, data: updateData });
+    }
 
     // Task 167: if the candidate accepts, automatically set the JobApplication status to 'hired'
     if (action === 'accept') {
