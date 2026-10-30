@@ -264,7 +264,6 @@ export const navSections: NavSection[] = [
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isDivider: true },
       { label: 'Leave Settings', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
       { label: 'Policy', href: '/leave/leave-policy?tab=documents', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
-      { label: 'Leave Configuration', href: '/leave/configuration', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
       { label: 'Approval Workflows', href: '/leave/approval-workflows', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
       { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
       { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
