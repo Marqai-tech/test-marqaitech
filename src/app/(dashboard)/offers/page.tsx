@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink,
+  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink, FiSend,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -383,16 +383,25 @@ export default function OffersPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            {nextStatus(o.status) && (
+                            {/* ─── Approval chain (draft → pending_approval → approved) ───
+                                After 'approved', the next action is to SEND the offer letter to
+                                the candidate — not just "Advance". We relabel the post-approval
+                                button to "Send Offer Letter" so HR understands what happens. */}
+                            {nextStatus(o.status) && o.status !== 'approved' && (
                               <button onClick={() => handleStatusChange(o.id, nextStatus(o.status))} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1"><FiCheck className="w-3 h-3" />Advance</button>
                             )}
-                            {(o.status === 'sent' || o.status === 'approved') && (
-                              <>
-                                <button onClick={() => handleStatusChange(o.id, 'accepted')} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100">Accept</button>
-                                <button onClick={() => handleStatusChange(o.id, 'rejected')} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100">Reject</button>
-                              </>
+                            {o.status === 'approved' && (
+                              <button onClick={() => handleStatusChange(o.id, 'sent')} className="px-2 py-1 text-xs font-medium text-teal-700 bg-teal-100 rounded hover:bg-teal-200 flex items-center gap-1" title="Send the offer letter to the candidate's email with the secure accept/decline link">
+                                <FiSend className="w-3 h-3" />Send Offer Letter
+                              </button>
                             )}
-                            {o.accessToken && ['sent', 'approved', 'accepted'].includes(o.status) && (
+                            {/* Accept/Reject are CANDIDATE-side decisions, not HR-side.
+                                The candidate records their decision via the secure /offer/[token]
+                                link (sent in the offer email) OR via the candidate-portal offers
+                                page when logged in. HR should NOT be making the accept/reject
+                                call on the candidate's behalf.
+                                Old behavior (HR clicks Accept/Reject) removed per spec. */}
+                            {o.accessToken && ['sent', 'approved', 'accepted', 'rejected'].includes(o.status) && (
                               <button
                                 onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/offer/${o.accessToken}`).then(() => toast.success('Candidate link copied — share it with the candidate')).catch(() => toast.error('Copy failed')); }}
                                 className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded hover:bg-sky-100 flex items-center gap-1"

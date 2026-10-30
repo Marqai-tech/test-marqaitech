@@ -160,21 +160,38 @@ export default function InterviewsPage() {
 
   // Fetch candidate panel members (all users in the tenant — HR can pick any).
   // We use a lightweight endpoint that's already authenticated.
+  // NOTE: /api/employees returns e.designation as an OBJECT {id, title} (Prisma
+  // `select: { id: true, title: true }`). The previous implementation treated
+  // it as a string and React crashed with error #31 ("object with keys {id,
+  // title}") when rendering {cand.designation}. We now read .title safely.
+  // We also use Employee.userId (the User FK) — NOT Employee.id — because
+  // InterviewPanelMember.userId references the User.id, and panel member
+  // notifications go to the User account. We filter out employees with no
+  // linked User account (e.userId null) since they can't be assigned.
   const fetchPanelCandidates = useCallback(async () => {
     if (panelCandidates.length > 0) return;
     try {
-      // /api/employees?limit=200 returns tenant users with name/email/designation.
       const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const rawList: Array<Record<string, unknown>> = (data.employees || data.data || []) as Array<Record<string, unknown>>;
         const list = rawList
-          .map((e) => ({
-            id: (e.userId || e.id) as string,
-            name: `${(e.firstName as string) || ''} ${(e.lastName as string) || ''}`.trim() || (e.name as string) || (e.email as string),
-            email: (e.email as string) || '',
-            designation: (e.designation as string) || (e.designationName as string) || '—',
-          }))
+          .map((e) => {
+            const userId = (e.userId as string) || '';
+            const firstName = (e.firstName as string) || '';
+            const lastName = (e.lastName as string) || '';
+            const name = `${firstName} ${lastName}`.trim() || (e.name as string) || (e.email as string) || '';
+            const email = (e.email as string) || '';
+            // designation is an object {id, title} from the employees API
+            const desigObj = e.designation as { id?: string; title?: string } | string | null | undefined;
+            let designation = '—';
+            if (typeof desigObj === 'string') {
+              designation = desigObj;
+            } else if (desigObj && typeof desigObj === 'object' && desigObj.title) {
+              designation = desigObj.title;
+            }
+            return { id: userId, name, email, designation };
+          })
           .filter((u) => u.id && u.email);
         if (list.length > 0) setPanelCandidates(list);
       }
@@ -780,11 +797,14 @@ export default function InterviewsPage() {
                   <option value="">Select decision…</option>
                   <option value="next_round">Next Round — schedule another interview round</option>
                   <option value="schedule_another">Schedule Another — reschedule to a new slot</option>
-                  <option value="shortlist">Shortlist — move to shortlisted status</option>
                   <option value="hold">Hold — keep in interview status pending more info</option>
                   <option value="reject">Reject — reject the candidate, send rejection email</option>
                   <option value="offer">Offer — move to offered status, create draft Offer</option>
                 </select>
+                <p className="text-xs text-thb-text-muted mt-1">
+                  Note: to shortlist a candidate (overall hiring stage), use the <strong>Shortlist</strong> option
+                  in the Candidate Status dropdown on the Recruitment page.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">
