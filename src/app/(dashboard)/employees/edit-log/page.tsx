@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   FiList, FiRefreshCw, FiDownload, FiFilter, FiCheckCircle, FiXCircle,
   FiClock, FiArrowRight, FiUser, FiFileText,
@@ -135,13 +135,24 @@ export default function EmployeeEditLogPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Stats
+  // Stats — based on ALL requests (before filtering)
   const stats = {
     total: requests.length,
     pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved' || r.status === 'applied').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    applied: requests.filter(r => r.status === 'applied').length,
     rejected: requests.filter(r => r.status === 'rejected').length,
   };
+
+  // BUG_064-068 FIX: Apply filters to the displayed list. Previously the
+  // filter dropdowns updated state but the table still showed ALL requests.
+  const filteredRequests = useMemo(() => {
+    return requests.filter(r => {
+      if (filterStatus !== 'all' && r.status !== filterStatus) return false;
+      if (filterCategory !== 'all' && r.category !== filterCategory) return false;
+      return true;
+    });
+  }, [requests, filterStatus, filterCategory]);
 
   const exportCSV = () => {
     if (requests.length === 0) { toast.error('Nothing to export'); return; }
@@ -190,6 +201,7 @@ export default function EmployeeEditLogPage() {
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Total Requests</p><p className="text-2xl font-bold text-thb-text-primary mt-1">{stats.total}</p></div>
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Pending</p><p className="text-2xl font-bold text-amber-600 mt-1">{stats.pending}</p></div>
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Approved</p><p className="text-2xl font-bold text-emerald-600 mt-1">{stats.approved}</p></div>
+        <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Applied</p><p className="text-2xl font-bold text-teal-600 mt-1">{stats.applied}</p></div>
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Rejected</p><p className="text-2xl font-bold text-rose-600 mt-1">{stats.rejected}</p></div>
       </div>
 
@@ -222,17 +234,17 @@ export default function EmployeeEditLogPage() {
       {/* Table */}
       <div className="thb-card overflow-hidden">
         <div className="p-4 border-b border-thb-border">
-          <h3 className="text-sm font-semibold text-thb-text-primary">Edit Log ({requests.length})</h3>
+          <h3 className="text-sm font-semibold text-thb-text-primary">Edit Log ({filteredRequests.length})</h3>
         </div>
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin inline-block h-8 w-8 border-4 border-slate-200 border-t-teal-500 rounded-full mb-3" />
             <p className="text-sm text-thb-text-secondary">Loading edit log…</p>
           </div>
-        ) : requests.length === 0 ? (
+        ) : filteredRequests.length === 0 ? (
           <div className="p-10 text-center">
             <FiList className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-thb-text-muted">No edit requests found. {isAdmin ? 'When employees submit profile changes, they\'ll appear here.' : 'When you submit a profile change, it\'ll appear here.'}</p>
+            <p className="text-sm text-thb-text-muted">No records found for the selected filters.</p>
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[640px]">
@@ -248,7 +260,7 @@ export default function EmployeeEditLogPage() {
                 </tr>
               </thead>
               <tbody>
-                {requests.map(r => {
+                {filteredRequests.map(r => {
                   const meta = STATUS_META[r.status] || { label: r.status, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200', icon: <FiClock className="w-3.5 h-3.5" /> };
                   const emp = r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : r.employeeId;
                   const empCode = r.employee?.employeeId || '—';

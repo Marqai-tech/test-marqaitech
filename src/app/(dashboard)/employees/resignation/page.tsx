@@ -136,10 +136,24 @@ export default function ResignationPage() {
 
   const validate = (): string | null => {
     if (!form.resignationDate) return 'Resignation Date is required';
+    // BUG_075 FIX: Resignation date cannot be in the past
+    const today = new Date().toISOString().split('T')[0];
+    if (form.resignationDate < today) {
+      return 'Resignation Date cannot be in the past. Please select today or a future date.';
+    }
     if (!form.lastWorkingDate) return 'Last Working Date is required';
     // Task 65 FIX: Last Working Date must NOT be earlier than Resignation Date
     if (form.lastWorkingDate < form.resignationDate) {
       return `Last Working Date (${form.lastWorkingDate}) cannot be earlier than the Resignation Date (${form.resignationDate}). Please correct the date.`;
+    }
+    // BUG_076 FIX: Last Working Date must be at least the notice period after Resignation Date
+    if (!form.isNoticePeriodWaived) {
+      const resDate = new Date(form.resignationDate);
+      const lwdDate = new Date(form.lastWorkingDate);
+      const diffDays = Math.ceil((lwdDate.getTime() - resDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < Number(form.noticePeriodDays)) {
+        return `Last Working Date must be at least ${form.noticePeriodDays} days after the Resignation Date (notice period). Current gap: ${diffDays} days. To reduce the notice period, check "Is Notice Period Waived?" and provide a waiver reason.`;
+      }
     }
     if (!form.reasonCategory) return 'Reason Category is required';
     if (!form.detailedReason.trim() || form.detailedReason.trim().length < 20) return 'Detailed reason must be at least 20 characters';
@@ -342,7 +356,13 @@ export default function ResignationPage() {
 
       {/* Actions */}
       <div className="flex justify-end gap-3">
-        <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
+        {/* BUG_079 FIX: Cancel button should ask for confirmation before navigating away */}
+        <button onClick={() => {
+          if (form.resignationDate || form.detailedReason || form.reasonCategory) {
+            if (!confirm('You have unsaved changes. Are you sure you want to cancel?')) return;
+          }
+          router.push('/employees');
+        }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
           <FiArrowLeft className="w-4 h-4" /> Cancel
         </button>
         <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium text-sm shadow-sm transition-all">

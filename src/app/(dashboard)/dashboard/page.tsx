@@ -227,7 +227,9 @@ export default function ESSDashboardPage() {
         safe(`/api/attendance/regularize?${scopeQuery}limit=6`),
         safe(`/api/attendance/my-summary?${scopeQuery}`),
         safe(`/api/social-feed?${scopeQuery}limit=10`),
-        safe(`/api/leave?${scopeQuery}limit=6`),
+        // BUG_028 FIX: Fetch only the employee's OWN leave requests (view=self)
+        // so the Leave Summary card shows correct Days Used + Pending counts.
+        safe(`/api/leave?view=self&${scopeQuery}limit=6`),
         safe(`/api/employees?limit=5&excludeInactive=true${cid ? `&${scopeQuery.slice(0, -1)}` : ''}`),
       ]);
 
@@ -979,7 +981,17 @@ export default function ESSDashboardPage() {
                     {notifications.slice(0, 5).map((n) => (
                       <button
                         key={n.id}
-                        onClick={() => (n.link ? (window.location.href = n.link) : router.push('/notifications'))}
+                        // BUG_038 FIX: Use router.push instead of window.location.href for SPA
+                        // navigation. Fall back to /notifications only when n.link is truly empty.
+                        // Also handle the case where n.link is '/' or '/my-profile' (default) —
+                        // route to /notifications instead so the user sees the full notification list.
+                        onClick={() => {
+                          if (n.link && n.link !== '/' && n.link !== '/my-profile') {
+                            router.push(n.link);
+                          } else {
+                            router.push('/notifications');
+                          }
+                        }}
                         className="w-full text-left py-3 flex items-start gap-2.5 hover:bg-slate-50 transition-colors"
                       >
                         <span className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${n.isRead ? 'bg-slate-300' : 'bg-[#FF9B44]'}`} />

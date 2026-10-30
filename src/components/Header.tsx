@@ -718,8 +718,14 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       if (!notif.isRead) {
                         await markAsRead(notif.id);
                       }
-                      if (notif.link) {
-                        window.location.href = notif.link;
+                      // BUG_038 FIX: Use router.push for SPA navigation instead of
+                      // window.location.href (which causes full page reload and loses
+                      // state). Also guard against default '/' or '/my-profile' links.
+                      const link = notif.link;
+                      if (link && link !== '/' && link !== '/my-profile') {
+                        router.push(link);
+                      } else {
+                        router.push('/notifications');
                       }
                     }}
                   >
