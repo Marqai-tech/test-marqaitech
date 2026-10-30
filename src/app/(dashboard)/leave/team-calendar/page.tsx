@@ -341,6 +341,12 @@ function TeamLeaveCalendarContent() {
         </div>
       </div>
 
+      {/* ── Main Layout: Calendar (left, 2/3) + Team Roster (right, 1/3) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      {/* ── LEFT COLUMN: Calendar Grid + Selected Day Detail ── */}
+      <div className="lg:col-span-2 space-y-6">
+
       {/* ── Calendar Grid ── */}
       <div className="thb-card p-5">
         {loading ? (
@@ -583,9 +589,14 @@ function TeamLeaveCalendarContent() {
         </div>
       )}
 
+      </div>{/* ── END LEFT COLUMN ── */}
+
+      {/* ── RIGHT COLUMN: Team Roster ── */}
+      <div className="lg:col-span-1">
+
       {/* ── Team Roster ── */}
-      {data && data.teamSize > 0 && (
-        <div className="thb-card p-5">
+      {data && data.teamSize > 0 ? (
+        <div className="thb-card p-5 sticky top-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
               <FiUsers className="w-4 h-4 text-violet-500" />
@@ -595,14 +606,14 @@ function TeamLeaveCalendarContent() {
               {uniquePeopleOnLeave} {uniquePeopleOnLeave === 1 ? 'person' : 'people'} on leave this month
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-2">
             {data.team.map(m => {
               const personLeaves = data.leaves.filter(lv => lv.employee.id === m.id);
               const personLeaveCount = personLeaves.length;
               const hasPending = personLeaves.some(l => l.status === 'pending');
               const isMe = data.me && m.id === data.me.id;
               return (
-                <div key={m.id} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${isMe ? 'border-violet-200 bg-violet-50/30' : 'border-thb-border bg-white hover:bg-slate-50'}`}>
+                <div key={m.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${isMe ? 'border-violet-200 bg-violet-50/30' : 'border-thb-border bg-white hover:bg-slate-50'}`}>
                   <Avatar member={m} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-thb-text-primary truncate">
@@ -627,7 +638,17 @@ function TeamLeaveCalendarContent() {
             })}
           </div>
         </div>
+      ) : (
+        <div className="thb-card p-5 text-center">
+          <FiUsers className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
+          <p className="text-xs text-thb-text-muted">No team members found</p>
+        </div>
       )}
+
+      </div>{/* ── END RIGHT COLUMN ── */}
+
+      </div>{/* ── END MAIN LAYOUT GRID ── */}
+
     </div>
   );
 }
