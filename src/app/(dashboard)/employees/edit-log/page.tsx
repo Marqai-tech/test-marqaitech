@@ -287,6 +287,9 @@ export default function EmployeeEditLogPage() {
         )}
       </div>
 
+      {/* BUG_074 FIX: Transfer Audit History is visible only to HR/Admin roles.
+          Regular employees should not see other employees' transfer records. */}
+      {isAdmin && (
       <div className="thb-card overflow-hidden">
         <div className="p-4 border-b border-thb-border flex items-center justify-between">
           <div>
@@ -322,6 +325,7 @@ export default function EmployeeEditLogPage() {
           </div>
         )}
       </div>
+      )}
 
       <ModuleTips
         moduleKey="employees-edit-log"

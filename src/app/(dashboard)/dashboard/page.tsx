@@ -527,9 +527,11 @@ export default function ESSDashboardPage() {
 
   const quickActions = [
     { icon: <FiMessageCircle className="w-5 h-5" />, label: 'Chat', href: '/collaboration/chat', pastel: 'bg-[#10B981]/10 text-[#10B981]' },
-    { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', pastel: 'bg-[#FF9B44]/15 text-[#FF9B44]' },
+    // BUG_029 FIX: Apply Leave should open the apply leave form, not just the leave dashboard
+    { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave?action=apply', pastel: 'bg-[#FF9B44]/15 text-[#FF9B44]' },
     { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', pastel: 'bg-[#009EFB]/10 text-[#009EFB]' },
-    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll', pastel: 'bg-[#3A57C4]/10 text-[#3A57C4]' },
+    // BUG_036 FIX: My Payslips should go to /payroll/payslips, not /payroll (which is admin-only)
+    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll/payslips', pastel: 'bg-[#3A57C4]/10 text-[#3A57C4]' },
     { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', pastel: 'bg-[#6C4FD6]/10 text-[#6C4FD6]' },
     { icon: <FiUser className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', pastel: 'bg-pink-50 text-pink-600' },
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', pastel: 'bg-[#FFC107]/20 text-amber-600' },

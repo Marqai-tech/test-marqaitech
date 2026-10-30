@@ -533,7 +533,8 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/employees',
     '/recruitment',
     '/onboarding',
-    '/ai-interview',
+    // BUG_024 FIX: '/ai-interview' removed from deniedPrefixes — employees
+    // should be able to access AI Interview from the AI Center dropdown.
     '/company',
     // Bug 5 fix: '/org-chart' removed from deniedPrefixes — employees should
     // be able to view the org chart (read-only) so the Quick Action link works.
@@ -575,6 +576,10 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/assets',
     // Bug 5 fix: employees must be able to reach the Org Chart page
     '/org-chart',
+    // BUG_024 FIX: employees must be able to reach AI Interview from AI Center
+    '/ai-interview',
+    // BUG_025 FIX: employees must be able to reach Invoices from Applications menu
+    '/invoices',
     // CRITICAL FIX #2: employees must be able to reach My Interviews and Referrals
     '/my-interviews',
     '/referrals',

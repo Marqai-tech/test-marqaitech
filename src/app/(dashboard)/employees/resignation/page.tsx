@@ -117,7 +117,11 @@ export default function ResignationPage() {
     setLoading(true);
     try {
       const sq = scopeQuery();
-      const res = await fetch(`/api/employees/resignation?limit=50${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      // BUG_080 FIX: Non-approvers (regular employees) should only see their
+      // OWN resignation requests, not other employees'. Pass scope=self for
+      // non-approvers; approvers (admin/HR) see all requests.
+      const scope = isApprover ? 'all' : 'self';
+      const res = await fetch(`/api/employees/resignation?limit=50&scope=${scope}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.resignations || data.data || []);
@@ -126,7 +130,7 @@ export default function ResignationPage() {
     } finally {
       setLoading(false);
     }
-  }, [scopeQuery, selectedTenantId]);
+  }, [scopeQuery, selectedTenantId, isApprover]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
@@ -259,7 +263,7 @@ export default function ResignationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Resignation Date <span className="text-red-500 font-bold">*</span></label>
-            <input type="date" value={form.resignationDate} onChange={e => updateField('resignationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+            <input type="date" min={new Date().toISOString().split('T')[0]} value={form.resignationDate} onChange={e => updateField('resignationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Working Date <span className="text-red-500 font-bold">*</span></label>
@@ -385,7 +389,7 @@ export default function ResignationPage() {
                   <td className="px-4 py-3 text-slate-600">{fmtDate(r.lastWorkingDate)}</td>
                   <td className="px-4 py-3 text-slate-600">{reasonLabel(r.reasonCategory)}</td>
                   <td className="px-4 py-3">
-                    <span className={getStatusBadge(r.status)}>{r.status}</span>
+                    <span className={getStatusBadge(r.status)}>{r.status.charAt(0).toUpperCase() + r.status.slice(1)}</span>
                   </td>
                   {isApprover && <td className="px-4 py-3">
                     {r.status === 'pending' || r.status === 'pending_approval' ? <div className="flex gap-2">
