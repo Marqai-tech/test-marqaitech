@@ -481,6 +481,29 @@ export async function PATCH(
         }
       }
 
+      // C-23: Auto-sync referral status with the new application status.
+      // Finds any Referral rows matching this candidate's email and advances
+      // them to match (interviewed / offered / hired + bonus / rejected).
+      if (status && updated.candidateEmail) {
+        try {
+          const { syncReferralStatus } = await import('@/lib/referral-sync');
+          // Fetch the job title for the email body
+          let jobTitle = 'the position';
+          try {
+            const jobRows = await db.$queryRawUnsafe(
+              `SELECT jp."title" FROM "JobPosting" jp
+               JOIN "JobApplication" ja ON ja."jobPostingId" = jp."id"
+               WHERE ja."id" = $1 LIMIT 1`, id,
+            ) as Array<{ title: string }>;
+            if (jobRows[0]?.title) jobTitle = jobRows[0].title;
+          } catch {}
+          const origin = new URL(request.url).origin;
+          await syncReferralStatus(db, String(decoded.tenantId || ''), updated.candidateEmail, status, jobTitle, { origin });
+        } catch (e) {
+          console.warn('[Recruitment PATCH] Referral sync failed (non-fatal):', e instanceof Error ? e.message : e);
+        }
+      }
+
       return NextResponse.json(
         { application: updated },
         { headers: corsHeaders() }

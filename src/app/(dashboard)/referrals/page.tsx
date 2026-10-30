@@ -6,10 +6,11 @@ import {
   FiBriefcase, FiCopy, FiCheckCircle, FiShare2, FiUsers,
   FiMapPin, FiPlus, FiX, FiSearch, FiExternalLink, FiTrash2,
   FiFilter, FiAward, FiTrendingUp, FiLink2, FiMail, FiChevronDown,
-  FiChevronUp, FiInfo,
+  FiChevronUp, FiInfo, FiUpload, FiDollarSign,
 } from 'react-icons/fi';
 import { FaWhatsapp, FaLinkedinIn, FaTwitter, FaFacebookF } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 
 /* ──────────────────────────────────────────────────────────────────── */
@@ -39,6 +40,7 @@ interface Referral {
   candidateName: string;
   candidateEmail: string;
   candidatePhone?: string | null;
+  candidateResume?: string | null;
   notes?: string | null;
   bonusAmount?: number | null;
   bonusCurrency: string;
@@ -171,6 +173,8 @@ const referralTips = [
 /* Page                                                                 */
 /* ──────────────────────────────────────────────────────────────────── */
 export default function ReferralsPage() {
+  const { user } = useAuthStore();
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(user?.role || '');
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -195,6 +199,8 @@ export default function ReferralsPage() {
     candidatePhone: '',
     notes: '',
   });
+  const [formResume, setFormResume] = useState<string | null>(null); // base64 data URL
+  const [formResumeName, setFormResumeName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Expanded rows
@@ -367,6 +373,8 @@ export default function ReferralsPage() {
     setShowForm(false);
     setFormJobId('');
     setForm({ candidateName: '', candidateEmail: '', candidatePhone: '', notes: '' });
+    setFormResume(null);
+    setFormResumeName('');
   };
 
   const handleSubmitReferral = async () => {
@@ -389,6 +397,7 @@ export default function ReferralsPage() {
           candidateName: form.candidateName.trim(),
           candidateEmail: form.candidateEmail.trim(),
           candidatePhone: form.candidatePhone.trim() || undefined,
+          candidateResume: formResume || undefined,
           notes: form.notes.trim() || undefined,
           bonusCurrency: defaultCurrency,
         }),
@@ -423,6 +432,28 @@ export default function ReferralsPage() {
       fetchReferrals();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete referral');
+    }
+  };
+
+  /* ── C-23: HR marks bonus as paid (only for hired referrals) ── */
+  const [payingBonusId, setPayingBonusId] = useState<string | null>(null);
+  const handleMarkBonusPaid = async (id: string) => {
+    if (!confirm('Mark this referral bonus as paid? This will record the payout date.')) return;
+    setPayingBonusId(id);
+    try {
+      const res = await fetch(`/api/referrals/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'bonus_paid' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to mark bonus paid');
+      toast.success('Bonus marked as paid');
+      fetchReferrals();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to mark bonus paid');
+    } finally {
+      setPayingBonusId(null);
     }
   };
 
@@ -744,6 +775,37 @@ export default function ReferralsPage() {
                                     <FiTrash2 className="w-3 h-3" /> Delete
                                   </button>
                                 )}
+                                {/* C-23: HR can mark bonus as paid for hired referrals */}
+                                {isAdmin && r.status === 'hired' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMarkBonusPaid(r.id);
+                                    }}
+                                    disabled={payingBonusId === r.id}
+                                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded font-medium"
+                                  >
+                                    <FiDollarSign className="w-3 h-3" />
+                                    {payingBonusId === r.id ? 'Marking…' : 'Mark Bonus Paid'}
+                                  </button>
+                                )}
+                                {/* C-23: Show bonus status badge */}
+                                {r.status === 'bonus_paid' && (
+                                  <span className="mt-2 inline-flex items-center gap-1 px-2 py-1 text-xs text-emerald-700 bg-emerald-100 rounded font-medium">
+                                    <FiCheckCircle className="w-3 h-3" /> Bonus Paid
+                                  </span>
+                                )}
+                                {/* C-23: Show resume download link if available */}
+                                {r.candidateResume && r.candidateResume.startsWith('data:') && (
+                                  <a
+                                    href={r.candidateResume}
+                                    download={`resume-${r.candidateName.replace(/\s+/g, '-').toLowerCase()}.pdf`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 text-xs text-sky-700 bg-sky-50 hover:bg-sky-100 rounded"
+                                  >
+                                    <FiExternalLink className="w-3 h-3" /> Download Resume
+                                  </a>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -821,6 +883,38 @@ export default function ReferralsPage() {
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/40 resize-none"
                 placeholder="Why is this person a great fit? Anything the hiring team should know?"
               />
+            </div>
+            {/* C-23: Resume upload — stored as base64 data URL on the Referral row */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Resume (optional)</label>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer">
+                  <FiUpload className="w-3.5 h-3.5" /> Choose Resume
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) { toast.error('Resume must be under 5 MB'); return; }
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        setFormResume(reader.result as string);
+                        setFormResumeName(file.name);
+                        toast.success('Resume loaded');
+                      };
+                      reader.onerror = () => toast.error('Failed to read resume');
+                      reader.readAsDataURL(file);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                {formResumeName && (
+                  <span className="text-xs text-slate-600 truncate flex-1">{formResumeName}</span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">PDF / DOC / TXT, max 5 MB. HR will review the resume when evaluating your referral.</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-4">

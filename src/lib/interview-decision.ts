@@ -754,6 +754,18 @@ export async function recordHrDecision(ctx: DecisionContext): Promise<DecisionRe
     `hrNotified=${hrNotified} auditLogged=${auditLogged}`,
   );
 
+  // ─── 7) C-23: Sync referral status with the new application status ────
+  // Finds any Referral rows matching this candidate's email and advances
+  // them to match (rejected / offered / hired + bonus).
+  if (candidateEmail && newAppStatus !== application.status) {
+    try {
+      const { syncReferralStatus } = await import('@/lib/referral-sync');
+      await syncReferralStatus(db, tenantId, candidateEmail, newAppStatus, jobTitle, { origin: ctx.origin });
+    } catch (e) {
+      console.warn('[InterviewDecision] Referral sync failed (non-fatal):', e instanceof Error ? e.message : e);
+    }
+  }
+
   return {
     success: true,
     newAppStatus,

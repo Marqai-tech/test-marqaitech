@@ -279,24 +279,21 @@ export async function PATCH(
         }).catch(() => null);
 
         if (referrerUser) {
-          // Avoid hr@gmail.com per user instruction
-          if (!referrerUser.email?.includes('hr@marqaitech')) {
-            const { dispatchNotification } = await import('@/lib/notification-center');
-            const isHired = updated.status === 'hired';
-            await dispatchNotification({
-              tenantId: decoded.tenantId as string,
-              module: 'recruitment',
-              eventKey: isHired ? 'recruitment.referral.hired' : 'recruitment.referral.status_changed',
-              recipients: [{ userId: referrerUser.id }],
-              vars: {
-                Referrer_Name: `${updated.referrerEmployee?.firstName || ''} ${updated.referrerEmployee?.lastName || ''}`.trim(),
-                Candidate_Name: updated.candidateName,
-                Job_Title: updated.jobPosting?.title || 'a position',
-                Status: updated.status,
-              },
-              entity: { type: 'referral', id: updated.id, link: '/referrals' },
-            }).catch(() => null);
-          }
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          const isHired = updated.status === 'hired';
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: isHired ? 'recruitment.referral.hired' : 'recruitment.referral.status_changed',
+            recipients: [{ userId: referrerUser.id }],
+            vars: {
+              Referrer_Name: `${updated.referrerEmployee?.firstName || ''} ${updated.referrerEmployee?.lastName || ''}`.trim(),
+              Candidate_Name: updated.candidateName,
+              Job_Title: updated.jobPosting?.title || 'a position',
+              Status: updated.status,
+            },
+            entity: { type: 'referral', id: updated.id, link: '/referrals' },
+          }).catch(() => null);
         }
       }
     } catch { /* non-fatal */ }

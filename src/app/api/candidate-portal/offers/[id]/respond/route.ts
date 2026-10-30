@@ -215,6 +215,16 @@ export async function POST(
           console.log(`[CandidateOffers POST] JobApplication ${jobAppId} status set to 'hired'`);
         }
       } catch { /* non-fatal */ }
+
+      // C-23: Sync referral status (candidate hired → referral hired + bonus ₹5000).
+      if (candidateEmail) {
+        try {
+          const { syncReferralStatus } = await import('@/lib/referral-sync');
+          await syncReferralStatus(foundDb as unknown as Parameters<typeof syncReferralStatus>[0], foundTenantId || '', candidateEmail, 'hired', foundOffer.position || 'the position');
+        } catch (e) {
+          console.warn('[CandidateOffers POST] Referral sync failed (non-fatal):', e instanceof Error ? e.message : e);
+        }
+      }
     }
 
     // Audit log

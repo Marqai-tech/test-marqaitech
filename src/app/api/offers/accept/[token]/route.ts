@@ -194,6 +194,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       } catch (e) {
         console.warn('[Offer Accept] Failed to update JobApplication status to hired (non-fatal):', e instanceof Error ? e.message : e);
       }
+
+      // C-23: Sync referral status (candidate hired → referral hired + bonus ₹5000).
+      // Use the offer's candidateEmail directly (already loaded above at line 107).
+      const syncCandidateEmail = (offer as Record<string, unknown>).candidateEmail as string || '';
+      if (syncCandidateEmail) {
+        try {
+          const { syncReferralStatus } = await import('@/lib/referral-sync');
+          const origin = (() => { try { return new URL(req.url).origin; } catch { return ''; } })();
+          await syncReferralStatus(db, '', syncCandidateEmail, 'hired', (offer as Record<string, unknown>).position as string || 'the position', { origin });
+        } catch (e) {
+          console.warn('[Offer Accept] Referral sync failed (non-fatal):', e instanceof Error ? e.message : e);
+        }
+      }
     }
 
     // Notify tenant admins + HR
