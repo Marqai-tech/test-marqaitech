@@ -314,19 +314,18 @@ export async function PATCH(
 
       // ─── Notification Center (Task 36): multi-channel offer lifecycle events ───
       try {
-        const { dispatchNotification, resolveRoleRecipients, resolveBaseUrl } = await import('@/lib/notification-center');
+        const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
         const tenantIdOff = decoded.tenantId as string;
-        const originOff = request.headers.get('origin') || undefined;
+        // C-26 FIX: Use the request URL origin directly (NOT resolveBaseUrl).
+        // resolveBaseUrl checks NEXT_PUBLIC_APP_URL / NOTIFICATION_BASE_URL
+        // env vars FIRST, before the origin — those env vars point to
+        // test-marqaitech.vercel.app (without -ontt) → 404 for the candidate.
+        const requestOrigin = (() => { try { return new URL(request.url).origin; } catch { return ''; } })();
 
         if (effectiveStatus === 'sent' && tenantIdOff) {
-          // C-24 FIX: Offer letter available → candidate email with the accept link.
-          // Previously this used dispatchNotification → sendTenantEmail, which tries
-          // tenant SMTP first (circuit breaker may be open) and silently fails.
-          // Now we use sendEmail() FIRST (smart routing — SMTP for internal, Resend
-          // for external) with sendTenantEmail as fallback. Same pattern as the
-          // interview-scheduled email fix. Logs the result so Vercel logs show
-          // whether the email was actually sent.
-          const offerUrl = offer.accessToken ? `${resolveBaseUrl(originOff)}/offer/${offer.accessToken}` : '';
+          // C-24+C-26 FIX: Offer letter email — sendEmail() direct (smart routing)
+          // + use request origin for the offer link (not env-var-based resolveBaseUrl).
+          const offerUrl = offer.accessToken ? `${requestOrigin}/offer/${offer.accessToken}` : '';
           if (offer.candidateEmail) {
             try {
               const { sendEmail } = await import('@/lib/email');
@@ -392,7 +391,7 @@ export async function PATCH(
               Joining_Date: offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString('en-IN') : 'TBD',
             },
             entity: { type: 'offer', id, link: '/offers' },
-            origin: originOff,
+            origin: requestOrigin,
           });
         }
         if (effectiveStatus === 'rejected' && tenantIdOff) {
@@ -408,7 +407,7 @@ export async function PATCH(
               Reason: responseNotes || '—',
             },
             entity: { type: 'offer', id, link: '/offers' },
-            origin: originOff,
+            origin: requestOrigin,
           });
         }
       } catch (e) {
