@@ -111,6 +111,11 @@ export async function GET(request: Request) {
     const sixMonthsAgo = new Date(now.getTime() - 180 * 86400000);
 
     // ── Parallel fetch of raw data ──
+    // Phase 15 fix: Apply company filter to all queries when companyId is provided
+    const companyFilter = companyId ? {
+      department: { companyId },
+    } : {};
+
     const [
       jobPostings,
       applications,
@@ -120,12 +125,14 @@ export async function GET(request: Request) {
       boardPostings,
     ] = await Promise.all([
       db.jobPosting.findMany({
+        where: companyFilter,
         include: {
           department: { select: { id: true, name: true } },
           applications: { select: { id: true, status: true, appliedDate: true, source: true } },
         },
       }),
       db.jobApplication.findMany({
+        where: { jobPosting: companyFilter },
         select: {
           id: true,
           status: true,
@@ -143,6 +150,7 @@ export async function GET(request: Request) {
           offeredCurrency: true,
           candidateId: true,
           candidateName: true,
+          candidateEmail: true,
           jobPostingId: true,
           createdAt: true,
           respondedAt: true,
@@ -233,11 +241,12 @@ export async function GET(request: Request) {
     };
 
     // ── Time to Fill ──
-    // For filled jobs: avg(closingDate - postedDate) for jobs with status='filled'
+    // Phase 15 fix: Use filledAt when available, fall back to closingDate
     const filledJobs = (jobPostings || []).filter((j) => j.status === 'filled' && j.postedDate);
     const ttfValues: number[] = [];
     (filledJobs || []).forEach((j) => {
-      const days = daysBetween(j.postedDate, j.closingDate);
+      const fillDate = (j as any).filledAt || j.closingDate;
+      const days = daysBetween(j.postedDate, fillDate);
       if (days !== null && days >= 0) ttfValues.push(days);
     });
     const timeToFillAvg = ttfValues.length > 0
@@ -247,7 +256,8 @@ export async function GET(request: Request) {
     // Time to Fill by department
     const ttfByDeptMap = new Map<string, number[]>();
     (filledJobs || []).forEach((j) => {
-      const days = daysBetween(j.postedDate, j.closingDate);
+      const fillDate = (j as any).filledAt || j.closingDate;
+      const days = daysBetween(j.postedDate, fillDate);
       if (days === null || days < 0) return;
       const deptName = j.department?.name || 'Unknown';
       const arr = ttfByDeptMap.get(deptName) || [];
@@ -261,19 +271,25 @@ export async function GET(request: Request) {
     }));
 
     // ── Time to Hire ──
-    // avg(Employee.dateOfJoining - JobApplication.appliedDate) for hired candidates.
-    // Link via Offer.candidateId == Employee.id (Offer.candidateId is a free-form string
-    // but in practice often Employee.id for hires created via the preboarding cascade).
+    // Phase 15 fix: Also match by candidateEmail (more reliable than jobPostingId)
     const employeeById = new Map((employees || []).map((e) => [e.id, e]));
+    const employeeByEmail = new Map((employees || []).filter(e => e.email).map((e) => [e.email.toLowerCase(), e]));
     const tthValues: number[] = [];
     const tthByDeptMap = new Map<string, number[]>();
 
     (applications || []).filter((a) => a.status === 'hired').forEach((a) => {
+      // Phase 15 fix: Match offer by candidateEmail (was only matching by jobPostingId)
       const matchingOffer = (offers || []).find(
-        (o) => o.jobPostingId === a.jobPostingId && o.status === 'accepted'
+        (o) => o.status === 'accepted' && (
+          o.jobPostingId === a.jobPostingId ||
+          (o.candidateEmail && a.candidateEmail && o.candidateEmail.toLowerCase() === a.candidateEmail.toLowerCase())
+        )
       );
-      if (matchingOffer && employeeById.has(matchingOffer.candidateId)) {
-        const emp = employeeById.get(matchingOffer.candidateId)!;
+      if (matchingOffer) {
+        // Try candidateId first, then candidateEmail
+        const emp = employeeById.get(matchingOffer.candidateId)
+          || (matchingOffer.candidateEmail ? employeeByEmail.get(matchingOffer.candidateEmail.toLowerCase()) : undefined);
+        if (emp) {
         const days = daysBetween(a.appliedDate, emp.dateOfJoining);
         if (days !== null && days >= 0) {
           tthValues.push(days);

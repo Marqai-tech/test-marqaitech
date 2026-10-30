@@ -38,7 +38,8 @@ const offersWorkflowSteps = [
 ];
 
 const initialForm = {
-  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'INR', joiningDate: '', probationPeriod: 90,
+  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'INR',
+  offeredCTC: 0, salaryBreakdown: '', joiningDate: '', probationPeriod: 90, reportingTo: '',
 };
 
 function getStatusBadge(status: string) {
@@ -122,6 +123,9 @@ export default function OffersPage() {
       department: item.department || '',
       offeredSalary: item.offeredSalary || 0,
       offeredCurrency: item.offeredCurrency || 'USD',
+      offeredCTC: (item as any).offeredCTC || 0,
+      salaryBreakdown: (item as any).salaryBreakdown || '',
+      reportingTo: (item as any).reportingTo || '',
       joiningDate: item.joiningDate ? new Date(item.joiningDate).toISOString().split('T')[0] : '',
       probationPeriod: item.probationPeriod || 90,
     });
@@ -288,6 +292,18 @@ export default function OffersPage() {
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation (days)</label>
                 <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: parseInt(e.target.value) || 90 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Annual CTC</label>
+                <input type="number" value={form.offeredCTC} onChange={(e) => setForm({ ...form, offeredCTC: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0 (optional)" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Breakdown</label>
+                <input type="text" value={form.salaryBreakdown} onChange={(e) => setForm({ ...form, salaryBreakdown: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. Basic: 50%, HRA: 20%..." />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Manager</label>
+                <input type="text" value={form.reportingTo} onChange={(e) => setForm({ ...form, reportingTo: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Manager name (optional)" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">

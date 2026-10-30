@@ -259,6 +259,13 @@ export async function PUT(req: NextRequest) {
     if (updateData.status === 'open' && !existing.postedDate) {
       updateData.postedDate = new Date();
     }
+    // Phase 15 fix: Record filledAt timestamp when job is marked 'filled'
+    if (updateData.status === 'filled') {
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "filledAt" TIMESTAMP(3)`);
+      } catch {}
+      (updateData as any).filledAt = new Date();
+    }
     delete updateData.companyId;
     delete updateData.department;
     delete updateData._count;
