@@ -359,6 +359,10 @@ export async function POST(req: NextRequest) {
       const typeLabel = typeLabels[interviewType] || 'Interview';
       const dateStr = new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
       const timeStr = time || 'TBD';
+      // C-22: dynamic interview round number — compute the round for this
+      // application (MAX existing round + 1, or 1 if this is the first).
+      const interviewRound = round ? Number(round) : 1;
+      const roundLabel = interviewRound > 1 ? ` (Round ${interviewRound})` : '';
 
       try {
         const { dispatchNotification } = await import('@/lib/notification-center');
@@ -423,12 +427,13 @@ export async function POST(req: NextRequest) {
         try {
           const { sendEmail } = await import('@/lib/email');
           const { sendTenantEmail } = await import('@/lib/notification-channels');
-          const candidateSubject = `Interview Scheduled: ${app.candidateName} — ${jobTitle} (${dateStr})`;
+          const candidateSubject = `Interview Scheduled${roundLabel}: ${app.candidateName} — ${jobTitle} (${dateStr})`;
           const candidateHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-            <h2 style="color:#4f46e5;">Interview Scheduled</h2>
+            <h2 style="color:#4f46e5;">Interview Scheduled${roundLabel}</h2>
             <p>Dear ${app.candidateName},</p>
-            <p>An interview has been scheduled for the <strong>${jobTitle}</strong> position.</p>
+            <p>An interview has been scheduled for the <strong>${jobTitle}</strong> position${roundLabel ? ` — <strong>Round ${interviewRound}</strong>` : ''}.</p>
             <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+              ${interviewRound > 1 ? `<tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;width:35%;">Round</td><td style="padding:8px 12px;">${interviewRound}</td></tr>` : ''}
               <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;width:35%;">Date</td><td style="padding:8px 12px;">${dateStr}</td></tr>
               <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Time</td><td style="padding:8px 12px;">${timeStr}</td></tr>
               <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Type</td><td style="padding:8px 12px;">${typeLabel}</td></tr>

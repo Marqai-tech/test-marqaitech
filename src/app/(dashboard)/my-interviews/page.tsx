@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   FiCalendar, FiClock, FiVideo, FiMapPin, FiUser, FiCheck, FiStar,
-  FiAlertCircle, FiBriefcase, FiX, FiThumbsUp, FiThumbsDown, FiRefreshCw,
+  FiAlertCircle, FiBriefcase, FiX, FiThumbsUp, FiThumbsDown, FiRefreshCw, FiPlus,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -63,6 +63,7 @@ export default function MyInterviewsPage() {
     technicalSkills: string; communication: string; experience: string; problemSolving: string;
     roleSuitability: string; culturalFit: string; strengths: string; concerns: string;
     rating: string; recommendation: string; comments: string;
+    customFields: Array<{ name: string; value: string }>;
   } | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
@@ -206,6 +207,7 @@ export default function MyInterviewsPage() {
                             technicalSkills: '', communication: '', experience: '', problemSolving: '',
                             roleSuitability: '', culturalFit: '', strengths: '', concerns: '',
                             rating: '', recommendation: '', comments: '',
+                            customFields: [],
                           })} className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 flex items-center gap-1.5">
                             <FiCheck className="w-4 h-4" /> Submit Feedback
                           </button>
@@ -251,6 +253,49 @@ export default function MyInterviewsPage() {
                           <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Strengths</label><textarea value={feedbackForm.strengths} onChange={(e) => setFeedbackForm({ ...feedbackForm, strengths: e.target.value })} rows={2} placeholder="Key strengths observed…" className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" /></div>
                           <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Concerns</label><textarea value={feedbackForm.concerns} onChange={(e) => setFeedbackForm({ ...feedbackForm, concerns: e.target.value })} rows={2} placeholder="Areas of concern…" className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" /></div>
                           <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Detailed Comments</label><textarea value={feedbackForm.comments} onChange={(e) => setFeedbackForm({ ...feedbackForm, comments: e.target.value })} rows={3} placeholder="Additional comments…" className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" /></div>
+
+                          {/* C-22: Dynamic custom fields — interviewer adds their own field names + values */}
+                          <div>
+                            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Custom Fields (optional — add your own evaluation criteria)</label>
+                            {feedbackForm.customFields.map((cf, idx) => (
+                              <div key={idx} className="flex items-center gap-2 mb-2">
+                                <input
+                                  value={cf.name}
+                                  onChange={(e) => {
+                                    const next = [...feedbackForm.customFields];
+                                    next[idx] = { ...next[idx], name: e.target.value };
+                                    setFeedbackForm({ ...feedbackForm, customFields: next });
+                                  }}
+                                  placeholder="Field name (e.g. Leadership)"
+                                  className="flex-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
+                                />
+                                <input
+                                  value={cf.value}
+                                  onChange={(e) => {
+                                    const next = [...feedbackForm.customFields];
+                                    next[idx] = { ...next[idx], value: e.target.value };
+                                    setFeedbackForm({ ...feedbackForm, customFields: next });
+                                  }}
+                                  placeholder="Your assessment…"
+                                  className="flex-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
+                                />
+                                <button
+                                  onClick={() => setFeedbackForm({ ...feedbackForm, customFields: feedbackForm.customFields.filter((_, i) => i !== idx) })}
+                                  className="px-2 py-2 rounded-lg text-red-600 hover:bg-red-50 text-sm"
+                                  title="Remove this field"
+                                >
+                                  <FiX className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => setFeedbackForm({ ...feedbackForm, customFields: [...feedbackForm.customFields, { name: '', value: '' }] })}
+                              className="px-3 py-1.5 rounded-lg bg-slate-50 text-slate-700 border border-thb-border text-xs font-medium hover:bg-slate-100 flex items-center gap-1.5"
+                            >
+                              <FiPlus className="w-3.5 h-3.5" /> Add Custom Field
+                            </button>
+                          </div>
+
                           <div className="flex items-center gap-2">
                             <button onClick={handleSubmitFeedback} disabled={submittingFeedback} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
                               {submittingFeedback ? 'Submitting...' : 'Submit Feedback'}

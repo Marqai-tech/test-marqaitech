@@ -176,13 +176,44 @@ export async function POST(
       });
     }
 
-    // Auto-flip JobApplication to 'hired' on accept (if linked).
-    if (action === 'accept' && foundOffer.jobApplicationId) {
+    // Auto-flip JobApplication to 'hired' on accept.
+    // C-22 fix: if the Offer has no jobApplicationId linked (manual creation),
+    // fall back to finding the JobApplication by candidateEmail. This ensures
+    // the candidate's status ALWAYS flips to 'hired' on accept.
+    if (action === 'accept') {
       try {
-        await (foundDb as { $executeRawUnsafe: (sql: string, ...params: unknown[]) => Promise<unknown> }).$executeRawUnsafe(
-          `UPDATE "JobApplication" SET "status" = 'hired', "updatedAt" = NOW() WHERE "id" = $1`,
-          foundOffer.jobApplicationId,
-        );
+        const dbExec = foundDb as { $executeRawUnsafe: (sql: string, ...params: unknown[]) => Promise<unknown> };
+        let jobAppId = foundOffer.jobApplicationId;
+
+        // Fallback: find by email if no direct link
+        if (!jobAppId && candidateEmail) {
+          const dbQuery = foundDb as { $queryRawUnsafe: (sql: string, ...params: unknown[]) => Promise<Array<{ id: string }>> };
+          try {
+            const rows = await dbQuery.$queryRawUnsafe(
+              `SELECT "id" FROM "JobApplication" WHERE LOWER("candidateEmail") = LOWER($1) ORDER BY "updatedAt" DESC LIMIT 1`,
+              candidateEmail,
+            );
+            if (rows[0]?.id) {
+              jobAppId = rows[0].id;
+              // Backfill the link
+              await dbExec.$executeRawUnsafe(
+                `UPDATE "Offer" SET "jobApplicationId" = $1 WHERE "id" = $2`,
+                jobAppId, id,
+              ).catch(() => null);
+              console.log(`[CandidateOffers POST] Backfilled jobApplicationId=${jobAppId} via email lookup`);
+            }
+          } catch (e) {
+            console.warn('[CandidateOffers POST] Email-based JobApplication lookup failed:', e instanceof Error ? e.message : e);
+          }
+        }
+
+        if (jobAppId) {
+          await dbExec.$executeRawUnsafe(
+            `UPDATE "JobApplication" SET "status" = 'hired', "updatedAt" = NOW() WHERE "id" = $1`,
+            jobAppId,
+          );
+          console.log(`[CandidateOffers POST] JobApplication ${jobAppId} status set to 'hired'`);
+        }
       } catch { /* non-fatal */ }
     }
 

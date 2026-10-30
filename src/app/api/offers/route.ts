@@ -105,6 +105,32 @@ export async function POST(request: Request) {
       );
     }
 
+    // C-22: Only allow creating an offer for a candidate whose JobApplication
+    // status is 'offered'. This prevents HR from creating offers for candidates
+    // who haven't gone through the interview → offered pipeline yet. The HR
+    // Decision 'offer' action (which sets status='offered' AND creates the
+    // draft offer in one call via interview-decision.ts) is exempt because it
+    // sets the status first, then creates the offer.
+    //
+    // We skip this check when jobApplicationId is NOT provided (the offer
+    // might be for an external candidate with no application record).
+    if (jobApplicationId) {
+      try {
+        const appRows = await db.$queryRawUnsafe(
+          `SELECT "status" FROM "JobApplication" WHERE "id" = $1 LIMIT 1`,
+          jobApplicationId,
+        ) as Array<{ status: string }>;
+        if (appRows[0] && appRows[0].status !== 'offered') {
+          return NextResponse.json(
+            { error: `Cannot create an offer for this candidate — their application status is '${appRows[0].status}'. Only candidates with status 'offered' can receive an offer. Use the HR Decision 'Offer' action on the Interviews page to move them to 'offered' status first.` },
+            { status: 400, headers: corsHeaders() }
+          );
+        }
+      } catch (e) {
+        console.warn('[Offers POST] JobApplication status check skipped:', e instanceof Error ? e.message : e);
+      }
+    }
+
     // Task 167: ensure jobApplicationId column exists on Offer at runtime
     if (jobApplicationId) {
       try {

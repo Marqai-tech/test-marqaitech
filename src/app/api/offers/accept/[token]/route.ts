@@ -147,21 +147,49 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       updated = await (db as any).offer.update({ where: { id: offer.id }, data: updateData });
     }
 
-    // Task 167: if the candidate accepts, automatically set the JobApplication status to 'hired'
+    // Task 167: if the candidate accepts, automatically set the JobApplication status to 'hired'.
+    // C-22 fix: if the Offer has no jobApplicationId linked (e.g. it was created
+    // manually from /offers without coming through the "Extend Offer" button),
+    // fall back to finding the JobApplication by candidateEmail. This ensures
+    // the candidate's status ALWAYS flips to 'hired' on accept, regardless of
+    // how the offer was created.
     if (action === 'accept') {
       try {
-        // Check if the Offer has a jobApplicationId
         const offerRows = await db.$queryRawUnsafe(
-          `SELECT "jobApplicationId" FROM "Offer" WHERE "id" = $1 LIMIT 1`,
+          `SELECT "jobApplicationId", "candidateEmail" FROM "Offer" WHERE "id" = $1 LIMIT 1`,
           offer.id,
-        ) as any[];
-        const jobAppId = offerRows[0]?.jobApplicationId;
+        ) as unknown as Array<{ jobApplicationId: string | null; candidateEmail: string | null }>;
+        let jobAppId = offerRows[0]?.jobApplicationId;
+
+        // Fallback: if no jobApplicationId linked, find the JobApplication by email
+        if (!jobAppId && offerRows[0]?.candidateEmail) {
+          try {
+            const appRows = await db.$queryRawUnsafe(
+              `SELECT "id" FROM "JobApplication" WHERE LOWER("candidateEmail") = LOWER($1) ORDER BY "updatedAt" DESC LIMIT 1`,
+              offerRows[0].candidateEmail,
+            ) as unknown as Array<{ id: string }>;
+            if (appRows[0]?.id) {
+              jobAppId = appRows[0].id;
+              // Backfill the link on the Offer row so future lookups are direct
+              await db.$executeRawUnsafe(
+                `UPDATE "Offer" SET "jobApplicationId" = $1 WHERE "id" = $2`,
+                jobAppId, offer.id,
+              ).catch(() => null);
+              console.log(`[Offer Accept] Backfilled jobApplicationId=${jobAppId} on offer ${offer.id} via email lookup`);
+            }
+          } catch (e) {
+            console.warn('[Offer Accept] Email-based JobApplication lookup failed:', e instanceof Error ? e.message : e);
+          }
+        }
+
         if (jobAppId) {
           await db.$executeRawUnsafe(
             `UPDATE "JobApplication" SET "status" = 'hired', "updatedAt" = NOW() WHERE "id" = $1`,
             jobAppId,
           );
           console.log(`[Offer Accept] JobApplication ${jobAppId} status set to 'hired'`);
+        } else {
+          console.warn(`[Offer Accept] No JobApplication found for offer ${offer.id} (candidateEmail=${offerRows[0]?.candidateEmail || 'N/A'}) — auto-hire skipped`);
         }
       } catch (e) {
         console.warn('[Offer Accept] Failed to update JobApplication status to hired (non-fatal):', e instanceof Error ? e.message : e);

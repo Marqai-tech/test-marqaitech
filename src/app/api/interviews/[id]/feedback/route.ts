@@ -48,6 +48,7 @@ export async function POST(
       technicalSkills, communication, experience, problemSolving,
       roleSuitability, culturalFit, strengths, concerns,
       rating, recommendation, comments,
+      customFields, // C-22: dynamic custom fields — array of {name, value}
     } = body;
 
     if (!userId) {
@@ -119,6 +120,10 @@ export async function POST(
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "isFinal" BOOLEAN DEFAULT false',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3) DEFAULT NOW()',
       'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) DEFAULT NOW()',
+      // C-22: dynamic custom fields — interviewer can create their own field
+      // names + values (JSON array of {name, value} pairs). Stored as TEXT
+      // to avoid schema migrations; parsed back to JSON on read.
+      'ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "customFields" TEXT',
     ];
     for (const sql of addCols) {
       try { await db.$executeRawUnsafe(sql); } catch {}
@@ -156,6 +161,10 @@ export async function POST(
 
     const isFinalFlag = body.isFinal === true;
     const feedbackId = `fb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // C-22: serialize customFields array as JSON string for storage
+    const customFieldsJson = (customFields && Array.isArray(customFields) && customFields.length > 0)
+      ? JSON.stringify(customFields.map((f: { name: string; value: string }) => ({ name: String(f.name || '').slice(0, 200), value: String(f.value || '').slice(0, 2000) })))
+      : null;
 
     // Use INSERT ... ON CONFLICT to handle both insert and update in one query.
     // This avoids issues with old table schemas from previous deploys.
@@ -163,8 +172,8 @@ export async function POST(
       await db.$executeRawUnsafe(
         `INSERT INTO "InterviewFeedback"
          ("id", "interviewId", "userId", "technicalSkills", "communication", "experience", "problemSolving",
-          "roleSuitability", "culturalFit", "strengths", "concerns", "rating", "recommendation", "comments", "isFinal", "submittedAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+          "roleSuitability", "culturalFit", "strengths", "concerns", "rating", "recommendation", "comments", "isFinal", "customFields", "submittedAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
          ON CONFLICT ("interviewId", "userId") DO UPDATE SET
            "technicalSkills" = EXCLUDED."technicalSkills",
            "communication" = EXCLUDED."communication",
@@ -178,12 +187,13 @@ export async function POST(
            "recommendation" = EXCLUDED."recommendation",
            "comments" = EXCLUDED."comments",
            "isFinal" = EXCLUDED."isFinal",
+           "customFields" = EXCLUDED."customFields",
            "updatedAt" = NOW()`,
         feedbackId, id, userId,
         technicalSkills || null, communication || null, experience || null, problemSolving || null,
         roleSuitability || null, culturalFit || null, strengths || null, concerns || null,
         rating ? Number(rating) : null, finalRecommendation, comments || null,
-        isFinalFlag,
+        isFinalFlag, customFieldsJson,
       );
     } catch (upsertErr) {
       // If ON CONFLICT fails (no unique constraint), try plain UPDATE then INSERT
@@ -283,6 +293,15 @@ export async function GET(
     sql += ` ORDER BY f."submittedAt" DESC`;
 
     const feedback = await db.$queryRawUnsafe(sql, ...sqlParams).catch(() => []) as any[];
+
+    // C-22: parse customFields JSON string back into an array for each feedback row
+    for (const f of feedback) {
+      if (f.customFields && typeof f.customFields === 'string') {
+        try { f.customFields = JSON.parse(f.customFields); } catch { f.customFields = []; }
+      } else if (!f.customFields) {
+        f.customFields = [];
+      }
+    }
 
     return NextResponse.json({ feedback }, { headers: corsHeaders() });
   } catch (error) {

@@ -437,7 +437,11 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
-      // ── Pipeline ──
+      // ── My Tools (visible to ALL employees — interviewers + referrers) ──
+      { label: 'My Interviews', href: '/my-interviews', icon: <FiCalendar className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'manager', 'employee', 'finance', 'it_admin', 'recruiter', 'job_seeker'] },
+      { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'manager', 'employee', 'finance', 'it_admin', 'recruiter', 'job_seeker'], isNew: true },
+
+      // ── Pipeline (HR / Admin only — gated by moduleKey: 'recruitment') ──
       { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
       // Main ATS page — candidate pipeline + schedule-interview modal
       { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment' },

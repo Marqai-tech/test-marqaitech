@@ -45,6 +45,7 @@ interface FeedbackDetail {
   rating: number;
   recommendation: string;
   comments?: string | null;
+  customFields?: Array<{ name: string; value: string }> | null;
   submittedAt: string;
 }
 
@@ -736,6 +737,20 @@ export default function InterviewsPage() {
                       <div className="bg-slate-50 rounded-lg p-3 text-sm">
                         <p className="text-xs font-semibold text-thb-text-muted mb-1">Comments</p>
                         <p className="text-thb-text-secondary">{fb.comments}</p>
+                      </div>
+                    )}
+                    {/* C-22: dynamic custom fields */}
+                    {fb.customFields && fb.customFields.length > 0 && (
+                      <div className="bg-indigo-50 rounded-lg p-3 text-sm">
+                        <p className="text-xs font-semibold text-indigo-800 mb-2">Custom Evaluation Fields</p>
+                        <div className="space-y-1.5">
+                          {fb.customFields.map((cf, i) => (
+                            <div key={i} className="flex gap-2">
+                              <span className="text-xs font-medium text-indigo-700 min-w-[120px]">{cf.name}:</span>
+                              <span className="text-xs text-thb-text-secondary flex-1">{cf.value}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
