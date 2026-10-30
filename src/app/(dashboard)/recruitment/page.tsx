@@ -328,6 +328,11 @@ export default function RecruitmentPage() {
   // Task 167: Interview scheduling state
   const [scheduleAppId, setScheduleAppId] = useState<string | null>(null);
   const [scheduleAppDept, setScheduleAppDept] = useState<string>('');
+  // Department-dropdown list for the schedule-interview modal. Lets the user
+  // switch which department to draw panel members from (defaults to the job's
+  // own department). Loaded on first modal open.
+  const [modalDepartments, setModalDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
+  const [modalDepartmentsLoaded, setModalDepartmentsLoaded] = useState(false);
   const [interviewForm, setInterviewForm] = useState({
     type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '',
   });
@@ -339,6 +344,7 @@ export default function RecruitmentPage() {
   // Task 167: Schedule interview handler
   const handleScheduleInterview = async () => {
     if (!scheduleAppId || !interviewForm.date) { toast.error('Date is required'); return; }
+    if (!scheduleAppDept) { toast.error('Please select a department'); return; }
     if (selectedPanelIds.length === 0) { toast.error('Select at least one panel member'); return; }
     // Task 167: BLOCK Busy/On Leave from being selected (not just warn)
     const unavailableMembers = selectedPanelIds.filter(uid => {
@@ -381,18 +387,25 @@ export default function RecruitmentPage() {
     }
   };
 
-  // Task 167: Fetch panel members with availability when date/time changes
+  // Task 167: Fetch panel members with availability when date/time changes.
+  // Date is now OPTIONAL — the list populates as soon as a department is
+  // selected, and date/time changes only refresh availability badges.
   const fetchPanelAvailability = useCallback(async () => {
-    if (!scheduleAppDept || !interviewForm.date) { setPanelMembers([]); return; }
+    if (!scheduleAppDept) { setPanelMembers([]); return; }
     setLoadingPanel(true);
     try {
       const params = new URLSearchParams({
         departmentId: scheduleAppDept,
-        date: interviewForm.date,
-        time: interviewForm.time || '',
         duration: String(interviewForm.duration || 60),
         interviewType: interviewForm.type,
       });
+      // Date and time are optional — when omitted, the API returns the
+      // department's employees with availability='No Date Set' so the user
+      // can see the list before picking a date.
+      if (interviewForm.date) {
+        params.set('date', interviewForm.date);
+        if (interviewForm.time) params.set('time', interviewForm.time);
+      }
       const res = await fetch(`/api/interviews/panel-availability?${params}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -403,12 +416,39 @@ export default function RecruitmentPage() {
   }, [scheduleAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type]);
 
   useEffect(() => {
-    if (scheduleAppId && interviewForm.date) {
+    if (scheduleAppId && scheduleAppDept) {
       fetchPanelAvailability();
     } else {
       setPanelMembers([]);
     }
-  }, [scheduleAppId, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type, fetchPanelAvailability]);
+  }, [scheduleAppId, scheduleAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type, fetchPanelAvailability]);
+
+  // Load the full department list for the modal dropdown. Fires once per
+  // recruitment-page mount (idempotent — `modalDepartmentsLoaded` guards a
+  // refetch). Falls back to the in-page `departments` state already built
+  // from jobPostings if the API call fails.
+  const fetchModalDepartments = useCallback(async () => {
+    if (modalDepartmentsLoaded) return;
+    try {
+      const res = await fetch('/api/departments?limit=200', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const list = (data.data || []).map((d: { id: string; name: string; company?: { name?: string } }) => ({
+          id: d.id,
+          name: d.name,
+          companyName: d.company?.name,
+        }));
+        if (list.length > 0) {
+          setModalDepartments(list);
+          setModalDepartmentsLoaded(true);
+          return;
+        }
+      }
+    } catch { /* non-fatal — fall back to the in-page departments state */ }
+    // Fallback: reuse the departments already in scope from jobPostings.
+    setModalDepartments(departments.map(d => ({ id: d.id, name: d.name })));
+    setModalDepartmentsLoaded(true);
+  }, [modalDepartmentsLoaded, departments]);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -1668,9 +1708,13 @@ export default function RecruitmentPage() {
                                   {isAdmin && (app.status === 'interview' || app.status === 'shortlisted' || app.status === 'screening') && (
                                     <button onClick={() => {
                                       setScheduleAppId(app.id);
-                                      // Find the job posting's department
+                                      // Find the job posting's department — pass the ID (not the name)
+                                      // so the panel-availability API can resolve it directly.
                                       const job = jobPostings.find(j => j.id === app.jobPostingId);
-                                      setScheduleAppDept(job?.department?.name || job?.department?.id || '');
+                                      setScheduleAppDept(job?.department?.id || '');
+                                      // Prime the department dropdown — fires once per page mount
+                                      // (idempotent via the modalDepartmentsLoaded guard inside).
+                                      fetchModalDepartments();
                                     }} className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors" title="Schedule Interview">
                                       <FiCalendar className="w-4 h-4" />
                                     </button>
@@ -2153,24 +2197,51 @@ export default function RecruitmentPage() {
                 <input value={interviewForm.meetingUrl} onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })} placeholder="e.g. https://meet.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Panel Members (from {scheduleAppDept || 'department'}) *</label>
-                <p className="text-xs text-thb-text-muted mb-2">Only employees from the job's department are shown. Select one or more available members.</p>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department (panel members will be drawn from this department) *</label>
+                <select
+                  value={scheduleAppDept}
+                  onChange={(e) => {
+                    setScheduleAppDept(e.target.value);
+                    // Reset any prior selections — the list will be refetched
+                    // for the newly chosen department.
+                    setSelectedPanelIds([]);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
+                >
+                  <option value="">Select a department…</option>
+                  {modalDepartments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}{d.companyName ? ` — ${d.companyName}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Panel Members *</label>
+                <p className="text-xs text-thb-text-muted mb-2">
+                  Employees from the selected department are listed below.
+                  {!interviewForm.date && ' Pick a date above to see availability badges.'}
+                </p>
                 {loadingPanel ? (
                   <div className="py-4 text-center text-sm text-thb-text-muted">Loading panel members…</div>
-                ) : !interviewForm.date ? (
-                  <div className="py-4 text-center text-sm text-thb-text-muted">Pick a date to load available panel members</div>
+                ) : !scheduleAppDept ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Select a department to load available panel members</div>
                 ) : panelMembers.length === 0 ? (
                   <div className="py-4 text-center text-sm text-thb-text-muted">No employees found in this department</div>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
                     {panelMembers.map((m) => {
                       const isSelected = selectedPanelIds.includes(m.userId);
+                      // Only block selection on hard conflicts (Busy / On Leave).
+                      // 'No Date Set' and 'Tentative' stay selectable — the user
+                      // can still add them and pick a date afterwards.
                       const isBlocked = m.availability === 'Busy' || m.availability === 'On Leave';
                       const availBadge: Record<string, string> = {
                         Available: 'bg-emerald-50 text-emerald-700',
                         Busy: 'bg-red-50 text-red-700',
                         'On Leave': 'bg-amber-50 text-amber-700',
                         Tentative: 'bg-blue-50 text-blue-700',
+                        'No Date Set': 'bg-slate-50 text-slate-500',
                       };
                       return (
                         <label key={m.id} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isBlocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'}`}>
@@ -2190,6 +2261,9 @@ export default function RecruitmentPage() {
                             {/* Phase 8 fix: Show workload (previous interview assignments count) */}
                             {m.availability === 'Available' && (
                               <p className="text-[10px] text-slate-400">Workload: {m.reason || 'No conflicts'}</p>
+                            )}
+                            {m.availability === 'No Date Set' && (
+                              <p className="text-[10px] text-slate-400">{m.reason}</p>
                             )}
                           </div>
                           <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`} title={m.reason}>
