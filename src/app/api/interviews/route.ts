@@ -367,15 +367,18 @@ export async function POST(req: NextRequest) {
           where: { id: { in: panelMembers }, status: 'active' },
           select: { id: true, email: true, name: true },
         }).catch(() => []);
-        // Avoid hr@gmail.com per user instruction
-        const safePanelUsers = panelUsers.filter(u => !u.email?.includes('hr@marqaitech'));
+        // NOTE: a previous band-aid filter (`!u.email?.includes('hr@marqaitech')`)
+        // silently excluded panel members whose email matched that pattern.
+        // Removed per user instruction — every panel member receives their
+        // interview-scheduled notification. The DB row for hr@marqaitech.com
+        // itself will be retired separately via the cleanup script.
 
-        if (safePanelUsers.length > 0) {
+        if (panelUsers.length > 0) {
           await dispatchNotification({
             tenantId: decoded.tenantId as string,
             module: 'recruitment',
             eventKey: 'recruitment.interview.scheduled',
-            recipients: safePanelUsers.map(u => ({ userId: u.id, email: u.email, name: u.name })),
+            recipients: panelUsers.map(u => ({ userId: u.id, email: u.email, name: u.name })),
             vars: {
               Candidate_Name: app?.candidateName || 'a candidate',
               Job_Title: jobTitle,
@@ -385,7 +388,7 @@ export async function POST(req: NextRequest) {
               Interviewer_Name: typeLabel,
             },
             entity: { type: 'interview', id: interviewId, link: '/my-interviews' },
-          }).catch(() => null);
+          }).catch((e) => { console.warn('[Interviews POST] Panel dispatchNotification failed:', e instanceof Error ? e.message : e); });
         }
       } catch { /* non-fatal */ }
 
@@ -399,27 +402,72 @@ export async function POST(req: NextRequest) {
         },
       }).catch(() => null);
 
-      // GAP FIX #2: Also dispatch recruitment.interview.scheduled to the candidate (email-only)
+      // GAP FIX #2: Also dispatch recruitment.interview.scheduled to the candidate (email-only).
+      //
+      // Why sendEmail() FIRST (not dispatchNotification): the candidate's email
+      // is typically an external address (gmail/yahoo/outlook). sendEmail() in
+      // src/lib/email.ts does smart routing — internal domains go through SMTP,
+      // external go through Resend directly with the verified FROM address.
+      // The previous implementation went through dispatchNotification →
+      // sendTenantEmail, which tries tenant SMTP first; if tenant SMTP is
+      // misconfigured or its circuit breaker is open, the dispatch silently
+      // failed (the surrounding .catch(() => null) swallowed the error) and
+      // the candidate received NO interview-scheduled email while still
+      // receiving other status-change emails that use sendEmail() directly.
+      //
+      // We now mirror the status-change email path (recruitment/[id]/route.ts):
+      //   1. sendEmail() FIRST — smart SMTP/Resend routing
+      //   2. sendTenantEmail() fallback — tenant SMTP → env SMTP → Resend
+      //   3. console.log the result so Vercel logs show exactly what happened
       if (app?.candidateEmail) {
         try {
-          const { dispatchNotification } = await import('@/lib/notification-center');
-          await dispatchNotification({
-            tenantId: decoded.tenantId as string,
-            module: 'recruitment',
-            eventKey: 'recruitment.interview.scheduled',
-            recipients: [{ name: app.candidateName, email: app.candidateEmail }],
-            vars: {
-              Candidate_Name: app.candidateName,
-              Job_Title: jobTitle,
-              Interview_Date: dateStr,
-              Interview_Time: timeStr,
-              Interview_Mode: location ? `Offline — ${location}` : meetingUrl ? `Online — ${meetingUrl}` : 'TBD',
-              Interviewer_Name: typeLabel,
-            },
-            entity: { type: 'interview', id: interviewId, link: '/careers' },
-            suppressInApp: true, // email-only for candidate
-          }).catch(() => null);
-        } catch { /* non-fatal */ }
+          const { sendEmail } = await import('@/lib/email');
+          const { sendTenantEmail } = await import('@/lib/notification-channels');
+          const candidateSubject = `Interview Scheduled: ${app.candidateName} — ${jobTitle} (${dateStr})`;
+          const candidateHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#4f46e5;">Interview Scheduled</h2>
+            <p>Dear ${app.candidateName},</p>
+            <p>An interview has been scheduled for the <strong>${jobTitle}</strong> position.</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;width:35%;">Date</td><td style="padding:8px 12px;">${dateStr}</td></tr>
+              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Time</td><td style="padding:8px 12px;">${timeStr}</td></tr>
+              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Type</td><td style="padding:8px 12px;">${typeLabel}</td></tr>
+              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Mode</td><td style="padding:8px 12px;">${location ? `Offline — ${location}` : meetingUrl ? `Online — ${meetingUrl}` : 'TBD'}</td></tr>
+            </table>
+            ${meetingUrl ? `<p><a href="${meetingUrl}" style="display:inline-block;padding:10px 20px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">Join Meeting</a></p>` : ''}
+            <p>Please be available 5 minutes before the scheduled time. A reminder will be sent closer to the interview.</p>
+            <p>Regards,<br/>HR Team</p>
+          </div>`;
+          let candidateSent = false;
+          let candidateErr = '';
+          try {
+            const candRes = await sendEmail({
+              to: app.candidateEmail,
+              subject: candidateSubject,
+              html: candidateHtml,
+            });
+            candidateSent = candRes.success;
+            candidateErr = candRes.error || '';
+          } catch (e) {
+            candidateErr = e instanceof Error ? e.message : String(e);
+          }
+          if (!candidateSent) {
+            try {
+              const fbRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
+                to: app.candidateEmail,
+                subject: candidateSubject,
+                html: candidateHtml,
+              });
+              candidateSent = fbRes.success;
+              candidateErr = candidateErr || fbRes.error || '';
+            } catch (e) {
+              candidateErr = candidateErr + ' | fallback failed: ' + (e instanceof Error ? e.message : String(e));
+            }
+          }
+          console.log(`[Interviews POST] Candidate interview-scheduled email to ${app.candidateEmail}: ${candidateSent ? 'SENT' : 'FAILED'} — ${candidateErr}`);
+        } catch (emailErr) {
+          console.warn('[Interviews POST] Candidate interview-scheduled email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
+        }
       }
     }
 
@@ -732,8 +780,11 @@ export async function PATCH(req: NextRequest) {
             where: { tenantId: decoded.tenantId, role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active' },
             select: { id: true, email: true },
           }).catch(() => []);
-          const safeHrUsers = hrUsers.filter(u => !u.email?.includes('hr@marqaitech'));
-          for (const hr of safeHrUsers) {
+          // NOTE: a previous band-aid filter (`!u.email?.includes('hr@marqaitech')`)
+          // silently excluded HR users whose email matched that pattern from
+          // decision notifications. Removed per user instruction — every
+          // active HR user receives the decision notification.
+          for (const hr of hrUsers) {
             await createNotification({
               tenantId: decoded.tenantId as string, userId: hr.id,
               title: `Interview Decision: ${decision}`,
