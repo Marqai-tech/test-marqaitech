@@ -241,9 +241,9 @@ export function ProfileHeroCard({
           <Row icon={<FiMail className="w-3.5 h-3.5" />} label="Email Address" value={email} />
           <Row icon={<FiBriefcase className="w-3.5 h-3.5" />} label="Department" value={department} />
           <Row icon={<FiStar className="w-3.5 h-3.5" />} label="Designation" value={designation} />
-          <Row icon={<FiUserCheck className="w-3.5 h-3.5" />} label="Report Office" value={reportTo} />
+          <Row icon={<FiUserCheck className="w-3.5 h-3.5" />} label="Reporting Manager" value={reportTo} />
           <Row icon={<FiCalendar className="w-3.5 h-3.5" />} label="Joined on" value={joinedOn} />
-          <Row icon={<FiActivity className="w-3.5 h-3.5" />} label="Years of Experience" value={experience} />
+          <Row icon={<FiActivity className="w-3.5 h-3.5" />} label="Tenure" value={experience} />
         </div>
         <button
           onClick={() => router.push('/my-profile')}

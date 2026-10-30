@@ -48,7 +48,9 @@ function fmtTime(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+  // BUG_073 FIX: Use consistent date format everywhere — DD MMM YYYY, HH:MM AM/PM
+  // en-US with month: 'short' produces "Oct" (3-letter), not "Sept" (4-letter)
+  return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -263,13 +265,16 @@ export default function EmployeeEditLogPage() {
                 {filteredRequests.map(r => {
                   const meta = STATUS_META[r.status] || { label: r.status, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200', icon: <FiClock className="w-3.5 h-3.5" /> };
                   const emp = r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : r.employeeId;
-                  const empCode = r.employee?.employeeId || '—';
-                  const dept = r.employee?.department?.name || '—';
+                  const empCode = r.employee?.employeeId || '';
+                  const dept = r.employee?.department?.name || '';
+                  // BUG_070 FIX: Don't show '· —' when dept is empty. Build the
+                  // subtitle cleanly: "EMP001 · Engineering" or just "EMP001" or "—"
+                  const subtitle = [empCode, dept].filter(Boolean).join(' · ') || '—';
                   return (
                     <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                       <td className="py-2.5 px-4">
                         <p className="font-medium text-thb-text-primary">{emp}</p>
-                        <p className="text-xs text-thb-text-muted">{empCode} · {dept}</p>
+                        <p className="text-xs text-thb-text-muted">{subtitle}</p>
                       </td>
                       <td className="py-2.5 px-4">
                         <p className="font-medium text-thb-text-primary">{r.fieldLabel}</p>
@@ -289,7 +294,17 @@ export default function EmployeeEditLogPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">{fmtTime(r.requestedAt)}</td>
-                      <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">{fmtTime(r.reviewedAt)}</td>
+                      <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">
+                        {/* BUG_069 FIX: Show reviewer details when available instead of just '—' */}
+                        {r.reviewedAt ? (
+                          <div>
+                            <p>{fmtTime(r.reviewedAt)}</p>
+                            {r.reviewComments && <p className="text-[10px] text-thb-text-muted italic truncate max-w-[200px]" title={r.reviewComments}>{r.reviewComments}</p>}
+                          </div>
+                        ) : (
+                          <span className="text-thb-text-muted">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

@@ -369,24 +369,10 @@ export default function LoginPage() {
               </div>
             </div>
           )}
-          {tenantInfo && !isPlatformSite && (
-            <div className="mb-5 p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100">
-              <div className="flex items-center gap-2.5">
-                {tenantInfo.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-9 h-9 rounded-lg object-contain bg-white p-1" />
-                ) : (
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
-                    {tenantInfo.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{tenantInfo.name}</p>
-                  <p className="text-[10px] text-slate-400">Organization Portal</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* BUG_020 FIX: Tenant info card removed — the brand logo already
+              appears in the brand row above. Showing it again here was
+              duplicating the branding. The tenant name is already shown
+              next to the logo in the brand row. */}
 
           {/* Headline — reference image 1 */}
           <h1 className="text-[28px] sm:text-[32px] font-extrabold text-[#16254E] tracking-tight leading-tight mb-2">
