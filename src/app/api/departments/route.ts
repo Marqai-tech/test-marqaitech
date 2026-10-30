@@ -89,9 +89,24 @@ export async function GET(req: NextRequest) {
 
     const total = await db.department.count({ where });
 
+    // C-28 FIX: Deduplicate departments by name+code within the returned set.
+    // When an admin (scope='all') doesn't specify a companyId, ALL departments
+    // from ALL companies are returned — including departments with the same
+    // name in different companies. This causes duplicate entries in dropdowns.
+    // We deduplicate by (name lowercase + code) keeping the first occurrence
+    // and marking the rest as skipped. The company name is already included
+    // in each department's `company` field so the UI can display it.
+    const seen = new Set<string>();
+    const deduped = departments.filter((d: any) => {
+      const key = `${(d.name || '').toLowerCase().trim()}|${(d.code || '').toLowerCase().trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     return NextResponse.json({
-      data: departments,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      data: deduped,
+      pagination: { page, limit, total: deduped.length, totalPages: Math.ceil(deduped.length / limit) || 0 },
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Departments GET error:', error);
