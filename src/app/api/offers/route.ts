@@ -126,8 +126,23 @@ export async function POST(request: Request) {
             { status: 400, headers: corsHeaders() }
           );
         }
+        if (!appRows[0]) {
+          // Application not found — block (fail safe, not fail open)
+          return NextResponse.json(
+            { error: 'The referenced job application was not found. Cannot create an offer for a non-existent application.' },
+            { status: 400, headers: corsHeaders() }
+          );
+        }
       } catch (e) {
-        console.warn('[Offers POST] JobApplication status check skipped:', e instanceof Error ? e.message : e);
+        // C-25 FIX: fail SAFE — block the offer creation if the status check
+        // query fails. Previously the catch block allowed the offer through
+        // (fail open), which let HR create offers on non-offered applications
+        // when the SQL query threw an error.
+        console.warn('[Offers POST] JobApplication status check FAILED — blocking offer creation (fail safe):', e instanceof Error ? e.message : e);
+        return NextResponse.json(
+          { error: 'Could not verify the candidate\'s application status. Please try again. If the problem persists, ensure the candidate\'s application exists and is in \'offered\' status.' },
+          { status: 400, headers: corsHeaders() }
+        );
       }
     }
 
