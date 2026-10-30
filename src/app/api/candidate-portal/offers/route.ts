@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
           `SELECT o."id", o."candidateName", o."candidateEmail", o."position", o."department",
                   o."offeredSalary", o."offeredCurrency", o."offeredCTC", o."joiningDate",
                   o."probationPeriod", o."reportingTo", o."status", o."generatedPdfUrl",
+                  o."offerLetterUrl",
                   o."accessToken", o."respondedAt", o."candidateSignature", o."candidateSignedAt",
                   o."responseNotes", o."signedPdfUrl", o."sentAt", o."createdAt"
              FROM "Offer" o

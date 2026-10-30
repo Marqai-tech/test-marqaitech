@@ -439,6 +439,10 @@ export const navSections: NavSection[] = [
 
       // ── Pipeline ──
       { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      // Main ATS page — candidate pipeline + schedule-interview modal
+      { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment' },
+      // HR Interview Management — view feedback, mark completed, HR decisions
+      { label: 'Interviews', href: '/interviews', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },

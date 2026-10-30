@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink, FiSend,
+  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink, FiSend, FiUpload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -17,6 +17,8 @@ function getAuthHeaders() {
 
 interface Offer {
   id: string; candidateName: string; candidateEmail: string; position: string; department: string | null; offeredSalary: number; offeredCurrency: string; joiningDate: string; probationPeriod: number; status: string; createdAt: string; accessToken?: string | null;
+  offerLetterUrl?: string | null;
+  signedPdfUrl?: string | null;
 }
 
 const offersTips = [
@@ -188,6 +190,50 @@ export default function OffersPage() {
       fetchOffers();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Action failed');
+    }
+  };
+
+  // C-21: Upload an HR-side offer-letter softcopy (PDF). The file is read as a
+  // base64 data URL and stored on offer.offerLetterUrl via the PATCH endpoint.
+  // Candidates download it from the candidate-portal offers page or the
+  // public /offer/[token] acceptance page after they e-sign.
+  const [uploadingOfferId, setUploadingOfferId] = useState<string | null>(null);
+  const handleUploadOfferLetter = async (offerId: string, file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Offer letter must be under 10 MB');
+      return;
+    }
+    setUploadingOfferId(offerId);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        try {
+          const res = await fetch(`/api/offers/${offerId}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ offerLetterUrl: dataUrl }),
+          });
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d.error || `Upload failed (HTTP ${res.status})`);
+          }
+          toast.success('Offer letter uploaded. Candidates will see the Download button.');
+          fetchOffers();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Upload failed');
+        } finally {
+          setUploadingOfferId(null);
+        }
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read the file');
+        setUploadingOfferId(null);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+      setUploadingOfferId(null);
     }
   };
 
@@ -382,7 +428,43 @@ export default function OffersPage() {
                           })()}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {/* C-21: Upload offer-letter softcopy (PDF).
+                                HR uploads the company's pre-prepared offer letter PDF; the
+                                candidate sees a Download button on the candidate portal + the
+                                /offer/[token] acceptance page after they e-sign. Hidden once
+                                the offer is accepted (no further edits accepted). */}
+                            {o.status !== 'accepted' && o.status !== 'rejected' && (
+                              <label
+                                className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 cursor-pointer ${o.offerLetterUrl ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 bg-slate-50 hover:bg-slate-100'} ${uploadingOfferId === o.id ? 'opacity-50 pointer-events-none' : ''}`}
+                                title={o.offerLetterUrl ? 'Offer letter uploaded — click to replace' : 'Upload the offer letter PDF (candidate will be able to download it)'}
+                              >
+                                <FiUpload className="w-3 h-3" />
+                                {uploadingOfferId === o.id ? 'Uploading…' : o.offerLetterUrl ? 'Replace PDF' : 'Upload PDF'}
+                                <input
+                                  type="file"
+                                  accept="application/pdf,image/*,.doc,.docx"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadOfferLetter(o.id, file);
+                                    e.target.value = ''; // reset so the same file can be re-selected
+                                  }}
+                                  disabled={uploadingOfferId === o.id}
+                                />
+                              </label>
+                            )}
+                            {o.offerLetterUrl && o.status !== 'accepted' && o.status !== 'rejected' && (
+                              <a
+                                href={o.offerLetterUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded hover:bg-sky-100 flex items-center gap-1"
+                                title="Preview the uploaded offer letter"
+                              >
+                                <FiFileText className="w-3 h-3" /> View
+                              </a>
+                            )}
                             {/* ─── Approval chain (draft → pending_approval → approved) ───
                                 After 'approved', the next action is to SEND the offer letter to
                                 the candidate — not just "Advance". We relabel the post-approval

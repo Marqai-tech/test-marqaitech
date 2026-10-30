@@ -37,6 +37,7 @@ interface OfferData {
   reportingTo?: string | null;
   status: string;
   generatedPdfUrl?: string | null;
+  offerLetterUrl?: string | null;  // HR-uploaded softcopy PDF (preferred over generatedPdfUrl)
   signedPdfUrl?: string | null;
   accessToken?: string | null;
   respondedAt?: string | null;
@@ -229,17 +230,26 @@ export default function CandidateOffersPage() {
                     )}
                   </div>
 
-                  {/* Download offer letter */}
-                  {offer.generatedPdfUrl && offer.generatedPdfUrl.startsWith('data:') && (
-                    <div className="px-6 pb-5 flex flex-wrap gap-2">
-                      <a href={offer.generatedPdfUrl} download={`offer-letter-${offer.position.replace(/\s+/g, '-').toLowerCase()}.html`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100">
-                        <FiDownload className="w-3.5 h-3.5" /> Download Offer Letter
-                      </a>
-                      <a href={offer.generatedPdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-50 text-slate-700 text-xs font-medium hover:bg-slate-100">
-                        <FiFileText className="w-3.5 h-3.5" /> View in New Tab
-                      </a>
-                    </div>
-                  )}
+                  {/* Download offer letter
+                      HR can upload a softcopy PDF that the candidate downloads
+                      here (offerLetterUrl). Falls back to the auto-generated
+                      HTML preview (generatedPdfUrl) when no PDF was uploaded. */}
+                  {(() => {
+                    const downloadUrl = offer.offerLetterUrl || offer.generatedPdfUrl;
+                    if (!downloadUrl || !downloadUrl.startsWith('data:')) return null;
+                    const isPdf = downloadUrl.startsWith('data:application/pdf');
+                    const filename = `offer-letter-${offer.position.replace(/\s+/g, '-').toLowerCase()}${isPdf ? '.pdf' : '.html'}`;
+                    return (
+                      <div className="px-6 pb-5 flex flex-wrap gap-2">
+                        <a href={downloadUrl} download={filename} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100">
+                          <FiDownload className="w-3.5 h-3.5" /> Download Offer Letter
+                        </a>
+                        <a href={downloadUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-50 text-slate-700 text-xs font-medium hover:bg-slate-100">
+                          <FiFileText className="w-3.5 h-3.5" /> View in New Tab
+                        </a>
+                      </div>
+                    );
+                  })()}
 
                   {/* Already-accepted/rejected state */}
                   {(isAccepted || isRejected) && (

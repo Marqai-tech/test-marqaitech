@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       position, department, offeredSalary, offeredCurrency,
       offeredCTC, salaryBreakdown, joiningDate, probationPeriod,
       reportingTo, jobApplicationId, // Task 167: link to JobApplication
+      offerLetterUrl, // HR-uploaded softcopy of the offer letter (PDF data URL or external URL)
     } = body;
 
     if (!candidateId || !candidateName || !candidateEmail || !position || !offeredSalary || !joiningDate) {
@@ -108,6 +109,16 @@ export async function POST(request: Request) {
     if (jobApplicationId) {
       try {
         await db.$executeRawUnsafe(`ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`);
+      } catch { /* already exists */ }
+    }
+
+    // C-21: ensure offerLetterUrl column exists on Offer at runtime. HR can
+    // upload a softcopy of the offer letter (PDF) when creating or updating
+    // an offer; the candidate downloads it from the portal / offer-acceptance
+    // page after they e-sign.
+    if (offerLetterUrl) {
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "offerLetterUrl" TEXT`);
       } catch { /* already exists */ }
     }
 
@@ -153,6 +164,20 @@ export async function POST(request: Request) {
           jobApplicationId, (offer as any).id,
         );
       } catch { /* non-fatal */ }
+    }
+
+    // C-21: if an offer-letter softcopy was uploaded, persist it on the row.
+    // Stored as a data URL (base64) or an external URL string.
+    if (offerLetterUrl && (offer as any).id) {
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "Offer" SET "offerLetterUrl" = $1 WHERE "id" = $2`,
+          String(offerLetterUrl).slice(0, 10 * 1024 * 1024), // cap at 10MB data URL
+          (offer as any).id,
+        );
+      } catch (e) {
+        console.warn('[Offers POST] Failed to persist offerLetterUrl:', e instanceof Error ? e.message : e);
+      }
     }
 
     await db.auditLog.create({

@@ -34,6 +34,26 @@ const PUBLIC_SELECT = {
   responseNotes: true,
 };
 
+/**
+ * C-21: After loading the offer via Prisma, fetch the runtime-added
+ * `offerLetterUrl` column (HR-uploaded softcopy PDF) via RAW SQL. The column
+ * is added with ALTER TABLE IF NOT EXISTS at runtime, so it's not in the
+ * Prisma schema. The candidate-portal offers page and this public acceptance
+ * page both use this field to render a Download button when HR has uploaded
+ * a softcopy.
+ */
+async function fetchOfferLetterUrl(db: unknown, offerId: string): Promise<string | null> {
+  try {
+    const rows = await (db as { $queryRawUnsafe: (sql: string, ...params: unknown[]) => Promise<Array<{ offerLetterUrl?: string | null }>> }).$queryRawUnsafe(
+      `SELECT "offerLetterUrl" FROM "Offer" WHERE "id" = $1 LIMIT 1`,
+      offerId,
+    );
+    return rows[0]?.offerLetterUrl || null;
+  } catch {
+    return null; // column may not exist yet
+  }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -59,6 +79,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       const company = await (db as any).company?.findFirst({ select: { name: true } });
       companyName = company?.name || null;
     } catch { /* ignore */ }
+
+    // C-21: surface the HR-uploaded offer-letter softcopy URL (if any) so the
+    // public acceptance page can render a Download button.
+    const offerLetterUrl = await fetchOfferLetterUrl(db, offer.id);
+    if (offerLetterUrl) {
+      (offer as { offerLetterUrl?: string | null }).offerLetterUrl = offerLetterUrl;
+    }
 
     return NextResponse.json({ offer, companyName }, { headers: corsHeaders() });
   } catch (error) {

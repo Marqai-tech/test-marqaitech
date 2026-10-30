@@ -64,7 +64,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, responseNotes, candidateName, candidateEmail, position, department, offeredSalary, offeredCurrency, joiningDate, probationPeriod } = body;
+    const { status, responseNotes, candidateName, candidateEmail, position, department, offeredSalary, offeredCurrency, joiningDate, probationPeriod, offerLetterUrl } = body;
 
     const existing = await db.offer.findUnique({ where: { id } });
     if (!existing) {
@@ -204,6 +204,25 @@ export async function PATCH(
     if (offeredCurrency !== undefined) updateData.offeredCurrency = offeredCurrency;
     if (joiningDate !== undefined) updateData.joiningDate = joiningDate ? new Date(joiningDate) : null;
     if (probationPeriod !== undefined) updateData.probationPeriod = probationPeriod;
+
+    // C-21: HR-uploaded offer-letter softcopy (PDF). Persist via RAW SQL so the
+    // column doesn't need to exist in the Prisma schema — we ADD COLUMN IF NOT
+    // EXISTS at runtime, mirroring how jobApplicationId is handled. This lets
+    // the candidate download the offer letter from the candidate portal /
+    // offer-acceptance page after they e-sign.
+    if (offerLetterUrl !== undefined) {
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "offerLetterUrl" TEXT`).catch(() => null);
+        // Cap at 10 MB to keep the data URL within Neon's TEXT column limit.
+        await db.$executeRawUnsafe(
+          `UPDATE "Offer" SET "offerLetterUrl" = $1 WHERE "id" = $2`,
+          offerLetterUrl ? String(offerLetterUrl).slice(0, 10 * 1024 * 1024) : null,
+          id,
+        );
+      } catch (e) {
+        console.warn('[Offer PATCH] Failed to persist offerLetterUrl:', e instanceof Error ? e.message : e);
+      }
+    }
 
     const offer = await db.offer.update({
       where: { id },
