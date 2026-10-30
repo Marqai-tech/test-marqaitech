@@ -578,6 +578,11 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     // CRITICAL FIX #2: employees must be able to reach My Interviews and Referrals
     '/my-interviews',
     '/referrals',
+    // HR Interview Management page — where HR can see all interviews, view
+    // panel member feedback, mark interviews as completed, and record the
+    // final HR decision. Allowed for all authenticated users (the page itself
+    // gates HR-only actions behind role checks server-side).
+    '/interviews',
   ];
   return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

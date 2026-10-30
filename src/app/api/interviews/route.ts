@@ -689,6 +689,112 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, message: 'Interview cancelled — panel members notified' }, { headers: corsHeaders() });
     }
 
+    // ─── Action: MARK COMPLETED ─────────────────────────────────────────
+    // HR marks the interview as completed. Optionally records attendance in
+    // the same call (so HR doesn't have to do two PATCH calls).
+    //
+    // Body: { id, action: 'mark_completed',
+    //         candidateAttendance?: 'attended' | 'late' | 'no_show' | 'reschedule_required',
+    //         panelAttendance?: [{userId, attendance: 'present' | 'late' | 'absent' | 'replacement_joined'}] }
+    //
+    // Sets interview.status = 'completed' AND records attendance (if provided).
+    // Sends a feedback-pending notification to every accepted panel member so
+    // they know the interview is done and they should submit their feedback.
+    if (action === 'mark_completed') {
+      if (!HR_ROLES.includes((decoded.role as string) || '')) {
+        return NextResponse.json({ error: 'Only HR/Admin can mark interviews as completed' }, { status: 403, headers: corsHeaders() });
+      }
+
+      // Read current interview (validate status — only 'scheduled' interviews can be completed)
+      const existingRows = await db.$queryRawUnsafe(
+        `SELECT "id", "status", "jobApplicationId", "date", "time", "type"
+         FROM "Interview" WHERE "id" = $1 LIMIT 1`, id,
+      // Use Record<string, unknown> instead of `any` — we read properties by name,
+      // which works on Record<string, unknown> when cast through unknown first.
+      ) as unknown as Array<{ id: string; status: string; jobApplicationId: string; date: string; time: string | null; type: string }>;
+      if (!existingRows[0]) {
+        return NextResponse.json({ error: 'Interview not found' }, { status: 404, headers: corsHeaders() });
+      }
+      if (existingRows[0].status === 'completed') {
+        return NextResponse.json({ error: 'Interview is already marked as completed' }, { status: 400, headers: corsHeaders() });
+      }
+      if (existingRows[0].status === 'cancelled') {
+        return NextResponse.json({ error: 'Cannot mark a cancelled interview as completed' }, { status: 400, headers: corsHeaders() });
+      }
+
+      // 1) Set interview status = 'completed'
+      await db.$executeRawUnsafe(
+        `UPDATE "Interview" SET "status" = 'completed', "updatedAt" = NOW() WHERE "id" = $1`,
+        id,
+      );
+
+      // 2) Optionally record candidate attendance
+      const { candidateAttendance, panelAttendance } = body;
+      const validCandidateAttendance = ['attended', 'late', 'no_show', 'reschedule_required'];
+      const validPanelAttendance = ['present', 'late', 'absent', 'replacement_joined'];
+
+      if (candidateAttendance && validCandidateAttendance.includes(candidateAttendance)) {
+        await db.$executeRawUnsafe(
+          `UPDATE "Interview" SET "candidateAttendance" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+          candidateAttendance, id,
+        );
+      }
+
+      // 3) Optionally record panel member attendance
+      if (panelAttendance && Array.isArray(panelAttendance)) {
+        for (const pa of panelAttendance) {
+          if (pa.userId && pa.attendance && validPanelAttendance.includes(pa.attendance)) {
+            try {
+              await db.$executeRawUnsafe(
+                `UPDATE "InterviewPanelMember" SET "attendance" = $1, "updatedAt" = NOW() WHERE "interviewId" = $2 AND "userId" = $3`,
+                pa.attendance, id, pa.userId,
+              );
+            } catch {}
+          }
+        }
+      }
+
+      // 4) Notify all accepted panel members to submit their feedback
+      try {
+        const panelRows = await db.$queryRawUnsafe(
+          `SELECT pm."userId", u."name", u."email"
+           FROM "InterviewPanelMember" pm
+           LEFT JOIN "User" u ON u."id" = pm."userId"
+           WHERE pm."interviewId" = $1 AND pm."status" = 'accepted'`,
+          id,
+        ) as unknown as Array<{ userId: string | null; name: string | null; email: string | null }>;
+
+        // Fetch candidate name + job title for the notification body
+        const detailRows = await db.$queryRawUnsafe(
+          `SELECT i."date", i."time", ja."candidateName", jp."title" AS "jobTitle"
+           FROM "Interview" i
+           LEFT JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+           LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+           WHERE i."id" = $1 LIMIT 1`,
+          id,
+        ) as unknown as Array<{ date: string | null; time: string | null; candidateName: string | null; jobTitle: string | null }>;
+        const detail = detailRows[0] || {};
+
+        for (const pm of panelRows) {
+          if (!pm.userId) continue;
+          await createNotification({
+            tenantId: decoded.tenantId as string, userId: pm.userId,
+            title: 'Interview Completed — Submit Feedback',
+            message: `The interview with ${detail.candidateName || 'the candidate'} (${detail.jobTitle || 'position'}) on ${detail.date ? new Date(detail.date).toLocaleDateString() : 'TBD'} at ${detail.time || 'TBD'} has been marked as completed. Please submit your feedback now.`,
+            type: 'info', category: 'recruitment', link: '/my-interviews',
+          }).catch(() => null);
+        }
+      } catch { /* non-fatal */ }
+
+      // 5) Audit log
+      await db.auditLog.create({
+        data: { userId: decoded.userId as string, action: 'INTERVIEW_MARKED_COMPLETED', module: 'recruitment',
+          details: `Marked interview ${id} as completed (candidate attendance: ${body.candidateAttendance || 'N/A'})` },
+      }).catch(() => null);
+
+      return NextResponse.json({ success: true, message: 'Interview marked as completed. Panel members notified to submit feedback.' }, { headers: corsHeaders() });
+    }
+
     // ─── Action: ATTENDANCE (pt 15) ───────────────────────────────────
     if (action === 'attendance') {
       if (!HR_ROLES.includes((decoded.role as string) || '')) {

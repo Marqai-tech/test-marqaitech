@@ -223,15 +223,17 @@ export async function POST(
           where: { tenantId: decoded.tenantId, role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active' },
           select: { id: true, email: true },
         }).catch(() => []);
-        // Avoid hr@gmail.com per user instruction
-        const safeHrUsers = hrUsers.filter(u => !u.email?.includes('hr@marqaitech'));
+        // NOTE: a previous band-aid filter (`!u.email?.includes('hr@marqaitech')`)
+        // silently excluded HR users whose email matched that pattern from
+        // feedback-submitted notifications. Removed per user instruction —
+        // every active HR user receives the feedback notification.
 
-        for (const hr of safeHrUsers) {
+        for (const hr of hrUsers) {
           await createNotification({
             tenantId: decoded.tenantId as string, userId: hr.id,
             title: 'Interview Feedback Submitted',
             message: `A panel member has submitted feedback for interview ${id}. Rating: ${rating || 'N/A'}, Recommendation: ${finalRecommendation}.`,
-            type: 'info', category: 'recruitment', link: '/recruitment',
+            type: 'info', category: 'recruitment', link: '/interviews',
           }).catch(() => null);
         }
       }
