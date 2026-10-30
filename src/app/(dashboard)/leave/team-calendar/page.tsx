@@ -287,9 +287,34 @@ function TeamLeaveCalendarContent() {
           >
             <FiChevronLeft className="w-4 h-4" />
           </button>
-          <div className="text-base font-semibold text-thb-text-primary min-w-[180px] text-center">
-            {MONTH_NAMES[month]} {year}
-          </div>
+          {/* Month + Year dropdown — user can jump to any month */}
+          <select
+            value={monthStr}
+            onChange={e => {
+              const [y, m] = e.target.value.split('-');
+              setYear(Number(y));
+              setMonth(Number(m) - 1);
+              setSelectedDay(null);
+            }}
+            className="px-3 py-2 text-sm font-semibold text-thb-text-primary border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 bg-white cursor-pointer min-w-[160px]"
+          >
+            {(() => {
+              // Generate 12 months back + 12 months forward from current month
+              const options: { label: string; value: string }[] = [];
+              const baseDate = new Date();
+              for (let i = -12; i <= 12; i++) {
+                const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
+                const val = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+                options.push({
+                  label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`,
+                  value: val,
+                });
+              }
+              return options.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ));
+            })()}
+          </select>
           <button
             onClick={goNextMonth}
             className="p-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 hover:border-violet-300 transition-all"
@@ -342,7 +367,7 @@ function TeamLeaveCalendarContent() {
       </div>
 
       {/* ── Main Layout: Calendar (left, 2/3) + Team Roster (right, 1/3) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
       {/* ── LEFT COLUMN: Calendar Grid + Selected Day Detail ── */}
       <div className="lg:col-span-2 space-y-6">
@@ -596,7 +621,7 @@ function TeamLeaveCalendarContent() {
 
       {/* ── Team Roster ── */}
       {data && data.teamSize > 0 ? (
-        <div className="thb-card p-5 sticky top-4">
+        <div className="thb-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
               <FiUsers className="w-4 h-4 text-violet-500" />
