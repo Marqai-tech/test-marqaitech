@@ -1287,7 +1287,7 @@ export default function LeaveRequestPanel({
         </div>
 
         {/* Selected date events — profile pic avatars */}
-        {selectedCalDate && selectedDateLeaves.length > 0 && (
+        {/* {selectedCalDate && selectedDateLeaves.length > 0 && (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
             <h4 className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
               <FiUser className="w-3.5 h-3.5" />
@@ -1329,7 +1329,7 @@ export default function LeaveRequestPanel({
               })}
             </ul>
           </div>
-        )}
+        )} */}
 
         {/* The duplicate "Team Alert" yellow card with profile pics was
             removed per user request (2026-10-29) — the inline AI
