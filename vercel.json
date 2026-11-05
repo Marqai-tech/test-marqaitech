@@ -5,17 +5,8 @@
   "buildCommand": "npx prisma generate && (command -v python3 >/dev/null 2>&1 && python3 scripts/gen-missing-tables.py || echo '[build] Skipping gen-missing-tables.py (python3 not available or failed)') && node scripts/schema-sync.js && npx next build",
   "crons": [
     {
-      "path": "/api/cron/policy-ack-reminders",
-      "schedule": "30 3 * * *"
-    },
-    {
-      "path": "/api/cron/leave-reminders",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/interview-reminders",
+      "path": "/api/cron/daily-tasks",
       "schedule": "0 9 * * *"
     }
   ]
 }
-
