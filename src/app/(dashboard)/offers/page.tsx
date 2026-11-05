@@ -39,9 +39,15 @@ const offersWorkflowSteps = [
   { step: 7, title: 'Initiate Onboarding', description: 'Start the onboarding process on acceptance' },
 ];
 
+// FIX(offer): numeric form fields are stored as strings so the user can
+// actually clear them. The previous implementation used
+//   onChange={e => parseFloat(e.target.value) || 0}
+// which meant every keystroke that produced NaN (i.e. clearing the field)
+// was replaced with 0 — making it impossible to empty the field.
+// Numbers are coerced back at submit time in handleSubmit().
 const initialForm = {
-  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'INR',
-  offeredCTC: 0, salaryBreakdown: '', joiningDate: '', probationPeriod: 90, reportingTo: '',
+  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: '' as string | number, offeredCurrency: 'INR',
+  offeredCTC: '' as string | number, salaryBreakdown: '', joiningDate: '', probationPeriod: '' as string | number, reportingTo: '',
 };
 
 function getStatusBadge(status: string) {
@@ -118,18 +124,20 @@ export default function OffersPage() {
   };
 
   const handleEdit = (item: Offer) => {
+    // FIX(offer): coerce stored numbers back to strings for the input
+    // value so the field can be cleared without reverting to 0/90.
     setForm({
       candidateName: item.candidateName || '',
       candidateEmail: item.candidateEmail || '',
       position: item.position || '',
       department: item.department || '',
-      offeredSalary: item.offeredSalary || 0,
+      offeredSalary: item.offeredSalary != null && item.offeredSalary !== 0 ? String(item.offeredSalary) : '',
       offeredCurrency: item.offeredCurrency || 'USD',
-      offeredCTC: (item as any).offeredCTC || 0,
+      offeredCTC: (item as any).offeredCTC != null && (item as any).offeredCTC !== 0 ? String((item as any).offeredCTC) : '',
       salaryBreakdown: (item as any).salaryBreakdown || '',
       reportingTo: (item as any).reportingTo || '',
       joiningDate: item.joiningDate ? new Date(item.joiningDate).toISOString().split('T')[0] : '',
-      probationPeriod: item.probationPeriod || 90,
+      probationPeriod: item.probationPeriod != null && item.probationPeriod !== 0 ? String(item.probationPeriod) : '',
     });
     setEditingId(item.id);
     setShowForm(true);
@@ -145,15 +153,33 @@ export default function OffersPage() {
 
   const handleSubmit = async () => {
     if (!form.candidateName || !form.position) { toast.error('Name and position are required'); return; }
+    // FIX(offer): coerce the string-backed numeric fields back to numbers
+    // before sending to the API. Empty string → 0 (or 90 for probation).
+    const payload = {
+      ...form,
+      offeredSalary: form.offeredSalary === '' ? 0 : Number(form.offeredSalary),
+      offeredCTC: form.offeredCTC === '' ? 0 : Number(form.offeredCTC),
+      probationPeriod: form.probationPeriod === '' ? 90 : Number(form.probationPeriod),
+    };
+    // Validation: salary must be a non-negative number when provided.
+    if (payload.offeredSalary !== 0 && (!Number.isFinite(payload.offeredSalary) || payload.offeredSalary < 0)) {
+      toast.error('Salary must be a non-negative number'); return;
+    }
+    if (payload.offeredCTC !== 0 && (!Number.isFinite(payload.offeredCTC) || payload.offeredCTC < 0)) {
+      toast.error('Annual CTC must be a non-negative number'); return;
+    }
+    if (payload.probationPeriod !== 0 && (!Number.isFinite(payload.probationPeriod) || payload.probationPeriod < 0)) {
+      toast.error('Probation period must be a non-negative number'); return;
+    }
     setSubmitting(true);
     try {
       if (editingId) {
-        const res = await fetch(`/api/offers/${editingId}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(form) });
+        const res = await fetch(`/api/offers/${editingId}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Offer updated');
       } else {
         // GAP FIX #6: Pass jobApplicationId when creating offer (links to recruitment pipeline)
-        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...form, candidateId: jobApplicationId || `candidate-${Date.now()}`, jobApplicationId: jobApplicationId || undefined }) });
+        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...payload, candidateId: jobApplicationId || `candidate-${Date.now()}`, jobApplicationId: jobApplicationId || undefined }) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Offer created');
       }
@@ -321,7 +347,9 @@ export default function OffersPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary <span className="text-red-500 font-bold">*</span></label>
-                <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0" />
+                {/* FIX(offer): raw string value so the field can be cleared.
+                    Validation + coercion happens at submit. */}
+                <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
@@ -337,11 +365,11 @@ export default function OffersPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation (days)</label>
-                <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: parseInt(e.target.value) || 90 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="90" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Annual CTC</label>
-                <input type="number" value={form.offeredCTC} onChange={(e) => setForm({ ...form, offeredCTC: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0 (optional)" />
+                <input type="number" value={form.offeredCTC} onChange={(e) => setForm({ ...form, offeredCTC: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0 (optional)" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Breakdown</label>
