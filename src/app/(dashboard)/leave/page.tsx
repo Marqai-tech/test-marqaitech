@@ -216,6 +216,7 @@ function LeavePageContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLeaveType, setFilterLeaveType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterAppliedBy, setFilterAppliedBy] = useState('');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
   // Holidays overlay (REQ-LVE-03)
@@ -605,6 +606,8 @@ function LeavePageContent() {
     }
     if (filterLeaveType && lr.leaveType?.id !== filterLeaveType) return false;
     if (filterStatus && lr.status !== filterStatus) return false;
+    if (filterAppliedBy === 'self' && lr.employee?.userId !== user?.id) return false;
+    if (filterAppliedBy === 'hr' && lr.employee?.userId === user?.id) return false;
     if (dateRange.from && new Date(lr.startDate) < new Date(dateRange.from)) return false;
     if (dateRange.to && new Date(lr.endDate) > new Date(dateRange.to)) return false;
     return true;
@@ -910,6 +913,13 @@ function LeavePageContent() {
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
                 <option value="cancelled">Cancelled</option>
+              </select>
+
+              {/* Applied By Filter */}
+              <select value={filterAppliedBy} onChange={e => setFilterAppliedBy(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-green-500/20">
+                <option value="">Applied By</option>
+                <option value="self">Self (Employee)</option>
+                <option value="hr">HR / Admin</option>
               </select>
 
               {/* Search */}

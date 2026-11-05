@@ -211,6 +211,7 @@ export async function GET(request: Request) {
               lastName: true,
               employeeId: true,
               avatar: true,
+              userId: true,
             },
           },
           leaveType: true,
