@@ -244,10 +244,12 @@ function LeaveTypeForm({ editItem, onClose, onSaved }: { editItem: any | null; o
   );
 }
 
-/* ═══════════ LEAVE POLICIES TAB ═══════════ */
+/* ═══════════ LEAVE POLICIES TAB (inline, no popup) ═══════════ */
 function LeavePoliciesTab() {
   const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
   const { scopeQuery } = useCompanyContextStore();
 
   const fetchPolicies = useCallback(async () => {
@@ -262,78 +264,287 @@ function LeavePoliciesTab() {
 
   useEffect(() => { fetchPolicies(); }, [fetchPolicies]);
 
+  const handleDelete = async (item: any) => {
+    if (!confirm(`Delete policy "${item.name}"?`)) return;
+    try {
+      const res = await fetch(`/api/leave-policy-rules?id=${item.id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Policy deleted'); fetchPolicies();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      {loading ? <div className="p-12 text-center text-sm text-gray-400">Loading policies...</div> :
-       policies.length === 0 ? <div className="p-12 text-center"><FiAlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" /><p className="text-sm text-gray-500">No policies yet. Create one from Leave Settings.</p></div> :
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b"><tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Policy Name</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Scope</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-            </tr></thead>
-            <tbody className="divide-y divide-gray-100">
-              {policies.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{p.employmentType || 'all'}{p.branchId ? ' · branch' : ''}{p.departmentId ? ' · dept' : ''}</td>
-                  <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">{p.priority}</span></td>
-                  <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{p.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="space-y-4">
+      {/* Tip */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex items-start gap-2">
+        <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div><strong>Tip:</strong> A Leave Policy defines the entitlement rules (quota, accrual, carry-forward, probation, encashment) for a specific employee group. Create one policy per employee category (e.g. "Full-Time Standard", "Contract Limited").</div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <button onClick={fetchPolicies} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+          <button onClick={() => { setEditItem(null); setShowForm(true); }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+            <FiPlus className="w-4 h-4" /> Add Policy
+          </button>
         </div>
-      }
+      </div>
+
+      {showForm ? (
+        <PolicyForm editItem={editItem} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); fetchPolicies(); }} />
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {loading ? <div className="p-12 text-center text-sm text-gray-400">Loading...</div> :
+           policies.length === 0 ? <div className="p-12 text-center"><FiAlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" /><p className="text-sm text-gray-500">No policies yet. Click "Add Policy" to create one.</p></div> :
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b"><tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Policy Name</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Scope</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">CF</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Encash</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
+                </tr></thead>
+                <tbody className="divide-y divide-gray-100">
+                  {policies.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{p.employmentType || 'all'}{p.branchId ? ' · branch' : ''}{p.departmentId ? ' · dept' : ''}</td>
+                      <td className="px-4 py-3 text-xs">{p.carryForwardGlobal ? <span className="text-green-600">Yes</span> : <span className="text-gray-400">No</span>}</td>
+                      <td className="px-4 py-3 text-xs">{p.encashmentAllowed ? <span className="text-green-600">Yes</span> : <span className="text-gray-400">No</span>}</td>
+                      <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">{p.priority}</span></td>
+                      <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{p.status}</span></td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => { setEditItem(p); setShowForm(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"><FiEdit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(p)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded ml-1"><FiTrash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      )}
     </div>
   );
 }
 
-/* ═══════════ MAPPING TAB ═══════════ */
+/* ── Inline Policy Form ── */
+function PolicyForm({ editItem, onClose, onSaved }: { editItem: any | null; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState(''); const [employmentType, setEmploymentType] = useState('all');
+  const [carryForward, setCarryForward] = useState(true); const [maxCF, setMaxCF] = useState('5');
+  const [encashment, setEncashment] = useState(false); const [sandwich, setSandwich] = useState(true);
+  const [probation, setProbation] = useState(true); const [probationMonths, setProbationMonths] = useState('6');
+  const [priority, setPriority] = useState('0'); const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (editItem) {
+      setName(editItem.name); setEmploymentType(editItem.employmentType || 'all');
+      setCarryForward(editItem.carryForwardGlobal ?? true); setMaxCF(String(editItem.maxCarryForwardDays || '5'));
+      setEncashment(editItem.encashmentAllowed ?? false); setSandwich(editItem.sandwichRuleEnabled ?? true);
+      setProbation(editItem.probationRestriction ?? true); setProbationMonths(String(editItem.probationMonths || '6'));
+      setPriority(String(editItem.priority || '0'));
+    }
+  }, [editItem]);
+
+  const handleSave = async () => {
+    if (!name.trim()) { toast.error('Name required'); return; }
+    setSaving(true);
+    try {
+      const payload = { name: name.trim(), employmentType, carryForwardGlobal: carryForward, maxCarryForwardDays: Number(maxCF) || 0, encashmentAllowed: encashment, sandwichRuleEnabled: sandwich, probationRestriction: probation, probationMonths: Number(probationMonths) || 6, priority: Number(priority) || 0 };
+      const url = editItem ? '/api/leave-policy-rules' : '/api/leave-policy-rules';
+      const method = editItem ? 'PUT' : 'POST';
+      const body = editItem ? JSON.stringify({ id: editItem.id, ...payload }) : JSON.stringify(payload);
+      const res = await fetch(url, { method, headers: getAuthHeaders(), body });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(editItem ? 'Updated' : 'Created'); onSaved();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-slate-100">
+        <h3 className="text-sm font-bold text-slate-900">{editItem ? 'Edit Policy' : 'Add Leave Policy'}</h3>
+        <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded"><FiX className="w-5 h-5" /></button>
+      </div>
+      <div className="p-5 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Policy Name *</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Full-Time Standard" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label><select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Max Carry Forward</label><input type="number" min={0} value={maxCF} onChange={(e) => setMaxCF(e.target.value)} disabled={!carryForward} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" /></div>
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Probation Months</label><input type="number" min={0} value={probationMonths} onChange={(e) => setProbationMonths(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Priority</label><input type="number" value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {([['Carry Forward', carryForward, setCarryForward], ['Sandwich Rule', sandwich, setSandwich], ['Probation Restriction', probation, setProbation], ['Encashment Allowed', encashment, setEncashment]] as [string, boolean, (v: boolean) => void][]).map(([label, checked, setter]) => (
+            <label key={label} className="flex items-center gap-2 p-2.5 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+              <button type="button" onClick={() => setter(!checked)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}><span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`} /></button>
+              <span className="text-xs font-medium text-gray-800">{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
+        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+        <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 inline-flex items-center gap-2">{saving && <FiRefreshCw className="w-4 h-4 animate-spin" />}{editItem ? 'Save Changes' : 'Create Policy'}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════ MAPPING TAB (inline, no popup) ═══════════ */
 function LeaveMappingTab() {
   const [mappings, setMappings] = useState<any[]>([]);
+  const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
+  const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
   const { scopeQuery } = useCompanyContextStore();
 
-  const fetchMappings = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/leave-type-policy-mappings', { headers: getAuthHeaders() });
-      const data = await res.json();
-      setMappings(data.data || []);
-    } catch { toast.error('Failed to load mappings'); }
+      const [mRes, ltRes, pRes] = await Promise.all([
+        fetch('/api/leave-type-policy-mappings', { headers: getAuthHeaders() }),
+        fetch('/api/leave-types', { headers: getAuthHeaders() }),
+        fetch('/api/leave-policy-rules', { headers: getAuthHeaders() }),
+      ]);
+      const mData = await mRes.json(); const ltData = await ltRes.json(); const pData = await pRes.json();
+      setMappings(mData.data || []);
+      setLeaveTypes((ltData.data || []).filter((t: any) => t.status === 'active'));
+      setPolicies((pData.data || []).filter((p: any) => p.status === 'active'));
+    } catch { toast.error('Failed to load'); }
     finally { setLoading(false); }
   }, [scopeQuery]);
 
-  useEffect(() => { fetchMappings(); }, [fetchMappings]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const handleDelete = async (item: any) => {
+    if (!confirm(`Delete mapping "${item.leaveTypeName}" → "${item.policyRuleName}"?`)) return;
+    try {
+      const res = await fetch(`/api/leave-type-policy-mappings/${item.id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Mapping deleted'); fetchAll();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+  };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      {loading ? <div className="p-12 text-center text-sm text-gray-400">Loading mappings...</div> :
-       mappings.length === 0 ? <div className="p-12 text-center"><FiAlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" /><p className="text-sm text-gray-500">No mappings yet. Create leave types and policies first.</p></div> :
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b"><tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Leave Type</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Policy</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-            </tr></thead>
-            <tbody className="divide-y divide-gray-100">
-              {mappings.map((m) => (
-                <tr key={m.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{m.leaveTypeName || '—'}</td>
-                  <td className="px-4 py-3 text-gray-700">{m.policyRuleName || '—'}</td>
-                  <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">{m.priority}</span></td>
-                  <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${m.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{m.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="space-y-4">
+      {/* Tip */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex items-start gap-2">
+        <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div><strong>Tip:</strong> Mapping connects a Leave Type to a Policy. When an employee applies for a leave type, the system uses the mapped policy to validate rules and calculate balance. Higher priority wins when multiple mappings match the same employee.</div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <button onClick={fetchAll} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+          <button onClick={() => { setEditItem(null); setShowForm(true); }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+            <FiPlus className="w-4 h-4" /> Add Mapping
+          </button>
         </div>
-      }
+      </div>
+
+      {showForm ? (
+        <MappingForm editItem={editItem} leaveTypes={leaveTypes} policies={policies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); fetchAll(); }} />
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {loading ? <div className="p-12 text-center text-sm text-gray-400">Loading...</div> :
+           mappings.length === 0 ? <div className="p-12 text-center"><FiAlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" /><p className="text-sm text-gray-500">No mappings yet. Create leave types and policies first, then map them.</p></div> :
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b"><tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Leave Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Policy</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
+                </tr></thead>
+                <tbody className="divide-y divide-gray-100">
+                  {mappings.map((m) => (
+                    <tr key={m.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{m.leaveTypeName || '—'} <span className="text-xs text-gray-400 font-mono">({m.leaveTypeCode})</span></td>
+                      <td className="px-4 py-3 text-gray-700">{m.policyRuleName || '—'}</td>
+                      <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${m.priority >= 80 ? 'bg-purple-50 text-purple-700' : m.priority >= 40 ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{m.priority}</span></td>
+                      <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${m.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{m.status}</span></td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => { setEditItem(m); setShowForm(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"><FiEdit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(m)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded ml-1"><FiTrash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Inline Mapping Form ── */
+function MappingForm({ editItem, leaveTypes, policies, onClose, onSaved }: { editItem: any | null; leaveTypes: any[]; policies: any[]; onClose: () => void; onSaved: () => void }) {
+  const [leaveTypeId, setLeaveTypeId] = useState(''); const [policyRuleId, setPolicyRuleId] = useState('');
+  const [priority, setPriority] = useState(10); const [employmentType, setEmploymentType] = useState('all');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (editItem) { setLeaveTypeId(editItem.leaveTypeId); setPolicyRuleId(editItem.policyRuleId); setPriority(editItem.priority); setEmploymentType(editItem.employmentType || 'all'); }
+  }, [editItem]);
+
+  const handleSave = async () => {
+    if (!leaveTypeId) { toast.error('Select a leave type'); return; }
+    if (!policyRuleId) { toast.error('Select a policy'); return; }
+    setSaving(true);
+    try {
+      const payload = { leaveTypeId, policyRuleId, priority: Number(priority), employmentType };
+      const url = editItem ? `/api/leave-type-policy-mappings/${editItem.id}` : '/api/leave-type-policy-mappings';
+      const method = editItem ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(editItem ? 'Updated' : 'Created'); onSaved();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-slate-100">
+        <h3 className="text-sm font-bold text-slate-900">{editItem ? 'Edit Mapping' : 'Add Type–Policy Mapping'}</h3>
+        <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded"><FiX className="w-5 h-5" /></button>
+      </div>
+      <div className="p-5 space-y-4">
+        {leaveTypes.length === 0 || policies.length === 0 ? (
+          <div className="text-center py-8 text-sm text-gray-500"><FiAlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />You need at least one leave type and one policy first.<div className="mt-2 text-xs">Leave types: {leaveTypes.length} · Policies: {policies.length}</div></div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Leave Type *</label><select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)} disabled={!!editItem} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"><option value="">— Select —</option>{leaveTypes.map((lt: any) => <option key={lt.id} value={lt.id}>{lt.name} ({lt.code})</option>)}</select></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Leave Policy *</label><select value={policyRuleId} onChange={(e) => setPolicyRuleId(e.target.value)} disabled={!!editItem} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"><option value="">— Select —</option>{policies.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Priority</label><select value={priority} onChange={(e) => setPriority(Number(e.target.value))} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value={100}>100 — Employee-specific</option><option value={80}>80 — Branch + Department</option><option value={60}>60 — Branch only</option><option value={40}>40 — Department only</option><option value={20}>20 — Employment-type</option><option value={10}>10 — All employees</option></select><p className="text-xs text-gray-500 mt-1">Higher priority wins when multiple mappings match.</p></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label><select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
+        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+        <button onClick={handleSave} disabled={saving || leaveTypes.length === 0 || policies.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 inline-flex items-center gap-2">{saving && <FiRefreshCw className="w-4 h-4 animate-spin" />}{editItem ? 'Save Changes' : 'Create Mapping'}</button>
+      </div>
     </div>
   );
 }
