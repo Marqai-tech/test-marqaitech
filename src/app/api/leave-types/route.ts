@@ -56,13 +56,9 @@ export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    }
-    // RBAC: only admins can create leave types
-    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
-      return NextResponse.json({ error: 'Admin only — you do not have permission to create leave types' }, { status: 403, headers: corsHeaders() });
-    }
+    if (!auth) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() }); }
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) { return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() }); }
+    try { await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "calendarColor" TEXT`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "documentRequirement" TEXT NOT NULL DEFAULT 'never'`); } catch {}
 
     const body = await req.json();
     const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward, companyId,
@@ -91,13 +87,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Annual quota (defaultDays) must be a number between 0 and 366' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Ensure new LeaveType columns exist (calendarColor, halfDayAllowed, documentRequirement)
-    try {
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "calendarColor" TEXT`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "documentRequirement" TEXT NOT NULL DEFAULT 'never'`);
-    } catch { /* ignore */ }
-
     // Resolve companyId: from body, from user's scope, or from ownCompanyId
     let resolvedCompanyId = companyId;
     if (!resolvedCompanyId) {
@@ -113,21 +102,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ─── Fallback: auto-resolve to first active company if still no companyId ───
-    if (!resolvedCompanyId) {
-      try {
-        const firstCompany = await db.company.findFirst({
-          where: { status: 'active' },
-          select: { id: true },
-          orderBy: { createdAt: 'asc' },
-        });
-        if (firstCompany) resolvedCompanyId = firstCompany.id;
-      } catch { /* ignore */ }
-    }
-
-    if (!resolvedCompanyId) {
-      return NextResponse.json({ error: 'Company ID is required. Please select a company from the switcher, or ensure at least one company exists in the tenant.' }, { status: 400, headers: corsHeaders() });
-    }
+    if (!resolvedCompanyId) { try { const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } }); if (fc) resolvedCompanyId = fc.id; } catch {} }
+    if (!resolvedCompanyId) { return NextResponse.json({ error: 'Company ID required. Ensure a company exists.' }, { status: 400, headers: corsHeaders() }); }
 
     // ─── Check for duplicate code within the same company ───
     const existingByCode = await db.leaveType.findFirst({

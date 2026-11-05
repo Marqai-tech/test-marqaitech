@@ -219,7 +219,6 @@ function LeavePageContent() {
   // AI collaborative check (REQ-LVE-04)
   const [aiWarning, setAiWarning] = useState<string | null>(null);
   const [aiWarningLoading, setAiWarningLoading] = useState(false);
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
   /* Fetch data */
   const fetchData = useCallback(async () => {
@@ -235,8 +234,6 @@ function LeavePageContent() {
       // full employee directory for HR users.
       const [leaveRes, empRes] = await Promise.all([
         fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}${viewParamStr}`, { headers }),
-        // Use the user's email to find their employee record. The auth store
-        // may also have user.employee.id — use that as a fallback.
         fetch(`/api/employees?limit=10&search=${encodeURIComponent(user?.email || '')}&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
       ]);
       if (leaveRes.ok) {
@@ -245,12 +242,8 @@ function LeavePageContent() {
       }
       if (empRes.ok) {
         const empData = await empRes.json();
-        // Find the EXACT employee matching the logged-in user.
-        // Priority: 1) user.employee.id from auth store, 2) email match, 3) userId match
         const myEmp = empData.employees?.find((e: { id: string; email: string; userId?: string }) =>
-          (user?.employee?.id && e.id === user.employee.id) ||
-          e.email === user?.email ||
-          e.userId === user?.id
+          (user?.employee?.id && e.id === user.employee.id) || e.email === user?.email || e.userId === user?.id
         ) || null;
         const ltMap = new Map<string, LeaveType>();
         (empData.employees || []).forEach((e: Employee) => {
@@ -380,7 +373,6 @@ function LeavePageContent() {
     setShowForm(false);
     setForm(initialForm);
     setAiWarning(null);
-    setAttachmentFile(null);
   };
 
   /* Export Leave Data */
@@ -528,31 +520,7 @@ function LeavePageContent() {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       const d = await res.json().catch(() => ({}));
-      const leaveRequestId = d.leaveRequest?.id;
-
-      // Upload attachment if one was selected (optional)
-      if (attachmentFile && leaveRequestId) {
-        try {
-          const formData = new FormData();
-          formData.append('file', attachmentFile);
-          formData.append('leaveRequestId', leaveRequestId);
-          formData.append('fileName', attachmentFile.name);
-          formData.append('mimeType', attachmentFile.type);
-          formData.append('fileSize', String(attachmentFile.size));
-          const isMedical = /sick|medical/i.test(leaveTypes.find(lt => lt.id === form.leaveTypeId)?.name || '');
-          formData.append('isMedical', isMedical ? 'true' : 'false');
-          await fetch('/api/leave/attachments', {
-            method: 'POST',
-            headers: { ...(typeof window !== 'undefined' && localStorage.getItem('tb_token') ? { Authorization: `Bearer ${localStorage.getItem('tb_token')}` } : {}) },
-            body: formData,
-          }).catch(e => console.warn('Attachment upload failed (non-fatal):', e));
-        } catch (e) {
-          console.warn('Attachment upload failed (non-fatal):', e);
-        }
-      }
-
       toast.success(d.days !== undefined ? `Leave request submitted successfully (${d.days} working day(s) counted)` : 'Leave request submitted successfully');
-      setAttachmentFile(null);
       handleCancelForm();
       fetchData();
     } catch (err: unknown) {
@@ -794,7 +762,7 @@ function LeavePageContent() {
         </div>
       )}
 
-      {/* ── Apply Leave Form (Inline) + Team Calendar sidebar ── */}
+      {/* ── Apply Leave Form (Inline) ── */}
       {showForm && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white rounded-xl border border-green-200 shadow-sm overflow-hidden">
@@ -831,7 +799,8 @@ function LeavePageContent() {
                     Duration: {(() => {
                       const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
                       const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
-                      return form.halfDay ? `${workingDays} working day(s) — 0.5 day for half day` : `${workingDays} working day(s)`;
+                      const chargeable = form.halfDay ? Math.max(0.5, workingDays * 0.5) : workingDays;
+                      return form.halfDay ? `${chargeable} day(s) (${workingDays} working days × 0.5)` : `${chargeable} working day(s)`;
                     })()}
                   </span>
                   {/* Remaining days from balance */}
@@ -873,42 +842,6 @@ function LeavePageContent() {
                 <label className="block text-xs font-medium text-slate-600 mb-1">Reason</label>
                 <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Provide a reason for your leave..." />
               </div>
-              {/* Supporting Document (optional) */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Supporting Document <span className="text-slate-400 font-normal">(optional)</span></label>
-                <div className="border-2 border-dashed border-slate-200 rounded-lg p-3 hover:border-green-300 transition-colors">
-                  <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors text-xs font-medium">
-                    <FiFileText className="w-3.5 h-3.5" /> Choose File
-                    <input type="file" onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const allowed = /\.(png|jpg|jpeg|gif|pdf|doc|docx)$/i;
-                      if (!allowed.test(file.name)) {
-                        toast.error('Only PNG, JPG, PDF, DOC, DOCX files allowed.');
-                        e.target.value = '';
-                        return;
-                      }
-                      if (file.size > 5 * 1024 * 1024) {
-                        toast.error('File too large. Maximum 5MB.');
-                        e.target.value = '';
-                        return;
-                      }
-                      setAttachmentFile(file);
-                      toast.success(`Selected: ${file.name}`);
-                    }} className="hidden" accept=".png,.jpg,.jpeg,.gif,.pdf,.doc,.docx" />
-                  </label>
-                  {attachmentFile && (
-                    <div className="mt-2 flex items-center justify-between bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
-                      <span className="text-xs text-green-700 font-medium truncate flex-1">{attachmentFile.name}</span>
-                      <span className="text-xs text-green-500 ml-2">{(attachmentFile.size / 1024).toFixed(0)} KB</span>
-                      <button type="button" onClick={() => { setAttachmentFile(null); toast.success('Attachment removed'); }} className="ml-2 text-red-400 hover:text-red-600">
-                        <FiX className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                  {!attachmentFile && <p className="text-xs text-slate-400 mt-1.5">PNG, JPG, PDF, DOC, DOCX (max 5MB). Required only for sick leave {'>'} 2 days.</p>}
-                </div>
-              </div>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20" />
                 <span className="text-sm text-slate-700">Half Day Leave</span>
@@ -941,17 +874,7 @@ function LeavePageContent() {
             endDate={form.endDate}
             scopeQuery={scopeQuery()}
             employeeId={employee?.id}
-            onDateSelect={(date) => {
-              setForm(prev => {
-                if (!prev.startDate || (prev.startDate && prev.endDate)) {
-                  return { ...prev, startDate: date, endDate: '' };
-                }
-                if (date < prev.startDate) {
-                  return { ...prev, startDate: date, endDate: prev.startDate };
-                }
-                return { ...prev, endDate: date };
-              });
-            }}
+            onDateSelect={(date) => { setForm(prev => { if (!prev.startDate || (prev.startDate && prev.endDate)) return { ...prev, startDate: date, endDate: '' }; if (date < prev.startDate) return { ...prev, startDate: date, endDate: prev.startDate }; return { ...prev, endDate: date }; }); }}
           />
         </div>
         </div>
@@ -1047,9 +970,7 @@ function LeavePageContent() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(fullName)} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
-                            {fullName.charAt(0).toUpperCase()}
-                          </div>
+                          {(() => { const av = lr.employee?.avatar; if (av) { let url = av; if (av.startsWith('/api/employees/')) { const t = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null; if (t) url += `${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(t)}`; } return <img src={url} alt={fullName} className="w-9 h-9 rounded-full object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />; } return <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(fullName)} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>{fullName.charAt(0).toUpperCase()}</div>; })()}
                           <div>
                             <p className="text-sm font-medium text-slate-800">{fullName}</p>
                             <p className="text-xs text-slate-400">{dept}</p>
@@ -1072,7 +993,9 @@ function LeavePageContent() {
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600">{formatDate(lr.startDate)}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">{formatDate(lr.endDate)}</td>
-                      <td className="px-4 py-3 text-sm text-slate-700 font-medium">{getDaysBetween(lr.startDate, lr.endDate)} Days</td>
+                      <td className="px-4 py-3 text-sm text-slate-700 font-medium">
+                        {(() => { const hs = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0])); const wd = getDaysBetween(lr.startDate, lr.endDate, hs); const d = lr.halfDay ? Math.max(0.5, wd * 0.5) : wd; return `${d} Day${d !== 1 ? 's' : ''}${lr.halfDay ? ' (Half)' : ''}`; })()}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg} ${badge.text}`}>
                           {badge.label}

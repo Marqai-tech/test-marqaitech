@@ -16,45 +16,34 @@ import {
   WorkingDayWalk,
 } from '@/lib/working-days';
 import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
-import { resolveLeavePolicy, validateLeaveAgainstPolicy } from '@/lib/leave-policy-resolver';
-import { appendLedgerEntry, ensureLeaveLedgerTable, ensureLeaveModuleSchemaColumns } from '@/lib/leave-ledger';
 
 /**
  * Deduct leave balance for an approved leave request.
  * Shared helper so every approval path (AI auto-approve, short-leave
  * auto-approve, manual PATCH approve) deducts the balance consistently.
  *
- * ENHANCED: now appends a 'consume' entry to the LeaveLedger inside a
- * transaction, providing a full audit trail. The LeaveBalance running
- * totals are updated atomically.
- *
  * BUG FIX: the caller now passes the validated working-day count
  * (`days`) so weekends/holidays are never deducted from the balance.
  */
 async function deductLeaveBalance(
   db: any,
-  params: { employeeId: string; leaveTypeId: string; startDate: string | Date; endDate: string | Date; halfDay?: boolean | null; requestId?: string; days?: number; approverUserId?: string },
+  params: { employeeId: string; leaveTypeId: string; startDate: string | Date; endDate: string | Date; halfDay?: boolean | null; requestId?: string; days?: number },
 ): Promise<{ deducted: boolean; days: number; error?: string }> {
-  const { employeeId, leaveTypeId, startDate, halfDay, requestId, approverUserId } = params;
+  const { employeeId, leaveTypeId, startDate, endDate, halfDay, requestId } = params;
   const start = new Date(startDate);
-  const daysDiff = Math.ceil((new Date(params.endDate).getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const end = new Date(endDate);
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   const days = params.days !== undefined ? params.days : (halfDay ? 0.5 : daysDiff);
   const year = start.getFullYear();
   try {
-    // Use the ledger helper which updates LeaveBalance + appends a ledger
-    // entry atomically. This provides the audit trail required by §7 spec.
-    await appendLedgerEntry(db, {
-      employeeId,
-      leaveTypeId,
-      year,
-      transactionType: 'consume',
-      days: -Math.abs(days), // negative = debit
-      sourceType: 'leave_request',
-      sourceId: requestId,
-      reason: `Leave approved (${days} day(s))`,
-      createdBy: approverUserId,
-      leaveRequestId: requestId,
+    const result = await db.leaveBalance.updateMany({
+      where: { employeeId, leaveTypeId, year },
+      data: { used: { increment: days }, remaining: { decrement: days } },
     });
+    if (result.count === 0) {
+      console.warn(`[leave] No LeaveBalance row found for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — balance not deducted (request ${requestId || 'n/a'})`);
+      return { deducted: false, days, error: 'No LeaveBalance row found for this employee + leave type + year' };
+    }
     return { deducted: true, days };
   } catch (e) {
     console.warn(`[leave] Balance deduction failed (non-fatal) for request ${requestId || 'n/a'}:`, e);
@@ -77,13 +66,7 @@ export async function OPTIONS() {
 export async function GET(request: Request) {
   const db = await getDb(request);
   try {
-    // Ensure new LeaveRequest columns exist (chargeableDays, reversedAt, cancellationReason)
-    // These were added to the Prisma schema but may not exist in the tenant DB.
-    try {
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "chargeableDays" DOUBLE PRECISION`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3)`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "cancellationReason" TEXT`);
-    } catch { /* ignore — columns may already exist */ }
+    try { await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "chargeableDays" DOUBLE PRECISION`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3)`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "cancellationReason" TEXT`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "calendarColor" TEXT`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "documentRequirement" TEXT NOT NULL DEFAULT 'never'`); } catch {}
     const scope = await resolveCompanyScope(request);
     if (!scope) {
       return NextResponse.json(
@@ -119,11 +102,7 @@ export async function GET(request: Request) {
     // check for it and force the self-scope lookup even for admin roles,
     // so the admin sees only THEIR OWN leave applications (not all employees').
     const viewSelf = searchParams.get('view') === 'self';
-    // view=team → returns leaves of SAME-DEPARTMENT colleagues (for the
-    // team leave calendar in the Apply Leave form). This bypasses the
-    // self-scope restriction so employees can see their team's leaves.
-    const viewTeam = searchParams.get('view') === 'team';
-    const effectiveScope = viewSelf ? 'self' : (viewTeam ? 'team' : scope.scope);
+    const effectiveScope = viewSelf ? 'self' : scope.scope;
 
     // ─── QA Dashboard fix: "Employees on Leave" metric ───
     // onLeaveToday=1 → count DISTINCT employees with an APPROVED leave record
@@ -196,37 +175,8 @@ export async function GET(request: Request) {
     } else if (scope.companyId) {
       // Admin with a specific company selected via CompanySwitcher
       where.employee = { companyId: scope.companyId };
-    } else if (effectiveScope === 'team') {
-      // view=team → find the logged-in employee's department and return
-      // same-department colleagues' leaves (excluding the employee's own).
-      // Used by the LeaveRequestPanel's team leave calendar.
-      const selfEmp = await db.employee.findFirst({
-        where: { userId: scope.userId, status: 'active' },
-        select: { id: true, departmentId: true },
-      }).catch(() => null);
-      if (selfEmp?.departmentId) {
-        where.employee = { departmentId: selfEmp.departmentId, status: 'active' };
-        where.employeeId = { not: selfEmp.id }; // exclude own leaves
-      } else {
-        // No department — return nothing (can't determine "team")
-        where.employeeId = '__none__';
-      }
     }
-    // scope === 'all' && no companyId → admin with no company selected.
-    // Fallback: use the first active company so the admin sees real data
-    // instead of an empty list.
-    if (effectiveScope === 'all' && !scope.companyId && !where.employee && !where.OR && !where.employeeId) {
-      try {
-        const firstCompany = await db.company.findFirst({
-          where: { status: 'active' },
-          select: { id: true },
-          orderBy: { createdAt: 'asc' },
-        });
-        if (firstCompany) {
-          where.employee = { companyId: firstCompany.id };
-        }
-      } catch { /* ignore — will return empty */ }
-    }
+    if (effectiveScope === 'all' && !scope.companyId && !where.employee && !where.OR && !where.employeeId) { try { const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } }); if (fc) where.employee = { companyId: fc.id }; } catch {} }
 
     // Apply additional filters on top of company scope
     if (status) where.status = status;
@@ -295,17 +245,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const db = await getDb(request);
   try {
-    // Ensure new columns exist before any Prisma operation
-    try {
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "chargeableDays" DOUBLE PRECISION`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3)`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "cancellationReason" TEXT`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "calendarColor" TEXT`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true`);
-      await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "documentRequirement" TEXT NOT NULL DEFAULT 'never'`);
-      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "LeaveLedger" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "leaveTypeId" TEXT NOT NULL, "year" INTEGER NOT NULL, "transactionType" TEXT NOT NULL, "days" DOUBLE PRECISION NOT NULL, "balanceBefore" DOUBLE PRECISION NOT NULL DEFAULT 0, "balanceAfter" DOUBLE PRECISION NOT NULL DEFAULT 0, "sourceType" TEXT, "sourceId" TEXT, "reason" TEXT, "createdBy" TEXT, "leaveRequestId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "LeaveLedger_pkey" PRIMARY KEY ("id"))`);
-    } catch { /* ignore */ }
-
     const scope = await resolveCompanyScope(request);
     if (!scope) {
       return NextResponse.json(
@@ -516,10 +455,7 @@ export async function POST(request: Request) {
     const weekendDow = await getWeekendDays(db, scope.tenantId, targetEmployee.companyId);
     const holidaysInRange = await getHolidaysInRange(db, parsedStart, parsedEnd);
     const holidayDaySet = new Set(holidaysInRange.map(h => h.date));
-    // Determine sandwich rule: check both the leave type and the resolved policy.
-    // If either has sandwichRuleEnabled=true, the sandwich rule applies.
-    const sandwichEnabled = !!(leaveType.sandwichRuleEnabled);
-    const walk: WorkingDayWalk = computeWorkingDays(parsedStart, parsedEnd, weekendDow, holidayDaySet, sandwichEnabled);
+    const walk: WorkingDayWalk = computeWorkingDays(parsedStart, parsedEnd, weekendDow, holidayDaySet);
 
     // Reject if there are NO working days in the range at all
     // (means the entire leave is on weekends + holidays — likely a mistake)
@@ -570,33 +506,10 @@ export async function POST(request: Request) {
     let availableDays: number | null = null;
     let balanceIsTracked = false;
     try {
-      // 1. Try Prisma query for the current year's balance
-      let balanceRow = await db.leaveBalance.findFirst({
+      const balanceRow = await db.leaveBalance.findFirst({
         where: { employeeId, leaveTypeId, year: parsedStart.getUTCFullYear() },
         select: { remaining: true, total: true },
-      }).catch((e: any) => {
-        console.error('[leave] BUG_067: Prisma balance query failed:', e?.message || e);
-        return null;
       });
-
-      // 2. If Prisma failed (adapter issue), try raw SQL fallback
-      if (!balanceRow) {
-        try {
-          const rows: any[] = await db.$queryRawUnsafe(
-            `SELECT "remaining", "total" FROM "LeaveBalance"
-             WHERE "employeeId" = $1 AND "leaveTypeId" = $2 AND "year" = $3
-             LIMIT 1`,
-            employeeId, leaveTypeId, parsedStart.getUTCFullYear(),
-          );
-          if (rows && rows.length > 0) {
-            balanceRow = { remaining: Number(rows[0].remaining), total: Number(rows[0].total) };
-            console.log('[leave] BUG_067: Raw SQL fallback succeeded — remaining:', balanceRow.remaining);
-          }
-        } catch (sqlErr: any) {
-          console.error('[leave] BUG_067: Raw SQL balance query also failed:', sqlErr?.message);
-        }
-      }
-
       if (balanceRow) {
         balanceIsTracked = true;
         availableDays = balanceRow.remaining;
@@ -607,40 +520,8 @@ export async function POST(request: Request) {
         balanceIsTracked = true;
         availableDays = leaveType.defaultDays;
       }
-
-      // 3. BUG_067: subtract pending leave days to get EFFECTIVE balance
-      // The UI shows remaining - pending = effective. If an employee has
-      // 9 days remaining but 9 days of pending requests, effective = 0.
-      if (balanceIsTracked && availableDays !== null && availableDays > 0) {
-        try {
-          const pendingRequests = await db.leaveRequest.findMany({
-            where: {
-              employeeId,
-              leaveTypeId,
-              status: 'pending',
-              startDate: { gte: new Date(parsedStart.getUTCFullYear(), 0, 1) },
-              endDate: { lte: new Date(parsedStart.getUTCFullYear(), 11, 31, 23, 59, 59) },
-            },
-            select: { startDate: true, endDate: true, halfDay: true },
-          });
-          let pendingDays = 0;
-          for (const pr of pendingRequests) {
-            const prWalk = computeWorkingDays(
-              new Date(pr.startDate), new Date(pr.endDate),
-              weekendDow, holidayDaySet,
-            );
-            pendingDays += leaveDaysConsumed(prWalk, pr.halfDay);
-          }
-          if (pendingDays > 0) {
-            availableDays = Math.max(0, availableDays - pendingDays);
-            console.log(`[leave] BUG_067: Effective balance after pending deduction: ${availableDays} (raw=${balanceRow?.remaining ?? leaveType.defaultDays}, pending=${pendingDays})`);
-          }
-        } catch (pendingErr: any) {
-          console.warn('[leave] BUG_067: Pending deduction check failed (non-fatal):', pendingErr?.message);
-        }
-      }
     } catch (balErr) {
-      console.error('[leave] Balance check failed (non-fatal):', balErr);
+      console.warn('[leave] Balance check failed (non-fatal):', balErr);
     }
 
     // BUG_062: determine if this is an unpaid / LOP leave type.
@@ -668,81 +549,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // ─── Leave Configuration Enhancement: policy-based validation ───
-    // Resolve the applicable LeavePolicyRule for this employee + leave type
-    // and enforce all configured restrictions (min advance notice, max
-    // consecutive days, half-day eligibility, attachment requirement,
-    // probation restriction, etc.). The server is the source of truth.
-    //
-    // Non-fatal: if policy resolution fails (e.g. no policy configured),
-    // we skip these checks and fall back to the legacy validations above.
-    try {
-      const policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId });
-      if (policy.source !== 'none') {
-        // Determine probation status
-        let isProbation = false;
-        try {
-          const emp = await db.employee.findUnique({
-            where: { id: employeeId },
-            select: { employeeStatus: true, dateOfJoining: true },
-          });
-          if (emp?.employeeStatus && /probation/i.test(emp.employeeStatus)) {
-            isProbation = true;
-          } else if (emp?.dateOfJoining) {
-            const monthsSinceJoining = (Date.now() - new Date(emp.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24 * 30);
-            const probationMonths = policy.effective.probationMonths || 6;
-            if (monthsSinceJoining < probationMonths && policy.effective.probationRestriction) {
-              isProbation = true;
-            }
-          }
-        } catch { /* ignore */ }
-
-        // Check attachment presence (best-effort — attachments are normally
-        // uploaded AFTER leave creation via /api/leave/attachments, so we
-        // check body.attachments for pre-uploaded metadata).
-        const hasAttachment = !!body.attachments?.length;
-
-        const policyErrors = validateLeaveAgainstPolicy({
-          startDate: startDayStr,
-          endDate: endDayStr,
-          halfDay: halfDay || false,
-          hasAttachment,
-          days: requestedDays,
-          today: todayStr,
-          isProbation,
-        }, policy);
-
-        // Filter out the attachment-required error if attachments are uploaded
-        // separately (the frontend prompts the user to upload after creation).
-        // We keep all other policy errors as hard blocks.
-        const hardErrors = policyErrors.filter(e => !e.includes('Supporting document'));
-
-        if (hardErrors.length > 0) {
-          return NextResponse.json({
-            error: hardErrors.join(' '),
-            code: 'POLICY_VIOLATION',
-            policySource: policy.source,
-            policyRuleName: policy.policyRuleName,
-          }, { status: 400, headers: corsHeaders() });
-        }
-
-        // overlappingLeaveAllowed check (separate because it needs a DB query)
-        if (policy.effective.overlappingLeaveAllowed === false) {
-          // The duplicate-overlap check above already rejects overlapping
-          // leaves for the SAME employee. This policy flag extends that to
-          // reject overlaps with OTHER employees' leaves IF the policy
-          // explicitly disables overlapping. For now we only enforce the
-          // same-employee overlap (already done above). Cross-employee
-          // overlap is handled by the collaborative-check feature.
-        }
-      }
-    } catch (policyErr) {
-      console.warn('[leave] Policy resolution failed (non-fatal, skipping policy validation):', policyErr);
-    }
-
-    // Ensure new schema columns exist before writing to them
-    await ensureLeaveModuleSchemaColumns(db);
-
     const leaveRequest = await db.leaveRequest.create({
       data: {
         employeeId,
@@ -754,7 +560,6 @@ export async function POST(request: Request) {
         halfDaySlot: halfDaySlot || null,
         aiCollaborativeWarning,
         status: 'pending',
-        chargeableDays: requestedDays,
       },
       include: {
         employee: {
@@ -940,7 +745,7 @@ export async function POST(request: Request) {
       const hrAdmins = await db.user.findMany({
         where: {
           tenantId: scope.tenantId,
-          role: { in: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
+          role: { in: ['super_admin', 'tenant_admin', 'admin'] },
         },
       });
 
@@ -1048,7 +853,7 @@ export async function DELETE(request: Request) {
     if (!scope) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
-    if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(scope.role)) {
+    if (!['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(scope.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
     }
     const body = await request.json().catch(() => ({}));
