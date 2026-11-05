@@ -498,18 +498,41 @@ function LeaveMappingTab() {
 function MappingForm({ editItem, leaveTypes, policies, onClose, onSaved }: { editItem: any | null; leaveTypes: any[]; policies: any[]; onClose: () => void; onSaved: () => void }) {
   const [leaveTypeId, setLeaveTypeId] = useState(''); const [policyRuleId, setPolicyRuleId] = useState('');
   const [priority, setPriority] = useState(10); const [employmentType, setEmploymentType] = useState('all');
+  const [branchId, setBranchId] = useState(''); const [departmentId, setDepartmentId] = useState('');
+  const [genderApplicability, setGenderApplicability] = useState('all');
+  const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
+  const [empSearch, setEmpSearch] = useState('');
+  const [branches, setBranches] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (editItem) { setLeaveTypeId(editItem.leaveTypeId); setPolicyRuleId(editItem.policyRuleId); setPriority(editItem.priority); setEmploymentType(editItem.employmentType || 'all'); }
+    const h = getAuthHeaders();
+    fetch('/api/branches', { headers: h }).then(r => r.json()).then(d => setBranches(d.data || d || [])).catch(() => {});
+    fetch('/api/departments', { headers: h }).then(r => r.json()).then(d => setDepartments(d.data || d || [])).catch(() => {});
+    fetch('/api/employees?limit=500', { headers: h }).then(r => r.json()).then(d => setEmployees((d.employees || []).map((e:any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, employeeId: e.employeeId }))).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (editItem) {
+      setLeaveTypeId(editItem.leaveTypeId); setPolicyRuleId(editItem.policyRuleId); setPriority(editItem.priority);
+      setEmploymentType(editItem.employmentType || 'all'); setBranchId(editItem.branchId || '');
+      setDepartmentId(editItem.departmentId || ''); setGenderApplicability(editItem.genderApplicability || 'all');
+      try { setSelectedEmpIds(editItem.employeeIds ? JSON.parse(editItem.employeeIds) : []); } catch { setSelectedEmpIds([]); }
+    }
   }, [editItem]);
+
+  const filteredDepts = branchId ? departments.filter((d: any) => d.branchId === branchId) : departments;
+  const filteredEmps = employees.filter(e => { if (!empSearch) return false; const n = e.name.toLowerCase(); return n.includes(empSearch.toLowerCase()) || (e.employeeId || '').toLowerCase().includes(empSearch.toLowerCase()); });
+  const toggleEmp = (id: string) => setSelectedEmpIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const handleSave = async () => {
     if (!leaveTypeId) { toast.error('Select a leave type'); return; }
     if (!policyRuleId) { toast.error('Select a policy'); return; }
     setSaving(true);
     try {
-      const payload = { leaveTypeId, policyRuleId, priority: Number(priority), employmentType };
+      const payload = { leaveTypeId, policyRuleId, priority: Number(priority), employmentType, branchId: branchId || null, departmentId: departmentId || null, genderApplicability, employeeIds: selectedEmpIds.length > 0 ? JSON.stringify(selectedEmpIds) : null };
       const url = editItem ? `/api/leave-type-policy-mappings/${editItem.id}` : '/api/leave-type-policy-mappings';
       const method = editItem ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
@@ -530,13 +553,55 @@ function MappingForm({ editItem, leaveTypes, policies, onClose, onSaved }: { edi
           <div className="text-center py-8 text-sm text-gray-500"><FiAlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />You need at least one leave type and one policy first.<div className="mt-2 text-xs">Leave types: {leaveTypes.length} · Policies: {policies.length}</div></div>
         ) : (
           <>
+            {/* Leave Type + Policy */}
             <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Leave Type *</label><select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)} disabled={!!editItem} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"><option value="">— Select —</option>{leaveTypes.map((lt: any) => <option key={lt.id} value={lt.id}>{lt.name} ({lt.code})</option>)}</select></div>
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Leave Policy *</label><select value={policyRuleId} onChange={(e) => setPolicyRuleId(e.target.value)} disabled={!!editItem} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"><option value="">— Select —</option>{policies.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Priority</label><select value={priority} onChange={(e) => setPriority(Number(e.target.value))} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value={100}>100 — Employee-specific</option><option value={80}>80 — Branch + Department</option><option value={60}>60 — Branch only</option><option value={40}>40 — Department only</option><option value={20}>20 — Employment-type</option><option value={10}>10 — All employees</option></select><p className="text-xs text-gray-500 mt-1">Higher priority wins when multiple mappings match.</p></div>
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label><select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+
+            {/* Priority */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Priority (conflict resolution)</label><select value={priority} onChange={(e) => setPriority(Number(e.target.value))} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value={100}>100 — Employee-specific</option><option value={80}>80 — Branch + Department</option><option value={60}>60 — Branch only</option><option value={40}>40 — Department only</option><option value={20}>20 — Employment-type</option><option value={10}>10 — All employees</option></select><p className="text-xs text-gray-500 mt-1">Higher priority wins when multiple mappings match the same employee.</p></div>
+
+            {/* Applicability scope */}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-700 mb-3">Applicability Scope <span className="text-gray-400 font-normal">(optional — leave empty for all employees)</span></p>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Branch</label><select value={branchId} onChange={(e) => { setBranchId(e.target.value); setDepartmentId(''); }} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="">All Branches</option>{branches.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Department {branchId ? '(filtered by branch)' : ''}</label><select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="">All Departments</option>{filteredDepts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label><select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Gender</label><select value={genderApplicability} onChange={(e) => setGenderApplicability(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">All Genders</option><option value="male">Male only</option><option value="female">Female only</option></select><p className="text-[10px] text-gray-500 mt-0.5">Use Female only for Maternity, Male only for Paternity</p></div>
+              </div>
+            </div>
+
+            {/* Specific employees */}
+            <div className="border-t border-gray-100 pt-4">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Specific Employees <span className="text-gray-400 font-normal">(optional — this leave will be applicable ONLY to selected employees)</span></label>
+              {selectedEmpIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedEmpIds.map(id => { const emp = employees.find(e => e.id === id); if (!emp) return null; return (
+                    <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">{emp.name}<button type="button" onClick={() => toggleEmp(id)} className="text-blue-400 hover:text-blue-600"><FiX className="w-3 h-3" /></button></span>
+                  ); })}
+                </div>
+              )}
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input type="text" value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder="Search employees by name or ID to assign this leave..." className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+              </div>
+              {empSearch && (
+                <div className="mt-1.5 border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+                  {filteredEmps.slice(0, 20).map(emp => (
+                    <button key={emp.id} type="button" onClick={() => { toggleEmp(emp.id); setEmpSearch(''); }} className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 ${selectedEmpIds.includes(emp.id) ? 'bg-blue-50/50' : ''}`}>
+                      <span className="font-medium text-gray-700">{emp.name}</span>
+                      <span className="text-gray-400">{emp.employeeId || ''}</span>
+                    </button>
+                  ))}
+                  {filteredEmps.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">No employees found</p>}
+                  {filteredEmps.length > 20 && <p className="px-3 py-1.5 text-xs text-gray-400 text-center">Showing 20 of {filteredEmps.length} — refine your search</p>}
+                </div>
+              )}
+              {selectedEmpIds.length > 0 && <p className="text-[10px] text-blue-600 mt-1.5">✓ This leave type will be applicable ONLY to {selectedEmpIds.length} selected employee(s). All other employees will NOT see this leave type.</p>}
             </div>
           </>
         )}
