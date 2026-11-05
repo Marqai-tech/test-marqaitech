@@ -7,6 +7,8 @@ import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Dashboard } from './dashboard';
 import { Recruitment } from './recruitment';
+import { ScheduleInterview } from './schedule-interview';
+import { TalentPool } from './talent-pool';
 import { Employees } from './employees';
 import { Attendance } from './attendance';
 import { Leave } from './leave';
@@ -36,6 +38,8 @@ import { TrialRequests } from './trial-requests';
 const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   dashboard: Dashboard,
   recruitment: Recruitment,
+  schedule_interview: ScheduleInterview,
+  talent_pool: TalentPool,
   employees: Employees,
   attendance: Attendance,
   leave: Leave,

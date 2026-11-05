@@ -123,6 +123,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { jobApplicationId, type, date, time, duration, location, meetingUrl, panelMemberIds, panelMemberEmails } = body;
 
+    // FIX: destructure spec fields up here too — the dynamic-round computation
+    // and the active-interview guard below both reference `round`, so we need
+    // it in scope before the original destructuring further down.
+    const { round, mode, confirmationDeadline, feedbackDeadline, instructions, evaluationAreas, panelLeadId } = body;
+
     if (!jobApplicationId || !date) {
       return NextResponse.json({ error: 'Missing required fields: jobApplicationId, date' }, { status: 400, headers: corsHeaders() });
     }
@@ -149,6 +154,72 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'An interview is already scheduled for this candidate on the same date and time' }, { status: 409, headers: corsHeaders() });
       }
     } catch {}
+
+    // GUARD: prevent double-booking per candidate — block creation of a NEW
+    // interview if this candidate already has an ACTIVE interview (status IN
+    // 'scheduled', 'rescheduled'). The previous interview must be cancelled
+    // or marked completed before a new round can be scheduled.
+    //
+    // Bypass: callers may pass `force=true` to override this guard — used by
+    // the "Schedule Next Round" HR decision flow when the previous interview
+    // was just marked completed in the same request batch.
+    try {
+      const activeInterviews = await db.$queryRawUnsafe(
+        `SELECT "id", "type", "date", "time", "round", "status"
+         FROM "Interview"
+         WHERE "jobApplicationId" = $1
+           AND "status" IN ('scheduled', 'rescheduled')
+         ORDER BY "date" DESC, "createdAt" DESC
+         LIMIT 1`,
+        jobApplicationId,
+      ) as any[];
+      const forceOverride = body.force === true || body.bypassActiveCheck === true;
+      if (activeInterviews.length > 0 && !forceOverride) {
+        const ai = activeInterviews[0];
+        const roundLabel = ai.round && Number(ai.round) > 1 ? ` (Round ${ai.round})` : '';
+        const whenStr = ai.date
+          ? new Date(ai.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + (ai.time ? ` at ${ai.time}` : '')
+          : 'upcoming';
+        return NextResponse.json({
+          error: `This candidate already has an active ${ai.type || 'interview'}${roundLabel} scheduled for ${whenStr}. Cancel or complete it before scheduling a new one.`,
+          code: 'ACTIVE_INTERVIEW_EXISTS',
+          activeInterviewId: ai.id,
+          activeInterviewStatus: ai.status,
+          activeInterviewRound: ai.round,
+        }, { status: 409, headers: corsHeaders() });
+      }
+    } catch (e) {
+      // Non-fatal: schema drift or DB error — log but continue
+      console.warn('[Interviews POST] active-interview guard check failed:', e instanceof Error ? e.message : e);
+    }
+
+    // C-22: DYNAMIC INTERVIEW ROUND NUMBER — compute the round for this
+    // application as MAX(existing round) + 1, ignoring cancelled interviews.
+    // The client may explicitly pass `round` for override (used by the HR
+    // "Schedule Next Round" decision flow), but the default behaviour is to
+    // auto-compute so HR never has to think about round numbering.
+    let computedRound: number;
+    if (round !== undefined && round !== null && String(round).trim() !== '') {
+      computedRound = Number(round);
+    } else {
+      try {
+        const maxRoundRows = await db.$queryRawUnsafe(
+          `SELECT COALESCE(MAX("round"), 0) AS "maxRound"
+           FROM "Interview"
+           WHERE "jobApplicationId" = $1
+             AND "status" NOT IN ('cancelled', 'no_show')`,
+          jobApplicationId,
+        ) as any[];
+        const maxRound = Number(maxRoundRows[0]?.maxRound || 0);
+        computedRound = maxRound + 1;
+      } catch {
+        // Schema drift fallback — round column may not exist yet
+        computedRound = 1;
+      }
+    }
+    if (!Number.isFinite(computedRound) || computedRound < 1) {
+      computedRound = 1;
+    }
 
     // Validate interview type
     const validTypes = ['ai', 'technical', 'hr', 'offline_panel'];
@@ -264,8 +335,10 @@ export async function POST(req: NextRequest) {
       try { await db.$executeRawUnsafe(sql); } catch {}
     }
 
-    // Extract spec fields from body (round, mode, confirmationDeadline, feedbackDeadline, instructions, evaluationAreas, panelLeadId)
-    const { round, mode, confirmationDeadline, feedbackDeadline, instructions, evaluationAreas, panelLeadId } = body;
+    // Extract spec fields from body (round, mode, confirmationDeadline,
+    // feedbackDeadline, instructions, evaluationAreas, panelLeadId) — already
+    // destructured near the top of the handler so the dynamic-round logic can
+    // see `round`.
 
     // Create the interview via RAW SQL (schema-drift safe)
     const interviewId = `int-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -276,7 +349,7 @@ export async function POST(req: NextRequest) {
         interviewId, jobApplicationId, interviewType,
         new Date(date), time || null, duration || null,
         location || null, meetingUrl || null, interviewerStr || null,
-        round ? Number(round) : 1, mode || 'online',
+        computedRound, mode || 'online',
         confirmationDeadline ? new Date(confirmationDeadline) : null,
         feedbackDeadline ? new Date(feedbackDeadline) : null,
         instructions || null, evaluationAreas || null,
@@ -483,6 +556,10 @@ export async function POST(req: NextRequest) {
       date, time, duration, location, meetingUrl,
       panelMembers: panelMembers,
       status: 'scheduled',
+      // FIX: surface the computed round so the client can render the correct
+      // "Round N" badge without re-fetching.
+      round: computedRound,
+      roundComputed: true,
     }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Interviews POST error:', error);
