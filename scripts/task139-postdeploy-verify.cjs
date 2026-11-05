@@ -104,7 +104,7 @@ async function api(base, path, { method = 'GET', token, body } = {}) {
   }
 
   console.log('6. MARQAI TENANT — org stats + profile parity');
-  const hrLogin = await api(MARQAI, '/api/auth/login', { method: 'POST', body: { email: 'hr@marqaitech.com', password: 'MarqAI@2026' } });
+  const hrLogin = await api(MARQAI, '/api/auth/login', { method: 'POST', body: { email: 'hr@gmail.com', password: 'MarqAI@2026' } });
   ok('marqai hr login', hrLogin.status === 200 && hrLogin.json?.token, `HTTP ${hrLogin.status}`);
   if (hrLogin.json?.token) {
     const mStats = await api(MARQAI, '/api/employees/org-stats', { token: hrLogin.json.token });

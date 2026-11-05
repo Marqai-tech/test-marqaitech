@@ -64,11 +64,26 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, responseNotes, candidateName, candidateEmail, position, department, offeredSalary, offeredCurrency, joiningDate, probationPeriod } = body;
+    const { status, responseNotes, candidateName, candidateEmail, position, department, offeredSalary, offeredCurrency, joiningDate, probationPeriod, offerLetterUrl } = body;
 
     const existing = await db.offer.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Phase 13 fix: Prevent editing core offer fields after approval or send
+    const lockedStatuses = ['sent', 'accepted', 'rejected'];
+    if (lockedStatuses.includes(existing.status)) {
+      // Only allow status changes (accepted/rejected/withdrawn) after send
+      // Block editing of candidate, salary, position, joining date
+      if (candidateName !== undefined || candidateEmail !== undefined || position !== undefined ||
+          department !== undefined || offeredSalary !== undefined || offeredCurrency !== undefined ||
+          joiningDate !== undefined || probationPeriod !== undefined) {
+        return NextResponse.json(
+          { error: `Offer is already ${existing.status}. Core fields (candidate, salary, position, joining date) cannot be edited after the offer is sent.` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
     }
 
     const updateData: Record<string, unknown> = {};
@@ -79,6 +94,24 @@ export async function PATCH(
       if (!validStatuses.includes(status)) {
         return NextResponse.json(
           { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      // CRITICAL FIX #6: Enforce offer approval before send — cannot send an
+      // unapproved offer. This prevents bypassing the approval chain.
+      if (status === 'sent' && existing.status !== 'approved') {
+        return NextResponse.json(
+          { error: 'Offer must be approved before it can be sent to the candidate. Current status: ' + existing.status },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      // CRITICAL FIX #6: Prevent status regression — once sent/accepted, cannot go back to draft
+      const lockedStatuses = ['sent', 'accepted', 'rejected'];
+      if (lockedStatuses.includes(existing.status) && !['accepted', 'rejected', 'withdrawn'].includes(status)) {
+        return NextResponse.json(
+          { error: `Offer is already ${existing.status} and cannot be changed to ${status}` },
           { status: 400, headers: corsHeaders() }
         );
       }
@@ -172,6 +205,25 @@ export async function PATCH(
     if (joiningDate !== undefined) updateData.joiningDate = joiningDate ? new Date(joiningDate) : null;
     if (probationPeriod !== undefined) updateData.probationPeriod = probationPeriod;
 
+    // C-21: HR-uploaded offer-letter softcopy (PDF). Persist via RAW SQL so the
+    // column doesn't need to exist in the Prisma schema — we ADD COLUMN IF NOT
+    // EXISTS at runtime, mirroring how jobApplicationId is handled. This lets
+    // the candidate download the offer letter from the candidate portal /
+    // offer-acceptance page after they e-sign.
+    if (offerLetterUrl !== undefined) {
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "offerLetterUrl" TEXT`).catch(() => null);
+        // Cap at 10 MB to keep the data URL within Neon's TEXT column limit.
+        await db.$executeRawUnsafe(
+          `UPDATE "Offer" SET "offerLetterUrl" = $1 WHERE "id" = $2`,
+          offerLetterUrl ? String(offerLetterUrl).slice(0, 10 * 1024 * 1024) : null,
+          id,
+        );
+      } catch (e) {
+        console.warn('[Offer PATCH] Failed to persist offerLetterUrl:', e instanceof Error ? e.message : e);
+      }
+    }
+
     const offer = await db.offer.update({
       where: { id },
       data: updateData,
@@ -216,46 +268,111 @@ export async function PATCH(
 
       const notificationInfo = notificationMap[effectiveStatus];
       if (notificationInfo) {
-        // Notify the HR admin / approvers
-        const hrAdmins = await db.user.findMany({
-          where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin', 'ceo'] } },
-        });
-
-        for (const admin of hrAdmins) {
-          await createNotification({
-            tenantId: decoded.tenantId as string,
-            userId: admin.id,
-            title: notificationInfo.title,
-            message: notificationInfo.message,
-            type: notificationInfo.type,
-            category: 'recruitment',
-            link: `/offers/${id}`,
+        // GAP FIX #5: Use dispatchNotification for offer status changes instead of
+        // raw createNotification — this enables email + delivery log + template rendering.
+        // For 'pending_approval', use the recruitment.offer.approval_required event template.
+        try {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          const hrAdmins = await db.user.findMany({
+            where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin', 'hr_admin', 'company_hr_admin', 'admin'] }, status: 'active' },
+            select: { id: true, email: true },
           });
-        }
+          // Avoid hr@gmail.com per user instruction
+          const safeAdmins = hrAdmins.filter(a => !a.email?.includes('hr@marqaitech'));
+
+          if (safeAdmins.length > 0) {
+            // Phase 16 fix: Correct notification event mapping
+            // approved → recruitment.offer.approval_required is wrong; use no special template for approved
+            // accepted → recruitment.offer.accepted
+            // rejected/withdrawn → recruitment.offer.declined
+            const eventKeyMap: Record<string, string> = {
+              pending_approval: 'recruitment.offer.approval_required',
+              accepted: 'recruitment.offer.accepted',
+              rejected: 'recruitment.offer.declined',
+              withdrawn: 'recruitment.offer.declined',
+            };
+            const eventKey = eventKeyMap[effectiveStatus];
+
+            // Only dispatch via Notification Center for known event keys
+            if (eventKey) {
+              await dispatchNotification({
+                tenantId: decoded.tenantId as string,
+                module: 'recruitment',
+                eventKey,
+                recipients: safeAdmins.map(a => ({ userId: a.id })),
+                vars: {
+                  Candidate_Name: existing.candidateName || '',
+                  Position: existing.position || '',
+                  Reason: notificationInfo.message,
+                },
+                entity: { type: 'offer', id: existing.id, link: '/offers' },
+              }).catch(() => null);
+            }
+          }
+        } catch { /* non-fatal — fall back to raw notification below */ }
       }
 
       // ─── Notification Center (Task 36): multi-channel offer lifecycle events ───
       try {
-        const { dispatchNotification, resolveRoleRecipients, resolveBaseUrl } = await import('@/lib/notification-center');
+        const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
         const tenantIdOff = decoded.tenantId as string;
-        const originOff = request.headers.get('origin') || undefined;
+        // C-26 FIX: Use the request URL origin directly (NOT resolveBaseUrl).
+        // resolveBaseUrl checks NEXT_PUBLIC_APP_URL / NOTIFICATION_BASE_URL
+        // env vars FIRST, before the origin — those env vars point to
+        // test-marqaitech.vercel.app (without -ontt) → 404 for the candidate.
+        const requestOrigin = (() => { try { return new URL(request.url).origin; } catch { return ''; } })();
 
         if (effectiveStatus === 'sent' && tenantIdOff) {
-          // Offer letter available → candidate email with the accept link
-          const offerUrl = offer.accessToken ? `${resolveBaseUrl(originOff)}/offer/${offer.accessToken}` : '';
-          await dispatchNotification({
-            tenantId: tenantIdOff,
-            module: 'recruitment',
-            eventKey: 'recruitment.offer.issued',
-            recipients: offer.candidateEmail ? [{ email: offer.candidateEmail, name: offer.candidateName }] : [],
-            vars: {
-              Candidate_Name: offer.candidateName || '',
-              Position: offer.position || '',
-              Offer_Url: offerUrl,
-            },
-            suppressInApp: true,
-            origin: originOff,
-          });
+          // C-24+C-26 FIX: Offer letter email — sendEmail() direct (smart routing)
+          // + use request origin for the offer link (not env-var-based resolveBaseUrl).
+          const offerUrl = offer.accessToken ? `${requestOrigin}/offer/${offer.accessToken}` : '';
+          if (offer.candidateEmail) {
+            try {
+              const { sendEmail } = await import('@/lib/email');
+              const { sendTenantEmail } = await import('@/lib/notification-channels');
+              const subject = `Your Offer Letter — ${offer.candidateName} — ${offer.position}`;
+              const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#10b981;">Your Offer Letter is Ready</h2>
+                <p>Dear ${offer.candidateName},</p>
+                <p>We are pleased to share your offer letter for the <strong>${offer.position}</strong> position.</p>
+                <p>Please review and respond to your offer by clicking the link below:</p>
+                <p><a href="${offerUrl}" style="display:inline-block;padding:12px 28px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View & Respond to Offer</a></p>
+                <p>This link is secure and unique to you. Please do not share it with others.</p>
+                <p>Regards,<br/>HR Team</p>
+              </div>`;
+              let emailSent = false;
+              let emailError = '';
+              try {
+                const res = await sendEmail({ to: offer.candidateEmail, subject, html });
+                emailSent = res.success;
+                emailError = res.error || '';
+              } catch (e) {
+                emailError = e instanceof Error ? e.message : String(e);
+              }
+              if (!emailSent) {
+                try {
+                  const fbRes = await sendTenantEmail(db, tenantIdOff, { to: offer.candidateEmail, subject, html });
+                  emailSent = fbRes.success;
+                  emailError = emailError || fbRes.error || '';
+                } catch (e) {
+                  emailError = emailError + ' | fallback failed: ' + (e instanceof Error ? e.message : String(e));
+                }
+              }
+              console.log(`[Offer PATCH] Offer-issued email to ${offer.candidateEmail}: ${emailSent ? 'SENT' : 'FAILED'} — ${emailError}`);
+            } catch (emailErr) {
+              console.warn('[Offer PATCH] Offer-issued email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
+            }
+          }
+
+          // GAP FIX #7: Auto-flip JobApplication status to 'offered' when offer is sent
+          try {
+            if (offer.jobApplicationId) {
+              await db.$executeRawUnsafe(
+                `UPDATE "JobApplication" SET "status" = 'offered', "updatedAt" = NOW() WHERE "id" = $1`,
+                offer.jobApplicationId,
+              );
+            }
+          } catch { /* non-fatal */ }
         }
         if (effectiveStatus === 'accepted' && tenantIdOff) {
           // Recruiter/HR + IT & Admin provisioning trigger
@@ -273,8 +390,8 @@ export async function PATCH(
               Department: existing.department || '—',
               Joining_Date: offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString('en-IN') : 'TBD',
             },
-            entity: { type: 'offer', id, link: `/offers/${id}` },
-            origin: originOff,
+            entity: { type: 'offer', id, link: '/offers' },
+            origin: requestOrigin,
           });
         }
         if (effectiveStatus === 'rejected' && tenantIdOff) {
@@ -289,8 +406,8 @@ export async function PATCH(
               Position: existing.position || '',
               Reason: responseNotes || '—',
             },
-            entity: { type: 'offer', id, link: `/offers/${id}` },
-            origin: originOff,
+            entity: { type: 'offer', id, link: '/offers' },
+            origin: requestOrigin,
           });
         }
       } catch (e) {

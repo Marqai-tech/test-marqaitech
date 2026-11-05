@@ -6,7 +6,7 @@
 //  4. Roster merge simulation: punch rows that belong to management employees are
 //     now matchable to the roster (the c174feed regression made them orphans)
 const SITES = [
-  { name: 'LIVE', base: 'https://marqaitechgroup.3boxeshrms.com', email: 'hr@marqaitech.com', pass: 'MarqAI@2026' },
+  { name: 'LIVE', base: 'https://marqaitechgroup.3boxeshrms.com', email: 'hr@gmail.com', pass: 'MarqAI@2026' },
   { name: 'DEMO', base: 'https://nexus-hrms-mu.vercel.app', email: 'admin@3boxeshrms.com', pass: 'MarqAI@2026' },
 ];
 

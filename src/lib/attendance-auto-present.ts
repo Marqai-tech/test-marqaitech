@@ -29,6 +29,8 @@
  *     them apart from real punches.
  */
 
+import { canonicalAttendanceDate } from '@/lib/attendance-day';
+
 const DEFAULT_TZ_OFFSET_MINUTES = -330; // IST — matches the app's India-centric default
 const MGMT_ROLES = ['manager', 'admin', 'tenant_admin', 'ceo', 'hr_admin', 'super_admin'];
 
@@ -483,7 +485,9 @@ export async function runManagementAutoPresent(
           await db.attendance.create({
             data: {
               employeeId: empIdStr,
-              date: new Date(`${dateKey}T00:00:00.000Z`),
+              // Task 162: IST-midnight day key — same convention as the
+              // biometric sync, so one row per business day across channels.
+              date: canonicalAttendanceDate(dateKey),
               checkIn,
               checkOut,
               breakIn,

@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientDemoMode } from '@/lib/site-mode';
 import ApproverChainPreview from '@/components/ApproverChainPreview';
+import TeamLeaveSidebar from '@/components/TeamLeaveSidebar';
 import { getLeaveCategory, normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 
 /* ── Types ── */
@@ -136,7 +137,7 @@ function LeavePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
 
   // Task 66: read URL params for auto-open form + self-view filtering
   const actionParam = searchParams.get('action'); // 'apply' → auto-open the form
@@ -218,6 +219,7 @@ function LeavePageContent() {
   // AI collaborative check (REQ-LVE-04)
   const [aiWarning, setAiWarning] = useState<string | null>(null);
   const [aiWarningLoading, setAiWarningLoading] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
   /* Fetch data */
   const fetchData = useCallback(async () => {
@@ -233,7 +235,9 @@ function LeavePageContent() {
       // full employee directory for HR users.
       const [leaveRes, empRes] = await Promise.all([
         fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}${viewParamStr}`, { headers }),
-        fetch(`/api/employees?limit=1&own=1&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
+        // Use the user's email to find their employee record. The auth store
+        // may also have user.employee.id — use that as a fallback.
+        fetch(`/api/employees?limit=10&search=${encodeURIComponent(user?.email || '')}&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
       ]);
       if (leaveRes.ok) {
         const data = await leaveRes.json();
@@ -241,7 +245,13 @@ function LeavePageContent() {
       }
       if (empRes.ok) {
         const empData = await empRes.json();
-        const myEmp = empData.employees?.find((e: { email: string }) => e.email === user?.email);
+        // Find the EXACT employee matching the logged-in user.
+        // Priority: 1) user.employee.id from auth store, 2) email match, 3) userId match
+        const myEmp = empData.employees?.find((e: { id: string; email: string; userId?: string }) =>
+          (user?.employee?.id && e.id === user.employee.id) ||
+          e.email === user?.email ||
+          e.userId === user?.id
+        ) || null;
         const ltMap = new Map<string, LeaveType>();
         (empData.employees || []).forEach((e: Employee) => {
           e.leaveBalances?.forEach((lb: LeaveBalance) => {
@@ -370,6 +380,7 @@ function LeavePageContent() {
     setShowForm(false);
     setForm(initialForm);
     setAiWarning(null);
+    setAttachmentFile(null);
   };
 
   /* Export Leave Data */
@@ -476,6 +487,30 @@ function LeavePageContent() {
       toast.error('End date cannot be before start date');
       return;
     }
+
+    // ─── BUG_061/062/063: client-side balance validation ───
+    // Mirrors the server-side checks in /api/leave POST. Gives instant
+    // feedback without a round-trip. The server is still the source of
+    // truth (re-validates on submit).
+    const selectedBalance = leaveBalances.find(lb => lb.leaveType.id === form.leaveTypeId);
+    if (selectedBalance) {
+      // Compute requested working days (rough estimate — server will
+      // compute the exact number with weekend/holiday exclusion).
+      const startD = new Date(form.startDate);
+      const endD = new Date(form.endDate);
+      const rawDays = Math.max(1, Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const requestedDays = form.halfDay ? Math.max(0.5, rawDays * 0.5) : rawDays;
+
+      if (selectedBalance.remaining === 0) {
+        toast.error(`No leave balance available for the selected leave type ("${selectedBalance.leaveType.name}"). Please choose an unpaid leave type (LOP) or contact HR to adjust your balance.`);
+        return;
+      }
+      if (requestedDays > selectedBalance.remaining) {
+        toast.error(`Insufficient leave balance. Available balance: ${selectedBalance.remaining} day(s). Requested leave: ${requestedDays} day(s).`);
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       const res = await fetch('/api/leave', {
@@ -493,7 +528,31 @@ function LeavePageContent() {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       const d = await res.json().catch(() => ({}));
+      const leaveRequestId = d.leaveRequest?.id;
+
+      // Upload attachment if one was selected (optional)
+      if (attachmentFile && leaveRequestId) {
+        try {
+          const formData = new FormData();
+          formData.append('file', attachmentFile);
+          formData.append('leaveRequestId', leaveRequestId);
+          formData.append('fileName', attachmentFile.name);
+          formData.append('mimeType', attachmentFile.type);
+          formData.append('fileSize', String(attachmentFile.size));
+          const isMedical = /sick|medical/i.test(leaveTypes.find(lt => lt.id === form.leaveTypeId)?.name || '');
+          formData.append('isMedical', isMedical ? 'true' : 'false');
+          await fetch('/api/leave/attachments', {
+            method: 'POST',
+            headers: { ...(typeof window !== 'undefined' && localStorage.getItem('tb_token') ? { Authorization: `Bearer ${localStorage.getItem('tb_token')}` } : {}) },
+            body: formData,
+          }).catch(e => console.warn('Attachment upload failed (non-fatal):', e));
+        } catch (e) {
+          console.warn('Attachment upload failed (non-fatal):', e);
+        }
+      }
+
       toast.success(d.days !== undefined ? `Leave request submitted successfully (${d.days} working day(s) counted)` : 'Leave request submitted successfully');
+      setAttachmentFile(null);
       handleCancelForm();
       fetchData();
     } catch (err: unknown) {
@@ -735,9 +794,10 @@ function LeavePageContent() {
         </div>
       )}
 
-      {/* ── Apply Leave Form (Inline) ── */}
+      {/* ── Apply Leave Form (Inline) + Team Calendar sidebar ── */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-green-200 shadow-sm overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-green-200 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-green-100 bg-green-50/50">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <FiPlus className="w-4 h-4 text-green-600" /> Apply Leave
@@ -813,6 +873,42 @@ function LeavePageContent() {
                 <label className="block text-xs font-medium text-slate-600 mb-1">Reason</label>
                 <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Provide a reason for your leave..." />
               </div>
+              {/* Supporting Document (optional) */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Supporting Document <span className="text-slate-400 font-normal">(optional)</span></label>
+                <div className="border-2 border-dashed border-slate-200 rounded-lg p-3 hover:border-green-300 transition-colors">
+                  <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors text-xs font-medium">
+                    <FiFileText className="w-3.5 h-3.5" /> Choose File
+                    <input type="file" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const allowed = /\.(png|jpg|jpeg|gif|pdf|doc|docx)$/i;
+                      if (!allowed.test(file.name)) {
+                        toast.error('Only PNG, JPG, PDF, DOC, DOCX files allowed.');
+                        e.target.value = '';
+                        return;
+                      }
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error('File too large. Maximum 5MB.');
+                        e.target.value = '';
+                        return;
+                      }
+                      setAttachmentFile(file);
+                      toast.success(`Selected: ${file.name}`);
+                    }} className="hidden" accept=".png,.jpg,.jpeg,.gif,.pdf,.doc,.docx" />
+                  </label>
+                  {attachmentFile && (
+                    <div className="mt-2 flex items-center justify-between bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
+                      <span className="text-xs text-green-700 font-medium truncate flex-1">{attachmentFile.name}</span>
+                      <span className="text-xs text-green-500 ml-2">{(attachmentFile.size / 1024).toFixed(0)} KB</span>
+                      <button type="button" onClick={() => { setAttachmentFile(null); toast.success('Attachment removed'); }} className="ml-2 text-red-400 hover:text-red-600">
+                        <FiX className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {!attachmentFile && <p className="text-xs text-slate-400 mt-1.5">PNG, JPG, PDF, DOC, DOCX (max 5MB). Required only for sick leave {'>'} 2 days.</p>}
+                </div>
+              </div>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20" />
                 <span className="text-sm text-slate-700">Half Day Leave</span>
@@ -837,6 +933,28 @@ function LeavePageContent() {
               </div>
             </div>
           </div>
+
+        {/* Team Leave Calendar sidebar */}
+        <div className="lg:col-span-1">
+          <TeamLeaveSidebar
+            startDate={form.startDate}
+            endDate={form.endDate}
+            scopeQuery={scopeQuery()}
+            employeeId={employee?.id}
+            onDateSelect={(date) => {
+              setForm(prev => {
+                if (!prev.startDate || (prev.startDate && prev.endDate)) {
+                  return { ...prev, startDate: date, endDate: '' };
+                }
+                if (date < prev.startDate) {
+                  return { ...prev, startDate: date, endDate: prev.startDate };
+                }
+                return { ...prev, endDate: date };
+              });
+            }}
+          />
+        </div>
+        </div>
       )}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {/* Card Header with Filters */}

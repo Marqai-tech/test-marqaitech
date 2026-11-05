@@ -48,10 +48,11 @@ function createPrismaClient() {
       return createFallbackProxy()
     }
 
-    // Local development (plain PostgreSQL on localhost) uses the standard pg
-    // adapter — the Neon serverless driver only speaks Neon's HTTP/WebSocket
-    // protocol and cannot connect to a local database.
-    if (/localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
+    // Local development uses the standard pg adapter. This avoids the Neon
+    // serverless WebSocket path, which can fail under the local Next.js
+    // bundler with `bufferUtil.mask is not a function`, while still allowing
+    // the same Neon PostgreSQL URL to be used for local verification.
+    if (process.env.NODE_ENV !== 'production' || /localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
       const adapter = new PrismaPg({ connectionString })
       return new PrismaClient({ adapter })
     }

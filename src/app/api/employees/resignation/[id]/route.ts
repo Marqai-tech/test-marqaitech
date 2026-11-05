@@ -14,20 +14,34 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const body = await request.json();
     const action = String(body.action || '').toLowerCase();
     const comments = sanitizeMultiLineText(body.comments || body.rejectionReason, 2000);
-    if (!['approve', 'reject'].includes(action)) return NextResponse.json({ error: 'Action must be approve or reject.' }, { status: 400 });
+    // BUG_083 FIX: Support 'cancel' action for employee self-withdrawal
+    if (!['approve', 'reject', 'cancel'].includes(action)) return NextResponse.json({ error: 'Action must be approve, reject, or cancel.' }, { status: 400 });
     if (action === 'reject' && !comments) return NextResponse.json({ error: 'A rejection reason is required.' }, { status: 400 });
     const rows = await db.$queryRawUnsafe(`SELECT * FROM "Resignation" WHERE "id"=$1 LIMIT 1`, id) as any[];
     const resignation = rows[0];
     if (!resignation) return NextResponse.json({ error: 'Resignation request not found.' }, { status: 404 });
+    // BUG_083: 'cancel' is only allowed for the employee's own request
+    if (action === 'cancel') {
+      const empRows = await db.$queryRawUnsafe(`SELECT "userId" FROM "Employee" WHERE "id"=$1 LIMIT 1`, resignation.employeeId) as any[];
+      if (!empRows[0] || empRows[0].userId !== String((decoded as any).userId)) {
+        return NextResponse.json({ error: 'You can only cancel your own resignation request.' }, { status: 403 });
+      }
+    }
     if (!['pending','pending_approval'].includes(resignation.status)) return NextResponse.json({ error: `Resignation request is already ${resignation.status}.` }, { status: 409 });
     const actorId = String((decoded as any).userId);
     const decisionDate = new Date();
     const history = Array.isArray(resignation.approvalHistory) ? resignation.approvalHistory : [];
     history.push({ action, actorId, comments: comments || null, decisionDate: decisionDate.toISOString() });
-    const status = action === 'approve' ? 'approved' : 'rejected';
+    const status = action === 'approve' ? 'approved' : action === 'cancel' ? 'cancelled' : 'rejected';
     await db.$executeRawUnsafe(`UPDATE "Resignation" SET "status"=$1,"approvedById"=$2,"approvedAt"=$3,"decisionDate"=$3,"rejectionReason"=$4,"approvalHistory"=$5::jsonb,"updatedAt"=NOW() WHERE "id"=$6`, status, actorId, decisionDate, action === 'reject' ? comments : null, JSON.stringify(history), id);
     if (action === 'approve') {
-      await db.$executeRawUnsafe(`UPDATE "Employee" SET "status"='resigned' WHERE "id"=$1`, resignation.employeeId).catch(() => {});
+      // Approval records the decision immediately, but employment ends only on
+      // the approved last-working date. Future-dated resignations must not
+      // remove the employee's active access before that effective date.
+      const lastWorkingDate = resignation.lastWorkingDate ? new Date(resignation.lastWorkingDate) : null;
+      if (lastWorkingDate && lastWorkingDate <= new Date()) {
+        await db.$executeRawUnsafe(`UPDATE "Employee" SET "status"='resigned' WHERE "id"=$1`, resignation.employeeId).catch(() => {});
+      }
     }
     const empRows = await db.$queryRawUnsafe(`SELECT "userId","email" FROM "Employee" WHERE "id"=$1 LIMIT 1`, resignation.employeeId) as any[];
     const recipient = empRows[0];

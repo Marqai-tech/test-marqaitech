@@ -70,6 +70,35 @@ function statusBadge(status: string) {
   return map[status] || 'thb-badge thb-badge-info';
 }
 
+// Task 158 — human-readable view for SECTION payloads (Experience /
+// Achievements / Documents / Verification / Health) on the approval cards.
+const SECTION_FIELDS = new Set(['experience', 'achievements', 'documents', 'verification', 'health']);
+function SectionPayloadView({ section, value, current }: { section: string; value?: string; current?: string }) {
+  const pretty = (raw?: string): string => {
+    if (!raw) return '—';
+    try {
+      const parsed = JSON.parse(raw);
+      if (section === 'verification' || section === 'health') {
+        const obj = section === 'verification' ? parsed : (parsed.current ?? parsed);
+        return Object.entries(obj || {}).map(([k, v]) => `${k}: ${String(v ?? '—')}`).join(' | ') || '—';
+      }
+      const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
+      if (!entries.length) return 'No entries';
+      return entries.map((e: Record<string, unknown>, i: number) => {
+        if (section === 'experience') return `${i + 1}. ${e.company} — ${e.designation} (${String(e.startDate).slice(0, 10)} → ${e.isCurrent ? 'current' : String(e.endDate).slice(0, 10)})`;
+        if (section === 'achievements') return `${i + 1}. ${e.title}${e.issuer ? ` (${e.issuer})` : ''}`;
+        return `${i + 1}. ${e.name} (${e.type})`;
+      }).join('\n');
+    } catch { return raw.slice(0, 200); }
+  };
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
+      <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary whitespace-pre-line line-clamp-4">{pretty(current)}</span></div>
+      <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium whitespace-pre-line">{pretty(value)}</span></div>
+    </div>
+  );
+}
+
 function RequestCard({ r, canAct, onAct }: { r: UpdateRequest; canAct: boolean; onAct: (id: string, action: 'approve' | 'reject') => void }) {
   const [open, setOpen] = useState(false);
   return (
@@ -87,10 +116,14 @@ function RequestCard({ r, canAct, onAct }: { r: UpdateRequest; canAct: boolean; 
           <button onClick={() => setOpen(!open)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><FiChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} /></button>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
-        <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary break-all">{r.oldValue || '—'}</span></div>
-        <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium break-all">{r.newValue || '—'}</span></div>
-      </div>
+      {SECTION_FIELDS.has(r.fieldName) ? (
+        <SectionPayloadView section={r.fieldName} value={r.newValue} current={r.oldValue} />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
+          <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary break-all">{r.oldValue || '—'}</span></div>
+          <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium break-all">{r.newValue || '—'}</span></div>
+        </div>
+      )}
       {r.reason && <p className="text-[11px] text-thb-text-muted mt-2"><span className="font-medium">Reason:</span> {r.reason}</p>}
 
       {open && (

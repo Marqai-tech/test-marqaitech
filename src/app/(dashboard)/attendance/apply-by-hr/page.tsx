@@ -255,7 +255,7 @@ export default function ApplyAttendanceByHRPage() {
             return;
           }
           const dt = new Date(`${regularizeForm.date}T${regularizeForm.requestedTime}`);
-          body = { employeeId: selectedEmployee.id, date: regularizeForm.date, punchType: regularizeForm.punchType, requestedTime: dt, reason: `[HR] ${regularizeForm.reason.trim()}`, clientToday: new Date().toLocaleDateString('en-CA') };
+          body = { employeeId: selectedEmployee.id, date: regularizeForm.date, punchType: regularizeForm.punchType, requestedTime: dt, reason: `[HR] ${regularizeForm.reason.trim()}`, source: 'hr_proxy', clientToday: new Date().toLocaleDateString('en-CA') };
           break;
         }
         case 'permission': {

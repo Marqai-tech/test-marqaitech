@@ -63,6 +63,13 @@ function LeaveTypeDialog({ open, mode, editItem, onClose, onSaved }: {
   const [employeeStatus, setEmployeeStatus] = useState('all');
   const [probationRestricted, setProbationRestricted] = useState(false);
   const [sandwichRule, setSandwichRule] = useState(true);
+  // NOTE: The 7 state vars that used to live here (maxConsecutiveDays,
+  // minAdvanceDays, accrualFrequency, accrualAmount, maxBalance,
+  // leaveExpiryDays, negativeBalance) were REMOVED on 2026-10-29 — they
+  // were collected in the dialog but NEVER sent in the POST body (silently
+  // dropped), AND the Prisma LeaveType model doesn't have these columns.
+  // These fields are now managed via /leave/configuration (8-step wizard)
+  // which saves to LeaveTypeRule — the proper place for per-type rules.
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -296,15 +303,15 @@ export default function LeaveTypesPage() {
                 <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Quota</th>
                 <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Carry Fwd</th>
                 <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Paid</th>
-                <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Scope</th>
+                <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Scope &amp; Rules</th>
                 {isAdmin && <th className="text-center px-5 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-slate-400">Loading...</td></tr>
+                <tr><td colSpan={isAdmin ? 9 : 8} className="text-center py-8 text-slate-400">Loading...</td></tr>
               ) : leaveTypes.length === 0 ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center py-12 text-slate-500">No leave types configured yet. Click "Add Leave Type" to create one.</td></tr>
+                <tr><td colSpan={isAdmin ? 9 : 8} className="text-center py-12 text-slate-500">No leave types configured yet. Click "Add Leave Type" to create one.</td></tr>
               ) : leaveTypes.map((lt) => (
                 <tr key={lt.id} className="border-b border-thb-border last:border-b-0 hover:bg-slate-50">
                   <td className="px-5 py-3">

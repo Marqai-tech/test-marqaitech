@@ -8,6 +8,20 @@ export async function hashPassword(password: string): Promise<string> {
   return bcryptjs.hash(password, salt);
 }
 
+/**
+ * Faster password hashing for bulk operations (e.g., generating credentials
+ * for many employees at once). Uses bcrypt cost factor 10 instead of 12,
+ * which is ~4x faster (~75ms vs ~300ms per hash). Cost 10 is still secure
+ * — it's the bcrypt default and the OWASP recommendation as of 2024.
+ *
+ * Use this in routes that process multiple employees in a single request
+ * to avoid Vercel serverless function timeouts (10s on Hobby, 60s on Pro).
+ */
+export async function hashPasswordFast(password: string): Promise<string> {
+  const salt = await bcryptjs.genSalt(10);
+  return bcryptjs.hash(password, salt);
+}
+
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   return bcryptjs.compare(password, hashedPassword);
 }

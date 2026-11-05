@@ -89,13 +89,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(auth.role)) {
         return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
       }
-      const name = sanitizeMultiLineText(body.name, 200);
+     
       const category = VALID_CATEGORIES.includes(String(body.category)) ? String(body.category) : 'other';
       const type = VALID_TYPES.includes(String(body.type)) ? String(body.type) : 'other';
       const requiredFormat = body.requiredFormat || 'pdf';
       const maxFileSizeMb = Math.max(1, Math.min(50, Number(body.maxFileSizeMb) || 10));
       const description = sanitizeMultiLineText(body.description, 500);
-      if (!name) return NextResponse.json({ error: 'Document name is required' }, { status: 400, headers: corsHeaders() });
+      const name = sanitizeMultiLineText(body.name, 200).replace(/[<>]/g, '') || `${category} - ${type}`;
 
       const doc = await db.document.create({
         data: {
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // ─── Upload mode (employee or admin uploads a document) ───
     // fileUrl is optional: a document entry may represent a physical/offline
     // document (e.g. collected during onboarding) with no digital file yet.
-    const name = sanitizeMultiLineText(body.name, 200).replace(/[<>]/g, '');
+    const name = sanitizeMultiLineText(body.name, 200).replace(/[<>]/g, '') || `${category} - ${type}`;
     const fileUrl = String(body.fileUrl || '');
     const category = VALID_CATEGORIES.includes(String(body.category)) ? String(body.category) : 'other';
     const type = VALID_TYPES.includes(String(body.type)) ? String(body.type) : 'other';

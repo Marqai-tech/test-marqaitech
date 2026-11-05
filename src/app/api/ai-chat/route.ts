@@ -16,11 +16,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { message, sessionId, context } = body;
+    const body = await request.json().catch(() => ({} as Record<string, unknown>));
+    const { message, context } = (body ?? {}) as { message?: string; context?: unknown };
+    // Task 158 — clients historically omitted sessionId (FloatingAIAssistant /
+    // AIChatbot sent only { message } → "Message and sessionId are required").
+    // Message stays mandatory, but a missing sessionId is now auto-generated
+    // server-side and returned so no caller can hard-fail on it again.
+    const sessionId =
+      typeof (body as { sessionId?: unknown })?.sessionId === 'string' &&
+      (body as { sessionId: string }).sessionId.trim()
+        ? (body as { sessionId: string }).sessionId.trim()
+        : `srv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-    if (!message || !sessionId) {
-      return NextResponse.json({ error: 'Message and sessionId are required' }, { status: 400 });
+    if (!message || !String(message).trim()) {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
     // Save user message

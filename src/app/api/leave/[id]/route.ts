@@ -7,6 +7,7 @@ import { safeAuditLog } from '@/lib/audit-safe';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { computeWorkingDays, getHolidaysInRange, getWeekendDays, leaveDaysConsumed } from '@/lib/working-days';
 import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
+import { appendLedgerEntry, ensureLeaveLedgerTable, ensureLeaveModuleSchemaColumns } from '@/lib/leave-ledger';
 
 function corsHeaders() {
   return {
@@ -130,6 +131,16 @@ export async function PATCH(
 
     // ─── Handle cancellation (no workflow involved) ───
     if (status === 'cancelled') {
+      // Fetch the existing leave request to check if it was already approved
+      // (if so, we need to reverse the balance deduction)
+      const existingRequest = await db.leaveRequest.findUnique({
+        where: { id },
+        select: { id: true, employeeId: true, leaveTypeId: true, startDate: true, endDate: true, halfDay: true, status: true, chargeableDays: true },
+      }).catch(() => null);
+
+      const wasApproved = existingRequest?.status === 'approved';
+
+      await ensureLeaveModuleSchemaColumns(db);
       const leaveRequest = await db.leaveRequest.update({
         where: { id },
         data: {
@@ -137,6 +148,8 @@ export async function PATCH(
           approvedBy: scope.userId,
           approvedAt: new Date(),
           comments,
+          reversedAt: wasApproved ? new Date() : undefined,
+          cancellationReason: comments || undefined,
         },
         include: {
           employee: {
@@ -146,12 +159,102 @@ export async function PATCH(
         },
       });
 
+      // ─── Balance restoration: if the cancelled leave was already approved,
+      // the balance was deducted at approval time. We need to reverse it now.
+      // This appends a 'reverse' entry to the LeaveLedger and restores the
+      // LeaveBalance running totals. (§7 spec: "reversals")
+      if (wasApproved && existingRequest) {
+        try {
+          const chargeableDays = existingRequest.chargeableDays !== null && existingRequest.chargeableDays !== undefined
+            ? existingRequest.chargeableDays
+            : (existingRequest.halfDay ? 0.5 : Math.ceil((new Date(existingRequest.endDate).getTime() - new Date(existingRequest.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1);
+          const year = new Date(existingRequest.startDate).getFullYear();
+          await appendLedgerEntry(db, {
+            employeeId: existingRequest.employeeId,
+            leaveTypeId: existingRequest.leaveTypeId,
+            year,
+            transactionType: 'reverse',
+            days: Math.abs(chargeableDays), // positive = credit (restoring)
+            sourceType: 'leave_request',
+            sourceId: existingRequest.id,
+            reason: `Leave cancelled — balance restored (${chargeableDays} day(s))`,
+            createdBy: scope.userId,
+            leaveRequestId: existingRequest.id,
+          });
+          console.log(`[leave] Balance restored for cancelled leave ${id}: +${chargeableDays} days`);
+        } catch (reverseErr) {
+          console.warn(`[leave] Balance restoration failed for cancelled leave ${id} (non-fatal):`, reverseErr);
+        }
+      }
+
       await safeAuditLog(db, {
         userId: scope.userId,
         action: 'CANCELLED_LEAVE_REQUEST',
         module: 'leave',
-        details: `Cancelled leave request ${id}`,
+        details: `Cancelled leave request ${id}${wasApproved ? ' (balance restored)' : ''}`,
       });
+
+      // ─── BUG_066 fix: Email 5 — Leave Cancellation Confirmation ───
+      // Per the Leave Module Notification Workflow spec, both the employee
+      // AND the approver/HR must receive a cancellation confirmation email.
+      // Previously the cancellation branch returned without dispatching any
+      // notification — silent cancellation.
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        // Resolve the canceller's name for the Cancelled_By placeholder
+        let cancellerName = 'HR/Admin';
+        try {
+          const canceller = await db.user.findUnique({
+            where: { id: scope.userId },
+            select: { name: true, email: true },
+          });
+          if (canceller?.name) cancellerName = canceller.name;
+          else if (canceller?.email) cancellerName = canceller.email;
+        } catch { /* best-effort */ }
+
+        // Build the recipient list: employee (if they have a userId) + all
+        // active admins/HR in the tenant. The dispatchLeaveEvent helper
+        // accepts recipientUserIds as an explicit list.
+        const recipientIds: string[] = [];
+        if (leaveRequest.employee?.userId) {
+          recipientIds.push(leaveRequest.employee.userId);
+        }
+        try {
+          const admins = await db.user.findMany({
+            where: {
+              tenantId: scope.tenantId,
+              role: { in: ['hr_admin', 'admin', 'tenant_admin', 'super_admin'] },
+              status: 'active',
+            },
+            select: { id: true },
+            take: 20,
+          });
+          for (const a of admins) {
+            if (!recipientIds.includes(a.id)) recipientIds.push(a.id);
+          }
+        } catch { /* best-effort */ }
+
+        if (recipientIds.length > 0) {
+          await dispatchLeaveEvent(
+            db,
+            scope.tenantId,
+            'leave.cancelled',
+            leaveRequest,
+            scope.userId,
+            comments,
+            request,
+            recipientIds,
+            {
+              Cancelled_By: cancellerName,
+              Cancellation_Status: 'Approved',
+              Comments: comments || '—',
+              Request_Id: leaveRequest.id,
+            },
+          );
+        }
+      } catch (e) {
+        console.warn('[leave PATCH] Cancellation notification failed (non-fatal):', e);
+      }
 
       return NextResponse.json({ leaveRequest }, { headers: corsHeaders() });
     }

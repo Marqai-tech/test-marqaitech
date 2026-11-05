@@ -19,7 +19,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  FiUsers, FiUserPlus, FiUserCheck, FiUserX, FiClock,
+  FiUsers, FiUserPlus, FiUserCheck, FiUserX, FiUser, FiClock,
   FiTrendingUp, FiTrendingDown, FiBarChart2, FiPieChart,
   FiCalendar, FiAlertCircle, FiArrowRight, FiGrid,
   FiBriefcase, FiMapPin, FiActivity, FiCheckCircle, FiInfo,
@@ -639,7 +639,8 @@ export default function EmployeeDashboardPage() {
               <QuickLinkGrid
                 links={[
                   ...(isAdmin ? [{ label: 'Add New Employee', icon: <FiUserPlus className="w-5 h-5" />, href: '/employees/add', bg: 'from-[#10B981] to-[#14B8A6]', shadow: '' }] : []),
-                  { label: 'View Employee List', icon: <FiUsers className="w-5 h-5" />, href: '/employees', bg: 'from-[#3A57C4] to-[#4C51D6]', shadow: '' },
+                  // Bug 4 fix: Employee login sees "Update Profile" instead of "View Employee List"
+                  ...(isAdmin ? [{ label: 'View Employee List', icon: <FiUsers className="w-5 h-5" />, href: '/employees', bg: 'from-[#3A57C4] to-[#4C51D6]', shadow: '' }] : [{ label: 'Update Profile', icon: <FiUser className="w-5 h-5" />, href: '/my-profile', bg: 'from-[#3A57C4] to-[#4C51D6]', shadow: '' }]),
                   { label: 'Org Chart', icon: <FiLayers className="w-5 h-5" />, href: '/org-chart', bg: 'from-[#6C4FD6] to-[#3A57C4]', shadow: '' },
                   ...(isAdmin ? [
                     { label: 'Probation Tracking', icon: <FiClock className="w-5 h-5" />, href: '/employees/probation', bg: 'from-amber-400 to-orange-500', shadow: '' },

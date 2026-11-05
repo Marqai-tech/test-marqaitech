@@ -12,19 +12,24 @@
     h1 { font-size: 24px; color: #232d42; margin-bottom: 6px; }
     .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
     .badge { display: inline-block; background: #eef2fd; color: #5b7fe8; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 22px; }
+    .edition-label { text-align: left; font-size: 11px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: #64748b; margin: 4px 0 8px; }
     .download-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 15px 16px; border-radius: 14px; font-size: 15px; cursor: pointer; text-decoration: none; margin-bottom: 12px; transition: all 0.2s; text-align: left; }
     .android-btn { background: linear-gradient(135deg, #34c38f, #0e9f6e); color: white; box-shadow: 0 8px 20px rgba(16,185,129,.25); }
     .android-btn:hover { transform: translateY(-2px); }
+    .lite-btn { background: linear-gradient(135deg, #38bdf8, #2563eb); color: white; box-shadow: 0 8px 20px rgba(56,189,248,.28); }
+    .lite-btn:hover { transform: translateY(-2px); }
     .ios-btn { background: #f4f5fa; color: #232d42; border: 1px solid #e8eaf2; }
     .ios-btn:hover { background: #eceefb; }
     .btn-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
     .android-btn .btn-icon { background: rgba(255,255,255,.2); }
+    .lite-btn .btn-icon { background: rgba(255,255,255,.2); }
     .ios-btn .btn-icon { background: #e9e6fd; }
     .btn-title { font-size: 14.5px; font-weight: 700; }
     .btn-sub { font-size: 11.5px; opacity: .75; margin-top: 2px; }
     .meta { font-size: 10.5px; padding: 3px 9px; border-radius: 20px; margin-left: auto; flex-shrink: 0; font-weight: 700; }
     .meta-ready { background: #e6f9f2; color: #0e9f6e; }
     .meta-soon { background: #fdf1de; color: #b97b12; }
+    .lite-btn .meta-ready { background: rgba(255,255,255,.22); color: #fff; }
     .features { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 20px 0 6px; text-align: left; }
     .feature { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 10px; background: #f8fafc; font-size: 12px; color: #475569; }
     .instructions { background: #f8fafc; border-radius: 12px; padding: 15px 16px; margin-top: 16px; text-align: left; }
@@ -39,18 +44,29 @@
     <div class="logo">3B</div>
     <h1>3Boxes HRMS</h1>
     <p class="subtitle">Mobile App Download · People · Process · Technology</p>
-    <span class="badge">v1.8.0 (36) · Flutter · Android</span>
+    <span class="badge">Native v1.9.0 (37) · Lite v1.8.1 (37) · Android</span>
 
-    <a href="/downloads/3boxes-hrms-mobile-v1.8.0.apk" download class="download-btn android-btn" id="androidBtn">
+    <p class="edition-label">Edition 1 — Native App (recommended)</p>
+    <a href="/downloads/3boxes-hrms-native-v1.9.0.apk" download class="download-btn android-btn" id="androidBtn">
       <span class="btn-icon">🤖</span>
       <span>
-        <span class="btn-title">Download for Android</span>
-        <span class="btn-sub" style="display:block">APK · direct install · works offline-first</span>
+        <span class="btn-title">Native App — full experience</span>
+        <span class="btn-sub" style="display:block">PhonePe-style violet AI dock · offline-first · v1.9.0 (37)</span>
       </span>
       <span class="meta meta-ready">READY</span>
     </a>
 
-    <a href="/downloads/3boxes-hrms-mobile-v1.8.0.apk" download class="download-btn ios-btn" id="iosBtn" style="display:none">
+    <p class="edition-label">Edition 2 — Lite WebView App</p>
+    <a href="/downloads/3boxes-hrms-mobile-v1.8.1.apk" download class="download-btn lite-btn" id="liteBtn">
+      <span class="btn-icon">🌐</span>
+      <span>
+        <span class="btn-title">Lite App — mirrors the live web</span>
+        <span class="btn-sub" style="display:block">Renders your live workspace · every web update instantly · royal-blue icon · v1.8.1 (37)</span>
+      </span>
+      <span class="meta meta-ready">READY</span>
+    </a>
+
+    <a href="/downloads/3boxes-hrms-mobile.ipa" download class="download-btn ios-btn" id="iosBtn" style="display:none">
       <span class="btn-icon">🍎</span>
       <span>
         <span class="btn-title">Download for iOS</span>
@@ -60,20 +76,20 @@
     </a>
 
     <div class="features">
-      <div class="feature">⚡ Native speed</div>
+      <div class="feature">🤖 AI dock (Native)</div>
       <div class="feature">🔒 Encrypted</div>
       <div class="feature">📡 Offline mode</div>
-      <div class="feature">🔄 Live sync</div>
+      <div class="feature">🔄 Live sync (Lite)</div>
     </div>
 
     <div class="instructions">
-      <h3>Install on Android</h3>
+      <h3>Install on Android — pick ONE edition (or switch any time)</h3>
       <ol>
-        <li>Tap "Download for Android" above (installs over any previous version — v1.6.6, v1.6.7, v1.7.0 or v1.7.1 — no uninstall needed)</li>
-        <li>Open the downloaded APK file (named with the version, e.g. …-v1.8.0.apk)</li>
-        <li>Allow installation from unknown sources if prompted</li>
-        <li>Tap "Install", open the app and sign in</li>
-        <li><strong>If nothing happens when you open the APK:</strong> free up at least 100 MB of storage, re-download the file, then open it again — this release works on every phone (32-bit and 64-bit)</li>
+        <li>Both editions share the same app signature and version code, so <strong>either installs right over the other</strong> (and over v1.6.x / v1.7.x / v1.8.x) — no uninstall needed</li>
+        <li><strong>Native App:</strong> full Flutter experience with the raised violet AI Assistant button centred in the bottom dock</li>
+        <li><strong>Lite App:</strong> the light WebView edition that renders your live company workspace — every web feature (including the web AI dock) appears the moment it ships</li>
+        <li>Open the downloaded APK file (named with the version, e.g. …-v1.9.0.apk), allow installation from unknown sources if prompted, tap "Install" and sign in</li>
+        <li><strong>If nothing happens when you open the APK:</strong> free up at least 100 MB of storage, re-download the file, then open it again — both releases work on every phone (32-bit and 64-bit)</li>
       </ol>
       <h3 style="margin-top:12px">Install on iPhone / iPad</h3>
       <ol>

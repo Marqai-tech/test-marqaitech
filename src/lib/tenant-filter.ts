@@ -52,7 +52,7 @@ export const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
 /** Test Super Admin host (develop). Sample tenants stay visible; MarqAI is hidden. */
 export function isTestPlatformHost(host: string): boolean {
   const h = (host || '').split(':')[0].toLowerCase();
-  return h === 'test.3boxeshrms.com' || h === 'www.test.3boxeshrms.com';
+  return h === 'test.3boxeshrms.com' || h === 'www.test.3boxeshrms.com' || h === 'test-marqaitech-ontt.vercel.app';
 }
 
 /**

@@ -126,6 +126,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Phase 5 fix: Enforce closing date — reject applications past the deadline
+    try {
+      const closingDateRow = await db.$queryRawUnsafe(
+        `SELECT "closingDate" FROM "JobPosting" WHERE "id" = $1 LIMIT 1`,
+        jobPostingId,
+      ) as any[];
+      const closingDate = closingDateRow[0]?.closingDate;
+      if (closingDate && new Date(closingDate) < new Date()) {
+        return NextResponse.json(
+          { error: 'The application deadline for this job has passed.' },
+          { status: 410, headers: corsHeaders }
+        );
+      }
+    } catch { /* non-fatal — allow if closingDate column doesn't exist */ }
+
     // ===== Idempotency: prevent duplicate applications from same email =====
     const existing = await db.jobApplication.findFirst({
       where: {
@@ -177,7 +192,7 @@ export async function POST(req: NextRequest) {
         candidatePhone: candidatePhone ? String(candidatePhone).trim() : null,
         coverLetter: coverLetter ? String(coverLetter).trim() : null,
         expectedSalary: expectedSalary ? String(expectedSalary).trim() : null,
-        source: source || 'website',
+        source: source || (referralToken ? 'referral' : 'website'),
         status: 'applied',
         // Store the resume as a data URL — works on serverless (Vercel) since
         // it lives in the DB, not the filesystem. For large deployments you
@@ -223,23 +238,47 @@ export async function POST(req: NextRequest) {
     try {
       const tenantId = job.department?.company?.companyGroup?.tenant?.id;
       if (tenantId) {
-        // Notify tenant admins about the new application
+        // GAP FIX #1: Use the Notification Center (dispatchNotification) instead of
+        // raw createMany — this dispatches the recruitment.candidate.applied event
+        // with in-app + email channels, and creates a proper NotificationDelivery log.
         const tenantAdmins = await db.user.findMany({
-          where: { tenantId, role: { in: ['tenant_admin', 'ceo', 'recruiter'] } },
-          select: { id: true },
+          where: { tenantId, role: { in: ['tenant_admin', 'ceo', 'recruiter', 'hr_admin', 'company_hr_admin', 'admin'] }, status: 'active' },
+          select: { id: true, email: true },
         });
         if (tenantAdmins.length > 0) {
-          await db.notification.createMany({
-            data: tenantAdmins.map((u) => ({
-              userId: u.id,
-              title: 'New job application received',
-              message: `${candidateName} applied for "${job.title}"`,
-              type: 'info',
-              category: 'recruitment',
-              actionUrl: '/recruitment',
-            })),
-          });
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId,
+            module: 'recruitment',
+            eventKey: 'recruitment.candidate.applied',
+            recipients: tenantAdmins.map(u => ({ userId: u.id })),
+            vars: {
+              Candidate_Name: candidateName,
+              Job_Title: job.title,
+              Application_Date: new Date().toLocaleDateString('en-IN'),
+            },
+            entity: { type: 'job_application', id: application.id, link: '/recruitment' },
+          }).catch(() => null);
         }
+
+        // GAP FIX #1: Send candidate acknowledgment email via Notification Center
+        // (previously only the HR-side apply path sent this — public apply was silent)
+        try {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId,
+            module: 'recruitment',
+            eventKey: 'recruitment.candidate.acknowledgment',
+            recipients: [{ name: candidateName, email: candidateEmail }],
+            vars: {
+              Candidate_Name: candidateName,
+              Job_Title: job.title,
+              Application_Date: new Date().toLocaleDateString('en-IN'),
+            },
+            entity: { type: 'job_application', id: application.id, link: '/careers' },
+            suppressInApp: true, // email-only — candidate doesn't have an in-app account yet
+          }).catch(() => null);
+        } catch { /* non-fatal */ }
       }
     } catch {
       // Non-fatal — the application itself was already saved

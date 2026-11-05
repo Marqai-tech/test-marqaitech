@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { FiUser, FiRefreshCw } from 'react-icons/fi';
+import { FiUser, FiRefreshCw, FiShield } from 'react-icons/fi';
 import EmployeeDetailPage from '@/app/(dashboard)/employees/[id]/page';
 import { useAuthStore } from '@/store/authStore';
 import { getToken } from '@/lib/token-storage';
@@ -31,6 +31,7 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 export default function MyProfilePage() {
+  const { user } = useAuthStore();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,13 @@ export default function MyProfilePage() {
     const resolveOwnEmployeeId = async () => {
       setLoading(true);
       setFailed(false);
+
+      // A platform Super Admin is an account, not a tenant Employee row.
+      // Show the account profile below instead of attempting an employee lookup.
+      if (useAuthStore.getState().user?.role === 'super_admin') {
+        if (!cancelled) setLoading(false);
+        return;
+      }
 
       // 1) Fast path — the auth store may already carry the linked employee.
       const cached = useAuthStore.getState().user as unknown as { employee?: { id?: string } } | null;
@@ -89,6 +97,26 @@ export default function MyProfilePage() {
         <div className="text-center">
           <div className="w-14 h-14 rounded-full border-4 border-slate-200 border-t-green-500 animate-spin mx-auto mb-4" />
           <p className="text-sm text-thb-text-secondary font-medium">Loading your profile…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.role === 'super_admin') {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="thb-card w-full max-w-xl p-8 text-center">
+          <div className="w-20 h-20 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center mx-auto mb-5">
+            <FiShield className="w-10 h-10" />
+          </div>
+          <p className="text-xl font-semibold text-thb-text-primary">{user.name || 'Super Admin'}</p>
+          <p className="text-sm text-thb-text-secondary mt-1">{user.email}</p>
+          <span className="inline-flex mt-4 px-3 py-1 rounded-full bg-violet-50 text-violet-700 text-xs font-semibold border border-violet-200">
+            Platform Super Admin
+          </span>
+          <p className="text-sm text-thb-text-secondary mt-5">
+            This is a platform account and is not linked to a tenant employee record.
+          </p>
         </div>
       </div>
     );

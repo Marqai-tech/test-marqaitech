@@ -41,7 +41,7 @@ for (const b of [TENANT, BASES[2]]) {
 // ── login (tenant admin) ───────────────────────────────────────────────────
 const login = await fetch(TENANT + '/api/auth/login', {
   method: 'POST', headers: T,
-  body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+  body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
 });
 const lj = await login.json();
 const token = lj?.token;

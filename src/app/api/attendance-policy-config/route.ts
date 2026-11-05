@@ -60,6 +60,8 @@ export async function GET(request: Request) {
           canteenFreeForNightShift: true,
           canteenOtfreeThresholdHours: 5,
           autoPresentManagementEnabled: false,
+          disableAppCheckin: false,
+          disableAppCheckout: false,
           companyId: null,
           createdAt: new Date(0),
           updatedAt: new Date(0),
@@ -128,6 +130,8 @@ export async function GET(request: Request) {
         canteenFreeForNightShift: true,
         canteenOtfreeThresholdHours: 5,
         autoPresentManagementEnabled: false,
+        disableAppCheckin: false,
+        disableAppCheckout: false,
         companyId: scope.companyId || scope.ownCompanyId || null,
         createdAt: new Date(0),
         updatedAt: new Date(0),
@@ -212,6 +216,10 @@ export async function PUT(request: Request) {
       breakEndTime: (body.breakEndTime as string) || existing?.breakEndTime || '14:30',
       mandatoryBreakEnabled: body.mandatoryBreakEnabled !== undefined ? !!body.mandatoryBreakEnabled : existing?.mandatoryBreakEnabled ?? false,
       attendanceRuleScope: (body.attendanceRuleScope as string) || existing?.attendanceRuleScope || 'all_tenants',
+      // BUG_071: Disable App Check-In (biometric-only mode)
+      disableAppCheckin: body.disableAppCheckin !== undefined ? !!body.disableAppCheckin : existing?.disableAppCheckin ?? false,
+      // BUG_073: Disable App Check-Out (biometric-only mode)
+      disableAppCheckout: body.disableAppCheckout !== undefined ? !!body.disableAppCheckout : existing?.disableAppCheckout ?? false,
       // Gate Pass Policy
       gatePassMaxPerMonth: body.gatePassMaxPerMonth !== undefined ? Number(body.gatePassMaxPerMonth) : existing?.gatePassMaxPerMonth ?? 1,
       gatePassHalfDayOnExceed: body.gatePassHalfDayOnExceed !== undefined ? !!body.gatePassHalfDayOnExceed : existing?.gatePassHalfDayOnExceed ?? true,
@@ -231,6 +239,22 @@ export async function PUT(request: Request) {
       config = await db.attendancePolicyConfig.update({ where: { id: existing.id }, data });
     } else {
       config = await db.attendancePolicyConfig.create({ data });
+    }
+    // Weekend switches are stored in the shared Setting table and are read by
+    // working-days/attendance calculations. Keep them in sync with this page.
+    if (scope.tenantId && (body.saturdayWeekend !== undefined || body.sundayWeekend !== undefined)) {
+      const weekendSettings = [
+        ['attendance_weekend_saturday', body.saturdayWeekend],
+        ['attendance_weekend_sunday', body.sundayWeekend],
+      ] as const;
+      for (const [key, value] of weekendSettings) {
+        if (value === undefined) continue;
+        await db.setting.upsert({
+          where: { tenantId_companyId_category_key: { tenantId: scope.tenantId, companyId: policyCompanyId, category: 'attendance', key } },
+          create: { tenantId: scope.tenantId, companyId: policyCompanyId, category: 'attendance', key, value: JSON.stringify(!!value), dataType: 'boolean' },
+          update: { value: JSON.stringify(!!value), dataType: 'boolean' },
+        });
+      }
     }
     return ok({ config });
   } catch (e: unknown) {

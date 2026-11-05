@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   FiList, FiRefreshCw, FiDownload, FiFilter, FiCheckCircle, FiXCircle,
   FiClock, FiArrowRight, FiUser, FiFileText,
@@ -48,7 +48,9 @@ function fmtTime(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+  // BUG_073 FIX: Use consistent date format everywhere — DD MMM YYYY, HH:MM AM/PM
+  // en-US with month: 'short' produces "Oct" (3-letter), not "Sept" (4-letter)
+  return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -77,6 +79,10 @@ export default function EmployeeEditLogPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      // Admins viewing the edit log should see ALL employees' requests, not
+      // just their own. Without scope=all the API defaults to scope=mine and
+      // the audit log appears empty for changes submitted by other employees.
+      if (isAdmin) params.set('scope', 'all');
       if (filterStatus !== 'all') params.set('status', filterStatus);
       if (filterCategory !== 'all') params.set('category', filterCategory);
       const sq = scopeQuery();
@@ -127,17 +133,28 @@ export default function EmployeeEditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterCategory, scopeQuery]);
+  }, [filterStatus, filterCategory, scopeQuery, isAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Stats
+  // Stats — based on ALL requests (before filtering)
   const stats = {
     total: requests.length,
     pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved' || r.status === 'applied').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    applied: requests.filter(r => r.status === 'applied').length,
     rejected: requests.filter(r => r.status === 'rejected').length,
   };
+
+  // BUG_064-068 FIX: Apply filters to the displayed list. Previously the
+  // filter dropdowns updated state but the table still showed ALL requests.
+  const filteredRequests = useMemo(() => {
+    return requests.filter(r => {
+      if (filterStatus !== 'all' && r.status !== filterStatus) return false;
+      if (filterCategory !== 'all' && r.category !== filterCategory) return false;
+      return true;
+    });
+  }, [requests, filterStatus, filterCategory]);
 
   const exportCSV = () => {
     if (requests.length === 0) { toast.error('Nothing to export'); return; }
@@ -186,6 +203,7 @@ export default function EmployeeEditLogPage() {
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Total Requests</p><p className="text-2xl font-bold text-thb-text-primary mt-1">{stats.total}</p></div>
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Pending</p><p className="text-2xl font-bold text-amber-600 mt-1">{stats.pending}</p></div>
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Approved</p><p className="text-2xl font-bold text-emerald-600 mt-1">{stats.approved}</p></div>
+        <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Applied</p><p className="text-2xl font-bold text-teal-600 mt-1">{stats.applied}</p></div>
         <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Rejected</p><p className="text-2xl font-bold text-rose-600 mt-1">{stats.rejected}</p></div>
       </div>
 
@@ -218,17 +236,17 @@ export default function EmployeeEditLogPage() {
       {/* Table */}
       <div className="thb-card overflow-hidden">
         <div className="p-4 border-b border-thb-border">
-          <h3 className="text-sm font-semibold text-thb-text-primary">Edit Log ({requests.length})</h3>
+          <h3 className="text-sm font-semibold text-thb-text-primary">Edit Log ({filteredRequests.length})</h3>
         </div>
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin inline-block h-8 w-8 border-4 border-slate-200 border-t-teal-500 rounded-full mb-3" />
             <p className="text-sm text-thb-text-secondary">Loading edit log…</p>
           </div>
-        ) : requests.length === 0 ? (
+        ) : filteredRequests.length === 0 ? (
           <div className="p-10 text-center">
             <FiList className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-thb-text-muted">No edit requests found. {isAdmin ? 'When employees submit profile changes, they\'ll appear here.' : 'When you submit a profile change, it\'ll appear here.'}</p>
+            <p className="text-sm text-thb-text-muted">No records found for the selected filters.</p>
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[640px]">
@@ -244,16 +262,19 @@ export default function EmployeeEditLogPage() {
                 </tr>
               </thead>
               <tbody>
-                {requests.map(r => {
+                {filteredRequests.map(r => {
                   const meta = STATUS_META[r.status] || { label: r.status, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200', icon: <FiClock className="w-3.5 h-3.5" /> };
                   const emp = r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : r.employeeId;
-                  const empCode = r.employee?.employeeId || '—';
-                  const dept = r.employee?.department?.name || '—';
+                  const empCode = r.employee?.employeeId || '';
+                  const dept = r.employee?.department?.name || '';
+                  // BUG_070 FIX: Don't show '· —' when dept is empty. Build the
+                  // subtitle cleanly: "EMP001 · Engineering" or just "EMP001" or "—"
+                  const subtitle = [empCode, dept].filter(Boolean).join(' · ') || '—';
                   return (
                     <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                       <td className="py-2.5 px-4">
                         <p className="font-medium text-thb-text-primary">{emp}</p>
-                        <p className="text-xs text-thb-text-muted">{empCode} · {dept}</p>
+                        <p className="text-xs text-thb-text-muted">{subtitle}</p>
                       </td>
                       <td className="py-2.5 px-4">
                         <p className="font-medium text-thb-text-primary">{r.fieldLabel}</p>
@@ -273,7 +294,17 @@ export default function EmployeeEditLogPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">{fmtTime(r.requestedAt)}</td>
-                      <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">{fmtTime(r.reviewedAt)}</td>
+                      <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">
+                        {/* BUG_069 FIX: Show reviewer details when available instead of just '—' */}
+                        {r.reviewedAt ? (
+                          <div>
+                            <p>{fmtTime(r.reviewedAt)}</p>
+                            {r.reviewComments && <p className="text-[10px] text-thb-text-muted italic truncate max-w-[200px]" title={r.reviewComments}>{r.reviewComments}</p>}
+                          </div>
+                        ) : (
+                          <span className="text-thb-text-muted">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -283,6 +314,9 @@ export default function EmployeeEditLogPage() {
         )}
       </div>
 
+      {/* BUG_074 FIX: Transfer Audit History is visible only to HR/Admin roles.
+          Regular employees should not see other employees' transfer records. */}
+      {isAdmin && (
       <div className="thb-card overflow-hidden">
         <div className="p-4 border-b border-thb-border flex items-center justify-between">
           <div>
@@ -318,6 +352,7 @@ export default function EmployeeEditLogPage() {
           </div>
         )}
       </div>
+      )}
 
       <ModuleTips
         moduleKey="employees-edit-log"

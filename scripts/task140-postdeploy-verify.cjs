@@ -106,7 +106,7 @@ const login = async (base, email, password) =>
   }
 
   // ─── MARQAI tenant (user's tenant) ───
-  const mRes = await api(MARQAI, '/api/auth/login', { method: 'POST', body: { email: 'hr@marqaitech.com', password: 'MarqAI@2026' } });
+  const mRes = await api(MARQAI, '/api/auth/login', { method: 'POST', body: { email: 'hr@gmail.com', password: 'MarqAI@2026' } });
   const M = mRes.json?.token;
   ok('marqai HR login', !!M);
   if (M) {

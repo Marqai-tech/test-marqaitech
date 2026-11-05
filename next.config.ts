@@ -9,9 +9,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // Allow all subdomains of 3boxeshrms.com for image optimization and links
   images: {
     remotePatterns: [

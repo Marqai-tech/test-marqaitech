@@ -65,7 +65,40 @@ export async function GET(request: NextRequest) {
       db.jobApplication.count({ where: { status: 'hired' } }),
     ]);
 
-    const attritionRate = totalEmployees > 0 ? ((separated / totalEmployees) * 100).toFixed(1) : '0';
+    // Bug 3 fix — Attrition Rate uses the standard HR formula:
+    //   attritionRate = (separated in period) / averageHeadcount × 100
+    // where averageHeadcount = (startHeadcount + endHeadcount) / 2
+    //
+    // The previous formula divided `separated` by `totalEmployees` (the
+    // CURRENT active count), which is incorrect because:
+    //   1. It doesn't account for new hires during the period.
+    //   2. As headcount grows, the rate falsely shrinks even if exits stay flat.
+    //   3. It can exceed 100% if many employees left in a small org.
+    //
+    // We approximate "average headcount" as (active now + active+separated)
+    // — i.e. the average of start-of-period and end-of-period headcount.
+    //
+    // NOTE: Since the Employee table has no `dateOfExit` column, we use
+    // `updatedAt` as a proxy for "when the exit happened". This may
+    // over-count exits (anyone whose status was changed to terminated/
+    // resigned for any reason this year counts as an exit). To avoid
+    // rates > 100% in the UI display, we cap the displayed rate at 100%.
+    const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+    const exitedThisYear = await db.employee.count({
+      where: {
+        status: { in: ['terminated', 'resigned'] },
+        updatedAt: { gte: startOfYear },
+      },
+    }).catch(() => 0);
+    const endHeadcount = totalEmployees; // active now
+    const startHeadcount = totalEmployees + exitedThisYear; // active + exited (approx start-of-year)
+    const averageHeadcount = (startHeadcount + endHeadcount) / 2;
+    const rawAttritionRate = averageHeadcount > 0
+      ? (exitedThisYear / averageHeadcount) * 100
+      : 0;
+    // Cap at 100% for display — anything above indicates data quality issues
+    // (e.g. exits recorded without proper dates) rather than a real rate.
+    const attritionRate = Math.min(rawAttritionRate, 100).toFixed(1);
 
     const deptIds = deptGroups.map((g) => g.departmentId).filter((id): id is string => !!id);
     const departments = deptIds.length
@@ -90,7 +123,19 @@ export async function GET(request: NextRequest) {
     const recordCount = payrollGroups.reduce((sum, p) => sum + p._count._all, 0);
 
     return NextResponse.json({
-      employees: { total: totalEmployees, newHires, attritionRate: parseFloat(attritionRate) },
+      employees: {
+        total: totalEmployees,
+        newHires,
+        attritionRate: parseFloat(attritionRate),
+        // Bug 3 fix: expose the inputs so the UI can show the breakdown
+        // (e.g. "12 exits / 50 avg headcount = 24%").
+        attrition: {
+          rate: parseFloat(attritionRate),
+          totalExited: exitedThisYear,
+          averageHeadcount: Math.round(averageHeadcount),
+          period: `${new Date().getFullYear()}`,
+        },
+      },
       departmentDistribution,
       leave: { pending: pendingLeaves, approved: approvedLeaves, total: totalLeaves },
       attendance: { rate: parseFloat(attendanceRate), present: presentCount, total: attendanceTotal },

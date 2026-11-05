@@ -1,6 +1,6 @@
 // Task 119 — post-deploy regression sweep across LIVE tenant, apex and demo.
 const CHECKS = [
-  { name: 'LIVE tenant login (hr@marqaitech.com)', url: 'https://marqaitechgroup.3boxeshrms.com/api/auth/login', method: 'POST', body: { email: 'hr@marqaitech.com', password: 'MarqAI@2026' } },
+  { name: 'LIVE tenant login (hr@gmail.com)', url: 'https://marqaitechgroup.3boxeshrms.com/api/auth/login', method: 'POST', body: { email: 'hr@gmail.com', password: 'MarqAI@2026' } },
   { name: 'Demo admin login', url: 'https://nexus-hrms-demo.vercel.app/api/auth/login', method: 'POST', body: { email: 'admin@acme-global.com', password: 'MarqAI@2026' } },
   { name: 'Super admin login @ apex', url: 'https://3boxeshrms.com/api/auth/login', method: 'POST', body: { email: 'superadmin@3boxeshrms.com', password: 'MarqAI@2026' } },
 ];
@@ -18,7 +18,7 @@ async function main() {
   }
 
   // 2. Chat endpoints on LIVE tenant (already-seeded room from verify script)
-  const H = { Authorization: `Bearer ${tokens['LIVE tenant login (hr@marqaitech.com)']}` };
+  const H = { Authorization: `Bearer ${tokens['LIVE tenant login (hr@gmail.com)']}` };
   const rooms = await fetch('https://marqaitechgroup.3boxeshrms.com/api/collaboration/chat/rooms', { headers: H }).then(j);
   console.log(`${rooms.rooms ? 'PASS' : 'FAIL'} — LIVE chat rooms (${rooms.rooms?.length} rooms, preview of #1: ${JSON.stringify(rooms.rooms?.[0]?.messages?.[0]?.body?.slice(0, 40))})`);
 

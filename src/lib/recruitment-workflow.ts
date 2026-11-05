@@ -18,9 +18,9 @@
 
 // ─────────────────────────── Types ───────────────────────────
 
-export type WorkflowType = 'recruitment' | 'preboarding' | 'onboarding';
+export type WorkflowType = 'recruitment' | 'preboarding' | 'onboarding' | 'requisition';
 
-export const WORKFLOW_TYPES: WorkflowType[] = ['recruitment', 'preboarding', 'onboarding'];
+export const WORKFLOW_TYPES: WorkflowType[] = ['recruitment', 'preboarding', 'onboarding', 'requisition'];
 
 export interface PipelineStage {
   key: string;        // persisted JobApplication.status value
@@ -79,6 +79,55 @@ export interface OnboardingWorkflowConfig {
   buddyEnabled?: boolean;
 }
 
+// ─────────────────────── Requisition approval workflow (C-32) ───────────────────────
+//
+// The Requisition approval flow was previously HARDCODED in
+// src/app/api/requisitions/[id]/route.ts as a fixed 2-tier chain
+// (HR_ROLES → FINANCE_ROLES). C-32 makes it tenant-configurable so HR
+// can edit which roles approve, in what order, with how many tiers,
+// and a salary-budget threshold to skip Finance (or any "skip-to-last"
+// tier) for low-value requisitions.
+//
+// The persisted `approvalStatus` field on Requisition rows still uses
+// the same vocabulary the old code used:
+//   'draft' → 'pending' → 'hr_approved' → 'budget_approved' (final)
+//                          → 'rejected' / 'returned' (terminal)
+//
+// But these strings are now DERIVED from the configured tier labels —
+// the requisition API maps a "current tier index" into a status string
+// for backwards-compat display. Tier 0 maps to 'pending' (just
+// submitted), tier 1+ maps to 'tier_<n>_approved' for intermediate
+// tiers, and the LAST tier maps to 'budget_approved' (so existing
+// "Create Job Posting" buttons still light up). For the default 2-tier
+// config (HR → Finance), this means:
+//   tier 0 = pending (waiting on Tier 1 = HR)
+//   tier 1 = hr_approved (waiting on Tier 2 = Finance)
+//   tier 2 = budget_approved (final — ready for job posting)
+//
+// For a tenant that configures a 3-tier chain (HR → Finance → CEO),
+// the intermediate states are 'tier_2_approved' / 'tier_3_approved'
+// before reaching 'budget_approved' on the final tier. Existing
+// requisitions created under the hardcoded flow continue to work
+// because the default config matches the old behavior exactly.
+
+export interface RequisitionApprovalTier {
+  tier: number;                       // 1-based
+  approverType: ApprovalTier['approverType'];  // reuse the same enum
+  approverUserId?: string | null;     // required when approverType='specific_user'
+  label?: string;                      // e.g. "HR Approval", "Finance Approval"
+}
+
+export interface RequisitionWorkflowConfig {
+  tiers: RequisitionApprovalTier[];   // sequential; minimum 1
+  // If the requisition's salary budget is below this amount (numeric INR),
+  // skip every tier whose approverType is 'finance' — let HR approve alone.
+  // 0 or null = no skipping (always run all tiers).
+  skipFinanceBelowBudget?: number | null;
+  // Allow the requester's reporting manager to also submit on behalf of
+  // the requester (default: false — only the requester can submit).
+  allowManagerSubmit?: boolean;
+}
+
 // ─────────────────────── System stage keys ───────────────────────
 
 /** JobApplication.status values (see prisma schema comment). */
@@ -88,7 +137,7 @@ export const APPLICATION_STAGE_KEYS = ['applied', 'screening', 'interview', 'off
 export const PREBOARDING_STAGE_KEYS = ['offer_accepted', 'document_collection', 'bgv', 'provisioning', 'asset_request', 'joined'] as const;
 
 export const ONBOARDING_TASK_CATEGORIES = [
-  'general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation',
+  'general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation', 'documentation', 'compliance',
 ] as const;
 
 // ─────────────────────────── Defaults ───────────────────────────
@@ -156,10 +205,30 @@ export const DEFAULT_ONBOARDING_CONFIG: OnboardingWorkflowConfig = {
   ],
 };
 
-export const DEFAULT_CONFIGS: Record<WorkflowType, RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig> = {
+// ─────────────────────── DEFAULT REQUISITION CONFIG (C-32) ───────────────────────
+//
+// This default MIRRORS the previous hardcoded behavior in
+// src/app/api/requisitions/[id]/route.ts exactly:
+//   Tier 1: HR Approval (any role in HR_ROLES)
+//   Tier 2: Finance Approval (any role in FINANCE_ROLES)
+//
+// Existing requisitions in 'pending' / 'hr_approved' / 'budget_approved'
+// states continue to render and flow correctly with this default —
+// no data migration needed.
+export const DEFAULT_REQUISITION_CONFIG: RequisitionWorkflowConfig = {
+  tiers: [
+    { tier: 1, approverType: 'hr_admin', label: 'HR Approval' },
+    { tier: 2, approverType: 'finance', label: 'Finance Approval' },
+  ],
+  skipFinanceBelowBudget: null,  // 0/null = no skipping
+  allowManagerSubmit: false,
+};
+
+export const DEFAULT_CONFIGS: Record<WorkflowType, RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig | RequisitionWorkflowConfig> = {
   recruitment: DEFAULT_RECRUITMENT_CONFIG,
   preboarding: DEFAULT_PREBOARDING_CONFIG,
   onboarding: DEFAULT_ONBOARDING_CONFIG,
+  requisition: DEFAULT_REQUISITION_CONFIG,
 };
 
 // ─────────────────────────── Validation ───────────────────────────
@@ -311,7 +380,55 @@ export function validateWorkflowConfig(type: WorkflowType, cfg: unknown) {
     case 'recruitment': return validateRecruitmentConfig(cfg);
     case 'preboarding': return validatePreboardingConfig(cfg);
     case 'onboarding': return validateOnboardingConfig(cfg);
+    case 'requisition': return validateRequisitionConfig(cfg);
   }
+}
+
+// ─────────────────────── Requisition config validation (C-32) ───────────────────────
+
+export function validateRequisitionConfig(cfg: unknown): { ok: true; value: RequisitionWorkflowConfig } | { ok: false; error: string } {
+  if (!cfg || typeof cfg !== 'object') return { ok: false, error: 'Config must be an object' };
+  const c = cfg as Record<string, unknown>;
+
+  if (!Array.isArray(c.tiers) || c.tiers.length === 0) {
+    return { ok: false, error: 'At least one approval tier is required' };
+  }
+  const allowed = ['reporting_manager', 'department_head', 'hr_admin', 'tenant_admin', 'ceo', 'finance', 'specific_user'];
+  const tiers: RequisitionApprovalTier[] = [];
+  let tierNo = 0;
+  for (const raw of c.tiers) {
+    if (!raw || typeof raw !== 'object') return { ok: false, error: 'Each tier must be an object' };
+    const t = raw as Record<string, unknown>;
+    if (!isStr(t.approverType) || !allowed.includes(t.approverType)) {
+      return { ok: false, error: `Invalid approverType "${String(t.approverType)}" — allowed: ${allowed.join(', ')}` };
+    }
+    tierNo += 1;
+    if (t.approverType === 'specific_user' && !isStr(t.approverUserId)) {
+      return { ok: false, error: `Tier ${tierNo}: specific_user requires approverUserId` };
+    }
+    tiers.push({
+      tier: tierNo,
+      approverType: t.approverType as RequisitionApprovalTier['approverType'],
+      approverUserId: isStr(t.approverUserId) ? t.approverUserId : null,
+      label: isStr(t.label) ? t.label.slice(0, 80) : undefined,
+    });
+  }
+  if (tiers.length > 10) return { ok: false, error: 'Too many tiers (max 10)' };
+
+  const skipRaw = c.skipFinanceBelowBudget;
+  const skipFinanceBelowBudget = skipRaw == null || skipRaw === '' ? null : num(skipRaw);
+  if (skipFinanceBelowBudget === null && skipRaw != null && skipRaw !== '') {
+    return { ok: false, error: 'skipFinanceBelowBudget must be a number or null' };
+  }
+
+  return {
+    ok: true,
+    value: {
+      tiers,
+      skipFinanceBelowBudget,
+      allowManagerSubmit: c.allowManagerSubmit === true,
+    },
+  };
 }
 
 // ─────────────────────────── Resolution ───────────────────────────
@@ -343,7 +460,7 @@ export async function resolveWorkflowConfig(
   tenantId: string | null | undefined,
   type: WorkflowType,
   companyId?: string | null
-): Promise<RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig> {
+): Promise<RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig | RequisitionWorkflowConfig> {
   const defaults = DEFAULT_CONFIGS[type];
   if (!tenantId) return defaults;
   try {
@@ -375,6 +492,12 @@ export async function resolveWorkflowConfig(
       }
       return defaults;
     }
+    if (type === 'requisition') {
+      // For 'requisition' we replace tiers entirely (no merging by key —
+      // tiers don't have stable keys, only an index).
+      const v = validateRequisitionConfig(parsed);
+      return v.ok ? v.value : defaults;
+    }
     const v = validateOnboardingConfig({ ...defaults, ...(parsed as object) });
     return v.ok ? v.value : defaults;
   } catch {
@@ -391,6 +514,9 @@ export async function resolvePreboardingConfig(db: any, tenantId: string | null 
 }
 export async function resolveOnboardingConfig(db: any, tenantId: string | null | undefined, companyId?: string | null): Promise<OnboardingWorkflowConfig> {
   return (await resolveWorkflowConfig(db, tenantId, 'onboarding', companyId)) as OnboardingWorkflowConfig;
+}
+export async function resolveRequisitionConfig(db: any, tenantId: string | null | undefined, companyId?: string | null): Promise<RequisitionWorkflowConfig> {
+  return (await resolveWorkflowConfig(db, tenantId, 'requisition', companyId)) as RequisitionWorkflowConfig;
 }
 
 /** Enabled stage keys in configured order. */

@@ -3,6 +3,7 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { getDataScope } from '@/lib/roleAccess';
+import { attendanceDayKeyOf, dayKeyToIstStart } from '@/lib/timezone-utils';
 
 function corsHeaders() {
   return {
@@ -138,9 +139,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Date range (default = last 30 days)
+    // Task 162: IST business-day windows — UTC-midnight bounds previously
+    // excluded the morning IST rows of the start day and the day summary
+    // bucketed IST-midnight rows onto the previous calendar day.
     const today = new Date();
-    const toDate = toStr ? new Date(`${toStr}T23:59:59Z`) : today;
-    const fromDate = fromStr ? new Date(`${fromStr}T00:00:00Z`) : new Date(today.getTime() - 30 * 86400000);
+    const toDate = toStr ? new Date(dayKeyToIstStart(toStr).getTime() + 24 * 60 * 60 * 1000 - 1) : today;
+    const fromDate = fromStr ? dayKeyToIstStart(fromStr) : new Date(today.getTime() - 30 * 86400000);
 
     // Fetch PunchEvent rows (one per punch action — checkin/checkout/breakin/breakout)
     // Also fetch Attendance rows for the daily summary (workHours, breakMinutes, overtime)
@@ -185,7 +189,10 @@ export async function GET(request: NextRequest) {
     // Build per-day summary from attendance rows
     const daysMap = new Map<string, any>();
     for (const a of summaryRows) {
-      const ds = new Date(a.date).toISOString().split('T')[0];
+      // Task 162: business-day key (handles IST-midnight AND legacy
+      // UTC-midnight rows) — toISOString previously bucketed biometric rows
+      // one day early.
+      const ds = attendanceDayKeyOf(a.date);
       const emp = empMap.get(a.employeeId);
       if (!emp) continue;
       const key = `${a.employeeId}|${ds}`;

@@ -18,6 +18,8 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientLiveMode } from '@/lib/site-mode';
 import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 import SrsBanner from '@/components/SrsBanner';
+/* Task 156e — shared SmartHR gradient banner (header-only restyle). */
+import { PageBreadcrumbs } from '@/components/dashboard/smarthr-widgets';
 
 const DashboardCharts = dynamic(() => import('./dashboard-charts'), {
   ssr: false,
@@ -89,9 +91,6 @@ interface DashboardData {
   totalTenants: number; activeTenants: number; suspendedTenants: number; inactiveTenants: number;
   totalGroupCompanies?: number; totalCompanies: number; totalEmployees: number; totalRevenue: number; platformHealth: number;
   recentActivity: AuditLog[];
-  // GOLDEN RULE: when the company switcher has a tenant selected, the API
-  // scopes every metric to it and echoes the scope back here.
-  scopeTenant?: { id: string; name: string; slug: string } | null;
   // Dynamic chart & list data
   companiesByMonth?: { month: string; companies: number }[];
   revenueByMonth?: { month: string; revenue: number }[];
@@ -128,7 +127,7 @@ const planTypeLabel: Record<string, string> = {
 // ─── Main Component ───────────────────────────────────────
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
-  const { hydrate: hydrateContext, selectedTenantId, availableTenants } = useCompanyContextStore();
+  const { hydrate: hydrateContext } = useCompanyContextStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'groups' | 'plans' | 'audit' | 'backups'>('dashboard');
 
   // Dashboard state
@@ -236,20 +235,17 @@ export default function SuperAdminPage() {
   const viewRef = useRef<HTMLDivElement>(null);
 
   // ─── Data Fetching ──────────────────────────────────────
-  // GOLDEN RULE: the dashboard follows the company switcher. When a tenant is
-  // selected, tenantId is sent and the API scopes EVERY metric to it.
-  const fetchDashboard = useCallback(async (signal?: AbortSignal, tenantId?: string | null) => {
+  const fetchDashboard = useCallback(async (signal?: AbortSignal) => {
     try {
       setDashLoading(true);
-      const scopeQs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
-      const res = await fetch(`/api/super-admin/dashboard${scopeQs}`, { headers: getAuthHeaders(), signal });
+      const res = await fetch('/api/super-admin/dashboard', { headers: getAuthHeaders(), signal });
       if (signal?.aborted) return;
       if (res.ok) {
         const data = await res.json();
         setDashboard(data);
       }
       setDashLoading(false);
-      const fullRes = await fetch(`/api/super-admin/dashboard?full=1${scopeQs ? `&tenantId=${encodeURIComponent(tenantId as string)}` : ''}`, { headers: getAuthHeaders(), signal });
+      const fullRes = await fetch('/api/super-admin/dashboard?full=1', { headers: getAuthHeaders(), signal });
       if (signal?.aborted) return;
       if (fullRes.ok) {
         setDashboard(await fullRes.json());
@@ -302,8 +298,6 @@ export default function SuperAdminPage() {
       if (auditModule) params.set('module', auditModule);
       if (auditStartDate) params.set('startDate', auditStartDate);
       if (auditEndDate) params.set('endDate', auditEndDate);
-      // GOLDEN RULE: audit list follows the company switcher scope
-      if (selectedTenantId) params.set('tenantId', selectedTenantId);
       const res = await fetch(`/api/super-admin/audit-logs?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -313,7 +307,7 @@ export default function SuperAdminPage() {
       }
     } catch { toast.error('Failed to load audit logs'); }
     finally { setAuditLoading(false); }
-  }, [auditPage, auditAction, auditModule, auditStartDate, auditEndDate, selectedTenantId]);
+  }, [auditPage, auditAction, auditModule, auditStartDate, auditEndDate]);
 
   // ─── Cleanup Demo Data ────────────────────────────────────
   const handleCleanupDemoData = useCallback(async (tenantSlug: string) => {
@@ -344,9 +338,9 @@ export default function SuperAdminPage() {
 
   useEffect(() => {
     const ac = new AbortController();
-    queueMicrotask(() => fetchDashboard(ac.signal, selectedTenantId));
+    queueMicrotask(() => fetchDashboard(ac.signal));
     return () => ac.abort();
-  }, [selectedTenantId]); // re-fetch when the company-switcher scope changes
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (activeTab === 'tenants' || activeTab === 'groups') queueMicrotask(() => fetchTenants());
@@ -1037,18 +1031,18 @@ export default function SuperAdminPage() {
   // ═════════════════════════════════════════════════════════
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary">Super Admin Dashboard</h1>
-          <p className="text-thb-text-secondary mt-1">Platform management &amp; tenant administration</p>
-        </div>
-        <div className="flex gap-2 items-center flex-wrap">
+      {/* Header — SmartHR gradient breadcrumb banner (Task 156e: header-only
+          restyle; all action buttons/controls moved into the `right` slot) */}
+      <PageBreadcrumbs
+        title="Super Admin Dashboard"
+        trail={['Super Admin', 'Dashboard']}
+        right={
+          <>
           {/* Quick tenant switcher — visible on every tab so super admin can
               quickly switch the "active tenant" they're inspecting. */}
           {tenants.length > 0 && (
             <div className="flex items-center gap-1.5">
-              <label className="text-[11px] font-semibold text-thb-text-muted uppercase tracking-wider">Viewing tenant:</label>
+              <label className="text-[11px] font-semibold text-white/70 uppercase tracking-wider">Viewing tenant:</label>
               <select
                 value={groupTenantFilter}
                 onChange={(e) => setGroupTenantFilter(e.target.value)}
@@ -1065,7 +1059,7 @@ export default function SuperAdminPage() {
             </div>
           )}
           {activeTab === 'tenants' && !showTenantForm && (
-            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'INR', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white hover:bg-green-600 shadow-sm shadow-green-500/25 rounded-lg font-medium text-sm transition-colors">
+            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'INR', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
               <FiPlus className="w-4 h-4" /> Add Tenant
             </button>
           )}
@@ -1076,18 +1070,19 @@ export default function SuperAdminPage() {
                 setEditingGroupId(null);
                 setGroupForm({ tenantId: groupTenantFilter || tenants[0]?.id || '', name: '', employeeLimitMode: 'group_total', maxEmployees: 0, maxCompanies: 0, notes: '' });
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white hover:bg-teal-600 shadow-sm shadow-teal-500/25 rounded-lg font-medium text-sm transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all"
             >
               <FiPlus className="w-4 h-4" /> New Group Company
             </button>
           )}
           {activeTab === 'plans' && !showPlanForm && (
-            <button onClick={() => { setShowPlanForm(true); setEditingPlanId(null); setPlanForm({ name: '', planType: 'starter', description: '', monthlyPrice: 0, annualPrice: 0, employeeLimit: 50, companyLimit: 1, branchLimit: 5, storageLimit: 1000, aiInterviewLimit: 10, aiChatbotLimit: 100, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: false, clientPortalEnabled: false, vendorPortalEnabled: false, mobileAppEnabled: false, apiAccessEnabled: false, whiteLabelEnabled: false, supportLevel: 'email', status: 'active' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white hover:bg-green-600 shadow-sm shadow-green-500/25 rounded-lg font-medium text-sm transition-colors">
+            <button onClick={() => { setShowPlanForm(true); setEditingPlanId(null); setPlanForm({ name: '', planType: 'starter', description: '', monthlyPrice: 0, annualPrice: 0, employeeLimit: 50, companyLimit: 1, branchLimit: 5, storageLimit: 1000, aiInterviewLimit: 10, aiChatbotLimit: 100, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: false, clientPortalEnabled: false, vendorPortalEnabled: false, mobileAppEnabled: false, apiAccessEnabled: false, whiteLabelEnabled: false, supportLevel: 'email', status: 'active' }); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
               <FiPlus className="w-4 h-4" /> Add Plan
             </button>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* SRS-aligned role banner — shows what this role can/can't do per spec */}
       <SrsBanner role="super_admin" />
@@ -1148,20 +1143,6 @@ export default function SuperAdminPage() {
                     </p>
                   </div>
                 </div>
-              </div>
-
-              {/* ─── GOLDEN RULE scope indicator — dashboard follows the company switcher ─── */}
-              <div className={`thb-card p-3 flex items-start sm:items-center gap-2 text-sm border-l-4 ${dashboard.scopeTenant ? 'border-l-teal-600' : 'border-l-slate-300'}`}>
-                <FiFilter className="w-4 h-4 mt-0.5 sm:mt-0 text-teal-600 shrink-0" />
-                {dashboard.scopeTenant ? (
-                  <span className="text-slate-600">
-                    Showing data for <b>{dashboard.scopeTenant.name}</b> <span className="text-slate-400">({dashboard.scopeTenant.slug})</span> — the tenant selected in the company switcher. All metrics, charts and lists on this page show ONLY this tenant&apos;s data.
-                  </span>
-                ) : (
-                  <span className="text-slate-600">
-                    Platform-wide view (all visible tenants). Pick a tenant in the <b>company switcher</b> (top bar) to scope every metric and list on this page to that tenant only.
-                  </span>
-                )}
               </div>
 
               {/* ─── Stat Cards (Dynamic) ─── */}

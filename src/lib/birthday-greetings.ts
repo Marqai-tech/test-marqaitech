@@ -14,6 +14,7 @@
  */
 import { sendTenantEmail } from '@/lib/notification-channels';
 import { createNotification } from '@/lib/notifications';
+import { buildBrandedEmailForTenant } from '@/lib/tenant-branding';
 
 /** IST "today" — the birthday calendar for this product runs on India time
  *  regardless of where the Vercel region happens to be. */
@@ -147,15 +148,22 @@ export async function deliverBirthdayGreeting(params: {
 
   if (employee.email && String(employee.email).includes('@')) {
     try {
+      // REQ 5 — wrap the festive birthday card in the tenant-branded template
+      // (logo + colors + footer) so recipients see consistent tenant identity.
+      const innerHtml = birthdayCardHtml({
+        employeeName: first || fullName,
+        tenantName,
+        senderLine: source === 'auto' ? `— Your team at ${tenantName || 'the office'}` : `— With warm wishes from ${senderName}`,
+        message,
+      });
+      const html = await buildBrandedEmailForTenant(tenantId, {
+        title: `🎂 Happy Birthday, ${first || fullName}!`,
+        bodyHtml: innerHtml,
+      });
       const res = await sendTenantEmail(db, tenantId, {
         to: String(employee.email),
         subject: `🎂 Happy Birthday, ${first || fullName}!`,
-        html: birthdayCardHtml({
-          employeeName: first || fullName,
-          tenantName,
-          senderLine: source === 'auto' ? `— Your team at ${tenantName || 'the office'}` : `— With warm wishes from ${senderName}`,
-          message,
-        }),
+        html,
       });
       if (res?.success) emails += 1;
       else errors.push(`email: ${res?.error || 'no channel'}`);

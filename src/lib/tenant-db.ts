@@ -55,7 +55,7 @@ import wsModule from 'ws'
 // adapter — the Neon serverless driver only speaks Neon's HTTP/WebSocket
 // protocol. Neon URLs (production) are unaffected.
 function createDbAdapter(connectionString: string) {
-  if (/localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
+  if (process.env.NODE_ENV !== 'production' || /localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
     return new PrismaPg({ connectionString })
   }
   // Task 78: some tenant registry rows carry `channel_binding=require` (Neon
@@ -105,7 +105,6 @@ if (typeof globalThis !== 'undefined' && typeof setInterval === 'function') {
 // ─── Demo domain detection ───────────────────────────────────────────
 
 const DEMO_DOMAINS = [
-  'nexus-hrms-demo.vercel.app',
   'nexus-hrms-mu.vercel.app',
   'nexus-hrms.vercel.app',
   '3boxes-hrms.vercel.app',
@@ -160,9 +159,30 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
     const testPlatform = isTestPlatformHost(reqHost) || tenantSlug === 'test'
     if (testPlatform) {
       // The QA host has its own copied tenant database. Keep the platform
-      // host isolated from production, but route tenant requests to that DB
-      // so QA users can see the copied employees and attendance data.
-      tenantSlug = process.env.TEST_TENANT_SLUG || 'acme-global-demo'
+      // host isolated from production. Normal users must always stay inside
+      // the dedicated QA tenant. Do not trust their JWT tenantId here: legacy
+      // duplicate platform accounts can carry an old/demo tenantId and route a
+      // perfectly valid employee ID to the wrong database. Super Admin alone
+      // may follow the explicit tenant switcher query.
+      let scopedTenantId = ''
+      try {
+        const token = getTokenFromHeaders(request)
+        const decoded = token ? await verifyToken(token).catch(() => null) : null
+        const queryTenantId = new URL(request.url).searchParams.get('tenantId') || ''
+        scopedTenantId = decoded?.role === 'super_admin' && queryTenantId ? queryTenantId : ''
+      } catch {
+        // Invalid token/URL — use the isolated test tenant fallback below.
+      }
+
+      if (scopedTenantId) {
+        const scopedTenant = await platformDb.tenant.findUnique({
+          where: { id: scopedTenantId },
+          select: { slug: true },
+        }).catch(() => null)
+        tenantSlug = scopedTenant?.slug || ''
+      }
+
+      tenantSlug ||= process.env.TEST_TENANT_SLUG || 'test-marqaitech'
     } else if (!tenantSlug) {
       // 2. Try demo domain detection from host header
       const host = request.headers.get('host') || ''

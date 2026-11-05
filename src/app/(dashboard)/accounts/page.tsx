@@ -3,9 +3,9 @@
 import { useState, useMemo, Suspense } from 'react';
 import {
   FiDollarSign, FiTrendingUp, FiTrendingDown, FiFileText, FiAlertCircle,
-  FiPlus, FiDownload, FiRefreshCw, FiSearch, FiFilter, FiChevronRight,
-  FiBookOpen, FiCreditCard, FiBarChart2, FiCheck, FiX, FiCalendar,
-  FiArrowUp, FiArrowDown, FiEye, FiEdit2, FiTrash2, FiGrid, FiSettings,
+  FiPlus, FiDownload, FiRefreshCw, FiSearch, FiChevronRight,
+  FiBookOpen, FiCreditCard, FiBarChart2, FiCheck, FiX,
+  FiEye, FiEdit2, FiTrash2, FiGrid, FiSettings,
 } from 'react-icons/fi';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -15,6 +15,20 @@ import toast from 'react-hot-toast';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import { useAuthStore } from '@/store/authStore';
 import { isClientDemoMode } from '@/lib/site-mode';
+/* Task 156-d — shared SmartHR widgets: same stat cards / panels as the
+   Employee module dashboard; the shell now renders the gradient banner. */
+import { Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
+
+/* Task 156-d — SmartHR pastel accent rotation for stat card rows
+   (royal → emerald → orange → rose → info → violet). */
+const STAT_ACCENTS = [
+  { bg: 'bg-[#3A57C4]/10 text-[#3A57C4]', ring: 'ring-[#3A57C4]/20' },
+  { bg: 'bg-[#10B981]/10 text-[#10B981]', ring: 'ring-[#10B981]/20' },
+  { bg: 'bg-[#FF9B44]/10 text-[#FF9B44]', ring: 'ring-[#FF9B44]/20' },
+  { bg: 'bg-[#F43F5E]/10 text-[#F43F5E]', ring: 'ring-[#F43F5E]/20' },
+  { bg: 'bg-[#009EFB]/10 text-[#009EFB]', ring: 'ring-[#009EFB]/20' },
+  { bg: 'bg-[#6C4FD6]/10 text-[#6C4FD6]', ring: 'ring-[#6C4FD6]/20' },
+];
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -186,6 +200,8 @@ function AccountsPageContent() {
     <ModuleDashboardShell
       moduleKey="accounts"
       moduleLabel="Accounts & Finance"
+      title="Accounts Dashboard"
+      trail={['Accounts', 'Dashboard']}
       moduleIcon={<FiCreditCard className="w-5 h-5 text-white" />}
       gradientColor="from-emerald-500 to-green-600"
       tabs={accountsShellTabs}
@@ -224,7 +240,10 @@ function AccountsContent() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Row */}
+      {/* Task 156 — the old in-content banner was removed; the shell now renders
+         the SmartHR gradient banner (title + DateChip) for this page. */}
+
+      {/* Stats Row — shared SmartHR StatCard */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {(isClientDemoMode() ? [
           { label: 'Total Revenue', value: '₹31.0L', icon: <FiTrendingUp className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+8.2%' },
@@ -233,15 +252,16 @@ function AccountsContent() {
           { label: 'Pending Invoices', value: '12', icon: <FiFileText className="w-5 h-5" />, color: 'text-amber-600', bg: 'bg-amber-50', trend: '-2' },
           { label: 'Overdue Amount', value: '₹4.2L', icon: <FiAlertCircle className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '+1' },
           { label: 'Cash Balance', value: '₹11.4L', icon: <FiCreditCard className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50', trend: '+5.3%' },
-        ] : []).map((stat) => (
-          <div key={stat.label} className="thb-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>{stat.icon}</div>
-              <span className={`text-xs font-medium ${stat.color}`}>{stat.trend}</span>
-            </div>
-            <p className="text-xl font-bold text-thb-text-primary">{stat.value}</p>
-            <p className="text-xs text-thb-text-secondary mt-0.5">{stat.label}</p>
-          </div>
+        ] : []).map((stat, idx) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            sub={stat.trend}
+            icon={stat.icon}
+            bg={STAT_ACCENTS[idx % STAT_ACCENTS.length].bg}
+            ring={STAT_ACCENTS[idx % STAT_ACCENTS.length].ring}
+          />
         ))}
       </div>
 
@@ -268,7 +288,7 @@ function AccountsContent() {
       <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === tab.key ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary hover:bg-white/50'}`}>
-            <span className={activeTab === tab.key ? 'text-emerald-500' : 'text-thb-text-secondary'}>{tab.icon}</span>
+            <span className={activeTab === tab.key ? 'text-[#3A57C4]' : 'text-thb-text-secondary'}>{tab.icon}</span>
             {tab.label}
           </button>
         ))}
@@ -278,9 +298,8 @@ function AccountsContent() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Revenue vs Expenses */}
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Revenue vs Expenses</h3>
+            {/* Revenue vs Expenses — SmartHR Panel */}
+            <Panel title="Revenue vs Expenses" icon={<FiTrendingUp className="w-4 h-4" />} accent="text-[#10B981]">
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={revenueExpenseData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -292,10 +311,9 @@ function AccountsContent() {
                   <Area type="monotone" dataKey="expenses" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} name="Expenses" />
                 </AreaChart>
               </ResponsiveContainer>
-            </div>
-            {/* Account Balances PieChart */}
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Account Balances Distribution</h3>
+            </Panel>
+            {/* Account Balances PieChart — SmartHR Panel */}
+            <Panel title="Account Balances Distribution" icon={<FiDollarSign className="w-4 h-4" />} accent="text-[#6C4FD6]">
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie data={accountBalanceData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
@@ -304,12 +322,11 @@ function AccountsContent() {
                   <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, '']} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            </Panel>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Budget vs Actual */}
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Budget vs Actual</h3>
+            {/* Budget vs Actual — SmartHR Panel */}
+            <Panel title="Budget vs Actual" icon={<FiBarChart2 className="w-4 h-4" />} accent="text-[#009EFB]">
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={budgetVsActualData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -321,13 +338,18 @@ function AccountsContent() {
                   <Bar dataKey="actual" fill="#10b981" name="Actual" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-            {/* Recent Transactions */}
-            <div className="thb-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-thb-text-primary">Recent Transactions</h3>
-                <button onClick={() => setActiveTab('journal-entries')} className="text-xs text-green-600 hover:underline">View All</button>
-              </div>
+            </Panel>
+            {/* Recent Transactions — SmartHR Panel */}
+            <Panel
+              title="Recent Transactions"
+              icon={<FiFileText className="w-4 h-4" />}
+              accent="text-[#FF9B44]"
+              action={
+                <button onClick={() => setActiveTab('journal-entries')} className="text-xs font-semibold text-[#3A57C4] hover:text-[#2C43A3] inline-flex items-center">
+                  View All
+                </button>
+              }
+            >
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
@@ -354,7 +376,7 @@ function AccountsContent() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Panel>
           </div>
         </div>
       )}
@@ -507,11 +529,8 @@ function AccountsContent() {
 
       {activeTab === 'financial-statements' && (
         <div className="space-y-6">
-          {/* Balance Sheet */}
-          <div className="thb-card p-5">
-            <h3 className="text-lg font-bold text-thb-text-primary mb-4 flex items-center gap-2">
-              <FiBookOpen className="w-5 h-5 text-green-500" /> Balance Sheet
-            </h3>
+          {/* Balance Sheet — SmartHR Panel */}
+          <Panel title="Balance Sheet" icon={<FiBookOpen className="w-4 h-4" />} accent="text-[#10B981]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="text-sm font-bold text-emerald-600 mb-3 border-b border-emerald-100 pb-2">Assets</h4>
@@ -551,12 +570,9 @@ function AccountsContent() {
                 </div>
               </div>
             </div>
-          </div>
-          {/* Income Statement */}
-          <div className="thb-card p-5">
-            <h3 className="text-lg font-bold text-thb-text-primary mb-4 flex items-center gap-2">
-              <FiTrendingUp className="w-5 h-5 text-emerald-500" /> Income Statement (P&L)
-            </h3>
+          </Panel>
+          {/* Income Statement — SmartHR Panel */}
+          <Panel title="Income Statement (P&L)" icon={<FiTrendingUp className="w-4 h-4" />} accent="text-[#009EFB]">
             <div className="max-w-md">
               <h4 className="text-sm font-bold text-emerald-600 mb-3 border-b border-emerald-100 pb-2">Revenue</h4>
               {[
@@ -594,7 +610,7 @@ function AccountsContent() {
                 <span className="text-green-700">₹3,85,000</span>
               </div>
             </div>
-          </div>
+          </Panel>
         </div>
       )}
 

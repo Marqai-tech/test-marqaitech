@@ -14,7 +14,7 @@
 const BASE = process.argv[2] || 'https://3boxeshrms.com';
 const ALLOW_PATCH = process.argv.includes('--demo-patch');
 
-const TENANT = { email: 'hr@marqaitech.com', password: 'MarqAI@2026' };   // live tenant admin (has employee profile)
+const TENANT = { email: 'hr@gmail.com', password: 'MarqAI@2026' };   // live tenant admin (has employee profile)
 const DEMO = { email: 'admin@acme-global.com', password: 'MarqAI@2026' }; // demo admin
 const isDemo = BASE.includes('demo');
 

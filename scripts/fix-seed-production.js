@@ -169,7 +169,7 @@ async function main() {
 
     // HR Admin employee records
     const hrAdminEmails = [
-      { email: 'hr@marqaitech.com', companyCode: 'MTPL', firstName: 'HR', lastName: 'Admin', desTitle: 'HR Manager' },
+      { email: 'hr@gmail.com', companyCode: 'MTPL', firstName: 'HR', lastName: 'Admin', desTitle: 'HR Manager' },
       { email: 'hr@marqaisolutions.com', companyCode: 'MSPL', firstName: 'HR', lastName: 'Admin', desTitle: 'HR Manager' },
       { email: 'hr@marqaidigital.com', companyCode: 'MDPL', firstName: 'HR', lastName: 'Admin', desTitle: 'HR Manager' },
       { email: 'hr@marqaiinnovations.com', companyCode: 'MIPL', firstName: 'HR', lastName: 'Admin', desTitle: 'HR Manager' },

@@ -45,6 +45,8 @@ import 'screens/projects/projects_home_screen.dart';
 import 'screens/projects/project_detail_screen.dart';
 import 'screens/chat/chat_home_screen.dart';
 import 'screens/chat/chat_room_screen.dart';
+// Task 156 — native AI Assistant (PhonePe-style centre dock target)
+import 'screens/ai/ai_assistant_screen.dart';
 import 'screens/helpdesk/helpdesk_screen.dart';
 import 'screens/home/announcements_screen.dart';
 import 'models/chat.dart';
@@ -131,6 +133,9 @@ class HRMSApp extends StatelessWidget {
           // Task 141 — HR Help Desk (web Support ticketing parity) + Announcements
           '/helpdesk': (_) => const HelpDeskScreen(),
           '/announcements': (_) => const AnnouncementsScreen(),
+          // Task 156 — raised violet centre dock opens the NATIVE AI chat
+          // (same /api/ai-chat endpoint + history as the web bot).
+          '/ai-assistant': (_) => const AiAssistantScreen(),
           // '/projects/detail' is handled by onGenerateRoute below (needs the
           // project ID passed as settings.arguments — same pattern as
           // '/employees/detail').

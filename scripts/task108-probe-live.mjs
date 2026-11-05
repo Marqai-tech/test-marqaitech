@@ -19,7 +19,7 @@ async function j(method, path, token, body) {
 }
 
 const login = await j('POST', '/api/auth/login', null, {
-  email: 'hr@marqaitech.com',
+  email: 'hr@gmail.com',
   password: 'MarqAI@2026',
 });
 console.log('LOGIN', login.status, JSON.stringify({

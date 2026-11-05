@@ -4,6 +4,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 import { getHiddenSlugsForRequest } from '@/lib/tenant-filter';
+import { invalidateTenantBrandingCache } from '@/lib/tenant-branding';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
 
@@ -307,6 +308,10 @@ export async function PATCH(
     const { status, name, domain, plan, country, currency, timezone, logo, maxCompaniesAllowed } = body;
     // Extended platform fields (super_admin only, same guard as plan/status).
     const { language, baseCurrency, dataRegion, subscriptionSeats, subscriptionStorage } = body;
+    // REQ 5: tenant branding fields (logo + brand colors). Both tenant_admin
+    // and super_admin can set these on their own tenant — they affect email
+    // branding only, no security implication. Validated as hex colors.
+    const { brandColor, accentColor } = body;
 
     const existingTenant = await getPlatformDb().tenant.findUnique({ where: { id } });
     if (!existingTenant) {
@@ -349,6 +354,21 @@ export async function PATCH(
     if (currency !== undefined) updateData.currency = currency;
     if (timezone !== undefined) updateData.timezone = timezone;
     if (logo !== undefined) updateData.logo = logo;
+    // REQ 5: validate hex colors before persisting. Null/empty clears the field.
+    if (brandColor !== undefined) {
+      const v = (brandColor === null || brandColor === '') ? null : String(brandColor).trim();
+      if (v !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+        return NextResponse.json({ error: 'brandColor must be a valid hex color (e.g. #065f46)' }, { status: 400, headers: corsHeaders() });
+      }
+      updateData.brandColor = v;
+    }
+    if (accentColor !== undefined) {
+      const v = (accentColor === null || accentColor === '') ? null : String(accentColor).trim();
+      if (v !== null && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+        return NextResponse.json({ error: 'accentColor must be a valid hex color (e.g. #10b981)' }, { status: 400, headers: corsHeaders() });
+      }
+      updateData.accentColor = v;
+    }
 
     // Super-admin-only fields: plan, status, maxCompaniesAllowed + extended
     // platform fields (language / baseCurrency / dataRegion / seat & storage caps).
@@ -446,6 +466,11 @@ export async function PATCH(
         console.warn('[tenants/[id]] link-change broadcast failed (non-fatal):', linkErr);
       }
     }
+
+    // REQ 5: invalidate the in-process tenant branding cache so subsequent
+    // email dispatches pick up the new colors/logo immediately. Without this,
+    // a 60s stale cache would persist after a branding update.
+    try { invalidateTenantBrandingCache(id); } catch { /* non-fatal */ }
 
     // Notify tenant admin of status changes. Tenant admin users live in the
     // target tenant's own database when it has one (fallback = platform DB

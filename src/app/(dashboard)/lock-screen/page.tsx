@@ -6,6 +6,8 @@ import { useAuthStore } from '@/store/authStore';
 import { FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { validatePasswordRequired } from '@/lib/validators';
+import { homeHrefForRole } from '@/lib/roleAccess';
+import { isRememberMe, setToken } from '@/lib/token-storage';
 
 export default function LockScreenPage() {
   const router = useRouter();
@@ -31,18 +33,22 @@ export default function LockScreenPage() {
     }
     setLoading(true);
     try {
+      // Preserve rememberMe flag so unlocking a 30-day session doesn't
+      // downgrade it to a 24h per-tab session.
+      const isRemember = isRememberMe();
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user?.email, password }),
+        body: JSON.stringify({ email: user?.email, password, rememberMe: isRemember }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.token) {
-          localStorage.setItem('tb_token', data.token);
+          // Use setToken to respect the remember-me storage strategy
+          setToken(data.token, { remember: isRemember });
         }
         toast.success('Welcome back!');
-        router.push('/home');
+        router.push(homeHrefForRole(user?.role));
       } else {
         toast.error('Incorrect password. Please try again.');
       }

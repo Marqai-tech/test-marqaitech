@@ -29,12 +29,13 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-type WfType = 'recruitment' | 'preboarding' | 'onboarding';
+type WfType = 'recruitment' | 'preboarding' | 'onboarding' | 'requisition';
 
 const TABS: { key: WfType; label: string; hint: string }[] = [
   { key: 'recruitment', label: 'Recruitment Pipeline', hint: 'Application stages & offer approval chain' },
   { key: 'preboarding', label: 'Preboarding Stages', hint: 'Offer acceptance → Day 1 stage machine' },
   { key: 'onboarding', label: 'Onboarding Checklist', hint: 'Tasks auto-generated when a candidate converts' },
+  { key: 'requisition', label: 'Requisition Approval', hint: 'Configurable approval chain (Manager → HR → Finance → …)' },
 ];
 
 const STAGE_COLORS = ['slate', 'blue', 'amber', 'violet', 'green', 'red', 'cyan', 'pink'];
@@ -52,7 +53,7 @@ const APPROVER_TYPES: { value: string; label: string; hint: string }[] = [
   { value: 'specific_user', label: 'Specific User', hint: 'One named approver' },
 ];
 
-const ONB_CATEGORIES = ['general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation'];
+const ONB_CATEGORIES = ['general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation', 'documentation', 'compliance'];
 
 // ─── UI state shapes (mirror the lib config types) ───
 interface Stage { key: string; label: string; color?: string; slaDays?: number | null; enabled?: boolean }
@@ -62,6 +63,7 @@ interface PreboardingCfg { stages: Array<{ key: string; label: string; slaDays?:
 interface OnbTask { task: string; category: string; dueOffsetDays: number; assigneeRole?: string | null }
 interface OnbPhase { key: string; label: string; tasks: OnbTask[] }
 interface OnboardingCfg { generateFromTemplates: boolean; buddyEnabled?: boolean; phases: OnbPhase[] }
+interface RequisitionCfg { tiers: Tier[]; skipFinanceBelowBudget?: number | null; allowManagerSubmit?: boolean }
 
 function NumberInput({ value, onChange, min, max, placeholder, className = '' }: {
   value: number | null; onChange: (v: number | null) => void; min?: number; max?: number; placeholder?: string; className?: string;
@@ -90,20 +92,24 @@ export default function WorkflowConfigPage() {
   const [recCfg, setRecCfg] = useState<RecruitmentCfg | null>(null);
   const [pbCfg, setPbCfg] = useState<PreboardingCfg | null>(null);
   const [onbCfg, setOnbCfg] = useState<OnboardingCfg | null>(null);
+  // C-32: Requisition approval workflow config — chain of tiers (HR → Finance → ...)
+  const [reqCfg, setReqCfg] = useState<RequisitionCfg | null>(null);
   const [users, setUsers] = useState<Array<{ id: string; name: string }>>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const headers = getAuthHeaders();
-      const [r1, r2, r3] = await Promise.all([
+      const [r1, r2, r3, r4] = await Promise.all([
         fetch('/api/recruitment/workflow-config?type=recruitment', { headers }),
         fetch('/api/recruitment/workflow-config?type=preboarding', { headers }),
         fetch('/api/recruitment/workflow-config?type=onboarding', { headers }),
+        fetch('/api/recruitment/workflow-config?type=requisition', { headers }),
       ]);
       if (r1.ok) { const j = await r1.json(); setRecCfg(j.effective); setCustomized((p) => ({ ...p, recruitment: !!j.saved })); }
       if (r2.ok) { const j = await r2.json(); setPbCfg(j.effective); setCustomized((p) => ({ ...p, preboarding: !!j.saved })); }
       if (r3.ok) { const j = await r3.json(); setOnbCfg(j.effective); setCustomized((p) => ({ ...p, onboarding: !!j.saved })); }
+      if (r4.ok) { const j = await r4.json(); setReqCfg(j.effective); setCustomized((p) => ({ ...p, requisition: !!j.saved })); }
     } catch {
       toast.error('Failed to load workflow configuration');
     } finally {
@@ -127,7 +133,7 @@ export default function WorkflowConfigPage() {
   }, []);
 
   const save = async (type: WfType) => {
-    const cfg = type === 'recruitment' ? recCfg : type === 'preboarding' ? pbCfg : onbCfg;
+    const cfg = type === 'recruitment' ? recCfg : type === 'preboarding' ? pbCfg : type === 'onboarding' ? onbCfg : type === 'requisition' ? reqCfg : null;
     if (!cfg) return;
     setSaving(true);
     try {
@@ -473,6 +479,114 @@ export default function WorkflowConfigPage() {
                 </div>
               </div>
               <SaveBar onSave={() => save('onboarding')} saving={saving} />
+            </div>
+          )}
+
+          {/* ═══════════ REQUISITION APPROVAL (C-32) ═══════════ */}
+          {activeTab === 'requisition' && reqCfg && (
+            <div className="space-y-4">
+              <div className="thb-card p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-sm font-bold text-thb-text-primary">Requisition Approval Chain</h2>
+                  <button onClick={() => reset('requisition')} className="text-[11px] text-thb-text-muted hover:text-red-500 flex items-center gap-1"><FiRotateCcw className="w-3 h-3" /> Reset to defaults</button>
+                </div>
+                <p className="text-[11px] text-thb-text-muted mb-4">
+                  Define who approves a requisition and in what order. The Manager submits → Tier 1 approves → Tier 2 approves → … → final tier approves → &quot;Create Job Posting&quot; becomes available.
+                  Default is the original hardcoded 2-tier HR → Finance flow. Add or remove tiers, change approver roles, and edit tier labels by your tenant&apos;s needs.
+                </p>
+                <div className="space-y-2">
+                  {reqCfg.tiers.map((t, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-thb-border bg-slate-50/60 px-3 py-2.5">
+                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center shrink-0">{i + 1}</span>
+                      <select
+                        value={t.approverType}
+                        onChange={(e) => {
+                          const next = [...reqCfg.tiers];
+                          const type = e.target.value;
+                          next[i] = { ...t, approverType: type, approverUserId: type === 'specific_user' ? t.approverUserId : null };
+                          setReqCfg({ ...reqCfg, tiers: next });
+                        }}
+                        className="px-2.5 py-1.5 border border-thb-border rounded-lg text-xs bg-white min-w-[150px]"
+                      >
+                        {APPROVER_TYPES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                      </select>
+                      {t.approverType === 'specific_user' && (
+                        <select
+                          value={t.approverUserId || ''}
+                          onChange={(e) => { const next = [...reqCfg.tiers]; next[i] = { ...t, approverUserId: e.target.value || null }; setReqCfg({ ...reqCfg, tiers: next }); }}
+                          className="px-2.5 py-1.5 border border-thb-border rounded-lg text-xs bg-white min-w-[160px]"
+                        >
+                          <option value="">Select user…</option>
+                          {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                      )}
+                      <input
+                        value={t.label || ''}
+                        onChange={(e) => { const next = [...reqCfg.tiers]; next[i] = { ...t, label: e.target.value }; setReqCfg({ ...reqCfg, tiers: next }); }}
+                        className="px-2.5 py-1.5 border border-thb-border rounded-lg text-xs bg-white flex-1 min-w-[120px]"
+                        placeholder="Label (e.g. HR Approval)"
+                      />
+                      <div className="flex items-center gap-0.5 ml-auto">
+                        <button onClick={() => setReqCfg({ ...reqCfg, tiers: move(reqCfg.tiers, i, -1) })} className="p-1.5 rounded hover:bg-slate-200 text-thb-text-muted" title="Move up"><FiArrowUp className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setReqCfg({ ...reqCfg, tiers: move(reqCfg.tiers, i, 1) })} className="p-1.5 rounded hover:bg-slate-200 text-thb-text-muted" title="Move down"><FiArrowDown className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() => setReqCfg({ ...reqCfg, tiers: reqCfg.tiers.filter((_, j) => j !== i) })}
+                          className="p-1.5 rounded hover:bg-red-50 text-red-400"
+                          title="Remove tier"
+                          disabled={reqCfg.tiers.length <= 1}
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setReqCfg({ ...reqCfg, tiers: [...reqCfg.tiers, { tier: reqCfg.tiers.length + 1, approverType: 'hr_admin', approverUserId: null, label: '' }] })}
+                    className="text-xs text-emerald-600 font-semibold flex items-center gap-1 hover:underline"
+                  >
+                    <FiPlus className="w-3.5 h-3.5" /> Add approval tier
+                  </button>
+                </div>
+              </div>
+
+              {/* Skip-Finance-for-low-budget threshold */}
+              <div className="thb-card p-5">
+                <h2 className="text-sm font-bold text-thb-text-primary mb-1">Skip-Finance-For-Low-Budget Threshold</h2>
+                <p className="text-[11px] text-thb-text-muted mb-4">
+                  If the requisition&apos;s salary budget is below this amount (in INR), the Finance tier is skipped automatically — HR&apos;s approval alone is enough.
+                  Set to <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded">0</code> or leave blank to always require Finance approval (no skipping).
+                </p>
+                <div className="flex items-center gap-3">
+                  <NumberInput
+                    value={reqCfg.skipFinanceBelowBudget ?? null}
+                    onChange={(v) => setReqCfg({ ...reqCfg, skipFinanceBelowBudget: v })}
+                    min={0}
+                    max={99999999}
+                    placeholder="e.g. 100000 (₹1 lakh)"
+                    className="w-64"
+                  />
+                  <span className="text-[11px] text-thb-text-muted">INR / year</span>
+                </div>
+              </div>
+
+              {/* Manager-submit permission */}
+              <div className="thb-card p-5">
+                <h2 className="text-sm font-bold text-thb-text-primary mb-1">Submit Permission</h2>
+                <p className="text-[11px] text-thb-text-muted mb-3">
+                  Allow the requester&apos;s reporting manager to also submit the requisition on the requester&apos;s behalf (useful for back-office teams where the requester is a junior employee).
+                </p>
+                <label className="flex items-center gap-2 text-xs text-thb-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reqCfg.allowManagerSubmit === true}
+                    onChange={(e) => setReqCfg({ ...reqCfg, allowManagerSubmit: e.target.checked })}
+                    className="accent-emerald-600"
+                  />
+                  Allow reporting manager to submit on behalf of the requester
+                </label>
+              </div>
+
+              <SaveBar onSave={() => save('requisition')} saving={saving} />
             </div>
           )}
         </>

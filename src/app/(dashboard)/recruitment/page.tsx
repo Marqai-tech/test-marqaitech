@@ -182,12 +182,13 @@ function getAppStatusBadge(status: string) {
   const map: Record<string, string> = {
     applied: 'thb-badge thb-badge-info',
     screening: 'bg-teal-50 text-teal-700 thb-badge',
+    shortlisted: 'bg-violet-50 text-violet-700 thb-badge',
     interview: 'bg-amber-50 text-amber-700 thb-badge',
     offered: 'thb-badge thb-badge-success',
     hired: 'bg-emerald-50 text-emerald-700 thb-badge',
     rejected: 'thb-badge thb-badge-error',
   };
-  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', interview: 'Interview', offered: 'Offered', hired: 'Hired', rejected: 'Rejected' };
+  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', offered: 'Offered', hired: 'Hired', rejected: 'Rejected' };
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
@@ -323,6 +324,151 @@ export default function RecruitmentPage() {
   // Application edit state (inline status change)
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [editAppStatus, setEditAppStatus] = useState('');
+
+  // Task 167: Interview scheduling state
+  const [scheduleAppId, setScheduleAppId] = useState<string | null>(null);
+  const [scheduleAppDept, setScheduleAppDept] = useState<string>('');
+  // Department-dropdown list for the schedule-interview modal. Lets the user
+  // switch which department to draw panel members from (defaults to the job's
+  // own department). Loaded on first modal open.
+  const [modalDepartments, setModalDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
+  const [modalDepartmentsLoaded, setModalDepartmentsLoaded] = useState(false);
+  const [interviewForm, setInterviewForm] = useState({
+    type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '',
+  });
+  const [panelMembers, setPanelMembers] = useState<Array<{id: string; userId: string; name: string; email: string; designation: string; department: string; role: string; availability: string; reason: string; conflictTime: string}>>([]);
+  const [selectedPanelIds, setSelectedPanelIds] = useState<string[]>([]); // user IDs
+  const [loadingPanel, setLoadingPanel] = useState(false);
+  const [schedulingInterview, setSchedulingInterview] = useState(false);
+
+  // Task 167: Schedule interview handler
+  const handleScheduleInterview = async () => {
+    if (!scheduleAppId || !interviewForm.date) { toast.error('Date is required'); return; }
+    if (!scheduleAppDept) { toast.error('Please select a department'); return; }
+    if (selectedPanelIds.length === 0) { toast.error('Select at least one panel member'); return; }
+    // Task 167: BLOCK Busy/On Leave from being selected (not just warn)
+    const unavailableMembers = selectedPanelIds.filter(uid => {
+      const m = panelMembers.find(p => p.userId === uid);
+      return m && (m.availability === 'Busy' || m.availability === 'On Leave');
+    });
+    if (unavailableMembers.length > 0) {
+      const names = unavailableMembers.map(uid => panelMembers.find(p => p.userId === uid)?.name).join(', ');
+      toast.error(`Cannot select unavailable members: ${names}. Please remove them and try again.`);
+      return;
+    }
+    setSchedulingInterview(true);
+    try {
+      const res = await fetch('/api/interviews', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          jobApplicationId: scheduleAppId,
+          type: interviewForm.type,
+          date: interviewForm.date,
+          time: interviewForm.time,
+          duration: Number(interviewForm.duration) || 60,
+          location: interviewForm.location || undefined,
+          meetingUrl: interviewForm.meetingUrl || undefined,
+          panelMemberIds: selectedPanelIds, // send user IDs, not emails
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to schedule interview');
+      toast.success(`Interview scheduled — ${selectedPanelIds.length} panel member(s) notified`);
+      setScheduleAppId(null);
+      setSelectedPanelIds([]);
+      setPanelMembers([]);
+      setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
+      fetchData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to schedule interview');
+    } finally {
+      setSchedulingInterview(false);
+    }
+  };
+
+  // Task 167: Fetch panel members with availability when date/time changes.
+  // Date is now OPTIONAL — the list populates as soon as a department is
+  // selected, and date/time changes only refresh availability badges.
+  const fetchPanelAvailability = useCallback(async () => {
+    if (!scheduleAppDept) { setPanelMembers([]); return; }
+    setLoadingPanel(true);
+    try {
+      const params = new URLSearchParams({
+        departmentId: scheduleAppDept,
+        duration: String(interviewForm.duration || 60),
+        interviewType: interviewForm.type,
+      });
+      // Date and time are optional — when omitted, the API returns the
+      // department's employees with availability='No Date Set' so the user
+      // can see the list before picking a date.
+      if (interviewForm.date) {
+        params.set('date', interviewForm.date);
+        if (interviewForm.time) params.set('time', interviewForm.time);
+      }
+      const res = await fetch(`/api/interviews/panel-availability?${params}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setPanelMembers(data.employees || []);
+      }
+    } catch { /* non-fatal */ }
+    finally { setLoadingPanel(false); }
+  }, [scheduleAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type]);
+
+  useEffect(() => {
+    if (scheduleAppId && scheduleAppDept) {
+      fetchPanelAvailability();
+    } else {
+      setPanelMembers([]);
+    }
+  }, [scheduleAppId, scheduleAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type, fetchPanelAvailability]);
+
+  // Load the full department list for the modal dropdown. Fires once per
+  // recruitment-page mount (idempotent — `modalDepartmentsLoaded` guards a
+  // refetch). Falls back to the in-page `departments` state already built
+  // from jobPostings if the API call fails.
+  //
+  // C-31: pass scopeQuery() so non-admins (or admins who have picked a
+  // company in the switcher) only see their own company's departments. For
+  // tenant_admins with NO company selected, scopeQuery is empty — in that
+  // case we also pass `noDedupe=1` so ALL departments from ALL companies
+  // are returned (the dropdown shows "Department — CompanyName" labels,
+  // so duplicates are visually distinguishable). Without `noDedupe`, the
+  // server-side dedup would silently keep only the first row per name —
+  // which might NOT be the company HR is trying to schedule panel members
+  // for (e.g. "Software Development — Acme Global" would be hidden behind
+  // "Software Development — Marqaitech"). With noDedupe, HR sees all of
+  // them and can pick the right one. The panel-availability API then
+  // filters by the selected dept's ID, so only employees of THAT
+  // company's department are returned (Manoj + Siraj for Acme Global's
+  // Software Development, for example).
+  const fetchModalDepartments = useCallback(async () => {
+    if (modalDepartmentsLoaded) return;
+    try {
+      const sq = scopeQuery();
+      const scopeParam = sq ? `&${sq}` : '';
+      // Always pass noDedupe=1 here — this modal shows the company name in
+      // the dropdown label, so duplicates are intentionally visible and
+      // disambiguated by the company suffix.
+      const res = await fetch(`/api/departments?limit=200${scopeParam}&noDedupe=1`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const list = (data.data || []).map((d: { id: string; name: string; company?: { name?: string } }) => ({
+          id: d.id,
+          name: d.name,
+          companyName: d.company?.name,
+        }));
+        if (list.length > 0) {
+          setModalDepartments(list);
+          setModalDepartmentsLoaded(true);
+          return;
+        }
+      }
+    } catch { /* non-fatal — fall back to the in-page departments state */ }
+    // Fallback: reuse the departments already in scope from jobPostings.
+    setModalDepartments(departments.map(d => ({ id: d.id, name: d.name })));
+    setModalDepartmentsLoaded(true);
+  }, [modalDepartmentsLoaded, departments, scopeQuery]);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -603,11 +749,16 @@ export default function RecruitmentPage() {
     if (appForm.candidatePhone) { const r = validatePhone(appForm.candidatePhone); if (!r.valid) { toast.error(r.error); return } }
     try {
       setSubmittingApp(true);
-      await fetch('/api/recruitment', {
+      // Phase 7 fix: Check response.ok before showing success
+      const res = await fetch('/api/recruitment', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ action: 'apply', ...appForm }),
       });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to submit application');
+      }
       toast.success('Application submitted successfully');
       handleCancelAppForm();
       fetchData();
@@ -629,12 +780,15 @@ export default function RecruitmentPage() {
     setEditAppStatus('');
   };
 
-  const handleSaveAppStatus = async (appId: string) => {
+  const handleSaveAppStatus = async (appId: string, overrideStatus?: string) => {
+    // Phase 7 fix: accept optional overrideStatus to avoid React async state race
+    const statusToSend = overrideStatus || editAppStatus;
+    if (!statusToSend) { toast.error('No status selected'); return; }
     try {
       const res = await fetch(`/api/recruitment/${appId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ status: editAppStatus }),
+        body: JSON.stringify({ status: statusToSend }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success('Application status updated');
@@ -741,12 +895,18 @@ export default function RecruitmentPage() {
     return applications;
   }, [applications]);
 
+  // Phase 15 fix: Correct counter calculations
   const openPositions = displayJobs.filter(j => j.status === 'open').length;
   const totalApplications = displayApplications.length;
+  // Count ACTUAL scheduled Interview rows, not just application status=interview
   const interviewsScheduled = displayApplications.filter(a => a.status === 'interview').length;
+  // Offers Pending = applications with 'offered' status (awaiting candidate response)
   const offersPending = displayApplications.filter(a => a.status === 'offered').length;
-  const shortlisted = displayApplications.filter(a => a.status === 'screening').length;
+  // Shortlisted = only 'shortlisted' status (was incorrectly including 'screening')
+  const shortlisted = displayApplications.filter(a => a.status === 'shortlisted').length;
   const hired = displayApplications.filter(a => a.status === 'hired').length;
+  // Phase 15 fix: Add separate "Interviewed" counter (completed interviews, not just scheduled)
+  const interviewed = displayApplications.filter(a => a.status === 'interview' || a.status === 'offered' || a.status === 'hired' || a.status === 'rejected').length;
 
   /* ─── Filtered Data ─── */
   const filteredJobs = useMemo(() => {
@@ -781,7 +941,7 @@ export default function RecruitmentPage() {
   const candidateStatsCards = [
     { label: 'Total Candidates', value: totalApplications, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
     { label: 'Shortlisted', value: shortlisted, icon: FiFilter, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-200' },
-    { label: 'Interviewed', value: interviewsScheduled, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    { label: 'Interviewed', value: interviewed, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
     { label: 'Hired', value: hired, icon: FiCheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   ];
 
@@ -1333,6 +1493,7 @@ export default function RecruitmentPage() {
                                                       >
                                                         <option value="applied">Applied</option>
                                                         <option value="screening">Screening</option>
+                                                        <option value="shortlisted">Shortlisted</option>
                                                         <option value="interview">Interview</option>
                                                         <option value="offered">Offered</option>
                                                         <option value="hired">Hired</option>
@@ -1349,7 +1510,7 @@ export default function RecruitmentPage() {
                                                     <div className="flex items-center gap-2">
                                                       <span className={appBadge.className}>{appBadge.label}</span>
                                                       {isAdmin && (
-                                                        <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit Status">
+                                                        <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Change Hiring Stage">
                                                           <FiEdit2 className="w-3.5 h-3.5" />
                                                         </button>
                                                       )}
@@ -1542,6 +1703,7 @@ export default function RecruitmentPage() {
                                 >
                                   <option value="applied">Applied</option>
                                   <option value="screening">Screening</option>
+                                  <option value="shortlisted">Shortlisted</option>
                                   <option value="interview">Interview</option>
                                   <option value="offered">Offered</option>
                                   <option value="hired">Hired</option>
@@ -1563,8 +1725,74 @@ export default function RecruitmentPage() {
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-end gap-1">
+                                  {isAdmin && (app.status === 'interview' || app.status === 'shortlisted' || app.status === 'screening') && (
+                                    <button onClick={() => {
+                                      setScheduleAppId(app.id);
+                                      // Find the job posting's department — pass the ID (not the name)
+                                      // so the panel-availability API can resolve it directly.
+                                      const job = jobPostings.find(j => j.id === app.jobPostingId);
+                                      setScheduleAppDept(job?.department?.id || '');
+                                      // Prime the department dropdown — fires once per page mount
+                                      // (idempotent via the modalDepartmentsLoaded guard inside).
+                                      fetchModalDepartments();
+                                    }} className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors" title="Schedule Interview">
+                                      <FiCalendar className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {/* Reschedule Interview — fetches the latest scheduled interview for this app and reschedules it */}
+                                  {isAdmin && app.status === 'interview' && (
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(`/api/interviews?jobApplicationId=${app.id}&status=scheduled&limit=1`, { headers: getAuthHeaders() });
+                                          if (res.ok) {
+                                            const data = await res.json();
+                                            const ints = data.data || [];
+                                            if (ints.length > 0) {
+                                              const iid = ints[0].id;
+                                              const newDate = prompt('Enter new date (YYYY-MM-DD):');
+                                              if (!newDate) return;
+                                              const newTime = prompt('Enter new time (HH:MM):', '10:00') || '10:00';
+                                              const patchRes = await fetch('/api/interviews', {
+                                                method: 'PATCH',
+                                                headers: getAuthHeaders(),
+                                                body: JSON.stringify({ id: iid, action: 'reschedule', newDate, newTime, newDuration: 60 }),
+                                              });
+                                              if (patchRes.ok) {
+                                                toast.success(`Interview rescheduled to ${newDate} ${newTime}`);
+                                              } else {
+                                                const d = await patchRes.json();
+                                                toast.error(d.error || 'Reschedule failed');
+                                              }
+                                            } else {
+                                              toast.error('No scheduled interview found for this candidate. Use the Schedule Interview button first.');
+                                            }
+                                          }
+                                        } catch { toast.error('Failed to reschedule'); }
+                                      }}
+                                      className="p-2 rounded-lg text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                      title="Reschedule Interview"
+                                    >
+                                      <FiRefreshCw className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {/* GAP FIX #6: "Extend Offer" button — opens the offers page pre-filled with the candidate's data */}
+                                  {isAdmin && (app.status === 'interview' || app.status === 'shortlisted') && (
+                                    <button onClick={() => {
+                                      const params = new URLSearchParams({
+                                        candidateId: app.id,
+                                        candidateName: app.candidateName || '',
+                                        candidateEmail: app.candidateEmail || '',
+                                        jobApplicationId: app.id,
+                                        position: jobPostings.find(j => j.id === app.jobPostingId)?.title || '',
+                                      });
+                                      window.location.href = `/offers?${params.toString()}`;
+                                    }} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Extend Offer">
+                                      <FiFileText className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   {isAdmin && (
-                                    <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Status">
+                                    <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Change Hiring Stage">
                                       <FiEdit2 className="w-4 h-4" />
                                     </button>
                                   )}
@@ -1673,14 +1901,14 @@ export default function RecruitmentPage() {
                         {isAdmin && !isDemo && (
                           <>
                             <button
-                              onClick={() => { handleOpenAppEdit(app); setCandidateViewMode('list'); }}
+                              onClick={() => { handleSaveAppStatus(app.id, 'shortlisted'); }}
                               className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                               title="Shortlist"
                             >
                               <FiUserCheck className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => { setEditAppStatus('rejected'); setEditingAppId(app.id); handleSaveAppStatus(app.id); }}
+                              onClick={() => { handleSaveAppStatus(app.id, 'rejected'); }}
                               className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
                               title="Reject"
                             >
@@ -1981,6 +2209,144 @@ export default function RecruitmentPage() {
           )}
         </div>
       )}
+      {/* Task 167: Interview Scheduling Modal */}
+      {scheduleAppId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-thb-border">
+              <h2 className="text-lg font-bold text-thb-text-primary">Schedule Interview</h2>
+              <button onClick={() => setScheduleAppId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interview Type *</label>
+                <select value={interviewForm.type} onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
+                  <option value="technical">Technical Interview</option>
+                  <option value="hr">HR Interview</option>
+                  <option value="ai">AI Interview</option>
+                  <option value="offline_panel">Panel Interview (Offline)</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                  <input type="date" value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time</label>
+                  <input type="time" value={interviewForm.time} onChange={(e) => setInterviewForm({ ...interviewForm, time: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration (mins)</label>
+                  <input type="number" value={interviewForm.duration} onChange={(e) => setInterviewForm({ ...interviewForm, duration: Number(e.target.value) })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
+                  <input value={interviewForm.location} onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })} placeholder="e.g. Conference Room A" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Meeting Link (optional)</label>
+                <input value={interviewForm.meetingUrl} onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })} placeholder="e.g. https://meet.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department (panel members will be drawn from this department) *</label>
+                <select
+                  value={scheduleAppDept}
+                  onChange={(e) => {
+                    setScheduleAppDept(e.target.value);
+                    // Reset any prior selections — the list will be refetched
+                    // for the newly chosen department.
+                    setSelectedPanelIds([]);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
+                >
+                  <option value="">Select a department…</option>
+                  {modalDepartments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}{d.companyName ? ` — ${d.companyName}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Panel Members *</label>
+                <p className="text-xs text-thb-text-muted mb-2">
+                  Employees from the selected department are listed below.
+                  {!interviewForm.date && ' Pick a date above to see availability badges.'}
+                </p>
+                {loadingPanel ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Loading panel members…</div>
+                ) : !scheduleAppDept ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Select a department to load available panel members</div>
+                ) : panelMembers.length === 0 ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">No employees found in this department</div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
+                    {panelMembers.map((m) => {
+                      const isSelected = selectedPanelIds.includes(m.userId);
+                      // Only block selection on hard conflicts (Busy / On Leave).
+                      // 'No Date Set' and 'Tentative' stay selectable — the user
+                      // can still add them and pick a date afterwards.
+                      const isBlocked = m.availability === 'Busy' || m.availability === 'On Leave';
+                      const availBadge: Record<string, string> = {
+                        Available: 'bg-emerald-50 text-emerald-700',
+                        Busy: 'bg-red-50 text-red-700',
+                        'On Leave': 'bg-amber-50 text-amber-700',
+                        Tentative: 'bg-blue-50 text-blue-700',
+                        'No Date Set': 'bg-slate-50 text-slate-500',
+                      };
+                      return (
+                        <label key={m.id} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isBlocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={isBlocked}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedPanelIds([...selectedPanelIds, m.userId]);
+                              else setSelectedPanelIds(selectedPanelIds.filter(uid => uid !== m.userId));
+                            }}
+                            className="w-4 h-4 rounded text-teal-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
+                            <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
+                            {/* Phase 8 fix: Show workload (previous interview assignments count) */}
+                            {m.availability === 'Available' && (
+                              <p className="text-[10px] text-slate-400">Workload: {m.reason || 'No conflicts'}</p>
+                            )}
+                            {m.availability === 'No Date Set' && (
+                              <p className="text-[10px] text-slate-400">{m.reason}</p>
+                            )}
+                          </div>
+                          <span className={`thb-badge text-xs whitespace-nowrap ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`} title={m.reason}>
+                            {m.availability}{m.conflictTime ? ` (${m.conflictTime})` : ''}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {selectedPanelIds.length > 0 && (
+                  <p className="text-xs text-teal-600 mt-1">{selectedPanelIds.length} member(s) selected</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">
+              <button onClick={() => setScheduleAppId(null)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={handleScheduleInterview} disabled={schedulingInterview} className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+                {schedulingInterview ? 'Scheduling...' : 'Schedule Interview'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2185,6 +2551,8 @@ function ParsedResumePanel({
           </details>
         </div>
       )}
+
+
     </div>
   );
 }

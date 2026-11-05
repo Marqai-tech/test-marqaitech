@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@/generated/prisma/client';
 import { sendEmail } from '@/lib/email';
+import { buildBrandedEmailForTenant } from '@/lib/tenant-branding';
 
 /**
  * Task 109 — Suspicious punch detection + admin alerting.
@@ -200,10 +201,8 @@ export async function detectAndAlertSuspiciousPunch(input: PunchSuspicionInput):
           .map((u: { email?: string | null }) => u.email)
           .filter((e): e is string => Boolean(e))));
         if (emails.length) {
-          await sendEmail({
-            to: emails,
-            subject: `${title}: ${empName} (${empCode}) — ${dateStr}`,
-            html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto">
+          // REQ 5 — wrap the alert body in the tenant-branded template.
+          const innerHtml = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto">
   <h2 style="color:${f.severity === 'high' ? '#dc2626' : '#2563eb'};margin:0 0 12px">${title}</h2>
   <p style="color:#334155;font-size:14px;line-height:1.6">
     <strong>${empName}</strong> (${empCode}) — <strong>${action}</strong> via <strong>${method}</strong> on <strong>${dateStr}</strong>.
@@ -211,8 +210,22 @@ export async function detectAndAlertSuspiciousPunch(input: PunchSuspicionInput):
   <p style="color:#334155;font-size:14px;line-height:1.6">${f.detail}</p>
   <p style="color:#64748b;font-size:13px">Review the punch in Attendance → Punch Activity Log. Flag: <code>${f.flag}</code></p>
   <p style="color:#94a3b8;font-size:11px;margin-top:24px">Automated attendance integrity alert from 3Boxes HRMS.</p>
-</div>`,
-          });
+</div>`;
+          try {
+            const html = await buildBrandedEmailForTenant(tenantId, { title, bodyHtml: innerHtml });
+            await sendEmail({
+              to: emails,
+              subject: `${title}: ${empName} (${empCode}) — ${dateStr}`,
+              html,
+            });
+          } catch {
+            // Fallback: send unbranded so the alert still goes out.
+            await sendEmail({
+              to: emails,
+              subject: `${title}: ${empName} (${empCode}) — ${dateStr}`,
+              html: innerHtml,
+            });
+          }
         }
       } catch (alertErr) {
         console.warn('[suspicious-punch] alerting failed (non-fatal):', alertErr);

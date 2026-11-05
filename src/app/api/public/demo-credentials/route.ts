@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       const tenantAdmins = await db.user.findMany({
         where: { role: 'tenant_admin', status: 'active' },
         select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
-        orderBy: { tenant: { name: 'asc' } },
+        orderBy: { name: "asc" },
       });
 
       // Employee self-service accounts (2026-09-09) — lets reviewers test the
@@ -64,7 +64,11 @@ export async function GET(request: Request) {
       });
 
       const hiddenSlugs = getHiddenSlugsForRequest(request);
-      const visibleTenantAdmins = tenantAdmins.filter(u => !hiddenSlugs.includes(u.tenant.slug));
+      // Guard against null tenant — some users (e.g. the platform super_admin)
+      // have tenantId: null, so u.tenant can be null. The previous filter
+      // crashed with "Cannot read properties of null (reading 'slug')",
+      // causing a 500 that broke the login page's demo-credentials fetch.
+      const visibleTenantAdmins = tenantAdmins.filter(u => u.tenant && !hiddenSlugs.includes(u.tenant.slug));
 
       return NextResponse.json({
         site: 'demo',
@@ -76,15 +80,15 @@ export async function GET(request: Request) {
           name: u.name,
           role: u.role,
           functionalRole: 'Super Admin',
-          tenant: u.tenant.name,
+          tenant: u.tenant?.name || '—',
         })),
         tenantAdmins: visibleTenantAdmins.map(u => ({
           email: u.email,
           name: u.name,
           role: u.role,
           functionalRole: 'Tenant Admin',
-          tenant: u.tenant.name,
-          tenantSlug: u.tenant.slug,
+          tenant: u.tenant?.name || '—',
+          tenantSlug: u.tenant?.slug || '',
         })),
         employees: employeeUsers.map(u => ({
           email: u.email,
@@ -112,7 +116,7 @@ export async function GET(request: Request) {
       const tenantAdmins = await db.user.findMany({
         where: { role: 'tenant_admin', status: 'active' },
         select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
-        orderBy: { tenant: { name: 'asc' } },
+        orderBy: { name: "asc" },
       });
 
       return NextResponse.json({
@@ -123,15 +127,15 @@ export async function GET(request: Request) {
           name: u.name,
           role: u.role,
           functionalRole: 'Super Admin',
-          tenant: u.tenant.name,
+          tenant: u.tenant?.name || '—',
         })),
         tenantAdmins: tenantAdmins.map(u => ({
           email: u.email,
           name: u.name,
           role: u.role,
           functionalRole: 'Tenant Admin',
-          tenant: u.tenant.name,
-          tenantSlug: u.tenant.slug,
+          tenant: u.tenant?.name || '—',
+          tenantSlug: u.tenant?.slug || '',
         })),
       });
     }

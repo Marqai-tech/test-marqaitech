@@ -11,6 +11,16 @@ import {
   FiInfo,
   FiAlertTriangle,
   FiAlertCircle,
+  FiGrid,
+  FiClock,
+  FiDollarSign,
+  FiUserPlus,
+  FiTarget,
+  FiCalendar,
+  FiFolder,
+  FiSettings,
+  FiActivity,
+  FiArrowRight,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import {
@@ -198,11 +208,47 @@ const MODULE_SEARCH_MAP: Record<string, string> = {
 
 /* ── SmartHR-style header dropdown datasets (3Boxes palette) ── */
 
-const AI_CENTER_LINKS = [
-  { href: '/ai-assistant', label: 'AI Assistant', icon: TbSparkles, color: 'text-violet-600 bg-violet-50' },
-  { href: '/ai-interview', label: 'AI Interview', icon: TbInbox, color: 'text-orange-500 bg-orange-50' },
-  { href: '/ai-admin', label: 'AI Admin', icon: TbSettings, color: 'text-blue-600 bg-blue-50' },
+/* Task 160 — the AI Center dropdown maps EVERY AI insight surface in the
+   product: the /ai-insights/* section (hub + one page per module + settings)
+   plus the module AI monitors and the AI tools. Roles mirror navData so the
+   dropdown never links to a page the sidebar would hide for that role. */
+
+const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin'];
+
+/* One entry point to the whole AI Insights section. */
+const AI_HUB_LINK = {
+  href: '/ai-insights',
+  label: 'AI Insights Hub',
+  desc: "Every module's insights in one place",
+  icon: FiGrid,
+};
+
+/* AI Insights section — one insight page per module (roles = navData). */
+const AI_MODULE_INSIGHTS = [
+  { href: '/ai-insights/attendance', label: 'AI Attendance Insights', desc: 'Patterns, anomalies & check-ins', icon: FiClock, color: 'text-cyan-600 bg-cyan-50', roles: [...ADMIN_ROLES, 'hr_admin', 'manager'] },
+  { href: '/ai-insights/payroll', label: 'AI Payroll Forecast', desc: '3-month cost projection', icon: FiDollarSign, color: 'text-emerald-600 bg-emerald-50', roles: [...ADMIN_ROLES, 'hr_admin'] },
+  { href: '/ai-insights/hiring', label: 'AI Hiring Forecast', desc: 'Pipeline funnel & demand', icon: FiUserPlus, color: 'text-blue-600 bg-blue-50', roles: [...ADMIN_ROLES, 'hr_admin', 'manager'] },
+  { href: '/ai-insights/performance', label: 'AI Performance Insights', desc: 'Goal trajectory & coaching', icon: FiTarget, color: 'text-amber-600 bg-amber-50', roles: [...ADMIN_ROLES, 'hr_admin', 'manager'] },
+  { href: '/ai-insights/leave', label: 'AI Leave Insights', desc: 'Burnout & coverage outlook', icon: FiCalendar, color: 'text-rose-600 bg-rose-50', roles: [...ADMIN_ROLES, 'hr_admin', 'manager'] },
+  { href: '/ai-insights/projects', label: 'AI Project Insights', desc: 'Delivery risk & capacity', icon: FiFolder, color: 'text-violet-600 bg-violet-50', roles: [...ADMIN_ROLES, 'manager'] },
 ];
+
+/* AI tools & per-module AI monitors that live outside /ai-insights. */
+const AI_TOOL_LINKS = [
+  { href: '/ai-assistant', label: 'AI Assistant', desc: 'Chat with your HRMS data', icon: TbSparkles, color: 'text-violet-600 bg-violet-50', roles: [...ADMIN_ROLES, 'hr_admin', 'manager'] },
+  { href: '/ai-interview', label: 'AI Interview', desc: 'AI-scored candidate interviews', icon: TbInbox, color: 'text-orange-500 bg-orange-50', roles: null as string[] | null },
+  { href: '/payroll/ai-insights', label: 'Payroll AI Monitor', desc: 'Anomalies, compliance & ghosts', icon: FiActivity, color: 'text-sky-600 bg-sky-50', roles: [...ADMIN_ROLES] },
+  { href: '/ai-admin', label: 'AI Admin Console', desc: 'Platform AI administration', icon: TbSettings, color: 'text-blue-600 bg-blue-50', roles: ['super_admin', 'tenant_admin', 'ceo'] },
+];
+
+/* Section-wide settings (roles = navData AI Settings entry). */
+const AI_SETTINGS_LINK = {
+  href: '/ai-insights/settings',
+  label: 'AI Settings',
+  desc: 'Tune which AI features are active',
+  icon: FiSettings,
+  roles: [...ADMIN_ROLES, 'hr_admin'],
+};
 
 const APPLICATION_LINKS = [
   { href: '/calendar', label: 'Calendar', icon: TbCalendar, color: 'text-blue-600 bg-blue-50' },
@@ -237,6 +283,11 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
   const toggle = (menu: Exclude<OpenMenu, null>) =>
     setOpenMenu((prev) => (prev === menu ? null : menu));
+
+  // Task 160 — role filter for the AI Center dropdown (roles mirror navData
+  // so the dropdown never links to a page the sidebar hides for that role).
+  const userRole = user?.role || '';
+  const canSee = (roles: string[] | null) => !roles || roles.includes(userRole);
 
   // Task 64 FIX: fetch notifications on mount + poll every 30 seconds.
   const token = useAuthStore.getState().token;
@@ -467,24 +518,92 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         </button>
 
         {openMenu === 'ai' && (
-          <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-xl shadow-xl animate-slide-in-down overflow-hidden z-50">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <h4 className="text-sm font-bold text-slate-800">AI Center</h4>
+          <div className="absolute right-0 top-full mt-2 w-[19.5rem] sm:w-[34rem] bg-white border border-slate-200 rounded-xl shadow-xl animate-slide-in-down overflow-hidden z-50">
+            {/* header */}
+            <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-violet-500 via-[#6C4FD6] to-[#3A57C4]">
+              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <TbSparkles className="w-4 h-4" /> AI Center
+              </h4>
+              <p className="text-[11px] text-white/80 mt-0.5">AI insights &amp; tools across every module</p>
             </div>
-            <div className="p-2">
-              {AI_CENTER_LINKS.map((item) => (
+
+            <div className="p-2 max-h-[calc(100vh-9rem)] overflow-y-auto">
+              {/* hub — entry point to the whole AI Insights section */}
+              {canSee([...ADMIN_ROLES, 'hr_admin', 'manager']) && (
                 <Link
-                  key={item.href}
-                  href={item.href}
+                  href={AI_HUB_LINK.href}
                   onClick={() => setOpenMenu(null)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gradient-to-r from-violet-50 to-blue-50 border border-violet-100 hover:border-violet-200 hover:from-violet-100 hover:to-blue-100 transition-colors mb-2 group"
                 >
-                  <span className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 ${item.color}`}>
-                    <item.icon className="w-4 h-4" />
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white flex-shrink-0">
+                    <AI_HUB_LINK.icon className="w-4 h-4" />
                   </span>
-                  {item.label}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-slate-800">{AI_HUB_LINK.label}</span>
+                    <span className="block text-[11px] text-slate-500">{AI_HUB_LINK.desc}</span>
+                  </span>
+                  <FiArrowRight className="w-4 h-4 text-violet-400 group-hover:text-violet-600 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                 </Link>
-              ))}
+              )}
+
+              {/* AI Insights section — one page per module */}
+              <p className="px-3 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Module Insights</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                {AI_MODULE_INSIGHTS.filter((item) => canSee(item.roles)).map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpenMenu(null)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <span className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 ${item.color}`}>
+                      <item.icon className="w-4 h-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-medium text-slate-700 leading-tight">{item.label}</span>
+                      <span className="block text-[11px] text-slate-400 leading-tight mt-0.5">{item.desc}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* AI tools & per-module AI monitors outside /ai-insights */}
+              <p className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">AI Tools &amp; Monitors</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                {AI_TOOL_LINKS.filter((item) => canSee(item.roles)).map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpenMenu(null)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <span className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 ${item.color}`}>
+                      <item.icon className="w-4 h-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-medium text-slate-700 leading-tight">{item.label}</span>
+                      <span className="block text-[11px] text-slate-400 leading-tight mt-0.5">{item.desc}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* AI Settings — section-wide configuration */}
+              {canSee(AI_SETTINGS_LINK.roles) && (
+                <Link
+                  href={AI_SETTINGS_LINK.href}
+                  onClick={() => setOpenMenu(null)}
+                  className="flex items-center gap-3 px-3 py-2.5 mt-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors"
+                >
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 flex-shrink-0">
+                    <AI_SETTINGS_LINK.icon className="w-4 h-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-800">{AI_SETTINGS_LINK.label}</span>
+                    <span className="block text-[11px] text-slate-500">{AI_SETTINGS_LINK.desc}</span>
+                  </span>
+                </Link>
+              )}
             </div>
           </div>
         )}
@@ -599,8 +718,14 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       if (!notif.isRead) {
                         await markAsRead(notif.id);
                       }
-                      if (notif.link) {
-                        window.location.href = notif.link;
+                      // BUG_038 FIX: Use router.push for SPA navigation instead of
+                      // window.location.href (which causes full page reload and loses
+                      // state). Also guard against default '/' or '/my-profile' links.
+                      const link = notif.link;
+                      if (link && link !== '/' && link !== '/my-profile') {
+                        router.push(link);
+                      } else {
+                        router.push('/notifications');
                       }
                     }}
                   >

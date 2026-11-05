@@ -126,6 +126,8 @@ export async function GET(request: Request) {
       handoverPlan: r.handoverPlan || '',
       pendingTasks: r.pendingTasks || '',
       status: r.status,
+      rejectionReason: r.rejectionReason || null,
+      decisionDate: r.decisionDate || null,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }));
@@ -379,6 +381,22 @@ export async function POST(request: Request) {
           details: `Created resignation request for employee ${employeeName || employeeId}. Last working date: ${lastWorkingDate || 'TBD'}`,
         },
       });
+    } catch { /* non-critical */ }
+
+    // BUG_086 FIX: Send confirmation notification to the employee who submitted
+    // the resignation, so they know the request was received and is pending.
+    try {
+      if (tenantId && submittedById) {
+        await createNotification({
+          tenantId,
+          userId: submittedById,
+          title: 'Resignation Request Submitted',
+          message: `Your resignation request has been submitted successfully. Status: Pending. Last working date: ${lastWorkingDate || 'TBD'}. HR/Admin and your reporting manager have been notified. You will receive an update when a decision is made.`,
+          type: 'info',
+          category: 'employee_lifecycle',
+          link: '/employees/resignation',
+        }).catch(() => {});
+      }
     } catch { /* non-critical */ }
 
     return NextResponse.json(

@@ -250,24 +250,17 @@ export const navSections: NavSection[] = [
     items: [
       // Self-service: employee can apply for leave and view their own balance/applications
       { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isNew: true },
-      { label: 'Apply Leave', href: '/leave?action=apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isNew: true },
-      { label: 'My Leave Applications', href: '/leave?view=self', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isNew: true },
       // HR-only: Apply leave on behalf of employees
       { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
       { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'] },
-
-      // ── Leave Balance ──
-      { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isDivider: true },
       { label: 'My Leave Balance', href: '/leave/balance', icon: <FiPieChart className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Team Leave Calendar', href: '/leave/team-calendar', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'], isNew: true },
 
       // ── Settings (admin-only) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isDivider: true },
-      { label: 'Leave Settings', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
-      { label: 'Policy', href: '/leave/leave-policy?tab=documents', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
-      { label: 'Leave Configuration', href: '/leave/configuration', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
+      { label: 'Leave Configuration', href: '/leave/configuration', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
       { label: 'Approval Workflows', href: '/leave/approval-workflows', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
-      { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
-      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'], isDivider: true },
@@ -327,9 +320,36 @@ export const navSections: NavSection[] = [
       // ── Reports (admin/manager only) ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'], isDivider: true },
       { label: 'Burnout Analytics', href: '/attendance/burnout', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'] },
+      { label: 'AI Attendance Insights', href: '/ai-insights/attendance', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'], isNew: true },
       { label: 'Audit Trail', href: '/attendance/audit-log', icon: <FiLock className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'] },
       { label: 'Punch Activity Log', href: '/attendance/punch-log', icon: <FiList className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'], isNew: true },
       { label: 'Attendance Reports', href: '/attendance/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'], isNew: true },
+    ],
+  },
+
+  // ─── 6b. AI INSIGHTS MODULE (Task 159) ───
+  // SmartHR-style "AI Center" — cross-module AI analytics, forecasts & settings.
+  // Section visibility is derived from the underlying modules in
+  // roleAccess.isNavSectionEnabled (no separate module whitelist entry needed).
+  {
+    key: 'ai-insights',
+    label: 'AI Insights',
+    sectionIcon: FiCpu,
+    sectionColor: 'from-violet-500 to-purple-600',
+    description: 'AI-powered analytics, forecasts & recommendations',
+    dashboardTabs: [
+      { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+      { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+    ],
+    items: [
+      { label: 'AI Insights Hub', href: '/ai-insights', icon: <FiGrid className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'manager'], isNew: true },
+      { label: 'AI Attendance Insights', href: '/ai-insights/attendance', icon: <FiClock className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'manager'], isNew: true },
+      { label: 'AI Payroll Forecast', href: '/ai-insights/payroll', icon: <FiDollarSign className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'], isNew: true },
+      { label: 'AI Hiring Forecast', href: '/ai-insights/hiring', icon: <FiUserPlus className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'manager'], isNew: true },
+      { label: 'AI Performance Insights', href: '/ai-insights/performance', icon: <FiTarget className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'manager'], isNew: true },
+      { label: 'AI Leave Insights', href: '/ai-insights/leave', icon: <FiCalendar className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'manager'], isNew: true },
+      { label: 'AI Project Insights', href: '/ai-insights/projects', icon: <FiFolder className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'], isNew: true },
+      { label: 'AI Settings', href: '/ai-insights/settings', icon: <FiSettings className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'], isNew: true },
     ],
   },
 
@@ -411,8 +431,16 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
-      // ── Pipeline ──
+      // ── My Tools (visible to ALL employees — interviewers + referrers) ──
+      { label: 'My Interviews', href: '/my-interviews', icon: <FiCalendar className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'manager', 'employee', 'finance', 'it_admin', 'recruiter', 'job_seeker'] },
+      { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'manager', 'employee', 'finance', 'it_admin', 'recruiter', 'job_seeker'], isNew: true },
+
+      // ── Pipeline (HR / Admin only — gated by moduleKey: 'recruitment') ──
       { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      // Main ATS page — candidate pipeline + schedule-interview modal
+      { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment' },
+      // HR Interview Management — view feedback, mark completed, HR decisions
+      { label: 'Interviews', href: '/interviews', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
@@ -922,8 +950,11 @@ export const navSections: NavSection[] = [
 ];
 
 // ─── Pinned items always visible at the top of the sidebar ───
+// Task 163 — "Home" is now the ADMIN DASHBOARD, visible to admin roles only.
+// Employees land directly on the Employee Dashboard (/dashboard) and never
+// see this entry (Sidebar also maps /dashboard via dashboardHrefForRole).
 export const PINNED_ITEMS: NavItem[] = [
-  { label: 'Home', href: '/home', icon: <FiHome className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'] },
+  { label: 'Admin Dashboard', href: '/home', icon: <FiHome className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'] },
   { label: 'Dashboard', href: '/dashboard', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'dashboard' },
   { label: 'Modules', href: '/modules', icon: <FiGrid className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'] },
 ];
@@ -979,7 +1010,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     groupLabel: 'Support & Intelligence',
     groupDescription: 'Helpdesk, AI, collaboration & knowledge',
     groupIcon: FiHelpCircle,
-    sections: navSections.filter(s => ['support', 'collaboration', 'knowledge'].includes(s.key)),
+    sections: navSections.filter(s => ['support', 'ai-insights', 'collaboration', 'knowledge'].includes(s.key)),
   },
   {
     groupLabel: 'Governance',

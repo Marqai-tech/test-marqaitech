@@ -25,7 +25,7 @@ for (let i = 0; i < 40; i++) {
 if (!live) { console.error('\ndeploy did not reach 1.5.6 in time'); process.exit(1); }
 
 // ── 2. Tenant admin login ──
-const login = await j(`${TENANT}/api/auth/login`, { method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }) });
+const login = await j(`${TENANT}/api/auth/login`, { method: 'POST', headers: T, body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }) });
 if (login.status !== 200) { console.error('tenant login failed', login.status, login.body); process.exit(1); }
 const H = { ...T, Authorization: `Bearer ${login.body.token}` };
 console.log('tenant admin login OK');

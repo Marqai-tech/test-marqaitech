@@ -26,7 +26,7 @@ import {
   PageBreadcrumbs, DateChip, CollapseToggle, TemplateAlert, ProfileHeroCard,
   Panel, EmptyState, statusBadge, SkeletonBlock,
 } from '@/components/dashboard/smarthr-widgets';
-import { dashboardHrefForRole } from '@/lib/roleAccess';
+import { dashboardHrefForRole, ADMIN_DASHBOARD_ROLES } from '@/lib/roleAccess';
 import { normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 import { loggedInPhotoUrl } from '@/lib/profile-photo';
 
@@ -227,7 +227,9 @@ export default function ESSDashboardPage() {
         safe(`/api/attendance/regularize?${scopeQuery}limit=6`),
         safe(`/api/attendance/my-summary?${scopeQuery}`),
         safe(`/api/social-feed?${scopeQuery}limit=10`),
-        safe(`/api/leave?${scopeQuery}limit=6`),
+        // BUG_028 FIX: Fetch only the employee's OWN leave requests (view=self)
+        // so the Leave Summary card shows correct Days Used + Pending counts.
+        safe(`/api/leave?view=self&${scopeQuery}limit=6`),
         safe(`/api/employees?limit=5&excludeInactive=true${cid ? `&${scopeQuery.slice(0, -1)}` : ''}`),
       ]);
 
@@ -527,9 +529,11 @@ export default function ESSDashboardPage() {
 
   const quickActions = [
     { icon: <FiMessageCircle className="w-5 h-5" />, label: 'Chat', href: '/collaboration/chat', pastel: 'bg-[#10B981]/10 text-[#10B981]' },
-    { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', pastel: 'bg-[#FF9B44]/15 text-[#FF9B44]' },
+    // BUG_029 FIX: Apply Leave should open the apply leave form, not just the leave dashboard
+    { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave?action=apply', pastel: 'bg-[#FF9B44]/15 text-[#FF9B44]' },
     { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', pastel: 'bg-[#009EFB]/10 text-[#009EFB]' },
-    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll', pastel: 'bg-[#3A57C4]/10 text-[#3A57C4]' },
+    // BUG_036 FIX: My Payslips should go to /payroll/payslips, not /payroll (which is admin-only)
+    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll/payslips', pastel: 'bg-[#3A57C4]/10 text-[#3A57C4]' },
     { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', pastel: 'bg-[#6C4FD6]/10 text-[#6C4FD6]' },
     { icon: <FiUser className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', pastel: 'bg-pink-50 text-pink-600' },
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', pastel: 'bg-[#FFC107]/20 text-amber-600' },
@@ -936,7 +940,7 @@ export default function ESSDashboardPage() {
           {/* ══ TEMPLATE ROW 5: Team Members (4) + Notifications (4) + Meetings Schedule (4) ══ */}
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
             <div className="xl:col-span-4">
-              <Panel title="Team Members" icon={<FiUsers className="w-4 h-4" />} href="/collaboration" accent="text-[#3A57C4]">
+              <Panel title="Team Members" icon={<FiUsers className="w-4 h-4" />} href="/employees" accent="text-[#3A57C4]">
                 {loading ? (
                   <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
                 ) : teamMembers.length === 0 ? (
@@ -977,7 +981,17 @@ export default function ESSDashboardPage() {
                     {notifications.slice(0, 5).map((n) => (
                       <button
                         key={n.id}
-                        onClick={() => (n.link ? (window.location.href = n.link) : router.push('/notifications'))}
+                        // BUG_038 FIX: Use router.push instead of window.location.href for SPA
+                        // navigation. Fall back to /notifications only when n.link is truly empty.
+                        // Also handle the case where n.link is '/' or '/my-profile' (default) —
+                        // route to /notifications instead so the user sees the full notification list.
+                        onClick={() => {
+                          if (n.link && n.link !== '/' && n.link !== '/my-profile') {
+                            router.push(n.link);
+                          } else {
+                            router.push('/notifications');
+                          }
+                        }}
                         className="w-full text-left py-3 flex items-start gap-2.5 hover:bg-slate-50 transition-colors"
                       >
                         <span className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${n.isRead ? 'bg-slate-300' : 'bg-[#FF9B44]'}`} />
@@ -1072,24 +1086,28 @@ export default function ESSDashboardPage() {
             </div>
           </div>
 
-          {/* Footer hint */}
-          <div className="flex items-center justify-center pt-2 pb-4">
-            <button
-              onClick={() => router.push('/home')}
-              className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-emerald-600 transition-colors"
-            >
-              <FiArrowRight className="w-3 h-3 rotate-180" /> Back to role-based home
-            </button>
-          </div>
+          {/* Footer hint — Task 163: admins only (employees have no Admin Dashboard) */}
+          {ADMIN_DASHBOARD_ROLES.includes(userRole.toLowerCase()) && (
+            <div className="flex items-center justify-center pt-2 pb-4">
+              <button
+                onClick={() => router.push('/home')}
+                className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-emerald-600 transition-colors"
+              >
+                <FiArrowRight className="w-3 h-3 rotate-180" /> Open Admin Dashboard
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* floating chat icon */}
+      {/* floating chat icon — BUG_041 FIX: moved to z-30 and added
+          bottom margin so it doesn't overlap content/birthday/policy
+          cards at the bottom of the page. */}
       <button
         onClick={() => router.push('/collaboration/chat')}
         title="Chat — project & team conversations"
         aria-label="Open chat"
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-[#6C4FD6] to-[#3A57C4] text-white shadow-xl shadow-[#6C4FD6]/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+        className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-gradient-to-br from-[#6C4FD6] to-[#3A57C4] text-white shadow-xl shadow-[#6C4FD6]/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
       >
         <FiMessageCircle className="w-6 h-6" />
         <span className="absolute inset-0 rounded-full ring-2 ring-[#6C4FD6]/40 animate-ping" style={{ animationDuration: '3s' }} />

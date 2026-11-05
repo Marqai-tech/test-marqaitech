@@ -96,7 +96,7 @@ const slugTry = await j(DEMO, 'PATCH', `/api/tenants/${tenantId}`, sa.data.token
 log('5b super-admin slug change', { status: slugTry.status, code: slugTry.data.code });
 
 // ── LIVE (read-only) ──
-const ladmin = await j(LIVE, 'POST', '/api/auth/login', null, { email: 'hr@marqaitech.com', password: 'MarqAI@2026' });
+const ladmin = await j(LIVE, 'POST', '/api/auth/login', null, { email: 'hr@gmail.com', password: 'MarqAI@2026' });
 const lt = ladmin.data.token || '';
 const lrp = await j(LIVE, 'GET', '/api/attendance/remote-permissions', lt);
 const lrow = (lrp.data.employees || [])[0] || {};

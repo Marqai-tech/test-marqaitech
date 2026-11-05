@@ -188,9 +188,9 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
             </div>
           )}
           {!collapsed && (
-            <div className="overflow-hidden">
-              <h1 className="text-base font-bold text-white tracking-tight whitespace-nowrap">
-                {safeTenantName} <span className="text-[10px] font-semibold text-green-400 tracking-wider">{user?.role === 'super_admin' ? 'Platform' : 'HRMS'}</span>
+            <div className="overflow-hidden min-w-0">
+              <h1 className="text-base font-bold text-white tracking-tight truncate" title={safeTenantName}>
+                <span className="truncate">{safeTenantName}</span> <span className="text-[10px] font-semibold text-green-400 tracking-wider">{user?.role === 'super_admin' ? 'Platform' : 'HRMS'}</span>
               </h1>
               <p className="text-[9px] text-thb-sidebar-text leading-none -mt-0.5">{user?.role === 'super_admin' ? 'Super Admin · Platform Control' : 'People · Process · Technology'}</p>
             </div>

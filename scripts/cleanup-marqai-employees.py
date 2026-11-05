@@ -9,7 +9,7 @@ Clean up MarqAI tenant database:
 Employees to KEEP:
 1. admin@marqaitechgroup.com (tenant_admin - no employee record, always kept)
 2. superadmin@3boxeshrms.com (super_admin - no employee record, always kept)
-3. hr@marqaitech.com + EMP-MTPL-HR001 (HR Admin - sample admin employee)
+3. hr@gmail.com + EMP-MTPL-HR001 (HR Admin - sample admin employee)
 4. rajesh.kumar@marqaitech.com + EMP-MTPL-E001 (Rajesh Kumar - original employee 1)
 5. priya.sharma@marqaisolutions.com + EMP-MSPL-E001 (Priya Sharma - original employee 2)
 

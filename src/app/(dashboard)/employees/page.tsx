@@ -66,6 +66,11 @@ import {
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import BulkImportTab from '@/components/BulkImportTab';
+import CompanyNameAutocomplete from '@/components/CompanyNameAutocomplete';
+// Note: CompanyLogo + useDebouncedValue were used by PreviousEmployerInput,
+// which was removed when origin's Task-137 dynamic-experiences UI (which has
+// its own autoFetchExperienceLogo) was merged. The /api/company-logo proxy
+// is still used by fetchCompanyLogoFromWeb above as the primary logo source.
 
 
 /* ── Employee Tips ── */
@@ -236,9 +241,33 @@ export function guessCompanyDomain(name: string): string {
   return slug ? `${slug}.com` : '';
 }
 
-/** Auto-pick a company logo from the web: Clearbit first, Google favicon fallback. */
+/**
+ * Auto-pick a company logo from the web.
+ *
+ * REQ 3 enhancement: tries our own /api/company-logo proxy FIRST (which has
+ * a 3-provider fallback chain — Clearbit → DuckDuckGo → Google S2 — and
+ * proxies bytes through our origin to avoid CORS issues). Falls back to
+ * direct client-side Clearbit/Google if the proxy is unreachable.
+ */
 export async function fetchCompanyLogoFromWeb(companyName: string): Promise<string> {
-  const domain = guessCompanyDomain(companyName);
+  if (!companyName || companyName.trim().length < 2) return '';
+  const trimmed = companyName.trim();
+
+  // Primary: our server-side proxy. Returns image bytes directly when found.
+  try {
+    const proxyUrl = `/api/company-logo?name=${encodeURIComponent(trimmed)}&provider=0`;
+    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4500) });
+    if (res.ok) {
+      const ct = res.headers.get('content-type') || '';
+      if (ct.startsWith('image/')) {
+        // Return the proxy URL (without provider idx) so re-renders re-resolve.
+        return `/api/company-logo?name=${encodeURIComponent(trimmed)}`;
+      }
+    }
+  } catch { /* fall through to direct client-side fetch */ }
+
+  // Fallback: direct client-side Clearbit + Google (legacy path).
+  const domain = guessCompanyDomain(trimmed);
   if (!domain) return '';
   const tryLoad = (url: string) => new Promise<boolean>((resolve) => {
     try {
@@ -566,16 +595,20 @@ const initialForm = {
   hasIntlDrivingLicense: '',
   intlDrivingLicenseCountry: '',
   intlDrivingLicenseExpiry: '',
-  // Previous Experience
+  // Previous Experience (legacy 3-slot fields — superseded by the dynamic
+  // `experiences` array above, kept for backward-compat with older records)
   previousEmployer1: '',
+  previousEmployer1Logo: '',
   previousDesignation1: '',
   previousDuration1: '',
   previousReason1: '',
   previousEmployer2: '',
+  previousEmployer2Logo: '',
   previousDesignation2: '',
   previousDuration2: '',
   previousReason2: '',
   previousEmployer3: '',
+  previousEmployer3Logo: '',
   previousDesignation3: '',
   previousDuration3: '',
   previousReason3: '',
@@ -635,7 +668,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [filterStatus, setFilterStatus] = useState('');
   // Task 81: management-list members are hidden from the Employee List by
   // default (their directory is the Management List module). Toggle to show.
-  const [includeManagement, setIncludeManagement] = useState(false);
+  // Show the complete employee directory by default. Some tenants classify
+  // every employee as management-linked; hiding those records by default
+  // makes the directory appear empty even though employees exist.
+  const [includeManagement, setIncludeManagement] = useState(true);
 
 
   const [showForm, setShowForm] = useState(formOnly);
@@ -1134,14 +1170,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           intlDrivingLicenseExpiry: (emp as Record<string, unknown>).intlDrivingLicenseExpiry as string || '',
           // Experience
           previousEmployer1: (emp as Record<string, unknown>).previousEmployer1 as string || '',
+          previousEmployer1Logo: (emp as Record<string, unknown>).previousEmployer1Logo as string || '',
           previousDesignation1: (emp as Record<string, unknown>).previousDesignation1 as string || '',
           previousDuration1: (emp as Record<string, unknown>).previousDuration1 as string || '',
           previousReason1: (emp as Record<string, unknown>).previousReason1 as string || '',
           previousEmployer2: (emp as Record<string, unknown>).previousEmployer2 as string || '',
+          previousEmployer2Logo: (emp as Record<string, unknown>).previousEmployer2Logo as string || '',
           previousDesignation2: (emp as Record<string, unknown>).previousDesignation2 as string || '',
           previousDuration2: (emp as Record<string, unknown>).previousDuration2 as string || '',
           previousReason2: (emp as Record<string, unknown>).previousReason2 as string || '',
           previousEmployer3: (emp as Record<string, unknown>).previousEmployer3 as string || '',
+          previousEmployer3Logo: (emp as Record<string, unknown>).previousEmployer3Logo as string || '',
           previousDesignation3: (emp as Record<string, unknown>).previousDesignation3 as string || '',
           previousDuration3: (emp as Record<string, unknown>).previousDuration3 as string || '',
           previousReason3: (emp as Record<string, unknown>).previousReason3 as string || '',
@@ -1705,33 +1744,66 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   };
 
   /* ── Task 138 — experience letters + domains handlers ── */
-  const handleExperienceLetterPick = (rowIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error('Letter must be under 3MB. For larger files, paste a shareable link in the Documents tab instead.', { duration: 6000 });
+const handleExperienceLetterPick = (
+  rowIndex: number,
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+
+  if (!file) return;
+
+  // Maximum file size: 3 MB
+  if (file.size > 3 * 1024 * 1024) {
+    toast.error('PDF must be under 3MB.', { duration: 6000 });
+    return;
+  }
+
+  // Accept PDF files only
+  if (file.size === 0 || file.type !== 'application/pdf') {
+    toast.error('Invalid file — please attach a PDF file only.');
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onloadend = () => {
+    if (reader.error || typeof reader.result !== 'string') {
+      toast.error('Failed to read the PDF file. Please try again.');
       return;
     }
-    if (file.size === 0 || !['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
-      toast.error('Invalid file — attach a PDF, image or Word document.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm(prev => {
-        const rows = [...(prev.experiences || [])];
-        if (!rows[rowIndex]) return prev;
-        const row = rows[rowIndex];
-        const type = row.letterType || 'offer_letter';
-        const letters = [...(row.letters || []), { name: file.name, type, fileUrl: reader.result as string }];
-        rows[rowIndex] = { ...row, letters };
-        return { ...prev, experiences: rows };
-      });
-      toast.success('Letter attached — remember to save the employee');
-    };
-    reader.readAsDataURL(file);
+
+    setForm(prev => {
+      const rows = [...(prev.experiences || [])];
+
+      if (!rows[rowIndex]) return prev;
+
+      const row = rows[rowIndex];
+      const type = row.letterType || 'offer_letter';
+
+      const letters = [
+        ...(row.letters || []),
+        {
+          name: file.name,
+          type,
+          fileUrl: reader.result as string,
+        },
+      ];
+
+      rows[rowIndex] = { ...row, letters };
+
+      return { ...prev, experiences: rows };
+    });
+
+    toast.success('PDF attached — remember to save the employee');
   };
+
+  reader.onerror = () => {
+    toast.error('Failed to read the PDF file. Please try again.');
+  };
+
+  reader.readAsDataURL(file);
+};
 
   const removeExperienceLetter = (rowIndex: number, letterIndex: number) => {
     setForm(prev => {
@@ -1756,7 +1828,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   };
 
   const addStagedDoc = () => {
-    if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // Auto-generate document name from category + type if not provided
+    // (the Document Name field was removed from the form — name is auto-derived)
+    const autoName = docDraft.name.trim() || `${docDraft.category}-${docDraft.type}`;
     if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
     if (stagedDocs.some(doc => doc.category === docDraft.category && doc.type === docDraft.type)) { toast.error('A document of this type is already in the upload list.'); return; }
     // QA fix — Document Link Security: reject unsafe URLs (javascript:, data:text/html, etc.)
@@ -1764,7 +1838,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
       return;
     }
-    setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: docDraft.name.trim() }]);
+    setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: autoName }]);
     setDocDraft(emptyDocDraft());
     toast.success('Document added — it will be saved when you click "Add Employee"');
   };
@@ -1793,7 +1867,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   const uploadLiveDoc = async () => {
     if (!editingId) return;
-    if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // Auto-generate document name from category + type if not provided
+    const autoName = docDraft.name.trim() || `${docDraft.category}-${docDraft.type}`;
     if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
     // QA fix — Document Link Security: reject unsafe URLs before they are persisted
     if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
@@ -1806,7 +1881,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          name: docDraft.name.trim(),
+          name: autoName,
           category: docDraft.category,
           type: docDraft.type,
           fileUrl: docDraft.fileUrl || undefined,
@@ -3306,13 +3381,22 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             <div>
                               <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer <span className="text-red-500 font-bold">*</span></label>
                               <div className="flex gap-1.5">
-                                <input
-                                  type="text"
+                                {/* Requirement: External Company Search and Logo Integration.
+                                    CompanyNameAutocomplete fetches matching companies from
+                                    an EXTERNAL directory (Wikipedia + Clearbit) via
+                                    /api/company-search. When a company is selected:
+                                    - The company name is auto-populated (onChange).
+                                    - The logo URL is auto-populated (onSelectLogo).
+                                    When "Other" is selected, the logo URL is cleared
+                                    (onSelectLogo(null)) and no logo is fetched. */}
+                                <CompanyNameAutocomplete
                                   value={exp.company}
-                                  onChange={(e) => setForm(prev => { const rows = [...(prev.experiences || [])]; rows[i] = { ...rows[i], company: e.target.value }; return { ...prev, experiences: rows }; })}
+                                  onChange={(val) => setForm(prev => { const rows = [...(prev.experiences || [])]; rows[i] = { ...rows[i], company: val }; return { ...prev, experiences: rows }; })}
+                                  onSelectLogo={(logoUrl) => setForm(prev => { const rows = [...(prev.experiences || [])]; rows[i] = { ...rows[i], companyLogo: logoUrl || '' }; return { ...prev, experiences: rows }; })}
                                   onBlur={() => autoFetchExperienceLogo(i, exp.company)}
-                                  placeholder="e.g., Infosys or infosys.com"
-                                  className="flex-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
+                                  placeholder="e.g., Infosys or Microsoft"
+                                  required
+                                  className="flex-1"
                                 />
                                 <button
                                   type="button"
@@ -3335,16 +3419,16 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                                 className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
                               />
                             </div>
-                            <div>
+                            {/* <div>
                               <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company Logo URL</label>
+
                               <input
                                 type="text"
                                 value={exp.companyLogo}
                                 onChange={(e) => setForm(prev => { const rows = [...(prev.experiences || [])]; rows[i] = { ...rows[i], companyLogo: e.target.value }; return { ...prev, experiences: rows }; })}
-                                placeholder="Auto-filled — paste a URL to override"
                                 className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
                               />
-                            </div>
+                            </div> */}
                             <div>
                               <label className="block text-xs font-medium text-thb-text-secondary mb-1">From Date <span className="text-red-500 font-bold">*</span></label>
                               <input
@@ -3456,8 +3540,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                                 {EXPERIENCE_LETTER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                               </select>
                               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors">
-                                <FiPaperclip className="w-3.5 h-3.5" /> Attach letter (PDF / image / Word, max 3MB)
-                                <input type="file" className="hidden" accept=".pdf,image/jpeg,image/png,.doc,.docx" onChange={(e) => handleExperienceLetterPick(i, e)} />
+                                <FiPaperclip className="w-3.5 h-3.5" /> Attach letter (PDF, max 3MB)
+                                <input type="file" className="hidden" accept=".pdf,application/pdf" onChange={(e) => handleExperienceLetterPick(i, e)} />
                               </label>
                             </div>
                           </div>
@@ -3596,10 +3680,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="thb-card p-4">
                     <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Add Document</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
+                      {/* <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Document Name <span className="text-red-500 font-bold">*</span></label>
                         <input type="text" value={docDraft.name} onChange={e => setDocDraft(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g., Offer Letter — Signed" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
+                      </div> */}
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
                         <select value={docDraft.category} onChange={e => { const category = e.target.value; setDocDraft(prev => ({ ...prev, category, type: DOC_TYPES_BY_CATEGORY[category][0] })); }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
@@ -3616,8 +3700,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Upload File</label>
                         <div className="flex items-center gap-2">
                           <label className="flex-1 px-3 py-2.5 rounded-lg border border-dashed border-thb-border text-sm text-thb-text-muted cursor-pointer hover:bg-slate-50 truncate">
-                            {docDraft.fileName || 'Choose file (PDF, JPG, PNG — max 3MB)'}
-                            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" className="hidden" onChange={handleDocFilePick} />
+                            {docDraft.fileName || 'Choose file (PDF, max 3MB)'}
+                            <input type="file" accept=".pdf" className="hidden" onChange={handleDocFilePick} />
                           </label>
                           {docDraft.fileName && (
                             <button type="button" onClick={() => setDocDraft(prev => ({ ...prev, fileUrl: '', fileName: '' }))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Remove file">
@@ -3626,7 +3710,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                           )}
                         </div>
                       </div>
-                      <div>
+                      {/* <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">or File Link</label>
                         <input type="text" value={docDraft.fileName ? '' : docDraft.fileUrl} onChange={e => setDocDraft(prev => ({ ...prev, fileUrl: e.target.value, fileName: '' }))} placeholder="https://drive.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
@@ -3637,7 +3721,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <div className="sm:col-span-2 lg:col-span-3">
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
                         <input type="text" value={docDraft.description} onChange={e => setDocDraft(prev => ({ ...prev, description: e.target.value }))} placeholder="Optional notes about this document" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                      </div>
+                      </div> */}
                     </div>
                     <div className="flex justify-end mt-3">
                       <button type="button" onClick={editingId ? uploadLiveDoc : addStagedDoc} disabled={docUploading} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm transition-colors">

@@ -3,7 +3,7 @@
  *
  * Strategy: use two REAL MarqAI accounts that cover BOTH mirror-sync paths
  * proven by scripts/task134-mirror-sanity.cjs:
- *   - hr@marqaitech.com   (tenant_admin, platform mirror has a DIFFERENT id
+ *   - hr@gmail.com   (tenant_admin, platform mirror has a DIFFERENT id
  *                           → exercises the by-EMAIL fallback)
  *   - amrutha@marqaitech.com (employee, mirror shares the id
  *                           → exercises the by-ID path)
@@ -105,10 +105,10 @@ async function ladderRegression(email) {
 }
 
 async function main() {
-  const hrOk = await fullCycle('hr@marqaitech.com');
+  const hrOk = await fullCycle('hr@gmail.com');
   if (hrOk) {
     await fullCycle('amrutha@marqaitech.com');
-    await ladderRegression('hr@marqaitech.com');
+    await ladderRegression('hr@gmail.com');
   }
   // Super admin path stays intact (no password change — just proves apex login still fine).
   const sa = await j(`${APEX}/api/auth/login`, { method: 'POST', body: JSON.stringify({ email: 'superadmin@3boxeshrms.com', password: OLD_PW }) });

@@ -9,6 +9,8 @@ import { attendanceLocalMinutes, effectiveBreakMinutes, loadAttendanceBreakPolic
 import { loadEmployeeShiftWindows, shiftFullDayHours } from '@/lib/attendance-shift';
 import { detectAndAlertSuspiciousPunch } from '@/lib/suspicious-punch';
 import { ensureEmployeeRemoteColumns } from '@/lib/employee-remote-columns';
+import { canonicalAttendanceDate, findAttendanceForLocalDay } from '@/lib/attendance-day';
+import { attendanceDayKeyOf, dayKeyToIstStart, parseDeviceTimestamp } from '@/lib/timezone-utils';
 
 /**
  * POST /api/attendance/punch
@@ -117,11 +119,13 @@ export async function OPTIONS() {
  * `new Date().toISOString()` in the browser, which is the correct UTC
  * representation of the current instant). The server prefers this field.
  * For backward compatibility, if `utcTimestamp` is not present, we fall
- * back to `buildLocalTimestamp(date, localTime)` — but this path has the
- * timezone bug and should be avoided.
+ * back to `buildLocalTimestamp(date, localTime)` — Task 162: the fallback
+ * now interprets the client wall time as IST (the business timezone)
+ * instead of the server's timezone, so the legacy path is finally correct.
  */
 function buildLocalTimestamp(dateStr: string, timeStr: string): Date {
-  return new Date(`${dateStr}T${timeStr}:00`);
+  const parsed = parseDeviceTimestamp(`${dateStr}T${timeStr}:00`);
+  return parsed || new Date(`${dateStr}T${timeStr}:00Z`);
 }
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -370,7 +374,7 @@ export async function POST(request: NextRequest) {
     if (Number.isNaN(timestamp.getTime())) {
       return NextResponse.json({ error: 'Invalid date/time' }, { status: 400, headers: corsHeaders() });
     }
-    const dateObj = new Date(`${date}T00:00:00`); // calendar date at local midnight
+    const dateObj = canonicalAttendanceDate(date); // Task 162: IST-midnight day key (matches the biometric sync)
     const [localHour, localMinute] = String(localTime || '').split(':').map(Number);
     const localMinutes = Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour * 60 + localMinute : null;
 
@@ -379,7 +383,9 @@ export async function POST(request: NextRequest) {
     const gpsAccuracy = gps && gps.accuracy != null ? Number(gps.accuracy) : null;
     const gpsLabel = gps && gps.label ? String(gps.label) : null;
 
-    const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
+    // Task 162: dual-convention lookup — finds the row whether it was keyed
+    // at IST midnight (biometric) or UTC midnight (legacy manual writers).
+    const existingBeforeRules = await findAttendanceForLocalDay(db, employeeId, date);
     const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
     const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
     if (action !== 'checkin' && action !== 'set_early_logout') {
@@ -489,10 +495,9 @@ export async function POST(request: NextRequest) {
       const late = localMinutes !== null && localMinutes > graceCutoff;
       let monthlyLateCount = 0;
       if (late) {
-        const monthStart = new Date(`${date.slice(0, 7)}-01T00:00:00`);
-        const nextMonth = new Date(monthStart);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        monthlyLateCount = await db.attendance.count({ where: { employeeId, date: { gte: monthStart, lt: nextMonth }, status: 'late' } }).catch(() => 0);
+        const monthStart = dayKeyToIstStart(`${date.slice(0, 7)}-01`);
+        const nextMonthStart = dayKeyToIstStart(attendanceDayKeyOf(new Date(monthStart.getTime() + 31 * 24 * 60 * 60 * 1000)).slice(0, 7) + '-01');
+        monthlyLateCount = await db.attendance.count({ where: { employeeId, date: { gte: monthStart, lt: nextMonthStart }, status: 'late' } }).catch(() => 0);
       }
       attUpdate.status = late && monthlyLateCount >= 3 ? 'half_day' : late ? 'late' : 'present';
       if (late && monthlyLateCount >= 3) attUpdate.notes = 'Fourth late arrival this month: attendance automatically marked Half-Day.';
@@ -518,11 +523,10 @@ export async function POST(request: NextRequest) {
       attUpdate.breakOutGpsLabel = gpsLabel;
     }
 
-    // Upsert by (employeeId, date) — the unique constraint
-    // First, see if a row exists
-    const existing = await db.attendance.findFirst({
-      where: { employeeId, date: dateObj },
-    });
+    // Upsert by business day — Task 162: reuse ANY existing row for this
+    // business day (either day-key convention) instead of exact-date matching
+    // that silently created a second row and split the punches.
+    const existing = existingBeforeRules;
 
     let attendance: any;
     if (existing) {

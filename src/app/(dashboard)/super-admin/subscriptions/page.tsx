@@ -8,7 +8,6 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientLiveMode } from '@/lib/site-mode';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -66,8 +65,6 @@ export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  // GOLDEN RULE: company-switcher scope for this module
-  const { selectedTenantId } = useCompanyContextStore();
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -81,13 +78,10 @@ export default function SubscriptionsPage() {
     setLoading(true);
     try {
       const headers = getAuthHeaders();
-      // GOLDEN RULE: follow the company switcher — when a tenant is selected,
-      // only that tenant's subscriptions are fetched.
-      const scopeQs = selectedTenantId ? `&tenantId=${encodeURIComponent(selectedTenantId)}` : '';
       // Subscription rows and plan options are independent; avoid a request
       // waterfall while retaining partial results if either endpoint fails.
       const [subsData, plansData] = await Promise.all([
-        fetch(`/api/subscriptions?limit=100${scopeQs}`, { headers })
+        fetch('/api/subscriptions?limit=100', { headers })
           .then((res) => res.ok ? res.json() : null)
           .catch(() => null),
         fetch('/api/subscriptions/plans', { headers })
@@ -110,7 +104,7 @@ export default function SubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isLive, selectedTenantId]);
+  }, [isLive]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

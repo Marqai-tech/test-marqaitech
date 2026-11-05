@@ -26,9 +26,15 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
+      // TC_026: Backend returns exists:false for non-existent emails
+      if (data.exists === false) {
+        toast.error(data.error || 'This email address is not registered.');
+        setSubmitting(false);
+        return;
+      }
       if (res.ok) {
         setSubmitted(true);
-        toast.success('Reset link sent (if the email exists in our system)');
+        toast.success('Reset link sent! Check your inbox (valid for 30 minutes).');
       } else {
         toast.error(data.error || 'Failed to send reset link');
       }
@@ -62,7 +68,7 @@ export default function ForgotPasswordPage() {
                   <FiCheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="font-medium mb-1">Reset link sent</p>
-                    <p className="text-xs">If an account with <strong>{email}</strong> exists, you\'ll receive an email with a password reset link. The link is valid for 30 minutes.</p>
+                    <p className="text-xs">A password reset link has been sent to <strong>{email}</strong>. The link is valid for 30 minutes.</p>
                     <p className="text-xs mt-2 text-emerald-700">Didn\'t get the email? Check your spam folder, then <button type="button" onClick={() => setSubmitted(false)} className="underline font-medium">try again</button>.</p>
                   </div>
                 </div>

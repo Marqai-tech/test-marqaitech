@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
     const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
 
     let where: Record<string, unknown> = {};
+    // Optional client-side filters (edit-log page dropdowns)
+    const statusFilter = url.searchParams.get('status');
+    const categoryFilter = url.searchParams.get('category');
     if (scope === 'inbox') {
       // Requests waiting for MY approval
       const pendingSteps = await (db as any).employeeUpdateApprovalStep?.findMany({
@@ -51,13 +54,17 @@ export async function GET(req: NextRequest) {
       const ids = [...new Set(pendingSteps.map((s: { updateRequestId: string }) => s.updateRequestId))];
       where = { id: { in: ids }, status: 'pending' };
     } else if (scope === 'all' && isAdmin) {
-      // All requests (admin)
+      // All requests (admin) — apply optional status/category filters
+      if (statusFilter) where.status = statusFilter;
+      if (categoryFilter) where.category = categoryFilter;
     } else {
       // scope === 'mine' — the employee's own requests
       // Find the employee record by userId
       const emp = await db.employee.findFirst({ where: { userId: auth.userId }, select: { id: true } });
       if (!emp) return NextResponse.json({ requests: [] }, { headers: corsHeaders() });
       where = { employeeId: emp.id };
+      if (statusFilter) where.status = statusFilter;
+      if (categoryFilter) where.category = categoryFilter;
     }
 
     const requests = await db.employeeUpdateRequest.findMany({

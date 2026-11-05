@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { openDocumentInNewTab } from '@/lib/document-viewer';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   FiArrowLeft,
   FiUser,
@@ -45,6 +46,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import IdentityVerification from '@/components/employees/IdentityVerification';
+import SelfEditProfileModal from '@/components/hrms/SelfEditProfileModal';
+import ProfileSectionEditRequest, { type ProfileSection } from '@/components/employees/ProfileSectionEditRequest';
 import { employeePhotoUrl } from '@/lib/profile-photo';
 import { isSafeDocumentUrl } from '@/lib/sanitize';
 import { getToken } from '@/lib/token-storage';
@@ -260,6 +263,7 @@ interface EmployeeData {
   lastName: string;
   email: string;
   phone?: string | null;
+  personalEmail?: string | null;
   avatar?: string | null;
   user?: { id?: string; email?: string; role?: string; avatar?: string | null } | null;
   department?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
@@ -319,6 +323,59 @@ interface EmployeeData {
 
 const tabs = ['Overview', 'Personal', 'Employment', 'Experience', 'Achievements', 'Documents', 'Verification', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
 type TabName = typeof tabs[number];
+
+// Task 158 — currency symbol from the employee's salaryCurrency (system
+// default INR). The Payroll tab previously hard-coded "$", which showed
+// dollars to Indian-origin employees; now every payslip row renders in the
+// employee's own currency, consistent with the rest of the system.
+function currencySymbol(code?: string | null): string {
+  switch ((code || 'INR').toUpperCase()) {
+    case 'INR': return '₹';
+    case 'USD': return '$';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'AED': return 'AED ';
+    default: return `${code} `;
+  }
+}
+
+// Task 158 — self-service banner shown on the employee's OWN profile for the
+// editable sections: explains the HR-approval flow and opens the request
+// modal. A pending request shows an amber chip instead of the button.
+function SelfServiceEditBanner({
+  sectionLabel,
+  pending,
+  onRequest,
+}: {
+  sectionLabel: string;
+  pending: boolean;
+  onRequest: () => void;
+}) {
+  return (
+    <div className="thb-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-l-4 border-l-teal-500">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-thb-text-primary">Want to correct your {sectionLabel} details?</p>
+        <p className="text-xs text-thb-text-muted mt-0.5">
+          Submit an edit request — HR reviews it and your official record updates only after approval.
+        </p>
+      </div>
+      {pending ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          Edit pending HR approval
+        </span>
+      ) : (
+        <button
+          onClick={onRequest}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 shadow-sm whitespace-nowrap"
+        >
+          <FiEdit2 className="w-3.5 h-3.5" />
+          Request Edit
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ─── Info Field Component ───
 function InfoField({ label, value, icon, accentColor, onNavigate, navigateHint }: { label: string; value?: string | null; icon?: React.ReactNode; accentColor?: string; onNavigate?: () => void; navigateHint?: string }) {
@@ -401,7 +458,12 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabName>('Overview');
+  const [showSelfEdit, setShowSelfEdit] = useState(false);
   const [companyMappings, setCompanyMappings] = useState<Array<{ id: string; companyId: string; employeeCode: string; isPrimary: boolean; department?: { name: string } | null; designation?: { title: string } | null; branch?: { name: string } | null; company?: { name: string; code?: string } | null }>>([]);
+  // Task 158 — self-service section edit requests (Experience / Achievements /
+  // Documents / Verification / Health) visible on the employee's OWN profile.
+  const [editSection, setEditSection] = useState<ProfileSection | null>(null);
+  const [mySectionRequests, setMySectionRequests] = useState<Array<{ id: string; fieldName: string; status: string; createdAt: string; approverComments?: string | null }>>([]);
 
   const [attendance, setAttendance] = useState<Array<{ id: string; date: string; checkIn?: string | null; checkOut?: string | null; workHours?: number | null; overtime?: number | null; status: string }>>([]);
   const [payrolls, setPayrolls] = useState<Array<{ id: string; month: number; year: number; grossSalary: number; totalDeductions: number; netSalary: number; status: string; paidDate?: string | null }>>([]);
@@ -456,6 +518,22 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
       }
     } catch { /* silently */ }
   }, [employee, scopeQuery, selectedTenantId]);
+
+  // Task 158 — the employee's own section-edit requests (status chips + the
+  // "My Profile Edit Requests" panel on the Overview tab).
+  const fetchMySectionRequests = useCallback(async () => {
+    if (!selfEmployeeId) return;
+    try {
+      const res = await fetch('/api/employees/update-requests?scope=mine', { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const d = await res.json();
+      setMySectionRequests(d.requests || []);
+    } catch { /* optional surface */ }
+  }, [selfEmployeeId]);
+
+  useEffect(() => {
+    if (employee?.id && selfEmployeeId) queueMicrotask(() => { fetchMySectionRequests(); });
+  }, [employee?.id, selfEmployeeId, fetchMySectionRequests]);
 
   const fetchRelatedData = useCallback(async () => {
     if (!employee) return;
@@ -576,6 +654,13 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
     || (user?.email && employee.email && user.email.toLowerCase() === employee.email.toLowerCase()),
   );
   const profileViewOnly = !canEditRecord && !isOwnProfile;
+  // Task 158 — pending section-request chips on the employee's own profile.
+  const SECTION_REQUEST_KEYS: ProfileSection[] = ['experience', 'achievements', 'documents', 'verification', 'health'];
+  const SECTION_REQUEST_LABELS: Record<ProfileSection, string> = { experience: 'Experience', achievements: 'Achievements', documents: 'Documents', verification: 'Verification', health: 'Health' };
+  const pendingSectionField = new Set(
+    mySectionRequests.filter((r) => r.status === 'pending' && SECTION_REQUEST_KEYS.includes(r.fieldName as ProfileSection)).map((r) => r.fieldName),
+  );
+  const sectionRequestRows = mySectionRequests.filter((r) => SECTION_REQUEST_KEYS.includes(r.fieldName as ProfileSection)).slice(0, 6);
   const daysEmployed = Math.floor((now - new Date(employee.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24));
   const totalLeaveBalance = employee.leaveBalances?.reduce((sum, lb) => sum + lb.remaining, 0) || 0;
   const attendanceRate = attendance.length > 0 ? Math.round((attendance.filter(a => ['present', 'late'].includes(a.status)).length / attendance.length) * 100) : 0;
@@ -654,6 +739,18 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
                 Edit
               </button>
               )}
+              {/* Task 162: ESS self-edit — employees editing their OWN profile
+                  get the contact-details editor (PATCH /api/users/profile:
+                  low-risk applied directly, high-risk routed to approvals). */}
+              {!canEditRecord && isOwnProfile && (
+                <button
+                  onClick={() => setShowSelfEdit(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-600 via-fuchsia-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-teal-700 hover:via-fuchsia-600 hover:to-cyan-600 transition-all shadow-md shadow-fuchsia-200/50"
+                >
+                  <FiEdit2 className="w-3.5 h-3.5" />
+                  Edit Profile
+                </button>
+              )}
               {profileViewOnly && (
                 <span className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-lg">
                   View only
@@ -704,7 +801,7 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
         <StatCard
           icon={<FiDollarSign className="w-5 h-5 text-teal-600" />}
           label="Salary"
-          value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${(employee.salary / 1000).toFixed(0)}K` : '—'}
+          value={employee.salary ? `${currencySymbol(employee.salaryCurrency)} ${(employee.salary / 1000).toFixed(0)}K` : '—'}
           subtitle={employee.salary ? employee.salary.toLocaleString() : undefined}
           colorClass="bg-gradient-to-br from-teal-100 to-teal-50"
           borderGradient="from-teal-500 via-teal-400 to-fuchsia-400"
@@ -752,6 +849,33 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
           {/* ── Overview Tab ── */}
           {activeTab === 'Overview' && (
             <div className="space-y-6">
+              {/* Task 158 — self-service: status of my section edit requests */}
+              {selfEmployeeId && sectionRequestRows.length > 0 && (
+                <SectionCard title="My Profile Edit Requests" icon={<FiEdit2 className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-cyan-400 to-emerald-400">
+                  <div className="space-y-2">
+                    {sectionRequestRows.map((r) => {
+                      const label = SECTION_REQUEST_LABELS[r.fieldName as ProfileSection] || r.fieldName;
+                      const statusStyle: Record<string, string> = {
+                        pending: 'bg-amber-50 text-amber-700 border-amber-200',
+                        approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        applied: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+                        cancelled: 'bg-slate-50 text-slate-600 border-slate-200',
+                      };
+                      return (
+                        <div key={r.id} className="flex items-center gap-3 p-3 rounded-lg border border-thb-border hover:bg-slate-50/60 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-thb-text-primary">{label} edit request</p>
+                            <p className="text-xs text-thb-text-muted">{new Date(r.createdAt).toLocaleString()}{r.approverComments ? ` — “${r.approverComments}”` : ''}</p>
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold capitalize ${statusStyle[r.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>{r.status}</span>
+                        </div>
+                      );
+                    })}
+                    <Link href="/employees/update-requests" className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-700 mt-1">View all in Update Requests →</Link>
+                  </div>
+                </SectionCard>
+              )}
               {/* Personal Information */}
               <SectionCard title="Personal Information" icon={<FiUser className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
@@ -1011,6 +1135,9 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
 
           {activeTab === 'Experience' && (
             <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="experience" pending={pendingSectionField.has('experience')} onRequest={() => setEditSection('experience')} />
+              )}
               {/* Task 137 — dynamic experience entries (legacy previousEmployer1..3 rows fall back below) */}
               {(employee.experiences || []).map((exp, i) => {
                 const dur = (() => {
@@ -1160,12 +1287,20 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
 
           {/* ── Documents Tab ── */}
           {activeTab === 'Documents' && (
-            <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} viewOnly={profileViewOnly} />
+            <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="document" pending={pendingSectionField.has('documents')} onRequest={() => setEditSection('documents')} />
+              )}
+              <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} viewOnly={profileViewOnly} />
+            </div>
           )}
 
           {/* ── Achievements Tab (Task 138) ── */}
           {activeTab === 'Achievements' && (
             <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="achievements" pending={pendingSectionField.has('achievements')} onRequest={() => setEditSection('achievements')} />
+              )}
               {(employee.achievements || []).map((a, i) => (
                 <SectionCard key={a.id || i} title={a.title || `Achievement ${i + 1}`} icon={<FiAward className="w-4 h-4 text-violet-500" />} accentGradient="from-violet-500 via-purple-400 to-fuchsia-400">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
@@ -1187,7 +1322,12 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
 
           {/* ── Verification Tab (Task 138 — Aadhaar / PAN / DigiLocker) ── */}
           {activeTab === 'Verification' && (
-            <IdentityVerification employeeId={employee.id} canVerify={canEditRecord} />
+            <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="verification" pending={pendingSectionField.has('verification')} onRequest={() => setEditSection('verification')} />
+              )}
+              <IdentityVerification employeeId={employee.id} canVerify={canEditRecord} />
+            </div>
           )}
 
           {/* ── Leave Tab ── */}
@@ -1337,9 +1477,9 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
                         return (
                           <tr key={p.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                             <td className="py-3 text-sm font-medium text-thb-text-primary">{months[p.month]} {p.year}</td>
-                            <td className="py-3 text-sm text-thb-text-secondary">${p.grossSalary.toLocaleString()}</td>
-                            <td className="py-3 text-sm text-red-500">${p.totalDeductions.toLocaleString()}</td>
-                            <td className="py-3 text-sm font-semibold text-emerald-600">${p.netSalary.toLocaleString()}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{currencySymbol(employee.salaryCurrency)}{p.grossSalary.toLocaleString()}</td>
+                            <td className="py-3 text-sm text-red-500">{currencySymbol(employee.salaryCurrency)}{p.totalDeductions.toLocaleString()}</td>
+                            <td className="py-3 text-sm font-semibold text-emerald-600">{currencySymbol(employee.salaryCurrency)}{p.netSalary.toLocaleString()}</td>
                             <td className="py-3"><span className={statusMap[p.status] || 'thb-badge thb-badge-info'}>{p.status}</span></td>
                           </tr>
                         );
@@ -1354,6 +1494,9 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
           {/* ── Health Tab ── */}
           {activeTab === 'Health' && (
             <div className="space-y-6">
+              {selfEmployeeId && (
+                <SelfServiceEditBanner sectionLabel="health" pending={pendingSectionField.has('health')} onRequest={() => setEditSection('health')} />
+              )}
               {/* Vitals & Blood */}
               <SectionCard title="Vitals & Blood Information" icon={<FiHeart className="w-4 h-4 text-red-500" />} accentGradient="from-red-500 via-rose-400 to-pink-400">
                 <p className="text-xs text-thb-text-muted mb-4">Employee health information for workplace safety and emergency preparedness.</p>
@@ -1548,7 +1691,43 @@ export default function EmployeeDetailPage({ selfEmployeeId }: { selfEmployeeId?
           )}
 
         </div>
+
+        {/* Task 158 — self-service section edit request modal */}
+        {editSection && employee && (
+          <ProfileSectionEditRequest
+            section={editSection}
+            employeeId={employee.id}
+            employee={employee as unknown as Record<string, unknown>}
+            onClose={() => setEditSection(null)}
+            onSubmitted={(message) => {
+              setEditSection(null);
+              toast.success(message);
+              queueMicrotask(() => { fetchMySectionRequests(); });
+            }}
+          />
+        )}
       </div>
+
+      {/* Task 162: ESS self-edit modal (own profile, non-HR roles) */}
+      {showSelfEdit && employee && (
+        <SelfEditProfileModal
+          employee={{
+            id: employee.id,
+            phone: employee.phone,
+            personalEmail: employee.personalEmail,
+            currentAddress: employee.currentAddress,
+            currentCity: employee.currentCity,
+            currentState: employee.currentState,
+            currentZipCode: employee.currentZipCode,
+            currentCountry: employee.currentCountry,
+            emergencyContactName: employee.emergencyContactName,
+            emergencyContactPhone: employee.emergencyContactPhone,
+            emergencyContactRelation: employee.emergencyContactRelation,
+          }}
+          onClose={() => setShowSelfEdit(false)}
+          onSaved={() => { fetchEmployee(); }}
+        />
+      )}
     </div>
   );
 }

@@ -42,6 +42,7 @@ export async function GET(
       );
     }
 
+    const db = await getDb(req);
     await ensureSchemaSynced();
 
     const { id } = await params;
@@ -131,6 +132,7 @@ export async function PATCH(
       );
     }
 
+    const db = await getDb(req);
     await ensureSchemaSynced();
 
     const { id } = await params;
@@ -145,6 +147,8 @@ export async function PATCH(
           status: true,
           hiredAt: true,
           bonusPaidAt: true,
+          bonusAmount: true,
+          bonusCurrency: true,
         },
       })
     );
@@ -204,6 +208,11 @@ export async function PATCH(
         // Auto-set lifecycle timestamps when crossing into hired/bonus_paid.
         if (body.status === 'hired' && !existing.hiredAt) {
           data.hiredAt = new Date();
+        }
+        // C-23: auto-set bonus to 5000 when marking as hired (if not already set)
+        if (body.status === 'hired' && (existing.bonusAmount === null || existing.bonusAmount === undefined)) {
+          data.bonusAmount = 5000;
+          data.bonusCurrency = 'INR';
         }
         if (body.status === 'bonus_paid' && !existing.bonusPaidAt) {
           data.bonusPaidAt = new Date();
@@ -269,6 +278,85 @@ export async function PATCH(
       // Non-fatal
     }
 
+    // GAP FIX #3: Notify the referring employee when their referral status changes
+    try {
+      if (decoded.tenantId && updated.referrerEmployee?.id) {
+        // Find the user linked to the referring employee
+        const referrerUser = await db.user.findFirst({
+          where: { employeeId: updated.referrerEmployee.id, status: 'active' },
+          select: { id: true, email: true },
+        }).catch(() => null);
+
+        if (referrerUser) {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          const isHired = updated.status === 'hired';
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: isHired ? 'recruitment.referral.hired' : 'recruitment.referral.status_changed',
+            recipients: [{ userId: referrerUser.id }],
+            vars: {
+              Referrer_Name: `${updated.referrerEmployee?.firstName || ''} ${updated.referrerEmployee?.lastName || ''}`.trim(),
+              Candidate_Name: updated.candidateName,
+              Job_Title: updated.jobPosting?.title || 'a position',
+              Status: updated.status,
+            },
+            entity: { type: 'referral', id: updated.id, link: '/referrals' },
+          }).catch(() => null);
+        }
+      }
+    } catch { /* non-fatal */ }
+
+    // C-23: Send candidate email when HR directly changes the referral status.
+    // - On reject: candidate gets a rejection email.
+    // - On shortlist (interviewed from pending): candidate gets a shortlist
+    //   email with the apply link (trackable referral URL → /careers).
+    if (isAdmin && body.status && body.status !== existing.status) {
+      try {
+        const { sendEmail } = await import('@/lib/email');
+        const { sendTenantEmail } = await import('@/lib/notification-channels');
+        const origin = (() => { try { return new URL(req.url).origin; } catch { return ''; } })();
+        const candidateEmail = updated.candidateEmail;
+        const candidateName = updated.candidateName;
+        const jobTitle = updated.jobPosting?.title || 'the position';
+
+        if (body.status === 'rejected' && candidateEmail) {
+          const subject = `Application Update — ${candidateName} — ${jobTitle}`;
+          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#ef4444;">Application Update</h2>
+            <p>Dear ${candidateName},</p>
+            <p>Thank you for your interest in the <strong>${jobTitle}</strong> position and for applying through our referral program.</p>
+            <p>While we appreciate your time, we are unable to proceed with your application at this time.</p>
+            <p>We wish you the best in your job search.</p>
+            <p>Regards,<br/>HR Team</p>
+          </div>`;
+          let sent = false;
+          try { const r = await sendEmail({ to: candidateEmail, subject, html }); sent = r.success; } catch {}
+          if (!sent) { try { await sendTenantEmail(db, String(decoded.tenantId || ''), { to: candidateEmail, subject, html }); } catch {} }
+          console.log(`[Referral PATCH] Rejection email to ${candidateEmail}: ${sent ? 'SENT' : 'FAILED'}`);
+        }
+
+        if (body.status === 'interviewed' && existing.status === 'pending' && candidateEmail) {
+          const applyUrl = `${origin}/api/referrals/track/${updated.trackToken}`;
+          const subject = `You've been shortlisted: ${candidateName} — ${jobTitle}`;
+          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#10b981;">You've been shortlisted!</h2>
+            <p>Dear ${candidateName},</p>
+            <p>Good news! You have been shortlisted for the <strong>${jobTitle}</strong> position through our employee referral program.</p>
+            <p>To proceed with your application, please click the link below to formally apply and create your candidate portal account:</p>
+            <p><a href="${applyUrl}" style="display:inline-block;padding:12px 28px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Apply Now</a></p>
+            <p>Regards,<br/>HR Team</p>
+          </div>`;
+          let sent = false;
+          try { const r = await sendEmail({ to: candidateEmail, subject, html }); sent = r.success; } catch {}
+          if (!sent) { try { await sendTenantEmail(db, String(decoded.tenantId || ''), { to: candidateEmail, subject, html }); } catch {} }
+          console.log(`[Referral PATCH] Shortlist+apply email to ${candidateEmail}: ${sent ? 'SENT' : 'FAILED'}`);
+        }
+      } catch (e) {
+        console.warn('[Referral PATCH] Candidate email failed (non-fatal):', e instanceof Error ? e.message : e);
+      }
+    }
+
     return NextResponse.json({ referral: updated }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Referral PATCH [id] error:', error);
@@ -308,6 +396,7 @@ export async function DELETE(
       );
     }
 
+    const db = await getDb(req);
     await ensureSchemaSynced();
 
     const { id } = await params;

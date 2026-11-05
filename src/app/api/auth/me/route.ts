@@ -183,7 +183,72 @@ export async function GET(request: Request) {
     let employeeData = null;
     let profileAvatar = user.avatar as string | null;
     if (user.role === 'super_admin') {
-      employeeData = null;
+      // Super admin may still have a linked employee record (e.g. on the
+      // platform DB or a tenant DB). Try to resolve it via cross-DB fallback
+      // so /my-profile works for super_admin too. Previously this was
+      // hard-set to null, which made /my-profile show "Profile unavailable".
+      try {
+        const platformEmp = await platformDb.employee.findUnique({
+          where: { userId: user.id },
+          select: { id: true, employeeId: true, firstName: true, lastName: true, avatar: true, companyId: true, status: true, salary: true, departmentId: true, designationId: true, branchId: true },
+        });
+        if (platformEmp) {
+          if (platformEmp.avatar) profileAvatar = platformEmp.avatar;
+          employeeData = {
+            id: platformEmp.id,
+            employeeId: platformEmp.employeeId,
+            firstName: platformEmp.firstName,
+            lastName: platformEmp.lastName,
+            avatar: platformEmp.avatar || null,
+            department: null,
+            designation: null,
+            branch: null,
+            companyId: platformEmp.companyId,
+            companyLogo: null,
+            companyName: null,
+            status: platformEmp.status,
+            salary: platformEmp.salary,
+            company: null,
+            avatarPendingAt: null,
+          };
+        } else {
+          // Try each tenant DB
+          const tenants = await platformDb.tenant.findMany({ select: { id: true, slug: true } });
+          for (const t of tenants) {
+            if (!t.slug) continue;
+            try {
+              const tDb = await getDbForTenant(t.slug);
+              const tEmp = await tDb.employee.findUnique({
+                where: { userId: user.id },
+                select: { id: true, employeeId: true, firstName: true, lastName: true, avatar: true, companyId: true, status: true, salary: true, departmentId: true, designationId: true, branchId: true },
+              });
+              if (tEmp) {
+                if (tEmp.avatar) profileAvatar = tEmp.avatar;
+                employeeData = {
+                  id: tEmp.id,
+                  employeeId: tEmp.employeeId,
+                  firstName: tEmp.firstName,
+                  lastName: tEmp.lastName,
+                  avatar: tEmp.avatar || null,
+                  department: null,
+                  designation: null,
+                  branch: null,
+                  companyId: tEmp.companyId,
+                  companyLogo: null,
+                  companyName: null,
+                  status: tEmp.status,
+                  salary: tEmp.salary,
+                  company: null,
+                  avatarPendingAt: null,
+                };
+                break;
+              }
+            } catch { /* skip tenant DB */ }
+          }
+        }
+      } catch (empErr) {
+        console.error('[Auth/Me] Super admin employee fetch error (non-fatal):', empErr);
+      }
     } else {
     /* Task 153 FIX — the old code special-cased tenant_admin/ceo here and
        returned ONLY the avatar (employeeData = null). The employee dashboard
@@ -251,6 +316,78 @@ export async function GET(request: Request) {
     } catch (empErr) {
       console.error('[Auth/Me] Employee fetch error (non-fatal):', empErr);
       // Continue without employee data — user can still be authenticated
+    }
+
+    // ─── Cross-DB fallback for non-super_admin ───
+    // If employeeData is still null (employee not found in dataDb), try
+    // the platform DB and all tenant DBs. This handles the case where a
+    // tenant_admin/HR user was found on the platform DB but their employee
+    // record lives in a tenant DB (Vercel serverless cold-start inconsistency).
+    if (!employeeData && user.role !== 'super_admin') {
+      try {
+        // Try platform DB first
+        const platformEmp = await platformDb.employee.findUnique({
+          where: { userId: user.id },
+          select: { id: true, employeeId: true, firstName: true, lastName: true, avatar: true, companyId: true, status: true, salary: true },
+        });
+        if (platformEmp) {
+          if (platformEmp.avatar) profileAvatar = platformEmp.avatar;
+          employeeData = {
+            id: platformEmp.id,
+            employeeId: platformEmp.employeeId,
+            firstName: platformEmp.firstName,
+            lastName: platformEmp.lastName,
+            avatar: platformEmp.avatar || null,
+            department: null,
+            designation: null,
+            branch: null,
+            companyId: platformEmp.companyId,
+            companyLogo: null,
+            companyName: null,
+            status: platformEmp.status,
+            salary: platformEmp.salary,
+            company: null,
+            avatarPendingAt: null,
+          };
+        } else {
+          // Try each tenant DB
+          const tenants = await platformDb.tenant.findMany({ select: { id: true, slug: true } });
+          for (const t of tenants) {
+            if (!t.slug) continue;
+            try {
+              const tDb = await getDbForTenant(t.slug);
+              if (tDb === dataDb) continue; // skip already-tried DB
+              const tEmp = await tDb.employee.findUnique({
+                where: { userId: user.id },
+                select: { id: true, employeeId: true, firstName: true, lastName: true, avatar: true, companyId: true, status: true, salary: true, departmentId: true, designationId: true, branchId: true },
+              });
+              if (tEmp) {
+                if (tEmp.avatar) profileAvatar = tEmp.avatar;
+                employeeData = {
+                  id: tEmp.id,
+                  employeeId: tEmp.employeeId,
+                  firstName: tEmp.firstName,
+                  lastName: tEmp.lastName,
+                  avatar: tEmp.avatar || null,
+                  department: null,
+                  designation: null,
+                  branch: null,
+                  companyId: tEmp.companyId,
+                  companyLogo: null,
+                  companyName: null,
+                  status: tEmp.status,
+                  salary: tEmp.salary,
+                  company: null,
+                  avatarPendingAt: null,
+                };
+                break;
+              }
+            } catch { /* skip tenant DB */ }
+          }
+        }
+      } catch (crossDbErr) {
+        console.error('[Auth/Me] Cross-DB employee fallback error (non-fatal):', crossDbErr);
+      }
     }
     }
 

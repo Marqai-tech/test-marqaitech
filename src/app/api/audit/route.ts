@@ -19,8 +19,10 @@ export async function GET(req: NextRequest) {
     const where: Record<string, unknown> = {};
     if (userId) where.userId = userId;
     if (action) where.action = action;
-    if (entity) where.entity = entity;
-    if (entityId) where.entityId = entityId;
+    // AuditLog stores the business area in `module`; it has no `entity` or
+    // `entityId` columns. Keep the legacy query parameter compatible by
+    // treating entity as a module filter.
+    if (entity) where.module = entity;
     if (module) where.module = module;
     if (startDate || endDate) {
       where.createdAt = {};
@@ -50,9 +52,9 @@ export async function GET(req: NextRequest) {
       _count: { id: true },
     });
 
-    // Entity type summary
-    const entitySummary = await db.auditLog.groupBy({
-      by: ['entity'],
+    // Business-area summary (AuditLog has `module`, not `entity`).
+    const moduleSummary = await db.auditLog.groupBy({
+      by: ['module'],
       where,
       _count: { id: true },
     });
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       summary: {
         byAction: actionSummary.map((a) => ({ action: a.action, count: a._count.id })),
-        byEntity: entitySummary.map((e) => ({ entity: e.entity, count: e._count.id })),
+        byEntity: moduleSummary.map((m) => ({ entity: m.module, count: m._count.id })),
       },
     });
   } catch (error) {
@@ -148,7 +150,7 @@ export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
     const body = await req.json();
-    const { action, entity, entityId, details, userId, ipAddress } = body;
+    const { action, entity, details, userId, ipAddress, module } = body;
 
     if (!action || !entity) {
       return NextResponse.json(
@@ -160,11 +162,10 @@ export async function POST(req: NextRequest) {
     const log = await db.auditLog.create({
       data: {
         action,
-        entity,
-        entityId,
+        module: module || entity || 'general',
         details,
         userId,
-        ipAddress,
+        ip: ipAddress,
       },
       include: {
         user: {

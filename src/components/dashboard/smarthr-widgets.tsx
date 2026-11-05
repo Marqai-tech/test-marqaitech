@@ -31,8 +31,30 @@ import {
 } from 'react-icons/fi';
 import { TbRosetteDiscountCheckFilled } from 'react-icons/tb';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useAuthStore } from '@/store/authStore';
+import { homeHrefForRole } from '@/lib/roleAccess';
 
 /* ---------- page breadcrumb bar (Task 147 — exact template pattern) ---------- */
+
+/* Task 163 — role-aware breadcrumb home button. Admins go to the Admin
+   Dashboard (/home); employees / self-service roles go straight to the
+   Employee Dashboard (/dashboard). Lives in its own component so the store
+   hook stays isolated from the breadcrumb render tree. */
+function HomeBreadcrumbButton() {
+  const userRole = useAuthStore((s) => s.user?.role);
+  const href = homeHrefForRole(userRole);
+  const label = href === '/home' ? 'Admin Dashboard' : 'Dashboard';
+  return (
+    <button
+      onClick={() => (window.location.href = href)}
+      className="hover:text-white transition-colors"
+      title={label}
+      aria-label={label}
+    >
+      <FiHome className="w-3.5 h-3.5" />
+    </button>
+  );
+}
 
 export function PageBreadcrumbs({
   title,
@@ -60,9 +82,9 @@ export function PageBreadcrumbs({
           <nav className="mt-1.5" aria-label="Breadcrumb">
             <ol className="flex items-center gap-1.5 text-xs text-white/75">
               <li>
-                <button onClick={() => (window.location.href = '/home')} className="hover:text-white transition-colors" title="Home">
-                  <FiHome className="w-3.5 h-3.5" />
-                </button>
+                {/* Task 163 — role-aware home icon: admins → Admin Dashboard (/home),
+                    everyone else → Employee Dashboard (/dashboard). */}
+                <HomeBreadcrumbButton />
               </li>
               {(trail || []).map((t, i) => (
                 <li key={`${t}-${i}`} className="flex items-center gap-1.5">
@@ -219,9 +241,9 @@ export function ProfileHeroCard({
           <Row icon={<FiMail className="w-3.5 h-3.5" />} label="Email Address" value={email} />
           <Row icon={<FiBriefcase className="w-3.5 h-3.5" />} label="Department" value={department} />
           <Row icon={<FiStar className="w-3.5 h-3.5" />} label="Designation" value={designation} />
-          <Row icon={<FiUserCheck className="w-3.5 h-3.5" />} label="Report Office" value={reportTo} />
+          <Row icon={<FiUserCheck className="w-3.5 h-3.5" />} label="Reporting Manager" value={reportTo} />
           <Row icon={<FiCalendar className="w-3.5 h-3.5" />} label="Joined on" value={joinedOn} />
-          <Row icon={<FiActivity className="w-3.5 h-3.5" />} label="Years of Experience" value={experience} />
+          <Row icon={<FiActivity className="w-3.5 h-3.5" />} label="Tenure" value={experience} />
         </div>
         <button
           onClick={() => router.push('/my-profile')}
@@ -289,6 +311,9 @@ export function RoleHero({ role, firstName, greeting, today, subtitle, searchQue
   const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const { effectiveCompanyLabel, canSwitch } = useCompanyContextStore();
   const companyLabel = effectiveCompanyLabel();
+  // BUG_089 FIX: Don't show the company context label for self-service roles
+  // (employees, finance_admin, etc.) — company switching is for admins only.
+  const showCompanyLabel = canSwitch();
   return (
     <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-[#6C4FD6]/25">
       <div className="absolute inset-0 bg-gradient-to-br from-[#3A57C4] via-[#4C51D6] to-[#8A5CF6]" />
@@ -303,6 +328,7 @@ export function RoleHero({ role, firstName, greeting, today, subtitle, searchQue
             <div>
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <p className="text-amber-200/80 text-xs font-medium tracking-widest uppercase">{roleLabel}</p>
+                {showCompanyLabel && (
                 <span
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/15 text-[10px] font-semibold text-amber-200 ring-1 ring-amber-300/30"
                   title={canSwitch() ? 'Use the switcher in the header to change company' : 'Your configured company'}
@@ -310,6 +336,7 @@ export function RoleHero({ role, firstName, greeting, today, subtitle, searchQue
                   <FiBriefcase className="w-3 h-3" />
                   {companyLabel}
                 </span>
+                )}
               </div>
               <h1 className="text-2xl font-bold text-white">
                 {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-orange-200">{firstName}</span>!

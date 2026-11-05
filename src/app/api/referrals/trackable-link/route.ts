@@ -147,10 +147,15 @@ export async function POST(request: Request) {
       referral = created;
     }
 
-    // Build the public trackable URL. We use the public app URL so this
-    // works from outside the tenant dashboard (e.g. when shared on
-    // social media).
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // Build the public trackable URL. We use the REQUEST origin first (so the
+    // link always matches the domain the user is browsing on), then fall back
+    // to NEXT_PUBLIC_APP_URL env var, then to localhost. This fixes the 404
+    // issue where the env var pointed to a wrong domain (e.g.
+    // test-marqaitech.vercel.app instead of test-marqaitech-ontt.vercel.app).
+    const requestOrigin = (() => {
+      try { return new URL(request.url).origin; } catch { return ''; }
+    })();
+    const baseUrl = requestOrigin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const trackableUrl = `${baseUrl}/api/referrals/track/${referral.trackToken}`;
 
     return NextResponse.json(

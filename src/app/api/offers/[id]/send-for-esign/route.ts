@@ -54,6 +54,14 @@ export async function POST(
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // C-001 fix: Enforce offer approval status before e-sign
+    if (!['approved', 'sent'].includes(offer.status)) {
+      return NextResponse.json(
+        { error: 'Offer must be approved before sending for e-signature. Current status: ' + offer.status },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+
     if (!offer.generatedPdfUrl) {
       return NextResponse.json(
         { error: 'Offer has no generated PDF/HTML. Call /generate-pdf first.' },

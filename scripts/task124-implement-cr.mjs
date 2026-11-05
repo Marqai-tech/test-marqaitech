@@ -15,7 +15,7 @@ const res = await fetch(`${BASE}/api/super-admin/change-requests/${CR_ID}`, {
   body: JSON.stringify({
     action: 'implement',
     implementationNotes:
-      'Deployed to LIVE via commit 44f1624b. LIVE E2E on marqaitechgroup tenant (hr@marqaitech.com): ' +
+      'Deployed to LIVE via commit 44f1624b. LIVE E2E on marqaitechgroup tenant (hr@gmail.com): ' +
       'POST /api/payroll/marqai-setup 200 → PayrollSettings PF OFF / ESI OFF persisted (GET salary-settings pf.enabled=false, esi.enabled=false, mode=auto), vardhani re-solved gross ₹102,000 → ₹100,200 keeping on-hand EXACTLY ₹1,00,000 (PT ₹200 only, ₹0 TDS under 87A rebate), salary structures rebuilt WITHOUT EPF/ESI employee rows, superseded "Gross ₹1,02,000" structure auto-cleaned. ' +
       'POST /api/payroll/process {backfill, force} 200 → 49 payslips recomputed Feb→Oct 2026 (this + all past months since joining). Verification over GET /api/payroll/payslips: 49 rows, rows with PF≠0 or ESI≠0 = 0 — ZERO PF/ESI deductions on every MarqAI payslip. ' +
       'Full-month nets: ₹15,000 band net ₹15,000 (zero deductions), manoj ₹20,000 → ₹19,850 (PT ₹150), shiraj/divya ₹25,000 → ₹24,800 (PT ₹200), vardhani full month ₹1,00,000 exactly; joiner/LOP months correctly prorated by attendance (vardhani Jul DOJ 10/31d, Oct 28.5/31d). ' +

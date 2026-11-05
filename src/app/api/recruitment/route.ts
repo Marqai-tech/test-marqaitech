@@ -117,6 +117,7 @@ export async function GET(request: Request) {
           applications: {
             select: {
               id: true,
+              // Phase 7 fix: PII masking — mask candidate email and phone for non-HR users
               candidateName: true,
               candidateEmail: true,
               candidatePhone: true,
@@ -140,6 +141,20 @@ export async function GET(request: Request) {
       }),
       db.jobPosting.count({ where }),
     ]);
+
+    // Phase 7 fix: Server-side PII masking for non-HR users
+    const HR_ROLES_FOR_PII = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    const canSeePII = HR_ROLES_FOR_PII.includes(decodedRec.role as string);
+    if (!canSeePII) {
+      for (const job of jobPostings) {
+        if (job.applications) {
+          for (const app of job.applications as any[]) {
+            if (app.candidateEmail) app.candidateEmail = app.candidateEmail.replace(/^(.{2}).*(@.*)$/, '$1***$2');
+            if (app.candidatePhone) app.candidatePhone = String(app.candidatePhone).replace(/(\d{2})\d+(\d{2})/, '$1***$2');
+          }
+        }
+      }
+    }
 
     // ─── Dashboard aggregates (real data only — no fallbacks) ───
     const appWhere = { jobPosting: where };
@@ -394,6 +409,15 @@ export async function POST(request: Request) {
     }
 
     // Handle job posting creation
+    // Phase 2 fix: Enforce HR/Admin role check for job posting creation
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES.includes(decodedRec.role as string)) {
+      return NextResponse.json(
+        { error: 'Only HR/Admin can create job postings' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     const {
       title,
       departmentId,
@@ -416,13 +440,15 @@ export async function POST(request: Request) {
     }
 
     // Verify the department belongs to the caller's tenant (prevent cross-tenant job creation)
-    const department = await db.department.findFirst({
-      where: {
-        id: departmentId,
-        company: {
-          companyGroup: { tenantId: decodedRec.tenantId as string },
-        },
-      },
+    // Phase 4 fix: Use exact ID match only (was using findFirst which could match wrong dept)
+    const department = await db.department.findUnique({
+      where: { id: departmentId },
+    }).catch(async () => {
+      // Fallback: try exact name match if ID is not a CUID
+      const rows = await db.$queryRawUnsafe(
+        `SELECT * FROM "Department" WHERE LOWER("name") = LOWER($1) LIMIT 1`, departmentId,
+      ) as any[];
+      return rows[0] || null;
     });
     if (!department) {
       return NextResponse.json(

@@ -148,24 +148,36 @@ export interface WorkingDayWalk {
 /**
  * Walk the date range [start, end] (inclusive, calendar days in UTC) and
  * classify each day as working / weekend / holiday.
+ *
+ * SANDWICH RULE (§2.4 spec): when `sandwichRuleEnabled` is true, weekends
+ * and holidays that fall BETWEEN two working leave days are counted as
+ * leave (included in workingDates). Weekends/holidays at the start or end
+ * of the range are still excluded.
+ *
+ * Example: Fri leave + Mon leave with a weekend in between:
+ *   - sandwichRuleEnabled=false → 2 chargeable days (Fri + Mon)
+ *   - sandwichRuleEnabled=true  → 4 chargeable days (Fri + Sat + Sun + Mon)
  */
 export function computeWorkingDays(
   start: Date | string,
   end: Date | string,
   weekendDow: number[] = DEFAULT_WEEKEND_DOW,
   holidayDaySet: Set<string> = new Set(),
+  sandwichRuleEnabled: boolean = false,
 ): WorkingDayWalk {
   const weekendSet = new Set(weekendDow);
   const cursor = dayStartUtc(start);
   const endDay = dayStartUtc(end);
-  const workingDates: string[] = [];
+  const allDates: string[] = [];
   const weekendDates: string[] = [];
   const holidayDates: string[] = [];
+  const workingDates: string[] = [];
   // Hard cap (10 years) to protect against malformed ranges
   let guard = 0;
   while (cursor <= endDay && guard < 4000) {
     guard++;
     const dateStr = cursor.toISOString().split('T')[0];
+    allDates.push(dateStr);
     if (weekendSet.has(cursor.getUTCDay())) {
       weekendDates.push(dateStr);
     } else if (holidayDaySet.has(dateStr)) {
@@ -175,6 +187,36 @@ export function computeWorkingDays(
     }
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
+
+  // If sandwich rule is enabled, include weekends/holidays that fall BETWEEN
+  // two working leave days. We only include a weekend/holiday if there's at
+  // least one working day BEFORE it AND at least one working day AFTER it
+  // in the range.
+  if (sandwichRuleEnabled && workingDates.length > 0) {
+    const firstWorking = workingDates[0];
+    const lastWorking = workingDates[workingDates.length - 1];
+    const sandwichDates: string[] = [];
+    for (const dateStr of allDates) {
+      // Skip if it's already a working day
+      if (workingDates.includes(dateStr)) continue;
+      // Only include if it's between the first and last working day
+      if (dateStr > firstWorking && dateStr < lastWorking) {
+        sandwichDates.push(dateStr);
+      }
+    }
+    // Add sandwich dates to the working dates list (they count as leave)
+    workingDates.push(...sandwichDates);
+    workingDates.sort();
+    // Remove sandwich dates from weekend/holiday lists (they're now leave days)
+    const sandwichSet = new Set(sandwichDates);
+    const filteredWeekend = weekendDates.filter(d => !sandwichSet.has(d));
+    const filteredHoliday = holidayDates.filter(d => !sandwichSet.has(d));
+    weekendDates.length = 0;
+    weekendDates.push(...filteredWeekend);
+    holidayDates.length = 0;
+    holidayDates.push(...filteredHoliday);
+  }
+
   return { workingDays: workingDates.length, workingDates, weekendDates, holidayDates };
 }
 

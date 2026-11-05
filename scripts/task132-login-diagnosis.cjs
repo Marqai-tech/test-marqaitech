@@ -7,7 +7,7 @@
  *   - Apex login (3boxeshrms.com) → 401 without suggestedUrl, because the
  *     apex only authenticates against the PLATFORM DB and only answers
  *     403+suggestedUrl for users FOUND THERE with a valid password.
- *   - hr@marqaitech.com HAS a platform mirror row → ladder works for her.
+ *   - hr@gmail.com HAS a platform mirror row → ladder works for her.
  *   - mahesh@marqaitech.com does NOT → mobile ladder dies at the apex and
  *     never reaches the tenant workspace.
  *

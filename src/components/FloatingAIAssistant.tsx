@@ -49,6 +49,12 @@ export default function FloatingAIAssistant({ hideFab = false }: { hideFab?: boo
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  // Task 158 — /api/ai-chat requires a sessionId for conversation history.
+  // The FAB panel previously sent only { message } so every question returned
+  // "Message and sessionId are required". The FIRST message omits sessionId —
+  // the API generates one and returns it — and every later message reuses it,
+  // so the whole panel conversation shares one AI session.
+  const sessionIdRef = useRef<string>('');
 
   // Per-page visibility: the bot re-appears on every page navigation.
   // Closing it only hides it for the CURRENT page (fixes "bot not visible"
@@ -88,9 +94,17 @@ export default function FloatingAIAssistant({ hideFab = false }: { hideFab?: boo
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ message: content, history: messages.slice(-8).map((m) => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({
+          message: content,
+          ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}),
+          context: 'floating_assistant',
+        }),
       });
       const data = await res.json().catch(() => ({}));
+      // Server issues the session id on the first message — keep it.
+      if (!sessionIdRef.current && data?.sessionId) {
+        sessionIdRef.current = String(data.sessionId);
+      }
       const reply = data?.reply || data?.response || data?.message || data?.error || 'Sorry — I could not process that right now.';
       setMessages((prev) => [...prev, { id: `a${Date.now()}`, role: 'assistant', content: String(reply) }]);
     } catch {

@@ -23,7 +23,6 @@
 /** Roles that only get employee self-service menus (not HR / finance / IT admin suites). */
 export const SELF_SERVICE_ROLE_KEYS = [
   'employee',
-  'finance_admin',
   'finance',
   'it_admin',
   'candidate',
@@ -55,7 +54,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   dashboard: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   employees: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   company: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
-  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'finance_admin'],
   onboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
   attendance: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   leave: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
@@ -93,9 +92,9 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   // Admin-only sub-areas (Collaboration Settings, SMTP Email Config,
   // Collaboration Reports) are restricted via per-item `roles` in navData.
   collaboration: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
-  requisitions: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  requisitions: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'finance_admin'],
   offers: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
-  job_portal: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  job_portal: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
   ai_interview: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
   preboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
   succession: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
@@ -266,6 +265,21 @@ export function navRoleOrLeastPrivilege(role?: string | null): string {
 /** Platform navigation is independent of the company selected for data. */
 export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey: string, enabledModules?: Set<string>): boolean {
   if (role === 'super_admin' && moduleKey === 'super-admin') return true;
+  // The AI Insights section aggregates analytics from the operational modules
+  // (attendance, payroll, recruitment, …). Tenants provisioned before the
+  // section existed don't have an 'ai-insights' entry in their module
+  // overrides, so derive visibility from the underlying modules instead — the
+  // section shows when ANY of its source modules is enabled.
+  if (moduleKey === 'ai-insights') {
+    if (!enabledModules) return true; // no restrictions = visible
+    return enabledModules.has('ai-insights') ||
+      enabledModules.has('attendance') ||
+      enabledModules.has('payroll') ||
+      enabledModules.has('recruitment') ||
+      enabledModules.has('appraisal') ||
+      enabledModules.has('leave') ||
+      enabledModules.has('project');
+  }
   // The employee self-service module must remain available for employee
   // accounts across tenants, even if a tenant has a stale/incomplete module
   // override. Item-level role checks below still hide HR/admin operations.
@@ -279,6 +293,25 @@ export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey:
 /** Super admins land on the platform management dashboard. */
 export function dashboardHrefForRole(role?: string | null): string {
   return role === 'super_admin' ? '/super-admin' : '/dashboard';
+}
+
+/**
+ * Roles that may see and open the ADMIN DASHBOARD (/home) — renamed from
+ * "Home" in Task 163. Employees (self-service roles) never see it: they land
+ * directly on the Employee Dashboard (/dashboard) instead.
+ */
+export const ADMIN_DASHBOARD_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'];
+
+/**
+ * Where should this role land as their home surface?
+ * - Admin roles  → Admin Dashboard (/home)
+ * - Everyone else → Employee Dashboard (/dashboard)
+ * (super_admin still gets redirected to /super-admin by the login flow and
+ * the /dashboard page itself.)
+ */
+export function homeHrefForRole(role?: string | null): string {
+  const r = (role || '').toLowerCase();
+  return ADMIN_DASHBOARD_ROLES.includes(r) ? '/home' : '/dashboard';
 }
 
 /**
@@ -428,7 +461,7 @@ export const LEGACY_ROLE_MAP: Record<string, string> = {
   ceo: 'ceo', // Task 129 — first-class role (NOT degraded to employee)
   hr_admin: 'admin',
   company_hr_admin: 'admin',
-  finance_admin: 'employee',
+  finance_admin: 'admin',
   finance: 'employee',
   it_admin: 'employee',
   manager: 'manager',
@@ -482,7 +515,9 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/leave/types',
     '/leave/apply-by-hr',
     '/leave/settings',
+    '/leave/configuration',
     '/leave/reports',
+    '/email-preview',
     '/attendance/apply-by-hr',
     '/attendance/shifts',
     '/attendance/holidays',
@@ -500,9 +535,11 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/employees',
     '/recruitment',
     '/onboarding',
-    '/ai-interview',
+    // BUG_024 FIX: '/ai-interview' removed from deniedPrefixes — employees
+    // should be able to access AI Interview from the AI Center dropdown.
     '/company',
-    '/org-chart',
+    // Bug 5 fix: '/org-chart' removed from deniedPrefixes — employees should
+    // be able to view the org chart (read-only) so the Quick Action link works.
     '/employees/settings',
   ];
   if (deniedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
@@ -526,10 +563,33 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/training',
     '/learning',
     '/projects',
+    '/project-management',
+    '/collaboration',
+    '/calendar',
+    '/email',
+    '/todo',
+    '/notes',
+    '/social-feed',
+    '/file-manager',
+    '/kanban',
     '/timesheets',
     '/travel',
     '/expenses',
     '/assets',
+    // Bug 5 fix: employees must be able to reach the Org Chart page
+    '/org-chart',
+    // BUG_024 FIX: employees must be able to reach AI Interview from AI Center
+    '/ai-interview',
+    // BUG_025 FIX: employees must be able to reach Invoices from Applications menu
+    '/invoices',
+    // CRITICAL FIX #2: employees must be able to reach My Interviews and Referrals
+    '/my-interviews',
+    '/referrals',
+    // HR Interview Management page — where HR can see all interviews, view
+    // panel member feedback, mark interviews as completed, and record the
+    // final HR decision. Allowed for all authenticated users (the page itself
+    // gates HR-only actions behind role checks server-side).
+    '/interviews',
   ];
   return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

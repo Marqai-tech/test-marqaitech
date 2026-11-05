@@ -5,6 +5,7 @@ import { getHiddenSlugsForRequest } from '@/lib/tenant-filter';
 import { sendEmail } from '@/lib/email';
 import { sendSms, isSmsConfigured } from '@/lib/sms';
 import { createHash } from 'crypto';
+import { buildBrandedEmailForTenant } from '@/lib/tenant-branding';
 
 /**
  * Task 141 — Mobile OTP sign-in (design: "Verify your number").
@@ -185,30 +186,37 @@ function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function otpEmailHtml(code: string, name: string): string {
-  return `<!DOCTYPE html>
-<html><body style="margin:0;padding:24px;background:#f4f6fb;font-family:'Segoe UI',Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e9f2;">
-    <div style="background:linear-gradient(135deg,#0F172A,#1E3A5F);padding:22px 26px;color:#ffffff;">
-      <div style="font-size:18px;font-weight:800;">3Boxes HRMS</div>
-      <div style="font-size:12px;opacity:.75;margin-top:2px;">Mobile sign-in verification</div>
-    </div>
-    <div style="padding:26px;">
-      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi ${name || 'there'},</p>
+/**
+ * REQ 5 — OTP email body content (no outer <html> wrapper).
+ *
+ * The full branded HTML document is built by `buildBrandedEmailForTenant`,
+ * which wraps this body in the tenant-branded header (logo + colors) and
+ * footer. Returns just the inner body HTML so the caller can pass it as
+ * `bodyHtml` to the branded template.
+ */
+function otpEmailBodyHtml(code: string, name: string): string {
+  return `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi ${escapeHtml(name || 'there')},</p>
       <p style="margin:0 0 16px;font-size:13.5px;color:#475569;line-height:1.6;">
         Use this one-time code to sign in to the 3Boxes HRMS mobile app. It expires in
         <strong>5 minutes</strong> and can be used only once.
       </p>
       <div style="text-align:center;margin:18px 0;">
-        <span style="display:inline-block;letter-spacing:10px;font-size:30px;font-weight:800;color:#0F172A;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:14px 22px 14px 32px;">${code}</span>
+        <span style="display:inline-block;letter-spacing:10px;font-size:30px;font-weight:800;color:#0F172A;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:14px 22px 14px 32px;">${escapeHtml(code)}</span>
       </div>
       <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
         Didn't request this code? Someone may have typed your number by mistake — you can safely ignore this email.
         Never share this code with anyone, including HR or IT staff.
-      </p>
-    </div>
-  </div>
-</body></html>`;
+      </p>`;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export async function POST(request: Request) {
@@ -340,7 +348,12 @@ export async function POST(request: Request) {
       const delivery = await sendEmail({
         to: user.email,
         subject: `${code} is your 3Boxes HRMS sign-in code`,
-        html: otpEmailHtml(code, user.name || 'there'),
+        // REQ 5 — wrap the OTP body in the tenant-branded template (logo +
+        // colors). user.tenantId is resolved earlier in the request flow.
+        html: await buildBrandedEmailForTenant((user as any).tenantId || null, {
+          title: 'Mobile sign-in verification',
+          bodyHtml: otpEmailBodyHtml(code, user.name || 'there'),
+        }),
       }).catch((e) => ({ success: false, error: String(e) }));
 
       const emailDelivered = Boolean((delivery as { success?: boolean })?.success);

@@ -65,6 +65,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     }
 
+    // C-013 fix: Only HR/Admin can update offer templates
+    const HR_ROLES_TPL = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES_TPL.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can update offer templates' }, { status: 403, headers: corsHeaders() });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { name, country, language, body: templateBody, header, footer, clauses, isActive } = body;
@@ -125,6 +131,12 @@ export async function DELETE(
     const decoded = await verifyToken(token);
     if (!decoded) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    }
+
+    // C-013 fix: Only HR/Admin can delete offer templates
+    const HR_ROLES_DEL = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES_DEL.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can delete offer templates' }, { status: 403, headers: corsHeaders() });
     }
 
     const { id } = await params;

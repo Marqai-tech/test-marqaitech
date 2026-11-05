@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 import { FiSearch, FiArrowRight, FiCheck } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { canRoleAccessModule, isNavSectionEnabled, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
+import { canRoleAccessModule, isNavSectionEnabled, isSelfServicePathAllowed, isSelfServiceRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import { sanitizeSearch } from '@/lib/validators';
 import { MODULE_GROUPS } from '@/lib/navData';
 import type { NavSection, ModuleGroup } from '@/lib/navData';
@@ -73,6 +73,11 @@ export default function ModulesPage() {
             if (!item.moduleKey && !item.roles) {
               return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(r));
             }
+            // Task 162: self-service roles must not be shown module cards
+            // whose landing path the layout would immediately bounce away
+            // (the old gap made Collaboration/PM cards look clickable but
+            // dead — click → redirect to /my-profile).
+            if (isSelfServiceRole(userRole) && !item.roles && !isSelfServicePathAllowed(item.href)) return false;
             return true;
           }),
         }))
@@ -105,8 +110,14 @@ export default function ModulesPage() {
   const allFlat = filteredGroups.flatMap(g => g.sections);
 
   const handleModuleClick = (section: NavSection) => {
-    const dashboardHref = section.items[0]?.href;
-    if (dashboardHref) router.push(dashboardHref);
+    const items = section.items;
+    // Task 162: self-service users land on the FIRST path they are actually
+    // allowed to open (the layout redirects denied paths to /my-profile,
+    // which made module cards feel broken for employees).
+    const target = isSelfServiceRole(userRole)
+      ? items.find(item => isSelfServicePathAllowed(item.href))?.href
+      : items[0]?.href;
+    if (target) router.push(target);
   };
 
   /* One deterministic theme per module key so cards keep their artwork. */

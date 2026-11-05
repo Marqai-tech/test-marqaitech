@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { validateDocumentDataUrl } from '@/lib/document-validation';
+import { isSafeDocumentUrl } from '@/lib/sanitize';
 
 function corsHeaders() {
   return {
@@ -69,6 +71,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: employeeId, name, type' }, { status: 400, headers: corsHeaders() });
     }
 
+    // REQ 2: PDF-only / 3MB / safe-URL validation on the server side.
+    // Mirrors the frontend check in src/lib/document-validation.ts so the
+    // rule cannot be bypassed by direct API calls. fileUrl is optional —
+    // we only validate it when supplied.
+    const fileUrl: string | null = body.fileUrl ? String(body.fileUrl) : null;
+    if (fileUrl) {
+      if (!isSafeDocumentUrl(fileUrl)) {
+        return NextResponse.json({ error: 'File URL must be a safe http(s) link or a PDF data URL.' }, { status: 400, headers: corsHeaders() });
+      }
+      const payloadError = validateDocumentDataUrl(fileUrl);
+      if (payloadError) {
+        return NextResponse.json({ error: payloadError }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     const document = await db.document.create({
       data: {
         employeeId,
@@ -76,8 +93,9 @@ export async function POST(request: Request) {
         type,
         status: body.status || 'active',
         expiryDate: expiryDate ? new Date(expiryDate) : null,
-        fileUrl: body.fileUrl || null,
+        fileUrl: fileUrl || null,
         description: body.description || null,
+        category: body.category || 'other',
       },
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
     });

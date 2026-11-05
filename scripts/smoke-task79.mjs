@@ -87,7 +87,7 @@ async function runSite(label, base, email, allowWrite) {
 }
 
 const demo = await runSite('DEMO', 'https://nexus-hrms-mu.vercel.app', 'admin@3boxeshrms.com', true);
-const live = await runSite('LIVE', 'https://marqaitechgroup.3boxeshrms.com', 'hr@marqaitech.com', false);
+const live = await runSite('LIVE', 'https://marqaitechgroup.3boxeshrms.com', 'hr@gmail.com', false);
 const total = demo.passN + demo.failN + live.passN + live.failN;
 console.log(`\nTOTAL: ${demo.passN + live.passN}/${total} pass — ${demo.failN + live.failN === 0 ? 'ALL QA FIXES CONFIRMED LIVE' : 'SOME CHECKS FAILED'}`);
 process.exit(demo.failN + live.failN === 0 ? 0 : 1);

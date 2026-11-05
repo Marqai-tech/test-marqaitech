@@ -55,9 +55,18 @@ function normalizedGender(gender: unknown): 'male' | 'female' | null {
 function isVisibleForGender(type: LeaveTypeLike, gender: unknown): boolean {
   const category = getLeaveCategory(type);
   const normalized = normalizedGender(gender);
-  if (!normalized) return true;
+  // BUG FIX: when gender is unknown/null, previously BOTH maternity and
+  // paternity were shown to the same user. Now we hide gendered leave types
+  // (maternity, paternity, parental) entirely when the employee's gender
+  // is not set — the admin should fix the employee's gender field to make
+  // the correct type appear.
+  if (!normalized) {
+    if (category === 'maternity' || category === 'paternity' || category === 'parental') return false;
+    return true;
+  }
   if (category === 'maternity') return normalized === 'female';
   if (category === 'paternity') return normalized === 'male';
+  // parental is handled by typeForGender (renamed to maternity/paternity)
   return true;
 }
 

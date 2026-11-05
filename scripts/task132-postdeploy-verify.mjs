@@ -59,15 +59,15 @@ async function main() {
   check('apex + WRONG password → 401 (no tenant leak)', wrongPw.status === 401 && !wrongPw.data.suggestedUrl, wrongPw.data.error?.slice(0, 50));
   const unknown = await post(APEX, { email: 'nobody@nowhere.example', password: 'Whatever#123', rememberMe: true });
   check('apex + unknown email → 401', unknown.status === 401 && !unknown.data.suggestedUrl, '');
-  const hr = await post(APEX, { email: 'hr@marqaitech.com', password: 'MarqAI@2026', rememberMe: true });
-  check('apex + hr@marqaitech.com → 403 + suggestedUrl (mirror path unchanged)', hr.status === 403 && hr.data.suggestedUrl === 'https://marqaitechgroup.3boxeshrms.com/login', '');
+  const hr = await post(APEX, { email: 'hr@gmail.com', password: 'MarqAI@2026', rememberMe: true });
+  check('apex + hr@gmail.com → 403 + suggestedUrl (mirror path unchanged)', hr.status === 403 && hr.data.suggestedUrl === 'https://marqaitechgroup.3boxeshrms.com/login', '');
   const wrongPwTenant = await post(TENANT, { email: 'mahesh@marqaitech.com', password: 'WrongPassword1!', rememberMe: true });
   check('tenant + WRONG password → 401', wrongPwTenant.status === 401, '');
   const demoLogin = await post(DEMO, { email: 'admin@acme-global.com', password: 'MarqAI@2026', rememberMe: true });
   check('demo login unaffected → 200', demoLogin.status === 200 && !!demoLogin.data.token, '');
   const superadmin = await post(APEX, { email: 'superadmin@3boxeshrms.com', password: 'MarqAI@2026', rememberMe: true });
   check('superadmin at apex unaffected → 200', superadmin.status === 200 && !!superadmin.data.token, '');
-  const hrTenant = await post(TENANT, { email: 'hr@marqaitech.com', password: 'MarqAI@2026', rememberMe: true });
+  const hrTenant = await post(TENANT, { email: 'hr@gmail.com', password: 'MarqAI@2026', rememberMe: true });
   check('tenant + hr login unaffected → 200', hrTenant.status === 200 && hrTenant.data.user?.role === 'tenant_admin', '');
 
   console.log(`\nRESULT: ${pass} PASS / ${fail} FAIL`);

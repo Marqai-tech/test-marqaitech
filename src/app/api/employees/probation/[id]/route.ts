@@ -3,8 +3,7 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
 import { applyFinalProbationDecision, appendProbationHistory, cleanProbationComment, parseProbationData, validateEffectiveDate } from '@/lib/probation-workflow';
-import { createNotification } from '@/lib/notifications';
-import { sendTenantEmail } from '@/lib/notification-channels';
+import { createNotification, sendNotificationEmail } from '@/lib/notifications';
 
 function corsHeaders() {
   return {
@@ -13,7 +12,6 @@ function corsHeaders() {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
-
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
@@ -357,14 +355,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         for (const uid of nextResolved.userIds) {
           const title = 'Approval Required – Probation Extension';
           const message = `${actor?.name || 'HR'} recommended extending ${empName}'s probation until ${proposedEnd.toLocaleDateString('en-IN')}. Your decision is required.`;
-          await createNotification({ tenantId: String((decoded as any).tenantId), userId: uid, title, message, type: 'workflow', category: 'performance', link: '/employees/probation' }).catch(() => null);
+          const extNotif = await createNotification({ tenantId: String((decoded as any).tenantId), userId: uid, title, message, type: 'workflow', category: 'performance', link: '/employees/probation' }).catch(() => null);
           const approver = await db.user.findUnique({ where: { id: uid }, select: { email: true } }).catch(() => null);
-          if (approver?.email) await sendTenantEmail(db, String((decoded as any).tenantId), {
-            to: approver.email,
-            subject: title,
-            html: `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`,
-          }).catch(() => null);
-        } // close for (const uid of nextResolved.userIds)
+          if (approver?.email && extNotif?.id) await sendNotificationEmail(db, String((decoded as any).tenantId), extNotif, approver.email, title, `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`).catch(() => null);
 
         // ─── Task 93: route the next-step notification through the
         // Notification Center (in-app + email, duplicate-guarded). An HR
@@ -443,16 +436,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
       // ─── Task 93: apply the configured employee-status outcome and gate
       // the employee-facing outcome notification on its SUCCESS. ───
+      // Task 160: added RAW SQL fallback (same pattern as Task 159) so
+      // schema-drift tenant DBs don't silently fail the status update.
       let employeeStatusApplied = false;
       if (actionRule?.employeeStatus) {
         try {
-          await db.employee.update({
-            where: { id: existing.employeeId },
-            data: { employeeStatus: actionRule.employeeStatus, status: actionRule.employeeStatus },
-          });
-          employeeStatusApplied = true;
+          try {
+            await db.employee.update({
+              where: { id: existing.employeeId },
+              data: { employeeStatus: actionRule.employeeStatus, status: actionRule.employeeStatus },
+            });
+            employeeStatusApplied = true;
+          } catch (prismaErr) {
+            console.warn('[Probation PATCH] Prisma employee.update failed, trying RAW SQL fallback:', prismaErr instanceof Error ? prismaErr.message : prismaErr);
+            await db.$executeRawUnsafe(
+              `UPDATE "Employee" SET "employeeStatus" = $1, "status" = $2, "updatedAt" = NOW() WHERE "id" = $3`,
+              actionRule.employeeStatus, actionRule.employeeStatus, existing.employeeId,
+            );
+            employeeStatusApplied = true;
+          }
         } catch (statusErr) {
-          console.warn('[Probation PATCH] employee status update failed:', statusErr);
+          console.warn('[Probation PATCH] employee status update failed (both Prisma + RAW SQL):', statusErr);
         }
       }
 
@@ -738,12 +742,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
 
       // ─── If approved (confirmed), update employee's employeeStatus to 'confirmed' ───
+      // Task 160: added RAW SQL fallback (same pattern as Task 159).
       if (action === 'approve') {
         try {
-          await db.employee.update({
-            where: { id: (review as any).employeeId },
-            data: { employeeStatus: 'confirmed' },
-          }).catch(() => null);
+          try {
+            await db.employee.update({
+              where: { id: (review as any).employeeId },
+              data: { employeeStatus: 'confirmed' },
+            });
+          } catch (prismaErr) {
+            console.warn('[Probation PATCH Stage-2] Prisma failed, trying RAW SQL fallback:', prismaErr instanceof Error ? prismaErr.message : prismaErr);
+            await db.$executeRawUnsafe(
+              `UPDATE "Employee" SET "employeeStatus" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+              'confirmed', (review as any).employeeId,
+            );
+          }
         } catch { /* non-critical */ }
       }
 
@@ -804,6 +817,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({
       error: `This probation review has already been completed. Workflow stage: ${currentStage}`,
     }, { status: 400, headers: corsHeaders() });
+    }
   } catch (error) {
     console.error('Approve/Reject probation review error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -861,3 +875,4 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }
+

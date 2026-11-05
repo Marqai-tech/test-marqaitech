@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { getDataScope } from '@/lib/roleAccess';
 import { useRouter } from 'next/navigation';
+import TeamLeaveSidebar from '@/components/TeamLeaveSidebar';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -637,6 +638,25 @@ export default function ApplyLeaveByHRPage() {
                 </div>
               )}
             </div>
+
+            {/* Team Leave Calendar sidebar — same as Apply Leave form */}
+            <TeamLeaveSidebar
+              startDate={form.startDate}
+              endDate={form.endDate}
+              scopeQuery={scopeQuery()}
+              employeeId={selectedEmployee?.id}
+              onDateSelect={(date) => {
+                setForm(prev => {
+                  if (!prev.startDate || (prev.startDate && prev.endDate)) {
+                    return { ...prev, startDate: date, endDate: '' };
+                  }
+                  if (date < prev.startDate) {
+                    return { ...prev, startDate: date, endDate: prev.startDate };
+                  }
+                  return { ...prev, endDate: date };
+                });
+              }}
+            />
           </div>
         </div>
       )}

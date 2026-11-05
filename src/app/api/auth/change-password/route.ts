@@ -179,7 +179,7 @@ export async function POST(request: Request) {
       // Home = platform DB but the account belongs to a tenant → refresh the
       // tenant DB copy so tenant-host login accepts the new password too.
       // NOTE (production reality): a handful of tenant/platform mirror pairs
-      // carry DIFFERENT ids (e.g. hr@marqaitech.com) — match by id first,
+      // carry DIFFERENT ids (e.g. hr@gmail.com) — match by id first,
       // then by email, exactly like the forward direction above.
       try {
         const tenantDb = await getDbForTenantById(row.tenantId);

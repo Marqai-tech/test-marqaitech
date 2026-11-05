@@ -3,6 +3,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { validateEmail, validatePhone, validateName } from '@/lib/validators';
+import toast from 'react-hot-toast';
+
+// BUG_010–013: allowed logo MIME types + extensions + max size.
+const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+const ALLOWED_LOGO_EXTS = ['.png', '.jpg', '.jpeg', '.svg'];
+const LOGO_MAGIC_BYTES: Record<string, number[]> = {
+  png: [0x89, 0x50, 0x4e, 0x47],            // \x89PNG
+  jpg: [0xff, 0xd8, 0xff],                  // SOI + marker
+  svg: [0x3c, 0x3f, 0x78, 0x6d],            // <?xm (SVG often starts with XML decl)
+};
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;     // 2MB
 
 const industries = [
   'Technology / IT Services',
@@ -41,7 +52,10 @@ export default function TrialRegisterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [registrationCode, setRegistrationCode] = useState('');
   const [autoApproved, setAutoApproved] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
   const [error, setError] = useState('');
+  const [logoFileName, setLogoFileName] = useState('');
+  const [empFileName, setEmpFileName] = useState('');
 
   const [form, setForm] = useState({
     companyName: '',
@@ -91,32 +105,172 @@ export default function TrialRegisterPage() {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm({ ...form, companyLogo: reader.result as string });
+    // BUG_010–013: validate logo file type AND content (magic bytes) so that
+    // PDFs, Excels, docx, exe, txt, zip — and renamed files (PDF → .png) — are
+    // all rejected with a clear error message. Also enforce the 2MB size cap.
+    // BUG_010–012 fix: validation messages now appear as a pop-up toast
+    // notification near the upload field (not at the top of the form).
+    const lowerName = file.name.toLowerCase();
+    const extOk = ALLOWED_LOGO_EXTS.some(ext => lowerName.endsWith(ext));
+    const typeOk = ALLOWED_LOGO_TYPES.includes(file.type);
+    if (!extOk || !typeOk) {
+      toast.error('Only PNG, JPG or SVG files are allowed for the company logo.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      toast.error('Logo file is too large. Maximum allowed size is 2MB.');
+      e.target.value = '';
+      return;
+    }
+    // BUG_013: read the first few bytes and compare against known magic
+    // numbers. This catches renamed files (PDF renamed to .png) that pass
+    // the extension/MIME check because the browser trusts the file extension.
+    const magicReader = new FileReader();
+    magicReader.onload = () => {
+      const buf = new Uint8Array(magicReader.result as ArrayBuffer);
+      const isPng = buf.length >= 4 && LOGO_MAGIC_BYTES.png.every((b, i) => buf[i] === b);
+      const isJpg = buf.length >= 3 && LOGO_MAGIC_BYTES.jpg.every((b, i) => buf[i] === b);
+      // SVG is text-based — sniff for '<svg' or '<?xml' in the first 200 bytes.
+      const head = new TextDecoder().decode(buf.slice(0, 200)).toLowerCase();
+      const isSvg = head.includes('<svg') || head.includes('<?xml');
+      const looksLikeSvg = file.type === 'image/svg+xml' && isSvg;
+      if (!isPng && !isJpg && !looksLikeSvg) {
+        toast.error('The selected file does not appear to be a valid image. File content validation failed — only real PNG, JPG or SVG files are accepted.');
+        e.target.value = '';
+        return;
+      }
+      // Content validated — read as data URL for preview + form submission.
+      const reader = new FileReader();
+      reader.onload = () => {
+        setForm({ ...form, companyLogo: reader.result as string });
+        setLogoFileName(file.name);
+        setError('');
+        toast.success('Logo uploaded successfully.');
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read the logo file. Please try a different file.');
+        e.target.value = '';
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+    magicReader.onerror = () => {
+      toast.error('Failed to validate the logo file.');
+      e.target.value = '';
+    };
+    magicReader.readAsArrayBuffer(file.slice(0, 512));
   };
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result;
-      // Parse CSV for simplicity (Excel can be saved as CSV)
-      const lines = (data as string).split('\n').filter(l => l.trim());
-      if (lines.length < 2) return;
-      const headers = lines[0].split(',').map(h => h.trim());
-      const employees = lines.slice(1, 6).map(line => {
-        const values = line.split(',').map(v => v.trim());
-        const emp: any = {};
-        headers.forEach((h, i) => { emp[h] = values[i] || ''; });
-        return emp;
-      });
-      setForm({ ...form, employeeDataJson: JSON.stringify(employees) });
+    // BUG_016: validate file type. Only .csv, .xlsx, .xls are allowed. PDFs,
+    // docs, images etc. are rejected with the message expected by the test
+    // case ("Choose your Excel/CSV file").
+    // BUG_016 fix: validation messages now appear as a pop-up toast near the
+    // upload field (not at the top of the form).
+    const lowerName = file.name.toLowerCase();
+    const isCsv = lowerName.endsWith('.csv') || file.type === 'text/csv';
+    const isXlsx = lowerName.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const isXls = lowerName.endsWith('.xls') || file.type === 'application/vnd.ms-excel';
+    if (!isCsv && !isXlsx && !isXls) {
+      toast.error('Choose your Excel/CSV file. Only .csv, .xlsx or .xls files are accepted.');
+      e.target.value = '';
+      setForm(prev => ({ ...prev, employeeDataJson: '' }));
+      setEmpFileName('');
+      return;
+    }
+    // BUG_014/015: support real Excel files (.xlsx/.xls) — not just CSV.
+    if (isCsv) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = reader.result as string;
+        const lines = data.split('\n').filter(l => l.trim());
+        if (lines.length < 2) {
+          toast.error('CSV file appears to be empty or has no data rows. Please use the Excel template.');
+          e.target.value = '';
+          return;
+        }
+        // BUG_017: cap at 5 employees — reject if more than 5.
+        if (lines.length - 1 > 5) {
+          toast.error(`Maximum 5 employees allowed in the sample. Your file has ${lines.length - 1} rows. Please remove the extra rows and try again.`);
+          e.target.value = '';
+          setForm(prev => ({ ...prev, employeeDataJson: '' }));
+          setEmpFileName('');
+          return;
+        }
+        const headers = lines[0].split(',').map(h => h.trim());
+        const employees = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim());
+          const emp: Record<string, string> = {};
+          headers.forEach((h, i) => { emp[h] = values[i] || ''; });
+          return emp;
+        });
+        setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
+        setEmpFileName(file.name);
+        setError('');
+        toast.success(`File uploaded: ${file.name} (${employees.length} employee${employees.length === 1 ? '' : 's'})`);
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read the CSV file. Please try again or use the Excel template.');
+        e.target.value = '';
+      };
+      reader.readAsText(file);
+      return;
+    }
+    // .xlsx / .xls — read as ArrayBuffer and parse via the dynamic SheetJS
+    // loader (xlsx is loaded on-demand to keep the initial bundle small).
+    const xlsxReader = new FileReader();
+    xlsxReader.onload = async () => {
+      try {
+        const XLSX = await import('xlsx').catch(() => null as any);
+        if (!XLSX) {
+          toast.error('Excel parsing is not available right now. Please save your file as .csv and try again.');
+          e.target.value = '';
+          return;
+        }
+        const wb = XLSX.read(xlsxReader.result, { type: 'array' });
+        const firstSheet = wb.SheetNames[0];
+        if (!firstSheet) {
+          toast.error('Excel file appears to be empty. Please use the provided template.');
+          e.target.value = '';
+          return;
+        }
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[firstSheet], { defval: '' });
+        if (rows.length === 0) {
+          toast.error('Excel file has no data rows. Please use the provided template.');
+          e.target.value = '';
+          return;
+        }
+        // BUG_017: cap at 5 employees — reject if more than 5.
+        if (rows.length > 5) {
+          toast.error(`Maximum 5 employees allowed in the sample. Your file has ${rows.length} rows. Please remove the extra rows and try again.`);
+          e.target.value = '';
+          setForm(prev => ({ ...prev, employeeDataJson: '' }));
+          setEmpFileName('');
+          return;
+        }
+        const employees = rows.map(r => {
+          const emp: Record<string, string> = {};
+          for (const k of Object.keys(r)) {
+            emp[k] = String(r[k] ?? '').trim();
+          }
+          return emp;
+        });
+        setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
+        setEmpFileName(file.name);
+        setError('');
+        toast.success(`File uploaded: ${file.name} (${employees.length} employee${employees.length === 1 ? '' : 's'})`);
+      } catch (err) {
+        toast.error('Failed to parse the Excel file. Please use the provided template (save as .xlsx or .csv).');
+        e.target.value = '';
+      }
     };
-    reader.readAsText(file);
+    xlsxReader.onerror = () => {
+      toast.error('Failed to read the Excel file. Please try again or use CSV.');
+      e.target.value = '';
+    };
+    xlsxReader.readAsArrayBuffer(file);
   };
 
   const toggleModule = (key: string) => {
@@ -146,9 +300,26 @@ export default function TrialRegisterPage() {
     const companyEmailResult = validateEmail(form.companyEmail);
     if (!companyEmailResult.valid) { setError(companyEmailResult.error!); return; }
 
-    if (form.companyPhone) {
-      const phoneResult = validatePhone(form.companyPhone);
-      if (!phoneResult.valid) { setError(phoneResult.error!); return; }
+    // BUG_004: Company Phone is now mandatory
+    if (!form.companyPhone || form.companyPhone.trim() === '') {
+      setError('Company phone is required'); return;
+    }
+    const companyPhoneResult = validatePhone(form.companyPhone);
+    if (!companyPhoneResult.valid) { setError(companyPhoneResult.error!); return; }
+
+    // BUG_004: Industry is now mandatory — placeholder "Select industry" not accepted
+    if (!form.industry || form.industry.trim() === '') {
+      setError('Please select an industry'); return;
+    }
+
+    // BUG_004: Country is now mandatory
+    if (!form.country || form.country.trim() === '') {
+      setError('Please select a country'); return;
+    }
+
+    // BUG_004: Expected Employees is now mandatory
+    if (!form.employeeCount || form.employeeCount < 1) {
+      setError('Please enter the expected number of employees'); return;
     }
 
     const contactNameResult = validateName(form.contactName, 'Contact name');
@@ -157,9 +328,25 @@ export default function TrialRegisterPage() {
     const contactEmailResult = validateEmail(form.contactEmail);
     if (!contactEmailResult.valid) { setError(contactEmailResult.error!); return; }
 
-    if (form.contactPhone) {
-      const contactPhoneResult = validatePhone(form.contactPhone);
-      if (!contactPhoneResult.valid) { setError(contactPhoneResult.error!); return; }
+    // BUG_004: Contact Phone is now mandatory
+    if (!form.contactPhone || form.contactPhone.trim() === '') {
+      setError('Contact phone is required'); return;
+    }
+    const contactPhoneResult = validatePhone(form.contactPhone);
+    if (!contactPhoneResult.valid) { setError(contactPhoneResult.error!); return; }
+
+    // BUG_004: Address, City, State, ZIP are now mandatory
+    if (!form.address || form.address.trim() === '') {
+      setError('Company address is required'); return;
+    }
+    if (!form.city || form.city.trim() === '') {
+      setError('City is required'); return;
+    }
+    if (!form.state || form.state.trim() === '') {
+      setError('State is required'); return;
+    }
+    if (!form.zipCode || form.zipCode.trim() === '') {
+      setError('ZIP code is required'); return;
     }
 
     setLoading(true);
@@ -179,6 +366,9 @@ export default function TrialRegisterPage() {
 
       setRegistrationCode(data.companyCode);
       setAutoApproved(data.autoApproved || false);
+      // BUG_019: capture tempPassword from response so we can show it on
+      // the confirmation screen (also sent via email as a backup).
+      setTempPassword(data.tempPassword || '');
       setSubmitted(true);
     } catch {
       setError('Network error. Please try again.');
@@ -236,11 +426,15 @@ export default function TrialRegisterPage() {
                   </div>
                   <div className="flex items-center gap-2 bg-white p-3 rounded-lg border">
                     <span className="text-gray-500 w-24">Password:</span>
-                    <span className="font-mono font-medium text-emerald-700">Check your email</span>
+                    <span className="font-mono font-medium text-emerald-700">{tempPassword || 'Check your email'}</span>
                   </div>
                   <div className="flex items-center gap-2 bg-white p-3 rounded-lg border">
                     <span className="text-gray-500 w-24">Login URL:</span>
-                    <span className="font-mono text-sm text-emerald-700">https://{registrationCode}.3boxeshrms.com/login</span>
+                    <span className="font-mono text-sm text-emerald-700 break-all">
+                      {typeof window !== 'undefined' && window.location.hostname.endsWith('3boxeshrms.com') && !window.location.hostname.endsWith('test.3boxeshrms.com')
+                        ? `https://${registrationCode}.3boxeshrms.com/login`
+                        : `${window.location.protocol}//${window.location.host}/login?tenant=${registrationCode}`}
+                    </span>
                   </div>
                 </div>
                 <p className="text-xs text-emerald-600 mt-3">
@@ -298,7 +492,25 @@ export default function TrialRegisterPage() {
             {/* Actions */}
             <div className="flex gap-3">
               <button
-                onClick={() => router.push(`https://${registrationCode}.3boxeshrms.com/login`)}
+                onClick={() => {
+                  // BUG_018 fix: use window.location.href for hard navigation.
+                  //
+                  // BUG_018 (test-env fix): on the test deployment (*.vercel.app),
+                  // wildcard subdomains (*.3boxeshrms.com) don't resolve. The
+                  // middleware resolves the tenant from the ?tenant= query param
+                  // (highest priority — see src/middleware.ts). So we build the
+                  // trial login URL using the CURRENT host + ?tenant= param,
+                  // which works on both test and production.
+                  if (typeof window !== 'undefined') {
+                    const currentHost = window.location.hostname;
+                    const protocol = window.location.protocol;
+                    const isProdDomain = currentHost.endsWith('3boxeshrms.com') && !currentHost.endsWith('test.3boxeshrms.com');
+                    const trialLoginUrl = isProdDomain
+                      ? `https://${registrationCode}.3boxeshrms.com/login`
+                      : `${protocol}//${currentHost}/login?tenant=${encodeURIComponent(registrationCode)}`;
+                    window.location.href = trialLoginUrl;
+                  }
+                }}
                 className="flex-1 py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg shadow-green-500/25"
               >
                 Go to My Trial Login →
@@ -406,23 +618,23 @@ export default function TrialRegisterPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input type="tel" value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company Phone <span className="text-red-500">*</span></label>
+                <input type="tel" required value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
                 <input type="url" value={form.companyWebsite} onChange={(e) => setForm({ ...form, companyWebsite: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="https://www.company.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Industry <span className="text-red-500">*</span></label>
+                <select required value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
                   <option value="">Select industry</option>
                   {industries.map((ind) => (<option key={ind} value={ind}>{ind}</option>))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+                <select required value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
                   <option value="IN">India</option>
                   <option value="US">United States</option>
                   <option value="GB">United Kingdom</option>
@@ -432,8 +644,8 @@ export default function TrialRegisterPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Employees</label>
-                <input type="number" min={1} max={10000} value={form.employeeCount} onChange={(e) => setForm({ ...form, employeeCount: parseInt(e.target.value) || 10 })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Employees <span className="text-red-500">*</span></label>
+                <input type="number" required min={1} max={10000} value={form.employeeCount} onChange={(e) => setForm({ ...form, employeeCount: parseInt(e.target.value) || 10 })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" />
               </div>
             </div>
           </div>
@@ -444,6 +656,7 @@ export default function TrialRegisterPage() {
               <span className="w-7 h-7 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-sm font-bold">2</span>
               Contact Person <span className="text-xs text-gray-400 font-normal">(will become the admin)</span>
             </h3>
+            <p className="text-xs text-gray-500 mb-3">All fields marked <span className="text-red-500">*</span> are required.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
@@ -454,11 +667,11 @@ export default function TrialRegisterPage() {
                 <input type="email" required value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="john@company.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input type="tel" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone <span className="text-red-500">*</span></label>
+                <input type="tel" required value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Designation <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
                 <input type="text" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="HR Manager / CEO / Director" />
               </div>
             </div>
@@ -468,24 +681,24 @@ export default function TrialRegisterPage() {
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <span className="w-7 h-7 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-sm font-bold">3</span>
-              Company Address
+              Company Address <span className="text-xs text-red-500 font-normal">* all fields required</span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="123 Business Park, Sector 5" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="123 Business Park, Sector 5" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Mumbai" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Mumbai" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                <input type="text" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Maharashtra" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Maharashtra" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
-                <input type="text" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="400001" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="400001" />
               </div>
             </div>
           </div>
@@ -518,6 +731,12 @@ export default function TrialRegisterPage() {
                     className="hidden"
                   />
                 </label>
+                {logoFileName && (
+                  <p className="text-xs text-green-600 font-medium mt-1.5 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    {logoFileName}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">PNG, JPG or SVG. Max 2MB. Will appear in your HRMS portal.</p>
               </div>
             </div>
@@ -552,6 +771,14 @@ export default function TrialRegisterPage() {
                   className="hidden"
                 />
               </label>
+              {empFileName ? (
+                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  <span className="text-sm text-green-700 font-medium">{empFileName}</span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 mt-2">No file selected</p>
+              )}
               <p className="text-xs text-gray-500 mt-2">
                 Columns: EmployeeId, FirstName, LastName, Email, Phone, Department, Designation, DateOfJoining
               </p>

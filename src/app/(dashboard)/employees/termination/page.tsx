@@ -105,6 +105,9 @@ export default function TerminationPage() {
   const [submitting, setSubmitting] = useState(false);
   const [records, setRecords] = useState<TerminationRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [decisionTarget, setDecisionTarget] = useState<TerminationRecord | null>(null);
+  const [decisionComments, setDecisionComments] = useState('');
+  const [decisionSubmitting, setDecisionSubmitting] = useState(false);
 
   const updateField = (field: string, value: string | boolean | string[]) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -195,11 +198,24 @@ export default function TerminationPage() {
   };
 
   const decide = async (record: TerminationRecord, action: 'approve' | 'reject') => {
-    const rejectionReason = action === 'reject' ? window.prompt('Enter the rejection reason:') : undefined;
-    if (action === 'reject' && !rejectionReason?.trim()) { toast.error('Rejection reason is required.'); return; }
+    if (action === 'reject') {
+      setDecisionTarget(record);
+      setDecisionComments('');
+      return;
+    }
+    await submitDecision(record, action);
+  };
+
+  const submitDecision = async (record: TerminationRecord, action: 'approve' | 'reject') => {
+    const rejectionReason = action === 'reject' ? decisionComments.trim() : undefined;
+    if (action === 'reject' && !rejectionReason) { toast.error('Rejection reason is required.'); return; }
+    setDecisionSubmitting(true);
     const res = await fetch(`/api/employees/termination/${record.id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ action, rejectionReason }) });
     const data = await res.json();
+    setDecisionSubmitting(false);
     if (!res.ok) { toast.error(data.error || 'Unable to update request'); return; }
+    setDecisionTarget(null);
+    setDecisionComments('');
     toast.success(action === 'approve' ? 'Termination request approved' : 'Termination request rejected');
     fetchRecords();
   };
@@ -434,6 +450,21 @@ export default function TerminationPage() {
           </table>
         </div>
       </div>
+
+      {decisionTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="termination-rejection-title">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="termination-rejection-title" className="text-lg font-semibold text-slate-900">Reject termination request</h2>
+            <p className="mt-2 text-sm text-slate-500">Enter a reason. The employee will remain unchanged.</p>
+            <label htmlFor="termination-rejection-reason" className="mt-4 block text-sm font-medium text-slate-700">Rejection reason</label>
+            <textarea id="termination-rejection-reason" value={decisionComments} onChange={e => setDecisionComments(e.target.value)} rows={4} className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm" placeholder="Enter rejection reason" />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setDecisionTarget(null)} className="rounded-lg border px-4 py-2 text-sm" disabled={decisionSubmitting}>Cancel</button>
+              <button type="button" onClick={() => submitDecision(decisionTarget, 'reject')} className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50" disabled={decisionSubmitting}>Reject request</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

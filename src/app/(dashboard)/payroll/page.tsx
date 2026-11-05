@@ -39,6 +39,9 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+/* Task 156-a — shared SmartHR widgets: same gradient banner + white stat
+   cards / panels as the Employee module dashboard restyle (Task 155). */
+import { PageBreadcrumbs, DateChip, Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -100,16 +103,8 @@ function HowCanIHelpYou({ router, isEmployee }: { router: ReturnType<typeof useR
         { icon: FiMail, label: 'Contact HR / Accounts', desc: 'Escalate directly to HR and accounts owners in one click.', href: '/helpdesk?module=payroll', tone: 'from-emerald-500 to-teal-600' },
       ];
   return (
-    <div className="thb-card p-5">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md">
-          <FiHelpCircle className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-thb-text-primary">How Can I Help You?</h3>
-          <p className="text-xs text-thb-text-muted">Quick answers and direct lines to the people who can fix payroll issues</p>
-        </div>
-      </div>
+    <Panel title="How Can I Help You?" icon={<FiHelpCircle className="w-4 h-4" />} accent="text-[#FFC107]">
+      <p className="text-xs text-slate-500 mb-4">Quick answers and direct lines to the people who can fix payroll issues</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {tiles.map(t => (
           <button key={t.label} onClick={() => router.push(t.href)} className="text-left p-4 rounded-xl border border-thb-border bg-slate-50/60 hover:bg-white hover:shadow-md hover:-translate-y-0.5 transition-all group">
@@ -121,7 +116,7 @@ function HowCanIHelpYou({ router, isEmployee }: { router: ReturnType<typeof useR
           </button>
         ))}
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -148,9 +143,8 @@ function SalaryRangeDistribution({ rows, currency }: { rows: PayrollRow[]; curre
   const total = rows.length;
 
   return (
-    <div className="thb-card p-5">
-      <h3 className="font-semibold text-thb-text-primary">Salary Range Distribution</h3>
-      <p className="text-xs text-thb-text-muted mb-4">How your {total || '—'} payslip{total === 1 ? '' : 's'} this period spread across salary bands (monthly gross)</p>
+    <Panel title="Salary Range Distribution" icon={<FiPercent className="w-4 h-4" />} accent="text-[#009EFB]">
+      <p className="text-xs text-slate-500 mb-4">How your {total || '—'} payslip{total === 1 ? '' : 's'} this period spread across salary bands (monthly gross)</p>
       {total > 0 ? (
         <div className="space-y-3">
           {bands.map(b => (
@@ -172,7 +166,7 @@ function SalaryRangeDistribution({ rows, currency }: { rows: PayrollRow[]; curre
       ) : (
         <div className="h-44 flex items-center justify-center text-sm text-slate-400">No payslips for this period</div>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -200,16 +194,17 @@ function ProcessingPipeline({ rows, currency, router, month, year }: { rows: Pay
   const progress = rows.length ? Math.round((stages[3].rows.length / rows.length) * 100) : 0;
 
   return (
-    <div className="thb-card p-5">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
-          <h3 className="font-semibold text-thb-text-primary">Payroll Processing Pipeline</h3>
-          <p className="text-xs text-thb-text-muted">Where every payslip of {MONTHS[month - 1]} {year} stands right now</p>
-        </div>
-        <button onClick={() => router.push('/payroll/processing')} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-semibold shadow-sm hover:shadow-md transition-shadow">
+    <Panel
+      title="Payroll Processing Pipeline"
+      icon={<FiClock className="w-4 h-4" />}
+      accent="text-[#10B981]"
+      action={
+        <button onClick={() => router.push('/payroll/processing')} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-xs font-semibold shadow-sm hover:opacity-90 transition-all">
           <FiPlayCircle className="w-3.5 h-3.5" /> Open Processing
         </button>
-      </div>
+      }
+    >
+      <p className="text-xs text-slate-500 mb-4">Where every payslip of {MONTHS[month - 1]} {year} stands right now</p>
       {rows.length > 0 ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -243,7 +238,7 @@ function ProcessingPipeline({ rows, currency, router, month, year }: { rows: Pay
           No payslips in the pipeline for this period
         </div>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -346,6 +341,8 @@ export default function PayrollDashboardPage() {
 
   const currency = periodRows[0]?.currency || rows[0]?.currency || 'INR';
   const hasAnyData = rows.length > 0;
+  // SmartHR banner date chip
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   /* ── Employee "My Payroll" dashboard data (strictly the selected period) ── */
   const myRows = useMemo(() => rows, [rows]); // /api/payroll is already self-scoped for employees
@@ -370,46 +367,59 @@ export default function PayrollDashboardPage() {
   if (isEmployeeView) {
     return (
       <div className="p-4 md:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-thb-text-primary">My Payroll Dashboard</h1>
-            <p className="text-sm text-thb-text-secondary mt-1">Your salary, payslips and tax tools in one place</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {myPeriod && (
-              <div className="flex items-center rounded-xl border border-thb-border bg-white overflow-hidden">
-                <button onClick={() => step(-1)} className="px-2.5 py-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50"><FiChevronLeft className="w-4 h-4" /></button>
-                <span className="px-3 py-2 text-sm font-semibold text-thb-text-primary">{MONTHS[month - 1]} {year}</span>
-                <button onClick={() => step(1)} className="px-2.5 py-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50"><FiChevronRight className="w-4 h-4" /></button>
-              </div>
-            )}
-            <button onClick={load} className="p-2.5 rounded-xl border border-thb-border bg-white text-slate-500 hover:text-slate-700" title="Refresh"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
-          </div>
-        </div>
+        {/* Header — SmartHR gradient breadcrumb banner (Task 156-a) */}
+        <PageBreadcrumbs
+          title="My Payroll Dashboard"
+          trail={['Payroll', 'Dashboard']}
+          right={
+            <>
+              <DateChip value={todayChip} />
+              {myPeriod && (
+                <div className="flex items-center rounded-lg bg-white/15 border border-white/25 overflow-hidden">
+                  <button onClick={() => step(-1)} className="px-2.5 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors"><FiChevronLeft className="w-4 h-4" /></button>
+                  <span className="px-3 py-2 text-sm font-semibold text-white">{MONTHS[month - 1]} {year}</span>
+                  <button onClick={() => step(1)} className="px-2.5 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors"><FiChevronRight className="w-4 h-4" /></button>
+                </div>
+              )}
+              <button onClick={load} className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors" title="Refresh"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            </>
+          }
+        />
 
-        {/* My salary stat cards */}
+        {/* My salary stat cards — shared SmartHR StatCard (Task 156-a) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {[
-            { label: 'My Annual CTC', value: annualCtc ? money(annualCtc, myCurrency) : '—', icon: FiDollarSign, tone: 'from-blue-500 to-indigo-600', sub: annualCtc ? 'as per your offer records' : 'ask HR to map your salary type' },
-            { label: myPeriod ? `Gross — ${MONTHS_SHORT[myPeriod.m - 1]} ${myPeriod.y}` : 'Gross Earnings', value: money(myPeriodRows.reduce((a, r) => a + (r.grossSalary || 0), 0), myCurrency), icon: FiUsers, tone: 'from-violet-500 to-purple-600', sub: 'earnings before deductions' },
-            { label: 'Total Deductions', value: money(myPeriodRows.reduce((a, r) => a + (r.totalDeductions || 0), 0), myCurrency), icon: FiTrendingDown, tone: 'from-amber-500 to-orange-600', sub: 'PF, tax & others' },
-            { label: 'Net Payout', value: money(myPeriodRows.reduce((a, r) => a + (r.netSalary || 0), 0), myCurrency), icon: FiCreditCard, tone: 'from-emerald-500 to-teal-600', sub: 'credited to your bank' },
-          ].map(card => (
-            <div key={card.label} className="thb-card p-5 relative overflow-hidden">
-              <div className={`absolute -right-4 -top-4 w-20 h-20 rounded-full bg-gradient-to-br ${card.tone} opacity-10`} />
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-thb-text-muted">{card.label}</p>
-                  <p className="text-2xl font-bold text-thb-text-primary mt-1.5">{loading ? '…' : card.value}</p>
-                  <p className="text-[11px] text-thb-text-muted mt-1">{card.sub}</p>
-                </div>
-                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${card.tone} shadow-md`}>
-                  <card.icon className="w-4.5 h-4.5 text-white" />
-                </div>
-              </div>
-            </div>
-          ))}
+          <StatCard
+            label="My Annual CTC"
+            value={loading ? '…' : (annualCtc ? money(annualCtc, myCurrency) : '—')}
+            sub={annualCtc ? 'as per your offer records' : 'ask HR to map your salary type'}
+            icon={<FiDollarSign className="w-5 h-5" />}
+            bg="bg-[#009EFB]/10 text-[#009EFB]"
+            ring="ring-[#009EFB]/20"
+          />
+          <StatCard
+            label={myPeriod ? `Gross — ${MONTHS_SHORT[myPeriod.m - 1]} ${myPeriod.y}` : 'Gross Earnings'}
+            value={loading ? '…' : money(myPeriodRows.reduce((a, r) => a + (r.grossSalary || 0), 0), myCurrency)}
+            sub="earnings before deductions"
+            icon={<FiUsers className="w-5 h-5" />}
+            bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+            ring="ring-[#3A57C4]/20"
+          />
+          <StatCard
+            label="Total Deductions"
+            value={loading ? '…' : money(myPeriodRows.reduce((a, r) => a + (r.totalDeductions || 0), 0), myCurrency)}
+            sub="PF, tax & others"
+            icon={<FiTrendingDown className="w-5 h-5" />}
+            bg="bg-[#FF9B44]/10 text-[#FF9B44]"
+            ring="ring-[#FF9B44]/20"
+          />
+          <StatCard
+            label="Net Payout"
+            value={loading ? '…' : money(myPeriodRows.reduce((a, r) => a + (r.netSalary || 0), 0), myCurrency)}
+            sub="credited to your bank"
+            icon={<FiCreditCard className="w-5 h-5" />}
+            bg="bg-[#10B981]/10 text-[#10B981]"
+            ring="ring-[#10B981]/20"
+          />
         </div>
 
         {/* Empty state */}
@@ -423,9 +433,8 @@ export default function PayrollDashboardPage() {
 
         {/* Composition + IT tools */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="thb-card p-5">
-            <h3 className="font-semibold text-thb-text-primary mb-1">My Salary Composition</h3>
-            <p className="text-xs text-thb-text-muted mb-3">{myPeriod ? `${MONTHS[myPeriod.m - 1]} ${myPeriod.y} · where your salary goes` : 'latest payslip breakdown'}</p>
+          <Panel title="My Salary Composition" icon={<FiDollarSign className="w-4 h-4" />} accent="text-[#009EFB]">
+            <p className="text-xs text-slate-500 mb-3">{myPeriod ? `${MONTHS[myPeriod.m - 1]} ${myPeriod.y} · where your salary goes` : 'latest payslip breakdown'}</p>
             {myComposition.length > 0 ? (
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
@@ -441,12 +450,11 @@ export default function PayrollDashboardPage() {
             ) : (
               <div className="h-60 flex items-center justify-center text-sm text-slate-400">No payslip for this period</div>
             )}
-          </div>
+          </Panel>
 
           {/* IT tools — calculator, declaration, advances, payslips */}
-          <div className="thb-card p-5">
-            <h3 className="font-semibold text-thb-text-primary mb-1">My Tax & Salary Tools</h3>
-            <p className="text-xs text-thb-text-muted mb-4">Everything you need to plan and declare your taxes</p>
+          <Panel title="My Tax & Salary Tools" icon={<FiClipboard className="w-4 h-4" />} accent="text-[#6C4FD6]">
+            <p className="text-xs text-slate-500 mb-4">Everything you need to plan and declare your taxes</p>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'IT Calculator', desc: 'Estimate your income tax across regimes', icon: FiPercent, href: '/payroll/income-tax', tone: 'from-blue-500 to-indigo-600' },
@@ -463,18 +471,17 @@ export default function PayrollDashboardPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </Panel>
         </div>
 
-        {/* My recent payslips */}
-        <div className="thb-card overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-thb-border flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-thb-text-primary">My Recent Payslips</h3>
-              <p className="text-xs text-thb-text-muted">Your latest salary credits</p>
-            </div>
-            <button onClick={() => router.push('/payroll/payslips')} className="text-xs font-semibold text-green-600 hover:text-green-700 inline-flex items-center gap-1">View all <FiArrowRight className="w-3 h-3" /></button>
-          </div>
+        {/* My recent payslips — SmartHR Panel (Task 156-a) */}
+        <Panel
+          title="My Recent Payslips"
+          icon={<FiFileText className="w-4 h-4" />}
+          accent="text-[#3A57C4]"
+          action={<button onClick={() => router.push('/payroll/payslips')} className="text-xs font-semibold text-[#3A57C4] hover:text-[#2C43A3] inline-flex items-center gap-1">View all <FiArrowRight className="w-3 h-3" /></button>}
+        >
+          <p className="text-xs text-slate-500 mb-3">Your latest salary credits</p>
           {loading ? (
             <div className="p-5 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
           ) : myRows.length > 0 ? (
@@ -509,7 +516,7 @@ export default function PayrollDashboardPage() {
           ) : (
             <div className="p-8 text-center text-sm text-slate-400">No payslips released yet</div>
           )}
-        </div>
+        </Panel>
 
         <HowCanIHelpYou router={router} isEmployee />
       </div>
@@ -519,52 +526,65 @@ export default function PayrollDashboardPage() {
   /* ══════════════════ ADMIN VARIANT ══════════════════ */
   return (
     <div className="p-4 md:p-6 space-y-6">
-      {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary">Payroll Dashboard</h1>
-          <p className="text-sm text-thb-text-secondary mt-1">Live payroll position for the selected pay period</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-xl border border-thb-border bg-white overflow-hidden">
-            <button onClick={() => step(-1)} className="px-2.5 py-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50"><FiChevronLeft className="w-4 h-4" /></button>
-            <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="px-2 py-2 text-sm font-semibold text-thb-text-primary bg-white border-x border-thb-border focus:outline-none">
-              {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-            </select>
-            <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="px-2 py-2 text-sm font-semibold text-thb-text-primary bg-white focus:outline-none">
-              {[year + 1, year, year - 1, year - 2].filter((v, i, a) => a.indexOf(v) === i).map(y2 => <option key={y2} value={y2}>{y2}</option>)}
-            </select>
-            <button onClick={() => step(1)} className="px-2.5 py-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50"><FiChevronRight className="w-4 h-4" /></button>
-          </div>
-          <button onClick={load} className="p-2.5 rounded-xl border border-thb-border bg-white text-slate-500 hover:text-slate-700" title="Refresh"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
-          <button onClick={() => router.push('/payroll/processing')} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold shadow-sm hover:shadow-md transition-shadow">
-            <FiPlayCircle className="w-4 h-4" /> Process Payroll
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {[
-          { label: 'Team Members Paid', value: String(stats.people), icon: FiUsers, tone: 'from-blue-500 to-indigo-600', sub: `${MONTHS[month - 1]} ${year} payroll` },
-          { label: 'Gross Payroll', value: money(stats.gross, currency), icon: FiDollarSign, tone: 'from-violet-500 to-purple-600', sub: 'earnings before deductions' },
-          { label: 'Total Deductions', value: money(stats.ded, currency), icon: FiTrendingDown, tone: 'from-amber-500 to-orange-600', sub: 'tax, PF, LOP & others' },
-          { label: 'Net Payout', value: money(stats.net, currency), icon: FiCreditCard, tone: 'from-emerald-500 to-teal-600', sub: 'paid to bank accounts' },
-        ].map(card => (
-          <div key={card.label} className="thb-card p-5 relative overflow-hidden">
-            <div className={`absolute -right-4 -top-4 w-20 h-20 rounded-full bg-gradient-to-br ${card.tone} opacity-10`} />
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-thb-text-muted">{card.label}</p>
-                <p className="text-2xl font-bold text-thb-text-primary mt-1.5">{loading ? '…' : card.value}</p>
-                <p className="text-[11px] text-thb-text-muted mt-1">{card.sub}</p>
-              </div>
-              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${card.tone} shadow-md`}>
-                <card.icon className="w-4.5 h-4.5 text-white" />
-              </div>
+      {/* 1. Header — SmartHR gradient breadcrumb banner (Task 156-a) */}
+      <PageBreadcrumbs
+        title="Payroll Dashboard"
+        trail={['Payroll', 'Dashboard']}
+        right={
+          <>
+            <DateChip value={todayChip} />
+            <div className="flex items-center rounded-lg bg-white/15 border border-white/25 overflow-hidden">
+              <button onClick={() => step(-1)} className="px-2.5 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors"><FiChevronLeft className="w-4 h-4" /></button>
+              <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="px-2 py-2 text-sm font-semibold text-white bg-white/10 border-x border-white/25 focus:outline-none">
+                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+              <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="px-2 py-2 text-sm font-semibold text-white bg-white/10 focus:outline-none">
+                {[year + 1, year, year - 1, year - 2].filter((v, i, a) => a.indexOf(v) === i).map(y2 => <option key={y2} value={y2}>{y2}</option>)}
+              </select>
+              <button onClick={() => step(1)} className="px-2.5 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors"><FiChevronRight className="w-4 h-4" /></button>
             </div>
-          </div>
-        ))}
+            <button onClick={load} className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors" title="Refresh"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            <button onClick={() => router.push('/payroll/processing')} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
+              <FiPlayCircle className="w-4 h-4" /> Process Payroll
+            </button>
+          </>
+        }
+      />
+
+      {/* 2. Stat cards — shared SmartHR StatCard (Task 156-a) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          label="Team Members Paid"
+          value={loading ? '…' : String(stats.people)}
+          sub={`${MONTHS[month - 1]} ${year} payroll`}
+          icon={<FiUsers className="w-5 h-5" />}
+          bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+          ring="ring-[#3A57C4]/20"
+        />
+        <StatCard
+          label="Gross Payroll"
+          value={loading ? '…' : money(stats.gross, currency)}
+          sub="earnings before deductions"
+          icon={<FiDollarSign className="w-5 h-5" />}
+          bg="bg-[#10B981]/10 text-[#10B981]"
+          ring="ring-[#10B981]/20"
+        />
+        <StatCard
+          label="Total Deductions"
+          value={loading ? '…' : money(stats.ded, currency)}
+          sub="tax, PF, LOP & others"
+          icon={<FiTrendingDown className="w-5 h-5" />}
+          bg="bg-[#FF9B44]/10 text-[#FF9B44]"
+          ring="ring-[#FF9B44]/20"
+        />
+        <StatCard
+          label="Net Payout"
+          value={loading ? '…' : money(stats.net, currency)}
+          sub="paid to bank accounts"
+          icon={<FiCreditCard className="w-5 h-5" />}
+          bg="bg-[#F43F5E]/10 text-[#F43F5E]"
+          ring="ring-[#F43F5E]/20"
+        />
       </div>
 
       {/* Empty state when the tenant has no payslips at all yet */}
@@ -580,11 +600,10 @@ export default function PayrollDashboardPage() {
         </div>
       )}
 
-      {/* 3. Charts */}
+      {/* 3. Charts — SmartHR Panels (Task 156-a) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="thb-card p-5">
-          <h3 className="font-semibold text-thb-text-primary mb-1">Payroll Composition</h3>
-          <p className="text-xs text-thb-text-muted mb-3">{MONTHS[month - 1]} {year} · earnings vs deductions</p>
+        <Panel title="Payroll Composition" icon={<FiDollarSign className="w-4 h-4" />} accent="text-[#3A57C4]">
+          <p className="text-xs text-slate-500 mb-3">{MONTHS[month - 1]} {year} · earnings vs deductions</p>
           {composition.length > 0 ? (
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
@@ -600,11 +619,10 @@ export default function PayrollDashboardPage() {
           ) : (
             <div className="h-60 flex items-center justify-center text-sm text-slate-400">No payslips for this period</div>
           )}
-        </div>
+        </Panel>
 
-        <div className="thb-card p-5">
-          <h3 className="font-semibold text-thb-text-primary mb-1">Payroll Trend — Net Payout</h3>
-          <p className="text-xs text-thb-text-muted mb-3">Last 6 months ending {MONTHS[month - 1]} {year}</p>
+        <Panel title="Payroll Trend — Net Payout" icon={<FiTrendingDown className="w-4 h-4" />} accent="text-[#6C4FD6]">
+          <p className="text-xs text-slate-500 mb-3">Last 6 months ending {MONTHS[month - 1]} {year}</p>
           {trend.some(t => t.net > 0) ? (
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
@@ -620,7 +638,7 @@ export default function PayrollDashboardPage() {
           ) : (
             <div className="h-60 flex items-center justify-center text-sm text-slate-400">No trend data yet</div>
           )}
-        </div>
+        </Panel>
       </div>
 
       {/* 4. Task 153 — Salary Range Distribution + Processing Pipeline */}

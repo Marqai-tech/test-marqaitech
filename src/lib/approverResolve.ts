@@ -148,7 +148,7 @@ export async function resolveTierApprovers(
       }
     } else if (tier.approverType === 'hr_admin') {
       // tenant_admin included: on tenants where the HR lead holds the
-      // tenant_admin role (e.g. MarqAI — hr@marqaitech.com), HR-tier alerts
+      // tenant_admin role (e.g. MarqAI — hr@gmail.com), HR-tier alerts
       // must reach them, not only literal hr_admin accounts.
       const admins = await db.user.findMany({
         where: { role: { in: ['admin', 'hr_admin', 'company_hr_admin', 'tenant_admin', 'ceo'] }, status: 'active' },

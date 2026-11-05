@@ -26,7 +26,7 @@ function filterTree(nodes, deptFilter, keep) {
 async function main() {
   const login = await fetch(`${LIVE}/api/auth/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+    body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
   }).then(r => r.json());
   const H = { Authorization: `Bearer ${login.token}`, 'x-tenant-slug': 'marqaitechgroup' };
   const res = await fetch(`${LIVE}/api/employees?limit=1000`, { headers: H }).then(r => r.json());

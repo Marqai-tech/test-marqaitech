@@ -14,6 +14,9 @@ import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDas
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
+/* Task 156-c — shared SmartHR widgets so this dashboard matches the
+   Employee module dashboard (gradient banner, white pastel-accent cards). */
+import { Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 import {
   PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -196,14 +199,14 @@ const projectTabs: DashboardTabConfig[] = [
 function ProjectReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3A57C4] to-[#6C4FD6] flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Project progress reports, resource utilization, and timeline analytics
       </p>
-      <a href="/project-management/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/project-management/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3A57C4] hover:bg-[#2C43A3] text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -220,7 +223,7 @@ function ProjectSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure project templates, default views, and notification preferences
       </p>
-      <a href="/project-management/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/project-management/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3A57C4] hover:bg-[#2C43A3] text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -232,6 +235,8 @@ function ProjectManagementPageContent() {
     <ModuleDashboardShell
       moduleKey="project"
       moduleLabel="Project Management"
+      title="PM Dashboard"
+      trail={['Projects', 'Dashboard']}
       moduleIcon={<FiFolder className="w-5 h-5 text-white" />}
       gradientColor="from-fuchsia-500 to-pink-600"
       tabs={projectTabs}
@@ -452,8 +457,7 @@ function ProjectManagementContent() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Project Status Pie */}
-        <div className="thb-card p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Project Status</h3>
+        <Panel title="Project Status" icon={<FiBarChart2 className="w-4 h-4" />} accent="text-[#3A57C4]">
           {loading ? (
             <div className="h-[200px] animate-pulse bg-slate-100 rounded" />
           ) : projectStatusData.length > 0 ? (
@@ -477,21 +481,19 @@ function ProjectManagementContent() {
           ) : (
             <EmptyChartState message="No project data" />
           )}
-        </div>
+        </Panel>
 
         {/* Sprint Burndown — requires sprint data not available via API */}
-        <div className="thb-card p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Sprint Burndown</h3>
+        <Panel title="Sprint Burndown" icon={<FiTarget className="w-4 h-4" />} accent="text-[#6C4FD6]">
           {projects.length > 0 ? (
             <EmptyChartState message="Sprint data not available" />
           ) : (
             <EmptyChartState message="No sprint data" />
           )}
-        </div>
+        </Panel>
 
         {/* Task Distribution */}
-        <div className="thb-card p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Task Distribution</h3>
+        <Panel title="Task Distribution" icon={<FiCheckSquare className="w-4 h-4" />} accent="text-[#009EFB]">
           {loading ? (
             <div className="h-[200px] animate-pulse bg-slate-100 rounded" />
           ) : taskDistData.length > 0 ? (
@@ -509,11 +511,10 @@ function ProjectManagementContent() {
           ) : (
             <EmptyChartState message="No task data" />
           )}
-        </div>
+        </Panel>
 
         {/* Team Workload */}
-        <div className="thb-card p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Team Workload</h3>
+        <Panel title="Team Workload" icon={<FiUsers className="w-4 h-4" />} accent="text-[#10B981]">
           {loading ? (
             <div className="h-[200px] animate-pulse bg-slate-100 rounded" />
           ) : teamWorkloadData.length > 0 ? (
@@ -531,19 +532,13 @@ function ProjectManagementContent() {
           ) : (
             <EmptyChartState message="No allocation data" />
           )}
-        </div>
+        </Panel>
       </div>
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Overdue Tasks */}
-        <div className="thb-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <FiAlertCircle className="w-4 h-4 text-red-500" /> Overdue Tasks
-            </h3>
-            <span className="thb-badge thb-badge-error">{overdueTasksList.length}</span>
-          </div>
+        <Panel title="Overdue Tasks" icon={<FiAlertCircle className="w-4 h-4" />} accent="text-[#FFC107]" action={<span className="thb-badge thb-badge-error">{overdueTasksList.length}</span>}>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {overdueTasksList.map(t => (
               <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-red-50 border border-red-100">
@@ -556,13 +551,10 @@ function ProjectManagementContent() {
             ))}
             {overdueTasksList.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No overdue tasks</p>}
           </div>
-        </div>
+        </Panel>
 
         {/* Upcoming Deadlines */}
-        <div className="thb-card p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <FiCalendar className="w-4 h-4 text-amber-500" /> Upcoming Deadlines
-          </h3>
+        <Panel title="Upcoming Deadlines" icon={<FiCalendar className="w-4 h-4" />} accent="text-[#FF9B44]">
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {allTasks
               .filter(t => t.plannedEnd && t.status !== 'done' && t.status !== 'cancelled' && new Date(t.plannedEnd) >= new Date())
@@ -584,14 +576,13 @@ function ProjectManagementContent() {
               <p className="text-sm text-slate-400 text-center py-4">No upcoming deadlines</p>
             )}
           </div>
-        </div>
+        </Panel>
       </div>
 
       {/* Quick Actions — Task 150: New Sprint removed with sprints; Clients added */}
-      <div className="thb-card p-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Quick Actions</h3>
+      <Panel title="Quick Actions" icon={<FiZap className="w-4 h-4" />} accent="text-[#6C4FD6]">
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => router.push('/projects')} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors">
+          <button onClick={() => router.push('/projects')} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3A57C4] text-white text-sm font-medium hover:bg-[#2C43A3] transition-colors">
             <FiPlus className="w-4 h-4" /> New Project
           </button>
           <button onClick={openCreateTask} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors">
@@ -601,7 +592,7 @@ function ProjectManagementContent() {
             <FiUsers className="w-4 h-4" /> Clients
           </button>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 
@@ -613,9 +604,9 @@ function ProjectManagementContent() {
         <div className="flex gap-2 items-center flex-1 w-full sm:w-auto">
           <div className="relative flex-1 max-w-md">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input type="text" placeholder="Search projects..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
+            <input type="text" placeholder="Search projects..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3A57C4]/20 focus:border-[#3A57C4]" />
           </div>
-          <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
+          <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3A57C4]/20">
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="on_hold">On Hold</option>
@@ -625,13 +616,13 @@ function ProjectManagementContent() {
           </select>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setProjectViewMode('grid')} className={`p-2 rounded-lg border ${projectViewMode === 'grid' ? 'bg-teal-50 border-teal-200 text-teal-600' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
+          <button onClick={() => setProjectViewMode('grid')} className={`p-2 rounded-lg border ${projectViewMode === 'grid' ? 'bg-[#3A57C4]/10 border-[#3A57C4]/20 text-[#3A57C4]' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
             <FiGrid className="w-4 h-4" />
           </button>
-          <button onClick={() => setProjectViewMode('list')} className={`p-2 rounded-lg border ${projectViewMode === 'list' ? 'bg-teal-50 border-teal-200 text-teal-600' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
+          <button onClick={() => setProjectViewMode('list')} className={`p-2 rounded-lg border ${projectViewMode === 'list' ? 'bg-[#3A57C4]/10 border-[#3A57C4]/20 text-[#3A57C4]' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
             <FiList className="w-4 h-4" />
           </button>
-          <button onClick={() => router.push('/projects')} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors">
+          <button onClick={() => router.push('/projects')} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#3A57C4] text-white text-sm font-medium hover:bg-[#2C43A3] transition-colors">
             <FiPlus className="w-4 h-4" /> New Project
           </button>
         </div>
@@ -658,7 +649,7 @@ function ProjectManagementContent() {
             <div key={p.id} className="thb-card thb-card-hover p-4 cursor-pointer group" onClick={() => router.push(`/projects/${p.id}`)} title="Open project workspace">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-slate-800 truncate group-hover:text-teal-600 transition-colors">{p.name}</h3>
+                  <h3 className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#3A57C4] transition-colors">{p.name}</h3>
                   <p className="text-xs text-slate-500 mt-0.5">{p.client?.name || p.company?.name || '—'}</p>
                 </div>
                 <span className={getStatusBadge(p.status)}>{formatStatus(p.status)}</span>
@@ -679,7 +670,7 @@ function ProjectManagementContent() {
                 <div className="flex items-center gap-1"><span className="font-medium text-slate-700">${((p.budgetAmount || 0) / 1000).toFixed(0)}k</span> budget</div>
               </div>
               <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-end">
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity">Open workspace <FiArrowRight className="w-3 h-3" /></span>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-[#3A57C4] opacity-0 group-hover:opacity-100 transition-opacity">Open workspace <FiArrowRight className="w-3 h-3" /></span>
               </div>
             </div>
           ))}
@@ -737,7 +728,7 @@ function ProjectManagementContent() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex gap-2 items-center">
           <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-            <input type="checkbox" checked={myTasksOnly} onChange={e => setMyTasksOnly(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+            <input type="checkbox" checked={myTasksOnly} onChange={e => setMyTasksOnly(e.target.checked)} className="rounded border-slate-300 text-[#3A57C4] focus:ring-[#3A57C4]" />
             My Tasks Only
           </label>
         </div>
@@ -849,7 +840,7 @@ function ProjectManagementContent() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h3 className="text-lg font-semibold text-slate-800">Project Reports</h3>
-        <a href="/project-management/reports" className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <a href="/project-management/reports" className="inline-flex items-center gap-2 px-4 py-2 bg-[#3A57C4] hover:bg-[#2C43A3] text-white rounded-lg text-sm font-medium transition-colors">
           <FiBarChart2 className="w-4 h-4" /> Full Reports Page
         </a>
       </div>
@@ -862,29 +853,16 @@ function ProjectManagementContent() {
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
+          {/* Summary Cards — shared SmartHR StatCards (Task 156-c) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="thb-card p-4 text-center">
-              <p className="text-2xl font-bold text-teal-600">{allTasks.length}</p>
-              <p className="text-xs text-slate-500 mt-1">Total Tasks</p>
-            </div>
-            <div className="thb-card p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{allTasks.filter(t => t.status === 'done').length}</p>
-              <p className="text-xs text-slate-500 mt-1">Completed Tasks</p>
-            </div>
-            <div className="thb-card p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{stats.teamUtilization}%</p>
-              <p className="text-xs text-slate-500 mt-1">Avg Progress</p>
-            </div>
-            <div className="thb-card p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">${((projects.reduce((a, p) => a + (p.budgetAmount || 0), 0)) / 1000000).toFixed(2)}M</p>
-              <p className="text-xs text-slate-500 mt-1">Total Budget</p>
-            </div>
+            <StatCard label="Total Tasks" value={allTasks.length} sub="Across all projects" icon={<FiCheckSquare className="w-5 h-5" />} bg="bg-[#009EFB]/10 text-[#009EFB]" ring="ring-[#009EFB]/20" />
+            <StatCard label="Completed Tasks" value={allTasks.filter(t => t.status === 'done').length} sub="Status = done" icon={<FiTarget className="w-5 h-5" />} bg="bg-[#10B981]/10 text-[#10B981]" ring="ring-[#10B981]/20" />
+            <StatCard label="Avg Progress" value={`${stats.teamUtilization}%`} sub="Mean project progress" icon={<FiActivity className="w-5 h-5" />} bg="bg-[#FF9B44]/15 text-[#FF9B44]" ring="ring-[#FF9B44]/20" />
+            <StatCard label="Total Budget" value={`$${((projects.reduce((a, p) => a + (p.budgetAmount || 0), 0)) / 1000000).toFixed(2)}M`} sub="Sum of project budgets" icon={<FiBriefcase className="w-5 h-5" />} bg="bg-[#6C4FD6]/10 text-[#6C4FD6]" ring="ring-[#6C4FD6]/20" />
           </div>
 
           {projectStatusData.length > 0 && (
-            <div className="thb-card p-4">
-              <h4 className="text-sm font-semibold text-slate-700 mb-3">Project Status Distribution</h4>
+            <Panel title="Project Status Distribution" icon={<FiBarChart2 className="w-4 h-4" />} accent="text-[#3A57C4]">
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie data={projectStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
@@ -893,7 +871,7 @@ function ProjectManagementContent() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            </Panel>
           )}
         </>
       )}
@@ -916,31 +894,28 @@ function ProjectManagementContent() {
 
   return (
     <div className="min-h-screen bg-[var(--thb-background)]">
-      {/* Hero Gradient */}
-      <div className="bg-gradient-to-r from-teal-600 via-fuchsia-600 to-pink-600 px-6 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <FiBriefcase className="w-7 h-7 text-white/90" />
-            <h1 className="text-2xl font-bold text-white">Project Management</h1>
+      {/* Header — shared StatCards + action row (Task 156: the shell now
+          renders the SmartHR gradient banner, so the old in-content
+          PageBreadcrumbs block was removed; the New Task CTA moved into the
+          action row below, still shown above the tab bar). */}
+      <div className="max-w-7xl mx-auto px-6 pt-6">
+        {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+        <div className="flex items-center justify-end gap-2 flex-wrap -mt-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={openCreateTask} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
+              <FiPlus className="w-4 h-4" /> New Task
+            </button>
           </div>
-          <p className="text-white/70 text-sm">Manage projects, tasks, clients and delivery reports</p>
+        </div>
 
-          {/* Stats Row — Task 150: Clients + External Issues replace Sprints + Milestones */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6">
-            {[
-              { label: 'Total Projects', value: stats.totalProjects, icon: <FiBriefcase className="w-4 h-4" />, color: 'bg-white/15' },
-              { label: 'Clients', value: stats.totalClients, icon: <FiUsers className="w-4 h-4" />, color: 'bg-white/15' },
-              { label: 'Total Tasks', value: stats.tasksThisWeek, icon: <FiCheckSquare className="w-4 h-4" />, color: 'bg-white/15' },
-              { label: 'Overdue Tasks', value: stats.overdueTasks, icon: <FiAlertCircle className="w-4 h-4" />, color: 'bg-red-500/30' },
-              { label: 'External Issues', value: stats.externalIssues, icon: <FiFlag className="w-4 h-4" />, color: 'bg-white/15' },
-              { label: 'Avg Progress', value: `${stats.teamUtilization}%`, icon: <FiActivity className="w-4 h-4" />, color: 'bg-white/15' },
-            ].map((s, i) => (
-              <div key={i} className={`${s.color} backdrop-blur-sm rounded-xl px-3 py-2 text-white`}>
-                <div className="flex items-center gap-2 text-white/70 text-xs mb-0.5">{s.icon}{s.label}</div>
-                <p className="text-xl font-bold">{s.value}</p>
-              </div>
-            ))}
-          </div>
+        {/* Stats Row — Task 150 naming kept (Clients + External Issues replace Sprints + Milestones) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+          <StatCard label="Total Projects" value={stats.totalProjects} sub="All statuses tracked" icon={<FiBriefcase className="w-5 h-5" />} bg="bg-[#3A57C4]/10 text-[#3A57C4]" ring="ring-[#3A57C4]/20" />
+          <StatCard label="Clients" value={stats.totalClients} sub="Active client accounts" icon={<FiUsers className="w-5 h-5" />} bg="bg-[#6C4FD6]/10 text-[#6C4FD6]" ring="ring-[#6C4FD6]/20" />
+          <StatCard label="Total Tasks" value={stats.tasksThisWeek} sub="Across all projects" icon={<FiCheckSquare className="w-5 h-5" />} bg="bg-[#009EFB]/10 text-[#009EFB]" ring="ring-[#009EFB]/20" />
+          <StatCard label="Overdue Tasks" value={stats.overdueTasks} sub="Past planned end date" icon={<FiAlertCircle className="w-5 h-5" />} bg="bg-[#F43F5E]/10 text-[#F43F5E]" ring="ring-[#F43F5E]/20" />
+          <StatCard label="External Issues" value={stats.externalIssues} sub="Sourced from clients" icon={<FiFlag className="w-5 h-5" />} bg="bg-[#FF9B44]/15 text-[#FF9B44]" ring="ring-[#FF9B44]/20" />
+          <StatCard label="Avg Progress" value={`${stats.teamUtilization}%`} sub="Mean across projects" icon={<FiActivity className="w-5 h-5" />} bg="bg-[#10B981]/10 text-[#10B981]" ring="ring-[#10B981]/20" />
         </div>
       </div>
 
@@ -952,7 +927,7 @@ function ProjectManagementContent() {
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-teal-600 text-teal-600'
+                    ? 'border-[#3A57C4] text-[#3A57C4]'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
               >

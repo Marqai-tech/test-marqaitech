@@ -7,7 +7,6 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
@@ -48,10 +47,6 @@ const categoryIcons: Record<string, string> = {
 
 export default function TicketsPage() {
   const { user } = useAuthStore();
-  // GOLDEN RULE: scope follows the company switcher. With a tenant selected the
-  // list shows THAT tenant's tickets; without one, platform tickets only.
-  const { selectedTenantId, availableTenants } = useCompanyContextStore();
-  const scopeTenant = availableTenants.find((t) => t.id === selectedTenantId) || null;
   const [tickets, setTickets] = useState<PlatformTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -66,25 +61,24 @@ export default function TicketsPage() {
   const fetchTickets = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = selectedTenantId ? `&tenantId=${encodeURIComponent(selectedTenantId)}` : '';
-      const res = await fetch(`/api/tickets?limit=100${qs}`, { headers: getAuthHeaders() });
+      const res = await fetch('/api/tickets?limit=100', { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch tickets');
       const data = await res.json();
       const raw = data.tickets || data || [];
 
       // ALWAYS filter out hidden tenants — never show Marq AI Tech
-      const filtered = raw.filter((t: Record<string, unknown> & { tenant?: { slug?: string; name?: string } }) =>
+      const filtered = raw.filter((t: any) =>
         !isTenantHiddenClient(t.tenant?.slug || '') && !(t.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
       );
 
-      const mapped: PlatformTicket[] = filtered.map((t: Record<string, unknown> & { tenant?: { slug?: string; name?: string } }) => ({
-        id: (t.id as string) || `PT-${Math.random().toString(36).slice(2, 8)}`,
-        subject: (t.subject as string) || (t.title as string) || '',
-        category: (t.category as string) || 'Bug',
-        priority: ((t.priority as PlatformTicket['priority']) || 'medium'),
-        status: ((t.status as PlatformTicket['status']) || 'open'),
-        reporter: (t.reporter as string) || (t.createdBy as { name?: string } | undefined)?.name || 'Unknown',
-        createdDate: t.createdAt ? new Date(t.createdAt as string).toISOString().slice(0, 10) : '',
+      const mapped: PlatformTicket[] = filtered.map((t: any) => ({
+        id: t.id || `PT-${Math.random().toString(36).slice(2, 8)}`,
+        subject: t.subject || t.title || '',
+        category: t.category || 'Bug',
+        priority: (t.priority || 'medium') as PlatformTicket['priority'],
+        status: (t.status || 'open') as PlatformTicket['status'],
+        reporter: t.reporter || t.createdBy?.name || 'Unknown',
+        createdDate: t.createdAt ? new Date(t.createdAt).toISOString().slice(0, 10) : '',
       }));
       setTickets(mapped);
     } catch (err) {
@@ -93,9 +87,9 @@ export default function TicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTenantId]);
+  }, [liveMode]);
 
-  useEffect(() => { queueMicrotask(() => fetchTickets()); }, [fetchTickets]);
+  useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
   const filtered = useMemo(() => {
     let result = tickets;
@@ -157,11 +151,7 @@ export default function TicketsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-3"><FiTag className="w-7 h-7" /> Platform Tickets</h1>
-            <p className="text-slate-300 mt-1 text-sm">
-              {scopeTenant
-                ? <>Scope: <b className="text-white">{scopeTenant.name}</b> — tickets of the tenant selected in the company switcher</>
-                : 'Manage platform-level issues, feature requests, and internal tasks — pick a tenant in the company switcher to view its tickets'}
-            </p>
+            <p className="text-slate-300 mt-1 text-sm">Manage platform-level issues, feature requests, and internal tasks</p>
           </div>
           <div className="flex gap-2">
             <button onClick={fetchTickets} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
@@ -186,8 +176,8 @@ export default function TicketsPage() {
       {!loading && tickets.length === 0 && (
         <div className="thb-card p-12 text-center">
           <FiTag className="w-12 h-12 mx-auto mb-3 text-thb-text-muted opacity-40" />
-          <p className="text-lg font-medium text-thb-text-primary">No tickets found</p>
-          <p className="text-sm text-thb-text-muted mt-1">{scopeTenant ? `No tickets exist for ${scopeTenant.name} yet.` : 'No platform tickets exist yet. Select a tenant in the company switcher to view its tickets.'}</p>
+          <p className="text-lg font-medium text-thb-text-primary">{liveMode ? 'No live data' : 'No tickets found'}</p>
+          <p className="text-sm text-thb-text-muted mt-1">{liveMode ? 'No platform tickets exist yet.' : 'Create a ticket to get started.'}</p>
         </div>
       )}
 

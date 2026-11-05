@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Task 117 — READ-ONLY probe of the LIVE tenant chat (no writes). */
 const BASE = 'https://marqaitechgroup.3boxeshrms.com';
-const EMAIL = 'hr@marqaitech.com';
+const EMAIL = 'hr@gmail.com';
 const PASS = 'MarqAI@2026';
 (async () => {
   const loginRes = await fetch(`${BASE}/api/auth/login`, {

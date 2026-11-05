@@ -211,6 +211,17 @@ export interface SendEmailResult {
  * Task 142 — Send an email. SMTP first (real credentials in production),
  * then Resend, then dev-log. See the provider notes above getSmtpTransport().
  */
+// Task 167: internal email domains — use SMTP for these, Resend for everything else
+const INTERNAL_DOMAINS = [
+  'marqaitech.com', '3boxeshrms.com', '3boxesluxury.com',
+  '3boxesconsulting.com', '3boxestechnologies.com',
+];
+
+function isInternalEmail(email: string): boolean {
+  const domain = email.split('@')[1]?.toLowerCase().trim() || '';
+  return INTERNAL_DOMAINS.some(d => domain === d || domain.endsWith('.' + d));
+}
+
 export async function sendEmail(
   params: SendEmailParams,
 ): Promise<SendEmailResult> {
@@ -220,25 +231,38 @@ export async function sendEmail(
   const sender = from || getEmailFromAddress();
   const recipients = Array.isArray(to) ? to.join(', ') : to;
 
-  // ─── 1) SMTP (primary — production has real credentials) ───
-  const smtp = getSmtpTransport();
-  if (smtp) {
-    const smtpFrom = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || sender;
-    try {
-      const info = await smtp.sendMail({
-        from: `${process.env.SMTP_FROM_NAME || '3Boxes HRMS'} <${smtpFrom}>`,
-        to,
-        subject,
-        html,
-      });
-      console.log(`[EmailService] ✉️  SMTP email sent to ${recipients} — Subject: "${subject}" — From: "${smtpFrom}" — messageId: ${info?.messageId || 'n/a'}`);
-      return { success: true, usedFallbackFrom: false, via: 'smtp' };
-    } catch (smtpErr) {
-      const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
-      console.error(`[EmailService] SMTP send failed (host: ${process.env.SMTP_HOST}): ${msg}`);
-      console.warn('[EmailService] Falling back to Resend (if configured)...');
-      // fall through to Resend
+  // Task 167: Smart routing — internal emails via SMTP, external via Resend
+  // This ensures internal emails (marqaitech.com etc) go through the tenant
+  // SMTP server (which works for same-server delivery), while external emails
+  // (gmail.com etc) go through Resend (which has proper SPF/DKIM for delivery
+  // to external domains).
+  const recipientStr = Array.isArray(to) ? to[0] : to;
+  const useSmtp = isInternalEmail(recipientStr);
+
+  if (useSmtp) {
+    // ─── SMTP for internal domains ───
+    const smtp = getSmtpTransport();
+    if (smtp) {
+      const smtpFrom = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || sender;
+      try {
+        const info = await smtp.sendMail({
+          from: `${process.env.SMTP_FROM_NAME || '3Boxes HRMS'} <${smtpFrom}>`,
+          to,
+          subject,
+          html,
+        });
+        console.log(`[EmailService] ✉️  SMTP (internal) email sent to ${recipients} — Subject: "${subject}" — messageId: ${info?.messageId || 'n/a'}`);
+        return { success: true, usedFallbackFrom: false, via: 'smtp' };
+      } catch (smtpErr) {
+        const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
+        console.error(`[EmailService] SMTP send failed (host: ${process.env.SMTP_HOST}): ${msg}`);
+        console.warn('[EmailService] Falling back to Resend...');
+        // fall through to Resend
+      }
     }
+  } else {
+    // ─── Resend for external domains (gmail.com, yahoo.com, etc) ───
+    console.log(`[EmailService] → External recipient ${recipients} — using Resend (not SMTP)`);
   }
 
   // ─── 2) Resend (fallback) ───

@@ -25,6 +25,7 @@ interface OfferData {
   reportingTo?: string | null;
   status: string;
   generatedPdfUrl?: string | null;
+  offerLetterUrl?: string | null;  // HR-uploaded softcopy PDF (preferred over generatedPdfUrl)
   respondedAt?: string | null;
   candidateSignature?: string | null;
   candidateSignedAt?: string | null;
@@ -129,13 +130,23 @@ export default function OfferAcceptancePage() {
                 <div className="flex items-start gap-2.5"><FiBriefcase className="w-4 h-4 text-teal-600 mt-0.5" /><div><p className="text-[11px] text-slate-400">Probation Period</p><p className="text-sm font-semibold text-slate-800">{offer.probationPeriod} days</p></div></div>
                 <div className="flex items-start gap-2.5"><FiUser className="w-4 h-4 text-teal-600 mt-0.5" /><div><p className="text-[11px] text-slate-400">Reporting To</p><p className="text-sm font-semibold text-slate-800">{offer.reportingTo || '—'}</p></div></div>
               </div>
-              {offer.generatedPdfUrl && offer.generatedPdfUrl.startsWith('data:') && (
-                <div className="px-6 pb-5">
-                  <a href={offer.generatedPdfUrl} download="offer-letter.html" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
-                    <FiFileText className="w-3.5 h-3.5" /> View Full Offer Letter
-                  </a>
-                </div>
-              )}
+              {(() => {
+                // C-21: prefer HR-uploaded offerLetterUrl (PDF) over the auto-generated HTML preview.
+                const downloadUrl = offer.offerLetterUrl || offer.generatedPdfUrl;
+                if (!downloadUrl || !downloadUrl.startsWith('data:')) return null;
+                const isPdf = downloadUrl.startsWith('data:application/pdf');
+                const filename = isPdf ? 'offer-letter.pdf' : 'offer-letter.html';
+                return (
+                  <div className="px-6 pb-5 flex flex-wrap gap-2">
+                    <a href={downloadUrl} download={filename} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
+                      <FiFileText className="w-3.5 h-3.5" /> Download Offer Letter
+                    </a>
+                    <a href={downloadUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-50 text-slate-700 text-xs font-medium hover:bg-slate-100">
+                      <FiFileText className="w-3.5 h-3.5" /> View in New Tab
+                    </a>
+                  </div>
+                );
+              })()}
             </div>
 
             {result ? (

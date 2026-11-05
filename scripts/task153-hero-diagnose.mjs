@@ -22,7 +22,7 @@ async function me(token) {
 (async () => {
   for (const [label, email, pw] of [
     ['CEO', 'mahesh@marqaitech.com', 'MarqAI@2026'],
-    ['HR', 'hr@marqaitech.com', 'MarqAI@2026'],
+    ['HR', 'hr@gmail.com', 'MarqAI@2026'],
   ]) {
     const l = await login(email, pw);
     console.log(`\n=== ${label} ${email} → login ${l.status}`);

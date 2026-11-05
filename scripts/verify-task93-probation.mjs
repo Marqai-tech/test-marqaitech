@@ -13,7 +13,7 @@
  *   6. login, templates API → probation module present; probation list API 200
  */
 const DEMO = { name: 'DEMO', url: 'https://nexus-hrms-mu.vercel.app', slug: '3boxes-hrms-demo', email: 'admin@3boxeshrms.com', password: 'MarqAI@2026' };
-const LIVE = { name: 'LIVE', url: 'https://marqaitechgroup.3boxeshrms.com', slug: 'marqaitechgroup', email: 'hr@marqaitech.com', password: 'MarqAI@2026' };
+const LIVE = { name: 'LIVE', url: 'https://marqaitechgroup.3boxeshrms.com', slug: 'marqaitechgroup', email: 'hr@gmail.com', password: 'MarqAI@2026' };
 
 async function login(s) {
   const r = await fetch(`${s.url}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: s.email, password: s.password }) });

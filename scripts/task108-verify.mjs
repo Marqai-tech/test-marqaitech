@@ -13,7 +13,7 @@ const patch = (url, token, data) => j(url, { method: 'PATCH', headers: { 'Conten
 const get = (url, token) => j(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
 
 console.log('========== LIVE (marqaitechgroup) — non-mutating ==========');
-const li = await post(`${LIVE}/api/auth/login`, null, { email: 'hr@marqaitech.com', password: 'MarqAI@2026' });
+const li = await post(`${LIVE}/api/auth/login`, null, { email: 'hr@gmail.com', password: 'MarqAI@2026' });
 console.log('1. tenant admin login:', li.status);
 const lt = li.body?.token;
 const lp = await get(`${LIVE}/api/attendance/remote-permissions`, lt);

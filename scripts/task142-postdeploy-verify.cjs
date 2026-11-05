@@ -91,7 +91,7 @@ async function api(base, path, { method = 'GET', token, body } = {}) {
   }
 
   // marqai HR OTP request (second tenant, same SMTP path)
-  const reqM = await api(MARQAI, '/api/auth/otp', { method: 'POST', body: { action: 'request', phone: 'hr@marqaitech.com', dialCode: '+91' } });
+  const reqM = await api(MARQAI, '/api/auth/otp', { method: 'POST', body: { action: 'request', phone: 'hr@gmail.com', dialCode: '+91' } });
   ok('marqai OTP request by EMAIL works', reqM.json?.sent === true || reqM.status === 429, `status=${reqM.status} (${reqM.json?.sent ? 'sent' : reqM.json?.error || 'rate-limited'})`);
 
   // apex sweep never mints

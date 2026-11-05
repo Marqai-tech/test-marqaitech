@@ -6,7 +6,7 @@
 // 5. GET  .../messages (fetch thread)
 // 6. GET /api/collaboration/chat/rooms (rooms list w/ preview + unread)
 const BASE = 'https://marqaitechgroup.3boxeshrms.com';
-const EMAIL = 'hr@marqaitech.com';
+const EMAIL = 'hr@gmail.com';
 const PASS = 'MarqAI@2026';
 
 const j = (r) => r.json();

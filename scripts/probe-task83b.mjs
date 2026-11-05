@@ -12,7 +12,7 @@ async function main() {
   const login = await api('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }),
+    body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }),
   });
   const token = login.data.token;
   console.log('LOGIN OK — user.employee:', JSON.stringify(login.data.user?.employee || null));

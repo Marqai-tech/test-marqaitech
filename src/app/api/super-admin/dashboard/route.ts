@@ -40,26 +40,20 @@ export async function GET(request: Request) {
     }
 
     const wantFull = new URL(request.url).searchParams.get('full') === '1';
-    // GOLDEN RULE (Task 95): the super admin dashboard FOLLOWS the company
-    // switcher. When ?tenantId= is present, every metric/list on this dashboard
-    // is scoped to THAT tenant only. When absent, the view is platform-wide
-    // (hidden tenants are always excluded).
-    const scopeTenantIdParam = (new URL(request.url).searchParams.get('tenantId') || '').trim();
     const host = request.headers.get('host') || 'default';
-    const cacheKey = `${host}|${scopeTenantIdParam}`;
-    if (wantFull && fullDashboardCache && fullDashboardCache.host === cacheKey && Date.now() - fullDashboardCache.at < DASHBOARD_FULL_CACHE_MS) {
+    if (wantFull && fullDashboardCache && fullDashboardCache.host === host && Date.now() - fullDashboardCache.at < DASHBOARD_FULL_CACHE_MS) {
       return NextResponse.json(fullDashboardCache.body, {
         headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="full-hit"' },
       });
     }
-    if (!wantFull && liteDashboardCache && liteDashboardCache.host === cacheKey && Date.now() - liteDashboardCache.at < DASHBOARD_CACHE_MS) {
+    if (!wantFull && liteDashboardCache && liteDashboardCache.host === host && Date.now() - liteDashboardCache.at < DASHBOARD_CACHE_MS) {
       return NextResponse.json(liteDashboardCache.body, {
         headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="lite-hit"' },
       });
     }
     const liteHit =
       liteDashboardCache &&
-      liteDashboardCache.host === cacheKey &&
+      liteDashboardCache.host === host &&
       Date.now() - liteDashboardCache.at < DASHBOARD_CACHE_MS
         ? liteDashboardCache.body
         : null;
@@ -76,25 +70,11 @@ export async function GET(request: Request) {
       NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
     };
 
-    // Resolve the requested scope tenant (must be visible per the filter above
-    // — a hidden/unknown tenantId silently falls back to platform-wide).
-    let scopeTenant: { id: string; name: string; slug: string } | null = null;
-    if (scopeTenantIdParam) {
-      const t = await platformDb.tenant.findFirst({
-        where: { ...tenantFilter, id: scopeTenantIdParam },
-        select: { id: true, name: true, slug: true },
-      });
-      if (t) scopeTenant = t;
-    }
-    const scopeWhere = scopeTenant
-      ? { ...tenantFilter, id: scopeTenant.id }
-      : tenantFilter;
-
     const tDb = Date.now();
     let payload: Record<string, unknown>;
 
     if (wantFull && liteHit) {
-      const counts = await getTenantDashboardCounts(platformDb, scopeWhere, { allowRefresh: true });
+      const counts = await getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true });
       payload = {
         ...liteHit,
         totalGroupCompanies: counts.groups,
@@ -117,10 +97,7 @@ export async function GET(request: Request) {
     });
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    const visibleTenantWhere = scopeWhere;
-    // Audit activity scope: when a tenant is selected, only show activity from
-    // users of THAT tenant (GOLDEN RULE — no cross-tenant noise).
-    const auditWhere = scopeTenant ? { user: { tenantId: scopeTenant.id } } : {};
+    const visibleTenantWhere = tenantFilter;
 
     // One Neon round-trip batch. Sequential counts + 6 monthly counts + 6
     // monthly subscription reads was ~4.7s on tester (iad1 → Neon).
@@ -137,12 +114,12 @@ export async function GET(request: Request) {
       expiringSubs,
       recentActivity,
     ] = await Promise.all([
-      platformDb.tenant.count({ where: scopeWhere }),
-      platformDb.tenant.count({ where: { ...scopeWhere, status: 'active' } }),
-      platformDb.tenant.count({ where: { ...scopeWhere, status: 'suspended' } }),
-      platformDb.tenant.count({ where: { ...scopeWhere, status: 'inactive' } }),
+      platformDb.tenant.count({ where: tenantFilter }),
+      platformDb.tenant.count({ where: { ...tenantFilter, status: 'active' } }),
+      platformDb.tenant.count({ where: { ...tenantFilter, status: 'suspended' } }),
+      platformDb.tenant.count({ where: { ...tenantFilter, status: 'inactive' } }),
       platformDb.tenant.findMany({
-        where: { ...scopeWhere, createdAt: { gte: sixMonthsAgo } },
+        where: { ...tenantFilter, createdAt: { gte: sixMonthsAgo } },
         select: { createdAt: true },
       }),
       platformDb.subscription.findMany({
@@ -207,7 +184,6 @@ export async function GET(request: Request) {
         return [] as { id: string; endDate: Date | null; tenantId: string; plan: { name: string } | null; tenant: { name: string; id: string; users: { email: string }[] } | null }[];
       }),
       platformDb.auditLog.findMany({
-        where: auditWhere,
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: { user: { select: { id: true, name: true, email: true } } },
@@ -260,20 +236,19 @@ export async function GET(request: Request) {
     let totalEmployees = 0;
 
     if (wantFull) {
-      const counts = await getTenantDashboardCounts(platformDb, scopeWhere, { allowRefresh: true });
+      const counts = await getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true });
       totalGroupCompanies = counts.groups;
       totalCompanies = counts.companies;
       totalEmployees = counts.employees;
     } else {
       after(() => {
-        getTenantDashboardCounts(platformDb, scopeWhere, { allowRefresh: true }).catch((e) => {
+        getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true }).catch((e) => {
           console.error('[SuperAdmin Dashboard] Background tenant aggregate refresh failed:', e);
         });
       });
     }
 
     const payloadInner = {
-      scopeTenant,
       totalTenants,
       activeTenants,
       suspendedTenants,
@@ -294,15 +269,15 @@ export async function GET(request: Request) {
       currencyCode: 'INR',
     };
     payload = payloadInner;
-    liteDashboardCache = { at: Date.now(), host: cacheKey, body: payloadInner };
+    liteDashboardCache = { at: Date.now(), host, body: payloadInner };
     }
 
     const dbMs = Date.now() - tDb;
 
     if (wantFull) {
-      fullDashboardCache = { at: Date.now(), host: cacheKey, body: payload };
+      fullDashboardCache = { at: Date.now(), host, body: payload };
     } else {
-      liteDashboardCache = { at: Date.now(), host: cacheKey, body: payload };
+      liteDashboardCache = { at: Date.now(), host, body: payload };
     }
     return NextResponse.json(payload, {
       headers: {

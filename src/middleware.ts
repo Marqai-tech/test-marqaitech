@@ -52,7 +52,6 @@ const RESERVED_SUBDOMAINS = ['www', 'api', 'app', 'admin', 'mail', 'ftp', 'local
 
 // Domains that should resolve to the demo tenant
 const DEMO_DOMAINS = [
-  'nexus-hrms-demo.vercel.app',
   'nexus-hrms-mu.vercel.app',
   'nexus-hrms.vercel.app',
   '3boxes-hrms.vercel.app',

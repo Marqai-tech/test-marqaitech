@@ -14,7 +14,7 @@ const SITES = [
     label: 'LIVE',
     url: 'https://marqaitechgroup.3boxeshrms.com',
     tenantSlug: 'marqaitechgroup',
-    email: 'hr@marqaitech.com',
+    email: 'hr@gmail.com',
     password: 'MarqAI@2026',
     fromName: 'HR',
   },

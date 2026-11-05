@@ -80,6 +80,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (probationRestricted !== undefined) data.probationRestricted = !!probationRestricted;
     if (sandwichRuleEnabled !== undefined) data.sandwichRuleEnabled = !!sandwichRuleEnabled;
 
+
+    // Ensure new columns exist
+    const newCols = [
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "maxConsecutiveDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "minAdvanceDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "accrualFrequency" TEXT DEFAULT 'yearly'`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "accrualAmount" DOUBLE PRECISION DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "maxBalance" DOUBLE PRECISION DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "leaveExpiryDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "negativeBalanceAllowed" BOOLEAN DEFAULT false`,
+    ];
+    for (const sql of newCols) {
+      try { await db.$executeRawUnsafe(sql); } catch { /* ignore */ }
+    }
+
     const updated = await db.leaveType.update({ where: { id }, data });
     return NextResponse.json({ leaveType: updated }, { headers: corsHeaders() });
   } catch (error) {

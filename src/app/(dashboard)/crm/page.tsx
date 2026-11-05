@@ -3,9 +3,9 @@
 import { useState, useMemo, Suspense } from 'react';
 import {
   FiUsers, FiBriefcase, FiDollarSign, FiTrendingUp, FiPhone, FiMail,
-  FiPlus, FiSearch, FiFilter, FiEye, FiEdit2, FiTrash2, FiX,
-  FiTarget, FiCalendar, FiCheckCircle, FiChevronRight, FiChevronDown,
-  FiClock, FiArrowRight, FiStar, FiMapPin, FiGlobe, FiLink, FiUserPlus, FiUser,
+  FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX,
+  FiTarget, FiCalendar, FiCheckCircle,
+  FiClock, FiStar, FiUserPlus, FiUser,
   FiGrid, FiFileText, FiSettings, FiBarChart2,
 } from 'react-icons/fi';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
@@ -16,6 +16,20 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientDemoMode } from '@/lib/site-mode';
+/* Task 156-d — shared SmartHR widgets: same gradient banner / stat cards /
+   panels as the Employee module dashboard (Task 155 reference). */
+import { Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
+
+/* Task 156-d — SmartHR pastel accent rotation for stat card rows
+   (royal → emerald → orange → rose → info → violet). */
+const STAT_ACCENTS = [
+  { bg: 'bg-[#3A57C4]/10 text-[#3A57C4]', ring: 'ring-[#3A57C4]/20' },
+  { bg: 'bg-[#10B981]/10 text-[#10B981]', ring: 'ring-[#10B981]/20' },
+  { bg: 'bg-[#FF9B44]/10 text-[#FF9B44]', ring: 'ring-[#FF9B44]/20' },
+  { bg: 'bg-[#F43F5E]/10 text-[#F43F5E]', ring: 'ring-[#F43F5E]/20' },
+  { bg: 'bg-[#009EFB]/10 text-[#009EFB]', ring: 'ring-[#009EFB]/20' },
+  { bg: 'bg-[#6C4FD6]/10 text-[#6C4FD6]', ring: 'ring-[#6C4FD6]/20' },
+];
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -147,6 +161,8 @@ function CRMPageContent() {
     <ModuleDashboardShell
       moduleKey="crm"
       moduleLabel="CRM & Sales"
+      title="CRM Dashboard"
+      trail={['CRM', 'Dashboard']}
       moduleIcon={<FiTarget className="w-5 h-5 text-white" />}
       gradientColor="from-pink-500 to-rose-600"
       tabs={crmTabs}
@@ -190,29 +206,21 @@ function CRMContent() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-6 text-white">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-        <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">CRM & Sales</h1>
-              <p className="text-emerald-100 mt-1">Manage contacts, deals pipeline, leads, and sales activities</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowAddDealModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
-                <FiPlus className="w-4 h-4" /> New Deal
-              </button>
-              <button onClick={() => setShowAddContactModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
-                <FiUserPlus className="w-4 h-4" /> New Contact
-              </button>
-            </div>
-          </div>
+      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setShowAddContactModal(true)} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm text-xs font-semibold rounded-lg px-3 py-2 inline-flex items-center gap-1.5 transition-colors">
+            <FiUserPlus className="w-3.5 h-3.5" /> New Contact
+          </button>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setShowAddDealModal(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
+            <FiPlus className="w-4 h-4" /> New Deal
+          </button>
         </div>
       </div>
 
-      {/* Stats Row */}
+      {/* Stats Row — shared SmartHR StatCard */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {(isClientDemoMode() ? [
           { label: 'Total Contacts', value: '248', icon: <FiUsers className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50', trend: '+12' },
@@ -221,22 +229,23 @@ function CRMContent() {
           { label: 'Won This Month', value: '8', icon: <FiCheckCircle className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+3' },
           { label: 'Lost This Month', value: '3', icon: <FiX className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '-1' },
           { label: 'Win Rate', value: '72%', icon: <FiTrendingUp className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50', trend: '+4%' },
-        ] : []).map((stat) => (
-          <div key={stat.label} className="thb-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>{stat.icon}</div>
-              <span className={`text-xs font-medium ${stat.color}`}>{stat.trend}</span>
-            </div>
-            <p className="text-xl font-bold text-thb-text-primary">{stat.value}</p>
-            <p className="text-xs text-thb-text-secondary mt-0.5">{stat.label}</p>
-          </div>
+        ] : []).map((stat, idx) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            sub={stat.trend}
+            icon={stat.icon}
+            bg={STAT_ACCENTS[idx % STAT_ACCENTS.length].bg}
+            ring={STAT_ACCENTS[idx % STAT_ACCENTS.length].ring}
+          />
         ))}
       </div>
 
       {/* Tab Navigation */}
       <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-sm border border-slate-200 overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.key ? 'bg-emerald-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.key ? 'bg-[#3A57C4] text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50'}`}>
             {tab.icon} {tab.label}
           </button>
         ))}
@@ -246,8 +255,8 @@ function CRMContent() {
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Deal Pipeline by Stage</h3>
+            {/* Deal Pipeline by Stage — SmartHR Panel */}
+            <Panel title="Deal Pipeline by Stage" icon={<FiBriefcase className="w-4 h-4" />} accent="text-[#3A57C4]">
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={dealPipelineData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -257,9 +266,9 @@ function CRMContent() {
                   <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Monthly Revenue vs Target</h3>
+            </Panel>
+            {/* Monthly Revenue vs Target — SmartHR Panel */}
+            <Panel title="Monthly Revenue vs Target" icon={<FiTrendingUp className="w-4 h-4" />} accent="text-[#009EFB]">
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={monthlyRevenueData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -271,11 +280,11 @@ function CRMContent() {
                   <Area type="monotone" dataKey="target" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} name="Target" />
                 </AreaChart>
               </ResponsiveContainer>
-            </div>
+            </Panel>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Lead Sources</h3>
+            {/* Lead Sources — SmartHR Panel */}
+            <Panel title="Lead Sources" icon={<FiUsers className="w-4 h-4" />} accent="text-[#6C4FD6]">
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie data={leadSourceData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
@@ -284,9 +293,9 @@ function CRMContent() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-            <div className="thb-card p-5">
-              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Lead Status Distribution</h3>
+            </Panel>
+            {/* Lead Status Distribution — SmartHR Panel */}
+            <Panel title="Lead Status Distribution" icon={<FiBarChart2 className="w-4 h-4" />} accent="text-[#FF9B44]">
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={leadStatusData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -296,11 +305,10 @@ function CRMContent() {
                   <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </Panel>
           </div>
-          {/* Hot Deals */}
-          <div className="thb-card p-5">
-            <h3 className="text-sm font-semibold text-thb-text-primary mb-4">🔥 Hot Deals</h3>
+          {/* Hot Deals — SmartHR Panel */}
+          <Panel title="🔥 Hot Deals" icon={<FiStar className="w-4 h-4" />} accent="text-[#FFC107]">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -332,7 +340,7 @@ function CRMContent() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Panel>
         </div>
       )}
 

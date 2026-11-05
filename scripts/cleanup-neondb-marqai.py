@@ -36,11 +36,11 @@ for u in users:
 
 # Keep only essential users:
 # 1. superadmin@3boxeshrms.com (super_admin) - can log in anywhere
-# 2. hr@marqaitech.com (admin) - MarqAI HR Admin 
+# 2. hr@gmail.com (admin) - MarqAI HR Admin 
 # 3. admin@marqaitechgroup.com (tenant_admin) - MarqAI tenant admin
 KEEP_USER_IDS = [
     "cmrmrwc019z8c6772f879e5f31b",  # superadmin@3boxeshrms.com
-    "cmrmrwc0ecq3ca9f187d28dfb0f",  # hr@marqaitech.com (HR Admin)
+    "cmrmrwc0ecq3ca9f187d28dfb0f",  # hr@gmail.com (HR Admin)
     "cmrmrwc01g1f729abb99bd0e990",  # admin@marqaitechgroup.com (tenant_admin)
 ]
 

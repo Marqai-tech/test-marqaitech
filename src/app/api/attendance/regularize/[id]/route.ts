@@ -89,12 +89,15 @@ export async function PATCH(
     const existing = await db.attendanceRegularization.findUnique({ where: { id } });
     if (!existing) return fail('Not found', 404);
 
+    // Spec §3: separate action timestamps for approve vs reject.
+    const actionAt = new Date();
     const updated = await db.attendanceRegularization.update({
       where: { id },
       data: {
         status,
         approvedBy: user.id || user.email || 'system',
-        approvedAt: new Date(),
+        approvedAt: status === 'approved' ? actionAt : existing.approvedAt,
+        rejectedAt: status === 'rejected' ? actionAt : existing.rejectedAt,
         comments: (body.comments as string) || null,
       },
     });
@@ -104,7 +107,10 @@ export async function PATCH(
       const date = existing.date;
       let attendance = await db.attendance.findFirst({ where: { employeeId: existing.employeeId, date } });
       const beforeData = attendance ? {
-        checkIn: attendance.checkIn, checkOut: attendance.checkOut, status: attendance.status,
+        checkIn: attendance.checkIn, checkOut: attendance.checkOut,
+        breakIn: attendance.breakIn, breakOut: attendance.breakOut,
+        workHours: attendance.workHours, breakMinutes: attendance.breakMinutes,
+        status: attendance.status,
       } : null;
 
       if (existing.punchType === 'check_in') {
@@ -120,6 +126,32 @@ export async function PATCH(
               date,
               checkIn: existing.requestedTime,
               status: 'present',
+            },
+          });
+        }
+      } else if (existing.punchType === 'break_in' || existing.punchType === 'break_out') {
+        if (!attendance) return fail('No attendance record exists for this date', 422);
+        attendance = await db.attendance.update({
+          where: { id: attendance.id },
+          data: existing.punchType === 'break_in'
+            ? { breakIn: existing.requestedTime }
+            : { breakOut: existing.requestedTime },
+        });
+        if (attendance.breakIn && attendance.breakOut && attendance.checkIn && attendance.checkOut) {
+          const policy = await loadAttendanceBreakPolicy(db);
+          const breakMinutes = effectiveBreakMinutes(attendance.breakIn, attendance.breakOut, attendance.checkIn, attendance.checkOut, policy);
+          const grossMinutes = (attendance.checkOut.getTime() - attendance.checkIn.getTime()) / (1000 * 60);
+          const hours = Math.max(0, (grossMinutes - breakMinutes) / 60);
+          const fourthLate = attendance.status === 'half_day' && (attendance.notes || '').includes('Fourth late arrival');
+          attendance = await db.attendance.update({
+            where: { id: attendance.id },
+            data: {
+              breakMinutes,
+              workHours: Math.round(hours * 100) / 100,
+              overtime: Math.max(0, Math.round((hours - 8) * 100) / 100),
+              status: fourthLate ? 'half_day' : hours < 8 ? 'half_day' : attendance.status === 'half_day' ? 'present' : attendance.status,
+              halfDay: fourthLate || hours < 8,
+              notes: fourthLate ? attendance.notes : 'Break regularization approved. Production hours calculated.',
             },
           });
         }
@@ -150,7 +182,10 @@ export async function PATCH(
           action: 'regularization_approved',
           beforeData: beforeData as object,
           afterData: {
-            checkIn: attendance?.checkIn, checkOut: attendance?.checkOut, status: attendance?.status,
+            checkIn: attendance?.checkIn, checkOut: attendance?.checkOut,
+            breakIn: attendance?.breakIn, breakOut: attendance?.breakOut,
+            workHours: attendance?.workHours, breakMinutes: attendance?.breakMinutes,
+            status: attendance?.status,
           },
           changedBy: user.id || user.email || 'system',
           reason: `Regularization: ${existing.reason}`,
@@ -158,35 +193,79 @@ export async function PATCH(
       });
     }
 
-    // Notify the employee of the final decision through in-app + email channels.
+    // ─── Spec-compliant result notification dispatch (v1.0, 06 Oct 2026) ─
+    // Split by recipient + by the request's original provenance (source).
+    //   Employee ← approved : attendance.regularization.approved.employee
+    //   Employee ← rejected : attendance.regularization.rejected.employee
+    //   HR ← approved (proxy): attendance.regularization.approved.hr.proxy  ("submitted for [Employee]")
+    //   HR ← approved (self) : attendance.regularization.approved.hr.self   ("submitted by [Employee]")
+    //   HR ← rejected (proxy): attendance.regularization.rejected.hr.proxy  ("submitted for [Employee]")
+    //   HR ← rejected (self) : attendance.regularization.rejected.hr.self  ("submitted by [Employee]")
+    // Manager is the actor and is NOT notified of their own action.
     try {
-      const employee = await db.employee.findUnique({ where: { id: existing.employeeId }, select: { userId: true, firstName: true, lastName: true, reportingManager: { select: { userId: true } } } });
+      const employee = await db.employee.findUnique({
+        where: { id: existing.employeeId },
+        select: { userId: true, firstName: true, lastName: true },
+      });
       const tenantId = (user as any).tenantId || (await resolveCompanyScope(request))?.tenantId;
-      const hrUsers = tenantId
-        ? await db.user.findMany({ where: { tenantId, role: { in: ['hr_admin', 'hr', 'admin', 'tenant_admin', 'ceo'] }, status: 'active' }, select: { id: true } }).catch(() => [])
-        : [];
-      const recipients = [
-        employee?.userId ? { userId: employee.userId } : null,
-        employee?.reportingManager?.userId ? { userId: employee.reportingManager.userId } : null,
-        ...hrUsers.map((hr: { id: string }) => ({ userId: hr.id })),
-      ].filter(Boolean) as Array<{ userId: string }>;
-      if (tenantId && recipients.length) {
+      const isHrProxy = existing.source === 'hr_proxy';
+      const approverName = user.name || user.email || 'Manager';
+      const employeeFullName = employee ? `${employee.firstName} ${employee.lastName}`.trim() : 'the employee';
+      const fmtTime = (d: Date | null) => d ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—';
+      const punchInLabel = existing.punchType === 'check_in' ? fmtTime(existing.requestedTime) : fmtTime(existing.existingPunchIn);
+      const comment = (body.comments as string) || '—';
+      const requestDate = new Date(existing.date).toLocaleDateString('en-IN');
+
+      const employeeEvent = status === 'approved'
+        ? 'attendance.regularization.approved.employee'
+        : 'attendance.regularization.rejected.employee';
+      const hrEvent = status === 'approved'
+        ? (isHrProxy ? 'attendance.regularization.approved.hr.proxy' : 'attendance.regularization.approved.hr.self')
+        : (isHrProxy ? 'attendance.regularization.rejected.hr.proxy' : 'attendance.regularization.rejected.hr.self');
+
+      if (tenantId) {
         const { dispatchNotification } = await import('@/lib/notification-center');
-        await dispatchNotification({
-          tenantId,
-          module: 'attendance',
-          eventKey: 'attendance.request.result',
-          recipients,
-          vars: {
-            Employee_Name: `${employee.firstName} ${employee.lastName}`,
-            Request_Type: 'Attendance Regularization',
-            Request_Date: new Date(existing.date).toLocaleDateString('en-IN'),
-            Status: status,
-            Approver_Name: user.name || user.email,
-            Comment: (body.comments as string) || '—',
-          },
-          entity: { type: 'attendance_regularization', id, link: '/attendance/regularize' },
-        });
+
+        // (1) Notify the employee.
+        if (employee?.userId) {
+          await dispatchNotification({
+            tenantId,
+            module: 'attendance',
+            eventKey: employeeEvent,
+            recipients: [{ userId: employee.userId }],
+            vars: {
+              Employee_Name: employeeFullName,
+              Request_Date: requestDate,
+              Punch_in: punchInLabel,
+              Approver_Name: approverName,
+              Comment: comment,
+            },
+            entity: { type: 'attendance_regularization', id, link: '/attendance/regularize' },
+          }).catch(e => console.warn('[regularize] employee result notify failed:', e));
+        }
+
+        // (2) Notify HR (per spec matrix — HR is notified on approve/reject).
+        const hrUsers = tenantId
+          ? await db.user.findMany({
+              where: { tenantId, role: { in: ['hr_admin', 'hr', 'admin', 'tenant_admin', 'ceo'] }, status: 'active' },
+              select: { id: true },
+            }).catch(() => [])
+          : [];
+        if (hrUsers.length) {
+          await dispatchNotification({
+            tenantId,
+            module: 'attendance',
+            eventKey: hrEvent,
+            recipients: hrUsers.map((hr: { id: string }) => ({ userId: hr.id })),
+            vars: {
+              Employee_Name: employeeFullName,
+              Request_Date: requestDate,
+              Approver_Name: approverName,
+              Comment: comment,
+            },
+            entity: { type: 'attendance_regularization', id, link: '/attendance/regularize' },
+          }).catch(e => console.warn('[regularize] HR result notify failed:', e));
+        }
       }
     } catch (notificationError) {
       console.warn('[regularize] result notification failed:', notificationError);

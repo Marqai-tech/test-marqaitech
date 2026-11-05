@@ -116,6 +116,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Task 163: also update the EmployeeUpdateRequest record so the photo
+    // approval/rejection shows up in the "All Requests" tab with the correct
+    // status. Matches the pending photo request by employeeId + fieldName.
+    try {
+      if (action === 'approve') {
+        await db.$executeRawUnsafe(
+          `UPDATE "EmployeeUpdateRequest"
+           SET "status" = 'applied', "approverUserId" = $1, "approverComments" = $2,
+               "approvedAt" = NOW(), "appliedAt" = NOW(), "updatedAt" = NOW()
+           WHERE "employeeId" = $3 AND "fieldName" = 'profilePhoto' AND "status" = 'pending'`,
+          String(decoded.userId || ''), comment, employeeId,
+        );
+      } else {
+        await db.$executeRawUnsafe(
+          `UPDATE "EmployeeUpdateRequest"
+           SET "status" = 'rejected', "approverUserId" = $1, "approverComments" = $2,
+               "approvedAt" = NOW(), "updatedAt" = NOW()
+           WHERE "employeeId" = $3 AND "fieldName" = 'profilePhoto' AND "status" = 'pending'`,
+          String(decoded.userId || ''), comment, employeeId,
+        );
+      }
+    } catch (reqUpdateErr) {
+      console.warn('[AvatarApprovals POST] EmployeeUpdateRequest update failed (non-fatal):', reqUpdateErr instanceof Error ? reqUpdateErr.message : reqUpdateErr);
+    }
+
     // Tell the employee the outcome (bell + email).
     try {
       const { dispatchNotification } = await import('@/lib/notification-center');

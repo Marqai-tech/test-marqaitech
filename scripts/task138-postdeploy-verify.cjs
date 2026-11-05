@@ -10,7 +10,7 @@ if (!PLATFORM) { console.error('FATAL: source production env first'); process.ex
 const DEMO = 'https://nexus-hrms-demo.vercel.app';
 const MARQAI = 'https://marqaitechgroup.3boxeshrms.com';
 const ADMIN = { email: 'admin@techstart.com', password: 'MarqAI@2026' };
-const HR_MARQAI = { email: 'hr@marqaitech.com', password: 'MarqAI@2026' };
+const HR_MARQAI = { email: 'hr@gmail.com', password: 'MarqAI@2026' };
 
 let pass = 0, fail = 0;
 const results = [];

@@ -18,8 +18,9 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import '@/lib/token-storage';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { APP_RELEASE } from '@/lib/app-version';
+import { NATIVE_APP_RELEASE, SHELL_APP_RELEASE } from '@/lib/app-version';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
+import { homeHrefForRole } from '@/lib/roleAccess';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,10 +48,27 @@ export default function LoginPage() {
   const [demoCredentials, setDemoCredentials] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
 
-  // Detect tenant from subdomain (e.g., marqaitechgroup.3boxeshrms.com)
+  // Detect tenant from subdomain (e.g., marqaitechgroup.3boxeshrms.com) OR
+  // from the ?tenant= query param (used on test deployments where wildcard
+  // subdomains don't resolve — e.g. test-marqaitech-ontt.vercel.app/login?tenant=acme).
   useEffect(() => {
     const detectTenant = async () => {
       try {
+        // 1. Check ?tenant= query param first (highest priority — matches
+        //    middleware's extractTenantSlug logic in src/middleware.ts).
+        const urlParams = new URLSearchParams(window.location.search);
+        const tenantParam = urlParams.get('tenant');
+        if (tenantParam) {
+          const res = await fetch(`/api/public/tenant-info?slug=${encodeURIComponent(tenantParam)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.tenant) {
+              setTenantInfo(data.tenant);
+              return;
+            }
+          }
+        }
+        // 2. Fall back to subdomain detection.
         const hostname = window.location.hostname;
         const parts = hostname.split('.');
         if (parts.length >= 3) {
@@ -74,7 +92,7 @@ export default function LoginPage() {
 
   // Detect site type and load appropriate credentials
   // Four site types:
-  // 1. Demo site (nexus-hrms-mu.vercel.app) — has sample data with demo credentials
+  // 1. Demo site (nexus-hrms-mu.vercel.app / nexus-hrms-demo.vercel.app test link) — sample data with demo credentials
   // 2. Platform/main site (3boxeshrms.com) — super admin login for tenant management
   // 3. Tenant/client sites (*.3boxeshrms.com) — actual client data, branded login
   // 4. Unknown — generic login form
@@ -82,6 +100,7 @@ export default function LoginPage() {
     const hostname = window.location.hostname;
     setIsDemoSite(
       hostname === 'nexus-hrms-mu.vercel.app' ||
+      hostname === 'nexus-hrms-demo.vercel.app' ||
       hostname === '3boxes-hrms-mu.vercel.app' ||
       hostname === 'test.3boxeshrms.com'
     );
@@ -150,12 +169,13 @@ export default function LoginPage() {
         toast.success('Welcome back! Redirecting...');
         // Redirect based on role:
         // Super admins land on the platform management dashboard in every environment.
-        // All other roles → /home (tenant dashboard)
+        // Admin roles → /home (Admin Dashboard) · everyone else (employees,
+        // managers, self-service) → /dashboard (Employee Dashboard) directly.
         const { user } = useAuthStore.getState();
         if (user?.role === 'super_admin') {
           router.push('/super-admin');
         } else {
-          router.push('/home');
+          router.push(homeHrefForRole(user?.role));
         }
       }
     } catch (err: unknown) {
@@ -366,24 +386,10 @@ export default function LoginPage() {
               </div>
             </div>
           )}
-          {tenantInfo && !isPlatformSite && (
-            <div className="mb-5 p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100">
-              <div className="flex items-center gap-2.5">
-                {tenantInfo.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-9 h-9 rounded-lg object-contain bg-white p-1" />
-                ) : (
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
-                    {tenantInfo.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{tenantInfo.name}</p>
-                  <p className="text-[10px] text-slate-400">Organization Portal</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* BUG_020 FIX: Tenant info card removed — the brand logo already
+              appears in the brand row above. Showing it again here was
+              duplicating the branding. The tenant name is already shown
+              next to the logo in the brand row. */}
 
           {/* Headline — reference image 1 */}
           <h1 className="text-[28px] sm:text-[32px] font-extrabold text-[#16254E] tracking-tight leading-tight mb-2">
@@ -393,7 +399,7 @@ export default function LoginPage() {
             {isPlatformSite && !tenantInfo
               ? 'Manage all tenants, approve trials, and control subscriptions.'
               : loginMode === 'user'
-                ? "Today is a new day. It's your day. You shape it. Sign in to start managing your projects."
+                ? "Today is a new day. It's your day. You shape it. Sign in to start managing your people and workforce with ease."
                 : 'Track your applications, optimize your resume, and find matching jobs.'}
           </p>
           {isPlatformSite && (
@@ -905,7 +911,14 @@ export default function LoginPage() {
               <div className="h-px flex-1 bg-slate-200" />
             </div>
             <p className="text-center text-sm text-slate-500 mb-4">
-              Don&apos;t you have an account?{' '}
+              {/* TC_077: "Sign up" and "New Company? Start Free Trial" both link to /register.
+                  This is intentional — /register is the free-trial company registration page.
+                  The in-form "Sign up" text link is a minimal entry point for existing users
+                  who don't have an account yet. The "Start Free Trial" card below is a more
+                  prominent promotional entry point with marketing copy. Both lead to the same
+                  registration flow since there is no separate "user sign-up" vs "company
+                  registration" distinction in the current product design. */}
+              Don&apos;t have an account?{' '}
               {tenantInfo ? (
                 <button
                   type="button"
@@ -1035,6 +1048,12 @@ export default function LoginPage() {
               <g>
                 <rect x="238" y="176" width="88" height="56" rx="7" fill="#16254E" />
                 <rect x="245" y="183" width="74" height="42" rx="4" fill="#3B82F6" opacity="0.9" />
+                {/* 3Boxes HRMS mini logo on the laptop screen (Task 157) */}
+                <g transform="translate(265, 191) scale(1.1)">
+                  <rect x="0" y="0" width="9" height="9" rx="2" fill="#059669" />
+                  <rect x="11" y="0" width="9" height="9" rx="2" fill="#10B981" />
+                  <rect x="22" y="0" width="9" height="9" rx="2" fill="#22C55E" />
+                </g>
                 <rect x="252" y="205" width="10" height="14" rx="2" fill="white" opacity="0.85" />
                 <rect x="268" y="196" width="10" height="23" rx="2" fill="white" opacity="0.65" />
                 <rect x="284" y="190" width="10" height="29" rx="2" fill="white" opacity="0.85" />
@@ -1115,9 +1134,9 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
     <div className="w-full space-y-3">
       {/* Row 1 — Get the app · Browse openings */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Mobile app — direct APK download (the ONLY APK download source) */}
+        {/* Mobile app — direct NATIVE APK download (recommended edition) */}
         <a
-          href={APP_RELEASE.apkUrl}
+          href={NATIVE_APP_RELEASE.apkUrl}
           download
           className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(16,122,87,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden"
         >
@@ -1138,7 +1157,7 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
           </div>
           <div className="relative flex-1 min-w-0">
             <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">Get the Mobile App</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Android APK · v{APP_RELEASE.versionName} · Free</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Native Android · v{NATIVE_APP_RELEASE.versionName} · AI Assistant dock</p>
           </div>
           <FiDownload className="relative w-4 h-4 text-emerald-500 shrink-0 group-hover:translate-y-0.5 transition-transform" />
         </a>
@@ -1160,21 +1179,46 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
         </Link>
       </div>
 
-      {/* Row 2 — Free trial */}
-      <Link
-        href="/register"
-        className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(109,40,217,0.35)] hover:-translate-y-0.5 transition-all overflow-hidden"
-      >
-        <div className="absolute -right-7 -top-9 w-24 h-24 rounded-full bg-violet-100/60 group-hover:scale-125 transition-transform duration-300" />
-        <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/30 shrink-0">
-          <FiZap className="w-5 h-5 text-white" />
-        </div>
-        <div className="relative flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-900 group-hover:text-violet-700 transition-colors">New Company? Start Free Trial</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">15-day trial — no credit card required</p>
-        </div>
-        <FiArrowRight className="relative w-4 h-4 text-violet-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-      </Link>
+      {/* Row 2 — Lite WebView edition (SEPARATE download option) + Free trial */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Lite WebView-shell app — separate download so users can pick their edition */}
+        <a
+          href={SHELL_APP_RELEASE.apkUrl}
+          download
+          className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(2,132,199,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden"
+        >
+          <div className="absolute -right-7 -top-9 w-24 h-24 rounded-full bg-sky-100/60 group-hover:scale-125 transition-transform duration-300" />
+          <div className="absolute right-3 top-3 flex items-end gap-0.5 opacity-70">
+            <span className="w-1.5 h-2 rounded-sm bg-sky-300" />
+            <span className="w-1.5 h-3.5 rounded-sm bg-sky-400" />
+            <span className="w-1.5 h-5 rounded-sm bg-sky-500" />
+          </div>
+          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/30 shrink-0">
+            <FiGlobe className="w-5 h-5 text-white" />
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 group-hover:text-sky-700 transition-colors">Lite App (WebView)</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">v{SHELL_APP_RELEASE.versionName} · renders the live web workspace</p>
+          </div>
+          <FiDownload className="relative w-4 h-4 text-sky-500 shrink-0 group-hover:translate-y-0.5 transition-transform" />
+        </a>
+
+        {/* Free trial */}
+        <Link
+          href="/register"
+          className="group relative w-full flex items-center gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white shadow-[0_12px_32px_-14px_rgba(22,37,78,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(109,40,217,0.35)] hover:-translate-y-0.5 transition-all overflow-hidden"
+        >
+          <div className="absolute -right-7 -top-9 w-24 h-24 rounded-full bg-violet-100/60 group-hover:scale-125 transition-transform duration-300" />
+          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/30 shrink-0">
+            <FiZap className="w-5 h-5 text-white" />
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 group-hover:text-violet-700 transition-colors">New Company? Start Free Trial</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">15-day trial — no credit card required</p>
+          </div>
+          <FiArrowRight className="relative w-4 h-4 text-violet-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
 
       {/* App details & install guide — collapsible so the pane stays compact */}
       <button
@@ -1190,16 +1234,27 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
       </button>
       {showAppInfo && (
         <div className="space-y-3 animate-slide-in-down">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <a
-              href={APP_RELEASE.apkUrl}
+              href={NATIVE_APP_RELEASE.apkUrl}
               download
               className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md shadow-emerald-500/20 hover:from-emerald-600 hover:to-green-700 transition-all"
             >
               <FiDownload className="w-4 h-4 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-bold">Android APK</p>
-                <p className="text-[10px] text-white/80">v{APP_RELEASE.versionName} ({APP_RELEASE.versionCode})</p>
+                <p className="text-xs font-bold">Native App APK</p>
+                <p className="text-[10px] text-white/80">v{NATIVE_APP_RELEASE.versionName} ({NATIVE_APP_RELEASE.versionCode})</p>
+              </div>
+            </a>
+            <a
+              href={SHELL_APP_RELEASE.apkUrl}
+              download
+              className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20 hover:from-sky-600 hover:to-blue-700 transition-all"
+            >
+              <FiDownload className="w-4 h-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold">Lite App APK</p>
+                <p className="text-[10px] text-white/80">v{SHELL_APP_RELEASE.versionName} ({SHELL_APP_RELEASE.versionCode})</p>
               </div>
             </a>
             <a
@@ -1229,10 +1284,11 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
           <div className="p-3 rounded-xl bg-white/80 ring-1 ring-white">
             <p className="text-[11px] font-semibold text-slate-600 mb-1.5">How to install (Android)</p>
             <ol className="text-[10px] text-slate-500 space-y-1 list-decimal list-inside">
-              <li>Tap <strong>&quot;Android APK&quot;</strong> above to download</li>
-              <li>Open the downloaded file (e.g. <em>…-v{APP_RELEASE.versionName}.apk</em>)</li>
+              <li>Pick an edition — <strong>Native App</strong> (full experience + AI dock) or <strong>Lite App</strong> (renders the live web)</li>
+              <li>Tap its <strong>APK</strong> button above to download</li>
+              <li>Open the downloaded file (e.g. <em>…-v{NATIVE_APP_RELEASE.versionName}.apk</em>)</li>
               <li>Allow installation from unknown sources if prompted</li>
-              <li>Tap <strong>&quot;Install&quot;</strong> — it installs right over the previous version</li>
+              <li>Tap <strong>&quot;Install&quot;</strong> — both editions share the same app signature, so either installs right over the other and you can switch any time</li>
               <li>Sign in — the app auto-detects your company workspace</li>
             </ol>
           </div>

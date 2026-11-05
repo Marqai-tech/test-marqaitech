@@ -14,6 +14,7 @@
  */
 import { sendTenantEmail } from '@/lib/notification-channels';
 import { createNotification } from '@/lib/notifications';
+import { buildBrandedEmailForTenant } from '@/lib/tenant-branding';
 
 export const TASK_TYPES = ['customisation', 'rework', 'development', 'bug'] as const;
 export const WORKFLOW_STEPS = ['testing', 're_testing', 'production', 'delivery'] as const;
@@ -185,7 +186,12 @@ async function fanOutTaskAlert(
     }
     if (r.email && r.email.includes('@')) {
       try {
-        const res = await sendTenantEmail(db, tenantId as string, { to: r.email, subject: emailSubject, html: emailHtml });
+        // REQ 5 — wrap the task-board card in the tenant-branded template.
+        const brandedHtml = await buildBrandedEmailForTenant(tenantId as string, {
+          title: emailSubject,
+          bodyHtml: emailHtml,
+        });
+        const res = await sendTenantEmail(db, tenantId as string, { to: r.email, subject: emailSubject, html: brandedHtml });
         if (res?.success) result.emails += 1;
         else result.errors.push(`email to ${r.email}: ${res?.error || 'no channel'}`);
       } catch (e: any) {

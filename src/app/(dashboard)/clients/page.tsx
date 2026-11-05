@@ -15,6 +15,9 @@ import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import SeedEcosystemButton from '@/components/SeedEcosystemButton';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
+/* Task 156-d — shared SmartHR widgets (white Panels); the shell now renders
+   the SmartHR gradient banner itself. */
+import { Panel } from '@/components/dashboard/smarthr-widgets';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -69,6 +72,8 @@ function ClientsPageContent() {
     <ModuleDashboardShell
       moduleKey="external"
       moduleLabel="External Relations"
+      title="External Dashboard"
+      trail={['Clients', 'Dashboard']}
       moduleIcon={<FiGlobe className="w-5 h-5 text-white" />}
       gradientColor="from-teal-500 to-teal-600"
       tabs={externalTabs}
@@ -212,28 +217,40 @@ function ClientsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div><h1 className="text-2xl font-bold text-thb-text-primary">Clients</h1><p className="text-thb-text-secondary mt-1">Manage client relationships and details</p></div>
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
+        <div className="flex items-center gap-2 flex-wrap">
           <SeedEcosystemButton module="clients" label="Seed Sample Clients" compact />
-          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Client</button>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
+            <FiPlus className="w-4 h-4" /> Add Client
+          </button>
         </div>
       </div>
 
       <ModuleTips moduleKey="clients" title="Client Tips" tips={clientTips} userRole={user?.role} />
       <ModuleWorkflow moduleKey="clients" title="How to Manage Client Relationships" subtitle="Follow this workflow to build strong client partnerships" steps={clientWorkflowSteps} accentColor="violet" userRole={user?.role} />
 
-      <div className="relative max-w-sm">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-        <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search clients..." className="w-full pl-9 pr-4 py-2.5 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
-      </div>
+      {/* All Clients — SmartHR Panel (search + card grid + loading/empty states) */}
+      <Panel
+        title="All Clients"
+        icon={<FiBriefcase className="w-4 h-4" />}
+        accent="text-[#3A57C4]"
+        action={<span className="text-xs font-medium text-slate-500">{filtered.length} client{filtered.length === 1 ? '' : 's'}</span>}
+      >
+        <div className="space-y-4">
+          <div className="relative max-w-sm">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search clients..." className="w-full pl-9 pr-4 py-2.5 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3A57C4]/20 focus:border-[#3A57C4]" />
+          </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="thb-card p-5 animate-pulse"><div className="h-5 w-3/4 bg-slate-200 rounded mb-3" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
-      ) : filtered.length === 0 ? (
-        <div className="thb-card p-12 text-center"><FiBriefcase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary">No clients found</p></div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="thb-card p-5 animate-pulse"><div className="h-5 w-3/4 bg-slate-200 rounded mb-3" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
+          ) : filtered.length === 0 ? (
+            <div className="thb-card p-12 text-center"><FiBriefcase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary">No clients found</p></div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((c) => (
             <div key={c.id} className="thb-card overflow-hidden">
               {deleteConfirmId === c.id ? (
@@ -268,23 +285,28 @@ function ClientsContent() {
               )}
             </div>
           ))}
+            </div>
+          )}
         </div>
-      )}
+      </Panel>
 
-      {/* View-Only Panel */}
+      {/* View-Only Panel — SmartHR Panel */}
       {viewingId && (() => {
         const client = clients.find(c => c.id === viewingId);
         if (!client) return null;
         return (
-          <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-thb-text-primary">Client Details</h2>
+          <div id="view-panel">
+            <Panel
+              title="Client Details"
+              icon={<FiEye className="w-4 h-4" />}
+              accent="text-[#10B981]"
+              action={
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleEdit(client)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
-                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                  <button onClick={() => handleEdit(client)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-xs font-semibold shadow-sm hover:opacity-90 transition-all"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" aria-label="Close"><FiX className="w-5 h-5" /></button>
                 </div>
-              </div>
+              }
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div><span className="text-xs font-medium text-thb-text-secondary">Name</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{client.name}</p></div>
                 <div><span className="text-xs font-medium text-thb-text-secondary">Code</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{client.code || '—'}</p></div>
@@ -299,21 +321,22 @@ function ClientsContent() {
                 <div><span className="text-xs font-medium text-thb-text-secondary">Billing Currency</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiDollarSign className="w-3.5 h-3.5 text-thb-text-muted" />{client.billingCurrency || '—'}</p></div>
                 <div><span className="text-xs font-medium text-thb-text-secondary">Payment Terms</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5 text-thb-text-muted" />{client.paymentTerms ? client.paymentTerms.replace('net_', 'Net ').replace('_', ' ') : '—'}</p></div>
               </div>
-            </div>
+            </Panel>
           </div>
         );
       })()}
 
-      {/* CRUD Form */}
+      {/* CRUD Form — SmartHR Panel */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-thb-text-primary">
-                {editingId ? 'Edit Client' : 'Add New Client'}
-              </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
-            </div>
+        <div id="crud-form">
+          <Panel
+            title={editingId ? 'Edit Client' : 'Add New Client'}
+            icon={<FiEdit2 className="w-4 h-4" />}
+            accent="text-[#FF9B44]"
+            action={
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" aria-label="Close"><FiX className="w-5 h-5" /></button>
+            }
+          >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
@@ -338,10 +361,10 @@ function ClientsContent() {
               </div>
               <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
                 <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add Client'}</button>
+                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 shadow-sm transition-all">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add Client'}</button>
               </div>
             </form>
-          </div>
+          </Panel>
         </div>
       )}
     </div>

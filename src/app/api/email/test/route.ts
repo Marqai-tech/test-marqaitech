@@ -114,7 +114,11 @@ export async function POST(request: Request) {
       isSandbox,
       usedFallbackFrom: result.usedFallbackFrom,
       sandboxWarning: result.sandboxWarning,
-      error: result.error,
+      via: (result as any).via || 'unknown',
+      error: result.error || undefined,
+      smtpHost: process.env.SMTP_HOST || 'not set',
+      smtpPasswordSet: !!process.env.SMTP_PASSWORD,
+      resendKeySet: !!process.env.RESEND_API_KEY,
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[Email Test POST] Error:', error);

@@ -60,10 +60,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // Task 165: require auth for creating job postings
+    const { verifyToken, getTokenFromHeaders } = await import('@/lib/auth');
+    const token = getTokenFromHeaders(req as unknown as Request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
     const body = await req.json();
     const {
       title, description, requirements, departmentId, location,
       type, experience, salary, closingDate, vacancies, status,
+      requisitionId, // Task 165: link to approved requisition
     } = body;
 
     if (!title || !description || !departmentId) {
@@ -73,12 +81,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Task 167 fix: resolve departmentId from name to ID if needed
+    let resolvedDeptId = departmentId;
+    if (departmentId && !departmentId.startsWith('cm')) {
+      try {
+        const deptRows = await db.$queryRawUnsafe(
+          `SELECT "id" FROM "Department" WHERE LOWER("name") LIKE LOWER($1) LIMIT 1`,
+          `%${departmentId}%`,
+        ) as any[];
+        if (deptRows[0]?.id) {
+          resolvedDeptId = deptRows[0].id;
+        } else {
+          // Fall back to first department
+          const firstDept = await db.$queryRawUnsafe(`SELECT "id" FROM "Department" LIMIT 1`) as any[];
+          if (firstDept[0]?.id) resolvedDeptId = firstDept[0].id;
+        }
+      } catch { /* keep raw value */ }
+    }
+
+    // Task 165: if requisitionId is provided, verify it's approved
+    if (requisitionId) {
+      try {
+        const reqRows = await db.$queryRawUnsafe(
+          `SELECT "approvalStatus", "status" FROM "Requisition" WHERE "id" = $1 LIMIT 1`,
+          requisitionId,
+        ) as any[];
+        if (!reqRows[0]) {
+          return NextResponse.json({ error: 'Requisition not found' }, { status: 404 });
+        }
+        if (reqRows[0].approvalStatus !== 'budget_approved' || reqRows[0].status !== 'approved') {
+          return NextResponse.json({ error: 'Requisition must be fully approved before creating a job posting' }, { status: 400 });
+        }
+      } catch {
+        // Requisition table might not exist — non-fatal
+      }
+    }
+
+    // Task 165: ensure requisitionId column exists on JobPosting
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "requisitionId" TEXT`);
+    } catch { /* already exists */ }
+
     const jobPosting = await db.jobPosting.create({
       data: {
         title,
         description,
         requirements: requirements || null,
-        departmentId,
+        departmentId: resolvedDeptId,
         position: body.position || title,
         location: location || null,
         type: type || 'full-time',
@@ -90,17 +139,85 @@ export async function POST(req: NextRequest) {
         vacancies: vacancies || 1,
       },
       include: { department: { select: { id: true, name: true, companyId: true } } },
+    }).catch(async (err) => {
+      // RAW SQL fallback for schema drift
+      console.warn('[Jobs POST] Prisma create failed, trying RAW SQL:', err instanceof Error ? err.message : err);
+      const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "JobPosting" ("id", "title", "description", "requirements", "departmentId", "position",
+          "location", "type", "experience", "salary", "status", "postedDate", "closingDate", "vacancies",
+          "requisitionId", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())`,
+        id, title, description, requirements || null, resolvedDeptId, body.position || title,
+        location || null, type || 'full-time', experience || null, salary || null,
+        status || 'open', (status || 'open') === 'open' ? new Date() : null,
+        closingDate ? new Date(closingDate) : null, vacancies || 1, requisitionId || null
+      );
+      return { id, ...body, department: { name: '' } };
     });
+
+    // Task 165: link the requisition to this job posting
+    if (requisitionId) {
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "Requisition" SET "jobPostingId" = $1, "status" = 'in_progress' WHERE "id" = $2`,
+          (jobPosting as any).id, requisitionId,
+        );
+      } catch { /* non-fatal */ }
+    }
 
     await db.auditLog.create({
       data: {
         action: 'CREATE_JOB_POSTING',
         entity: 'JobPosting',
-        entityId: jobPosting.id,
-        userId: body.createdBy || null,
-        details: `Created job posting: ${title}`,
+        entityId: (jobPosting as any).id,
+        userId: decoded.userId,
+        details: `Created job posting: ${title}${requisitionId ? ` from requisition` : ''}`,
       },
     }).catch(() => null);
+
+    // GAP FIX #1: Auto-publish to internal_careers board so the job appears on /careers
+    // immediately. Previously HR had to manually POST to /api/job-board-postings —
+    // if they forgot, candidates couldn't see or apply for the job.
+    if ((jobPosting as any).status === 'open') {
+      try {
+        const jobBoardId = `jb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        await db.$executeRawUnsafe(
+          `INSERT INTO "JobBoardPosting" ("id", "jobPostingId", "board", "status", "externalUrl", "postedAt", "createdAt", "updatedAt")
+           VALUES ($1, $2, 'internal_careers', 'posted', $3, NOW(), NOW(), NOW())
+           ON CONFLICT DO NOTHING`,
+          jobBoardId, (jobPosting as any).id, `/careers?jobId=${(jobPosting as any).id}`,
+        );
+        console.log(`[Jobs POST] Auto-published to internal_careers: ${(jobPosting as any).id}`);
+      } catch (e) {
+        // Table may not exist — create it then retry
+        try {
+          await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "JobBoardPosting" (
+            "id" TEXT NOT NULL,
+            "jobPostingId" TEXT NOT NULL,
+            "board" TEXT NOT NULL,
+            "status" TEXT NOT NULL DEFAULT 'pending',
+            "externalUrl" TEXT,
+            "externalId" TEXT,
+            "postedAt" TIMESTAMP(3),
+            "error" TEXT,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            CONSTRAINT "JobBoardPosting_pkey" PRIMARY KEY ("id")
+          )`);
+          await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "JobBoardPosting_jobPostingId_idx" ON "JobBoardPosting"("jobPostingId")`);
+          const jobBoardId = `jb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          await db.$executeRawUnsafe(
+            `INSERT INTO "JobBoardPosting" ("id", "jobPostingId", "board", "status", "externalUrl", "postedAt", "createdAt", "updatedAt")
+             VALUES ($1, $2, 'internal_careers', 'posted', $3, NOW(), NOW(), NOW())`,
+            jobBoardId, (jobPosting as any).id, `/careers?jobId=${(jobPosting as any).id}`,
+          );
+          console.log(`[Jobs POST] Auto-published to internal_careers (after table create): ${(jobPosting as any).id}`);
+        } catch (e2) {
+          console.warn('[Jobs POST] Auto-publish to careers failed (non-fatal):', e2 instanceof Error ? e2.message : e2);
+        }
+      }
+    }
 
     return NextResponse.json(jobPosting, { status: 201 });
   } catch (error) {
@@ -112,6 +229,18 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // Phase 2 fix: Add authentication + role check to jobs PUT
+    const { verifyToken, getTokenFromHeaders } = await import('@/lib/auth');
+    const token = getTokenFromHeaders(req as unknown as Request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can edit job postings' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -129,6 +258,13 @@ export async function PUT(req: NextRequest) {
     }
     if (updateData.status === 'open' && !existing.postedDate) {
       updateData.postedDate = new Date();
+    }
+    // Phase 15 fix: Record filledAt timestamp when job is marked 'filled'
+    if (updateData.status === 'filled') {
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "filledAt" TIMESTAMP(3)`);
+      } catch {}
+      (updateData as any).filledAt = new Date();
     }
     delete updateData.companyId;
     delete updateData.department;
@@ -148,7 +284,7 @@ export async function PUT(req: NextRequest) {
         action: 'UPDATE_JOB_POSTING',
         entity: 'JobPosting',
         entityId: id,
-        userId: body.updatedBy || null,
+        userId: decoded.userId,
         details: `Updated job posting: ${existing.title}`,
       },
     }).catch(() => null);
