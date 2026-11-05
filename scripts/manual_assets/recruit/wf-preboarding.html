@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 1200px 395px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 1200px; height: 395px; background: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1200px; height: 395px; position: relative; padding: 24px 30px; box-sizing: border-box; }
+  .lane-label { font-size: 18px; font-weight: 700; letter-spacing: 1.5px; color: #365345; text-transform: uppercase; margin-bottom: 12px; }
+  .row { display: flex; align-items: stretch; justify-content: space-between; width: 100%; }
+  .stage {
+    flex: 1 1 0; min-width: 150px;
+    background: #f4f7f5; border: 1.5px solid #b9d0c4; border-radius: 9px;
+    padding: 11px 10px 9px 10px; box-sizing: border-box; text-align: center;
+  }
+  .stage.gated { border-color: #288a59; border-width: 2px; }
+  .stage-num {
+    display: inline-block; background: #365345; color: #ffffff; font-size: 14px;
+    font-weight: 700; border-radius: 6px; padding: 2px 9px;
+  }
+  .stage h4 { margin: 6px 0 4px 0; font-size: 21px; font-weight: 800; color: #222523; line-height: 1.15; }
+  .stage .key { font-size: 15px; color: #6c7a72; font-family: 'Courier New', monospace; }
+  .stage .sla { display: inline-block; margin-top: 6px; background: #e7f2ec; color: #1d6b45; font-size: 15px; font-weight: 700; border-radius: 14px; padding: 2px 8px; }
+  .stage .notify { display: block; margin-top: 5px; font-size: 15px; color: #4d5a53; }
+  .arrow { flex: 0 0 24px; display: flex; align-items: center; justify-content: center; }
+  .gates { margin-top: 20px; display: flex; gap: 16px; }
+  .gate {
+    flex: 1 1 0; background: #eef4f0; border: 1.5px solid #288a59; border-radius: 9px;
+    padding: 11px 14px; box-sizing: border-box; font-size: 18px; color: #1d6b45; line-height: 1.4;
+  }
+  .gate b { font-size: 19px; }
+  .stage .key { display: block; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="lane-label">Stage machine &#8212; converted candidates enter at the first enabled stage after offer acceptance</div>
+  <div class="row">
+    <div class="stage"><span class="stage-num">1</span><h4>Offer Accepted</h4><span class="key">offer_accepted</span><span class="sla">SLA 2d</span><span class="notify">notify: hr_admin</span></div>
+    <div class="arrow"><svg width="20" height="20" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage gated"><span class="stage-num">2</span><h4>Document Collection</h4><span class="key">document_collection</span><span class="sla">SLA 5d</span><span class="notify">notify: hr_admin</span></div>
+    <div class="arrow"><svg width="20" height="20" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage"><span class="stage-num">3</span><h4>Background Verification</h4><span class="key">bgv</span><span class="sla">SLA 7d</span><span class="notify">notify: hr_admin</span></div>
+    <div class="arrow"><svg width="20" height="20" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage"><span class="stage-num">4</span><h4>IT Provisioning</h4><span class="key">provisioning</span><span class="sla">SLA 3d</span><span class="notify">notify: it_admin</span></div>
+    <div class="arrow"><svg width="20" height="20" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage"><span class="stage-num">5</span><h4>Asset Request</h4><span class="key">asset_request</span><span class="sla">SLA 2d</span><span class="notify">notify: admin</span></div>
+    <div class="arrow"><svg width="20" height="20" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage gated"><span class="stage-num">6</span><h4>Day 1 Ready / Joined</h4><span class="key">joined</span><span class="sla">terminal</span></div>
+  </div>
+  <div class="gates">
+    <div class="gate"><b>Gate &#8212; HR verification:</b> "Require HR verification before joining" holds the candidate at Stage 6 until an HR user marks HR Verified.</div>
+    <div class="gate"><b>Gate &#8212; document block:</b> "Block Joined until all documents collected" prevents reaching Day 1 Ready with pending documents.</div>
+    <div class="gate"><b>Advance rule:</b> disabled stages are skipped and cannot be set &#8212; transitions to them are rejected by the API.</div>
+  </div>
+</div>
+</body>
+</html>

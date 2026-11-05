@@ -1,0 +1,12 @@
+{
+  "regions": ["sin1"],
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "buildCommand": "npx prisma generate && node scripts/schema-sync.js && npx next build",
+  "crons": [
+    {
+      "path": "/api/cron/birthday-greetings",
+      "schedule": "30 2 * * *"
+    }
+  ]
+}

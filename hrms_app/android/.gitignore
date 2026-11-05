@@ -1,0 +1,19 @@
+gradle-wrapper.jar
+/.gradle
+/captures/
+/gradlew
+/gradlew.bat
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks
+# Task 110b EXCEPTION: the PERMANENT release signing key IS committed on
+# purpose — it is the whole fix for upgrade-blocking signature churn across
+# sandbox rebuilds. Do not re-ignore it.
+!key.properties
+!app/release-key.jks

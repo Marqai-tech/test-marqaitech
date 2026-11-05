@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Roles &amp; Permissions Matrix</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html, body { margin:0; padding:0; background:#f7faf8; }
+  .s11 { padding:42px 56px 0; display:flex; flex-direction:column; }
+  .s11 .title { font-family:var(--font-heading); font-size:30px; font-weight:800; letter-spacing:-0.5px; color:var(--primary); margin-top:8px; line-height:1.15; }
+  .headrow { display:flex; align-items:flex-end; justify-content:space-between; }
+  .legend { display:flex; align-items:center; gap:8px; padding-bottom:5px; }
+  .legend .lg-lab { font-size:10px; font-weight:800; letter-spacing:1.6px; text-transform:uppercase; color:var(--muted); margin-right:2px; }
+  .pill-view { background:#ffffff; border:1px solid #b7cfc0; color:#35604a; }
+  .pill-lock { background:var(--primary); color:#f2f8f4; }
+  .pill-rev { color:#8a5a12; }
+  .matrix-card { margin-top:14px; overflow:hidden; }
+  table.matrix { width:100%; border-collapse:collapse; }
+  .matrix thead th { background:#35604a; color:#ffffff; font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; padding:9px 18px; text-align:left; }
+  .matrix thead th.c { text-align:center; }
+  .matrix tbody td { font-size:11.5px; color:var(--text); padding:5px 18px; border-top:1px solid #e4efe8; height:30px; }
+  .matrix tbody tr:nth-child(even) { background:var(--stripe); }
+  .matrix tbody td.cap { font-weight:600; color:#22312a; }
+  .matrix tbody td.c { text-align:center; }
+  .matrix .pill { padding:3px 11px; }
+  .note { display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .note .material-icons { font-size:17px; color:var(--accent); }
+  .note p { margin:0; font-size:12px; color:var(--muted); }
+  .note p strong { color:var(--primary); font-weight:700; }
+</style>
+</head>
+<body>
+<div class="slide s11">
+  <div class="headrow">
+    <div>
+      <span class="kicker">GOVERNANCE</span>
+      <h1 class="title">Who can do what — the same model as web</h1>
+    </div>
+    <div class="legend" data-decor aria-hidden="true">
+      <span class="lg-lab">Legend</span>
+      <span class="pill pill-yes">Yes</span>
+      <span class="pill pill-view">View</span>
+      <span class="pill pill-rev">Via HR</span>
+      <span class="pill pill-lock">Locked</span>
+      <span class="pill pill-no">No</span>
+    </div>
+  </div>
+
+  <div class="card matrix-card">
+    <table class="matrix">
+      <colgroup>
+        <col style="width:46%">
+        <col style="width:18%">
+        <col style="width:18%">
+        <col style="width:18%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th class="c">Employee</th>
+          <th class="c">HR / Admin</th>
+          <th class="c">CEO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cap">Check in/out, breaks, regularisation</td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Apply for leave (self)</td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Approve or reject leave, apply on behalf</td>
+          <td class="c"><span class="pill pill-no">No</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">View own payslips</td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Employee directory with experience</td>
+          <td class="c"><span class="pill pill-no">No</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Add / view employees, documents</td>
+          <td class="c"><span class="pill pill-no">No</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-view">View</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Reports (leave/attendance/employees/projects)</td>
+          <td class="c"><span class="pill pill-no">No</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Team attendance + daily status</td>
+          <td class="c"><span class="pill pill-no">No</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Approve / reject profile photos</td>
+          <td class="c"><span class="pill pill-no">No</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-no">No</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Edit own contact details (HR notified)</td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Edit DOB / first / last name</td>
+          <td class="c"><span class="pill pill-lock">Locked</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-rev">Via HR</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Send birthday wishes</td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Raise &amp; reply to Help Desk tickets (self-scope)</td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="cap">View all tickets &amp; change ticket status</td>
+          <td class="c"><span class="pill pill-lock">No</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-rev">View</span></td>
+        </tr>
+        <tr>
+          <td class="cap">Chat on projects &amp; teams (mobile + web)</td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+          <td class="c"><span class="pill pill-yes">Yes</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <i class="material-icons" data-decor aria-hidden="true">security</i>
+    <p>Every sensitive action is validated server-side — <strong>the app never grants a right the web would deny.</strong></p>
+  </div>
+</div>
+</body>
+</html>

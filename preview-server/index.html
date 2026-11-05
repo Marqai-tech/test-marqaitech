@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3Boxes HRMS — User Manuals &amp; SOPs</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: linear-gradient(135deg, #065f46 0%, #10b981 100%);
+    color: #fff;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(6, 95, 70, .25);
+  }
+  .logo {
+    width: 42px; height: 42px;
+    background: rgba(255,255,255,.15);
+    border: 2px solid rgba(255,255,255,.6);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 17px; letter-spacing: -.5px;
+    flex-shrink: 0;
+  }
+  .title-block { flex: 1; min-width: 220px; }
+  .title-block h1 { font-size: 17px; font-weight: 700; line-height: 1.25; }
+  .title-block p { font-size: 12px; opacity: .85; margin-top: 2px; }
+  .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.45);
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .tab:hover { background: rgba(255,255,255,.12); }
+  .tab.active { background: #fff; color: #065f46; border-color: #fff; }
+  .download-btn {
+    padding: 9px 16px;
+    border-radius: 8px;
+    background: #fbbf24;
+    color: #78350f;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .download-btn:hover { background: #fcd34d; transform: translateY(-1px); }
+  main { flex: 1; padding: 16px 24px 20px; display: flex; }
+  .frame-wrap {
+    flex: 1;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(15, 23, 42, .10);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .frame-note {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .frame-note a { color: #059669; font-weight: 600; text-decoration: none; }
+  .frame-note a:hover { text-decoration: underline; }
+  iframe { flex: 1; width: 100%; border: 0; background: #525659; }
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: #94a3b8;
+    padding: 8px 0 10px;
+  }
+  @media (max-width: 640px) {
+    header { padding: 12px 14px; }
+    main { padding: 10px 12px 14px; }
+    .title-block h1 { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">3B</div>
+    <div class="title-block">
+      <h1 id="docTitle">Project Management — User Manual &amp; SOP</h1>
+      <p id="docSub">3Boxes HRMS · people · process · technology</p>
+    </div>
+    <div class="controls">
+      <button class="tab active" id="tabPM" onclick="showDoc('pm')">Project Management</button>
+      <button class="tab" id="tabRPO" onclick="showDoc('rpo')">Recruitment &amp; Onboarding</button>
+      <a class="download-btn" id="dlBtn" href="/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf" download>&#11015; Download PDF</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="frame-wrap">
+      <div class="frame-note">
+        <span id="docMeta">31 pages · A4 · 13 exhibits · clickable table of contents &amp; sidebar bookmarks</span>
+        <a id="openBtn" href="/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf" target="_blank" rel="noopener">Open in new tab &#8599;</a>
+      </div>
+      <iframe id="pdfFrame" src="/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf#view=FitH"
+              title="PDF viewer"></iframe>
+    </div>
+  </main>
+
+  <footer>3Boxes HRMS — User Manuals &amp; SOPs · For internal training and process reference</footer>
+
+<script>
+  var DOCS = {
+    pm: {
+      file: '/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf',
+      title: 'Project Management — User Manual & SOP',
+      meta: '31 pages · A4 · 13 exhibits · clickable table of contents & sidebar bookmarks'
+    },
+    rpo: {
+      file: '/3Boxes-HRMS-Recruitment-Preboarding-Onboarding-User-Manual-SOP.pdf',
+      title: 'Recruitment · Preboarding · Onboarding — User Manual & SOP',
+      meta: 'Detailed module-wise SOP with workflow configuration guides and workflow diagrams'
+    }
+  };
+  function showDoc(key) {
+    var d = DOCS[key];
+    document.getElementById('pdfFrame').src = d.file + '#view=FitH';
+    document.getElementById('docTitle').textContent = d.title;
+    document.getElementById('docMeta').textContent = d.meta;
+    document.getElementById('dlBtn').href = d.file;
+    document.getElementById('openBtn').href = d.file;
+    document.getElementById('tabPM').classList.toggle('active', key === 'pm');
+    document.getElementById('tabRPO').classList.toggle('active', key === 'rpo');
+  }
+</script>
+</body>
+</html>

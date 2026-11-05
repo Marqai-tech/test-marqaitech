@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 1080px 634px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 1080px; height: 634px; background: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1080px; height: 634px; position: relative; padding: 22px 24px; box-sizing: border-box; }
+  .lane-label { font-size: 20px; font-weight: 800; letter-spacing: 1.2px; color: #365345; margin-bottom: 10px; }
+  .row { display: flex; align-items: stretch; justify-content: space-between; width: 100%; margin-bottom: 18px; }
+  .stage {
+    flex: 1 1 0; min-width: 190px;
+    background: #f4f7f5; border: 1.5px solid #b9d0c4; border-radius: 10px;
+    padding: 13px 13px 11px 13px; box-sizing: border-box; position: relative;
+  }
+  .stage.gate { background: #fdf6ec; border-color: #dcbf94; }
+  .stage.done { background: #e7f2ec; border-color: #288a59; }
+  .stage-num {
+    display: inline-block; background: #365345; color: #ffffff; font-size: 17px;
+    font-weight: 700; border-radius: 6px; padding: 2px 9px; letter-spacing: 0.5px;
+  }
+  .stage-num.gate { background: #8a6320; }
+  .stage-num.done { background: #1d6b45; }
+  .stage h3 { margin: 8px 0 6px 0; font-size: 24px; font-weight: 800; color: #222523; line-height: 1.12; }
+  .stage li { font-size: 20px; color: #4d5a53; line-height: 1.32; margin-bottom: 3px; }
+  .stage ul { margin: 0; padding-left: 20px; }
+  .chip {
+    margin-top: 7px; display: inline-block; background: #e7f2ec; border: 1px solid #288a59;
+    color: #1d6b45; font-size: 17px; font-weight: 700; border-radius: 20px; padding: 2px 10px;
+  }
+  .chip.gate { background: #fbf0dc; border-color: #b98a2e; color: #7c5a1a; }
+  .arrow { flex: 0 0 30px; display: flex; align-items: center; justify-content: center; }
+  .arrow svg { display: block; }
+  .loopnote {
+    margin-top: 14px; border-top: 2px dashed #b9d0c4; padding-top: 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .loopnote svg { flex: 0 0 auto; }
+  .loopnote span { font-size: 19px; color: #365345; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="lane-label">PERFORMANCE INTEGRATION LOOP — REVIEW TO SKILL RATING (TNI FLYWHEEL)</div>
+  <div class="row">
+    <div class="stage">
+      <span class="stage-num">1</span>
+      <h3>Performance Review</h3>
+      <ul><li>Manager rates skills 0–10</li><li>Improvements noted</li><li>Review signed off</li></ul>
+      <span class="chip">Trigger event</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">2</span>
+      <h3>Skill Gap Identified</h3>
+      <ul><li>Rating &lt; 6/10 threshold</li><li>Max 3 flags per review</li><li>Status: open / suggested</li></ul>
+      <span class="chip">SkillGap record</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">3</span>
+      <h3>Auto-Suggest Course</h3>
+      <ul><li>Catalog skills matched</li><li>suggestedCourseId set</li><li>One-click enrol</li></ul>
+      <span class="chip gate">Status: suggested</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">4</span>
+      <h3>Linked to IDP / OKR</h3>
+      <ul><li>goalId / okrId on enrolment</li><li>Development goal visible</li><li>Promotion-track gate</li></ul>
+      <span class="chip gate">Link Goal action</span>
+    </div>
+  </div>
+  <div class="row" style="margin-bottom:0">
+    <div class="stage done">
+      <span class="stage-num done">5</span>
+      <h3>Course Completed</h3>
+      <ul><li>Score ≥ passing score</li><li>Certificate auto-issued</li><li>Gap → in_training</li></ul>
+      <span class="chip">Auto on pass</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage done">
+      <span class="stage-num done">6</span>
+      <h3>Skill Record Updated</h3>
+      <ul><li>Gap status → closed</li><li>resolvedEnrollmentId</li><li>Analytics reflect delta</li></ul>
+      <span class="chip">Next review sees uplift</span>
+    </div>
+    <div class="stage" style="flex: 2 1 0; background:#ffffff; border-style:dashed;">
+      <span class="stage-num" style="background:#478d6a">LOOP</span>
+      <h3>Closed-Loop TNI</h3>
+      <ul><li>The next review cycle re-rates the skill.</li><li>Gaps that persist re-enter training; gaps</li><li>that closed raise the skill rating — measurable</li><li>evidence for promotion readiness.</li></ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>

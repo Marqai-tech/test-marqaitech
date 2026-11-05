@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Golden Rules &amp; Troubleshooting</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html, body { margin:0; padding:0; background:#f7faf8; }
+  .s12 { padding:52px 56px 0; display:flex; flex-direction:column; }
+  .s12 .title { font-family:var(--font-heading); font-size:32px; font-weight:800; letter-spacing:-0.5px; color:var(--primary); margin-top:9px; line-height:1.15; }
+  .content-row { display:flex; gap:18px; margin-top:16px; height:470px; }
+  .rules-card { width:424px; flex-shrink:0; padding:20px 22px 14px; display:flex; flex-direction:column; }
+  .rules-card h3 { font-family:var(--font-heading); font-size:16.5px; font-weight:800; color:var(--primary); margin:0; letter-spacing:-0.2px; }
+  .rules-card .tbar { width:26px; height:3px; border-radius:2px; background:var(--accent-2); margin-top:8px; }
+  .rules-items { flex:1; display:flex; flex-direction:column; margin-top:6px; }
+  .rule { flex:1; display:flex; align-items:center; gap:12px; }
+  .rule + .rule { border-top:1px solid #e4efe8; }
+  .rule .material-icons { font-size:19px; color:var(--accent); flex-shrink:0; }
+  .rule p { margin:0; font-size:12.6px; line-height:1.45; color:var(--text); font-weight:500; }
+  .fix-card { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .fix-head { display:flex; align-items:center; background:#35604a; color:#ffffff; font-size:10.5px; font-weight:800; letter-spacing:1.6px; text-transform:uppercase; padding:11px 20px; }
+  .fix-head .prob { width:176px; }
+  .fix-body { flex:1; display:flex; flex-direction:column; }
+  .fix-row { flex:1; display:flex; align-items:center; gap:16px; padding:0 20px; }
+  .fix-row + .fix-row { border-top:1px solid #e4efe8; }
+  .fix-row .prob { width:176px; flex-shrink:0; font-size:12.5px; font-weight:800; color:var(--primary); line-height:1.3; }
+  .fix-row .fix { flex:1; font-size:12.2px; line-height:1.45; color:var(--text); }
+  .esc { margin-top:14px; height:62px; background:var(--accent-tint); border-radius:12px; display:flex; align-items:center; gap:13px; padding:0 22px; }
+  .esc-lab { font-size:11px; font-weight:800; letter-spacing:2.2px; text-transform:uppercase; color:var(--accent); margin-right:4px; }
+  .esc-chip { background:#ffffff; border:1px solid #c7ddd0; border-radius:20px; padding:6px 15px; font-size:12px; font-weight:700; color:var(--primary); white-space:nowrap; }
+  .esc .material-icons { font-size:18px; color:var(--accent); }
+  .esc-note { font-size:11.5px; font-style:italic; color:#4e6157; margin-left:2px; }
+</style>
+</head>
+<body>
+<div class="slide s12">
+  <div>
+    <span class="kicker">SUPPORT</span>
+    <h1 class="title">Six habits, nine fixes, one escalation path</h1>
+  </div>
+
+  <div class="content-row">
+    <div class="card rules-card">
+      <h3>Golden rules</h3>
+      <div class="tbar" data-decor aria-hidden="true"></div>
+      <div class="rules-items">
+        <div class="rule">
+          <i class="material-icons" data-decor aria-hidden="true">check_circle</i>
+          <p>Punch in and out every working day with location enabled</p>
+        </div>
+        <div class="rule">
+          <i class="material-icons" data-decor aria-hidden="true">check_circle</i>
+          <p>Apply for leave in advance — regularisation only for genuine misses</p>
+        </div>
+        <div class="rule">
+          <i class="material-icons" data-decor aria-hidden="true">check_circle</i>
+          <p>Keep your profile current — phone, address, emergency contacts, skills, experience letters</p>
+        </div>
+        <div class="rule">
+          <i class="material-icons" data-decor aria-hidden="true">check_circle</i>
+          <p>Never share your login or install the APK from unofficial sources</p>
+        </div>
+        <div class="rule">
+          <i class="material-icons" data-decor aria-hidden="true">check_circle</i>
+          <p>Check the notification bell daily and act on approvals the same day</p>
+        </div>
+        <div class="rule">
+          <i class="material-icons" data-decor aria-hidden="true">check_circle</i>
+          <p>Raise a Help Desk ticket instead of side-channel messages — tracked, searchable, answered faster</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card fix-card">
+      <div class="fix-head">
+        <span class="prob">Problem</span>
+        <span>Fix</span>
+      </div>
+      <div class="fix-body">
+        <div class="fix-row">
+          <span class="prob">APK blocked</span>
+          <span class="fix">Allow 'Install unknown apps' for the browser, reopen the file; upgrades install over the old app.</span>
+        </div>
+        <div class="fix-row">
+          <span class="prob">Cannot sign in</span>
+          <span class="fix">Verify credentials on web login; on the Mobile Number tab check the registered number; update the APK; ask HR/Admin for a reset.</span>
+        </div>
+        <div class="fix-row">
+          <span class="prob">OTP not received</span>
+          <span class="fix">Code goes to your registered email — check spam, Resend after the countdown, or switch to the Employee ID tab.</span>
+        </div>
+        <div class="fix-row">
+          <span class="prob">Ticket stuck</span>
+          <span class="fix">Reply in the thread with details — HR/Admin see it instantly; only HR/Admin change ticket status.</span>
+        </div>
+        <div class="fix-row">
+          <span class="prob">GPS punch rejected</span>
+          <span class="fix">Enable app location permission, remove fake-GPS apps, retry near a window.</span>
+        </div>
+        <div class="fix-row">
+          <span class="prob">Data looks stale</span>
+          <span class="fix">Pull to refresh; verify on web; ask HR to confirm save/release.</span>
+        </div>
+        <div class="fix-row">
+          <span class="prob">Notification missed</span>
+          <span class="fix">Open the bell tile; check Android notification permission.</span>
+        </div>
+        <div class="fix-row">
+          <span class="prob">Change locked/rejected</span>
+          <span class="fix">Identity fields locked by policy — contact HR/Admin; photo rejections include a reason.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="esc">
+    <span class="esc-lab">Escalation</span>
+    <span class="esc-chip">Employee</span>
+    <i class="material-icons" data-decor aria-hidden="true">arrow_forward</i>
+    <span class="esc-chip">HR/Admin</span>
+    <i class="material-icons" data-decor aria-hidden="true">arrow_forward</i>
+    <span class="esc-chip">Super admin</span>
+    <span class="esc-note">(include app version and affected account)</span>
+  </div>
+</div>
+</body>
+</html>

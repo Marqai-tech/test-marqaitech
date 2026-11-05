@@ -1,0 +1,89 @@
+name: Mobile App CI (APK + IPA)
+
+# Builds the Flutter mobile app (hrms_app/) for Android and iOS.
+#   - Android APK: runs on ubuntu (free minutes), on every push touching hrms_app/**
+#   - iOS unsigned IPA: runs on macos (METERED minutes on private repos — 10x),
+#     manual trigger (workflow_dispatch) or on version tags.
+# Built binaries are committed into public/downloads/ (skip-ci) so Vercel
+# serves them at /downloads/… automatically.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hrms_app/**'
+      - 'public/downloads/**'
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Android APK (universal)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: hrms_app
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings || true
+        working-directory: hrms_app
+      - run: flutter build apk --release
+        working-directory: hrms_app
+      - name: Commit APK into public/downloads (Vercel serves it)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cp hrms_app/build/app/outputs/flutter-apk/app-release.apk public/downloads/3boxes-hrms-mobile.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/downloads/3boxes-hrms-mobile.apk
+          git diff --cached --quiet || git commit -m "ci: update Android APK [skip ci]"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3boxes-hrms-android-apk
+          path: hrms_app/build/app/outputs/flutter-apk/app-release.apk
+
+  build-ipa:
+    name: iOS unsigned IPA
+    runs-on: macos-14
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: hrms_app
+      - run: flutter build ios --release --no-codesign
+        working-directory: hrms_app
+      - name: Package unsigned IPA
+        run: |
+          cd hrms_app/build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -qry 3boxes-hrms-mobile.ipa Payload
+          mkdir -p ../../../..//public/downloads
+          cp 3boxes-hrms-mobile.ipa "$GITHUB_WORKSPACE/public/downloads/3boxes-hrms-mobile.ipa"
+      - name: Commit IPA into public/downloads (Vercel serves it)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/downloads/3boxes-hrms-mobile.ipa
+          git diff --cached --quiet || git commit -m "ci: update iOS IPA [skip ci]"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3boxes-hrms-ios-ipa
+          path: hrms_app/build/ios/iphoneos/3boxes-hrms-mobile.ipa

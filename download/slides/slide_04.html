@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signing In — Welcome, Mobile Number or Employee ID, OTP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:#f7faf8;}
+  .material-icons{line-height:1;}
+  .icon-sq{width:34px;height:34px;border-radius:9px;background:var(--accent-tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .stepnum{width:30px;height:30px;font-size:14px;}
+  .bullet{font-size:12.3px;line-height:1.5;color:var(--muted);}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--accent-2);flex-shrink:0;margin-top:7px;}
+  .scr{border:2px solid var(--border);border-radius:14px;background:#1b2554;color:#eef1ff;padding:12px 14px;font-size:11px;line-height:1.45;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px;display:flex;flex-direction:column;">
+
+  <header>
+    <div class="kicker">GETTING STARTED</div>
+    <h1 style="margin:8px 0 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;color:var(--primary);">A brand-new way in — mobile number, employee ID, OTP &amp; fingerprint</h1>
+  </header>
+
+  <div class="flex" style="gap:24px;margin-top:22px;flex:1;min-height:0;">
+
+    <!-- LEFT: 5 numbered steps -->
+    <div class="flex flex-col" style="flex:1.32;gap:11px;">
+      <div class="card flex items-center" style="flex:1;padding:13px 20px;gap:14px;">
+        <div class="stepnum">1</div>
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Starry welcome screen</b> — deep-navy sky, the 3Boxes HRMS logo card, tagline "Your workplace, in one place". Tap the arrow to continue.</p>
+      </div>
+      <div class="card flex items-center" style="flex:1;padding:13px 20px;gap:14px;">
+        <div class="stepnum">2</div>
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Pick a tab</b> — violet gradient header with two sign-in methods: <b style="color:var(--primary);">Mobile Number</b> or <b style="color:var(--primary);">Employee ID</b>. Both lead to the same account.</p>
+      </div>
+      <div class="card flex items-center" style="flex:1;padding:13px 20px;gap:14px;">
+        <div class="stepnum">3</div>
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Mobile Number tab</b> — country code (+91 default) + registered number → <b style="color:var(--primary);">Continue →</b> sends a 6-digit one-time code. <b style="color:var(--primary);">Employee ID tab</b> — ID/email + password, Save me, Forgot password?, Sign in.</p>
+      </div>
+      <div class="card flex items-center" style="flex:1;padding:13px 20px;gap:14px;">
+        <div class="stepnum">4</div>
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Verify your number (OTP)</b> — six code boxes, resend countdown, Change number link. The code is delivered to your <b style="color:var(--primary);">registered email</b>; tap Verify &amp; continue.</p>
+      </div>
+      <div class="card flex items-center" style="flex:1;padding:13px 20px;gap:14px;">
+        <div class="stepnum">5</div>
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#33473c;"><b style="color:var(--primary);">Enable fingerprint / Face ID</b> — offered after the first sign-in; the next launch opens with a biometric prompt instead of the keyboard.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: side cards -->
+    <div class="flex flex-col" style="flex:1;gap:12px;">
+      <div class="card" style="flex:1;padding:15px 20px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">mark_email_unread</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">OTP tips</div>
+        </div>
+        <p style="margin:8px 0 0;font-size:12.2px;line-height:1.5;color:var(--muted);">Code lands in the email registered in HRMS — check spam, then tap <b style="color:var(--primary);">Resend</b> after the countdown. Codes are single-use and expire quickly; a new request invalidates the old one.</p>
+      </div>
+
+      <div class="card" style="flex:1;padding:15px 20px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">fingerprint</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">Biometric unlock</div>
+        </div>
+        <p style="margin:8px 0 0;font-size:12.2px;line-height:1.5;color:var(--muted);">Tied to the device's own fingerprint / face store — a colleague's finger simply will not open your app. On shared devices skip biometrics and sign out after use.</p>
+      </div>
+
+      <div class="card" style="flex:1;padding:15px 20px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="flex items-center" style="gap:10px;">
+          <div class="icon-sq"><i class="material-icons" style="font-size:18px;">support_agent</i></div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);">New employee? Contact HR</div>
+        </div>
+        <p style="margin:8px 0 0;font-size:12.2px;line-height:1.5;color:var(--muted);">Both tabs end with a Contact HR link for first-time users. Super admins keep the <b style="color:var(--primary);">Switch Workspace</b> tile for hopping between client workspaces.</p>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

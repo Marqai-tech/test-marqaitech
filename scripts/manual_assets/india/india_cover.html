@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  :root {
+    --c-bg: #f2f3f3;
+    --c-accent: #288a59;
+    --c-text: #222523;
+    --c-muted: #838d88;
+    --c-mid: #365345;
+    --c-surface: #e7ecea;
+  }
+  html, body {
+    margin: 0; padding: 0; width: 794px; height: 1123px;
+    background: var(--c-bg); font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  }
+  @media screen {
+    html { height: auto; display: flex; justify-content: center; min-height: 100vh; background: var(--c-bg); }
+    body { transform-origin: top center; scale: min(1, calc(100vw / 794), calc(100vh / 1123)); margin: 0 auto; box-shadow: 0 0 60px rgba(0,0,0,0.18); }
+  }
+  .cover { width: 794px; height: 1123px; position: relative; border: none; outline: none; box-shadow: none; }
+
+  /* Layer 1 - background grid (clipped) */
+  .layer-bg {
+    position: absolute; inset: 0; overflow: hidden; z-index: 1;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(54,83,69,0.05) 0, rgba(54,83,69,0.05) 0.5px, transparent 0.5px, transparent 66px),
+      repeating-linear-gradient(90deg, rgba(54,83,69,0.05) 0, rgba(54,83,69,0.05) 0.5px, transparent 0.5px, transparent 66px);
+  }
+
+  /* Layer 2 - structure: ultra-thick left anchor line */
+  .layer-lines { position: absolute; inset: 0; z-index: 2; }
+  .vline {
+    position: absolute; left: 87px; top: 112px; bottom: 112px;
+    width: 8px; background: var(--c-accent);
+  }
+
+  /* Layer 3 - content */
+  .layer-content { position: absolute; inset: 0; z-index: 3; }
+  .kicker {
+    position: absolute; left: 175px; top: 168px; max-width: 540px;
+    font-size: 21px; font-weight: 400; letter-spacing: 4px;
+    text-transform: uppercase; color: var(--c-text); opacity: 0.6;
+    line-height: 1.5;
+  }
+  .hero {
+    position: absolute; left: 175px; top: 300px; max-width: 560px;
+    font-size: 54px; font-weight: 900; line-height: 1.15;
+    color: var(--c-text); letter-spacing: -0.5px;
+  }
+  .summary {
+    position: absolute; left: 175px; top: 578px; max-width: 480px;
+    font-size: 22px; font-weight: 300; line-height: 1.6;
+    color: var(--c-text); opacity: 0.85;
+  }
+  .meta {
+    position: absolute; left: 175px; top: 858px; max-width: 520px;
+    font-size: 22px; font-weight: 400; color: var(--c-mid); line-height: 1.6;
+  }
+  .meta .meta-strong { font-weight: 600; color: var(--c-text); }
+  .meta .meta-sub { font-size: 19px; font-weight: 300; color: var(--c-muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="cover">
+    <div class="layer-bg"></div>
+    <div class="layer-lines"><div class="vline"></div></div>
+    <div class="layer-content">
+      <div class="kicker">User Manual &amp; Standard<br>Operating Procedures</div>
+      <div class="hero">Indian Payroll<br>Configuration<br>&amp; Operations</div>
+      <div class="summary">
+        The complete Indian statutory guide: CTC architecture with the balancing
+        Special Allowance, EPF &middot; ESIC &middot; PT &middot; LWF &middot; TDS under both
+        tax regimes, the Stage A/B/C processing cycle with the 5% variance gate,
+        filing-ready ECR to Form 16, the declaration-to-true-up loop, F&amp;F with
+        gratuity and encashment caps, and bank advice files with checksums.
+      </div>
+      <div class="meta">
+        <span class="meta-strong">3Boxes HRMS</span> &nbsp;|&nbsp; Version 1.0
+        <div class="meta-sub">Prepared by the 3Boxes Platform Team &middot; September 2026</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

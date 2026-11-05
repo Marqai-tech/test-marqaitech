@@ -1,0 +1,535 @@
+// ============================================================================
+// Role-Based Access Control Configuration for HRMS Application
+// ============================================================================
+//
+// Standard Roles (5):
+//   1. super_admin  (level 0) - Platform-level full access
+//   2. tenant_admin (level 1) - Tenant-level full access
+//   3. admin        (level 2) - Company-level admin access (HR, Finance, IT combined)
+//   4. manager      (level 3) - People-manager access (own + direct reports across all modules)
+//   5. employee     (level 4) - Self-service access (own records only)
+//
+// The 'manager' and 'employee' roles are first-class roles in the RBAC system:
+//   - employee: Sees their own records in employee/leave/attendance/payroll modules
+//     via the 'self' data scope. Sidebar shows self-service nav items.
+//   - manager: Sees their own + their direct reports' records via the 'team' data
+//     scope. Resolved via DottedLineManager(solid) + Employee.reportingManagerId.
+//
+// HR Admin / HR Manager (hr_admin) maps to 'admin' for full HR modules.
+// Employee, Finance Admin, and IT Admin are self-service only:
+// My Profile, Leave Application, Attendance, Documents, Helpdesk.
+//
+
+/** Roles that only get employee self-service menus (not HR / finance / IT admin suites). */
+export const SELF_SERVICE_ROLE_KEYS = [
+  'employee',
+  'finance_admin',
+  'finance',
+  'it_admin',
+  'candidate',
+  'job_seeker',
+];
+
+
+/**
+ * Role hierarchy level — lower number = higher privilege.
+ * Used for comparison logic where needed.
+ */
+export const ROLE_LEVELS: Record<string, number> = {
+  super_admin: 0,
+  tenant_admin: 1,
+  ceo: 1, // Task 129 — CEO has the same tenant-level privilege as tenant_admin
+  admin: 2,
+  manager: 3,
+  employee: 4,
+};
+
+/**
+ * Module access by role — defines which roles can access each module.
+ * This is the centralized access control configuration for sidebar and page-level guards.
+ *
+ * employee: self-service modules (view own data only)
+ * manager: same self-service modules + team visibility (own + direct reports)
+ */
+export const MODULE_ACCESS: Record<string, string[]> = {
+  dashboard: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  employees: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  company: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  onboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  attendance: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  leave: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  payroll: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  salary_structures: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  performance: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  training: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  learning: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  engagement: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  reports: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  settings: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  docs: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  helpdesk: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  assets: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  projects: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  invoices: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  expenses: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  travel: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  accounts: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  crm: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  it_admin_module: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  separation: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  grievances: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  super_admin: ['super_admin'],
+  tenant_admin_module: ['super_admin', 'tenant_admin', 'ceo'],
+  rbac: ['super_admin', 'tenant_admin', 'ceo'],
+  workflows: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  timesheets: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  documents: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  ai_assistant: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  notifications: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  // Collaboration suite (Chat, Calls, Calendar, Email inbox, To Do, Notes,
+  // Social Feed, File Manager, Kanban) is available to every role — employees
+  // receive mirrored HR notification emails in the internal Email inbox.
+  // Admin-only sub-areas (Collaboration Settings, SMTP Email Config,
+  // Collaboration Reports) are restricted via per-item `roles` in navData.
+  collaboration: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
+  requisitions: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  offers: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  job_portal: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  ai_interview: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  preboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  succession: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
+  clients: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  vendors: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+  ai_admin: ['super_admin'],
+  governance: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
+};
+
+/**
+ * Detailed access specifications per role.
+ * Controls what data scope each role can see across modules.
+ */
+export const ROLE_ACCESS_DETAILS: Record<string, {
+  label: string;
+  description: string;
+  dashboardAccess: 'full' | 'team' | 'self';
+  employeeAccess: 'all' | 'team' | 'self';
+  reportAccess: 'all' | 'team' | 'self' | 'none';
+  settingsAccess: 'all' | 'module' | 'none';
+}> = {
+  super_admin: {
+    label: 'Super Admin',
+    description: 'Full system access across all tenants and modules — manages platform configuration, RBAC, audit logs, and all tenant operations',
+    dashboardAccess: 'full',
+    employeeAccess: 'all',
+    reportAccess: 'all',
+    settingsAccess: 'all',
+  },
+  tenant_admin: {
+    label: 'Tenant Admin',
+    description: 'Full access within their tenant — manages company RBAC, organization settings, and all HR operations',
+    dashboardAccess: 'full',
+    employeeAccess: 'all',
+    reportAccess: 'all',
+    settingsAccess: 'all',
+  },
+  ceo: {
+    label: 'CEO',
+    description: 'Chief Executive — same access rights as the Tenant Admin: full visibility and management of every module, report and setting within their tenant',
+    dashboardAccess: 'full',
+    employeeAccess: 'all',
+    reportAccess: 'all',
+    settingsAccess: 'all',
+  },
+  admin: {
+    label: 'Admin',
+    description: 'Company-level admin access — manages all employees, HR operations, payroll, recruitment, onboarding, IT assets, finance, and compliance within their company',
+    dashboardAccess: 'full',
+    employeeAccess: 'all',
+    reportAccess: 'all',
+    settingsAccess: 'module',
+  },
+  manager: {
+    label: 'Manager',
+    description: 'People manager — sees own records plus direct reports across employee, leave, attendance, payroll, performance, and travel modules. Can approve/reject team requests.',
+    dashboardAccess: 'team',
+    employeeAccess: 'team',
+    reportAccess: 'team',
+    settingsAccess: 'none',
+  },
+  employee: {
+    label: 'Employee',
+    description: 'Self-service access — sees own records across employee, leave, attendance, payroll, performance, and travel modules. Can raise requests but cannot view other employees\' data.',
+    dashboardAccess: 'self',
+    employeeAccess: 'self',
+    reportAccess: 'self',
+    settingsAccess: 'none',
+  },
+};
+
+/**
+ * Tenant-specific module whitelist.
+ * Controls which modules are visible for specific tenants.
+ * Keys are tenant slugs (from subdomain), values are arrays of allowed nav section keys.
+ * Tenants NOT listed here see ALL modules (default behavior).
+ *
+ * This is used to gradually roll out modules — only enabled modules appear
+ * in the sidebar. Once a module is fully implemented and tested for a tenant,
+ * it can be added to their whitelist.
+ *
+ * To disable tenant filtering for a tenant, simply remove them from this map
+ * or add all module keys to their array.
+ */
+export const TENANT_MODULE_WHITELIST: Record<string, string[]> = {
+  'marqaitechgroup': [
+    // Tenant / platform management
+    'super-admin',
+    'tenant',
+    // Core HR
+    'company',
+    'employees',
+    // Time & Leave
+    'leave',
+    'attendance',
+    // Compensation
+    'payroll',
+    // Talent
+    'recruitment',
+    'onboarding',
+    'preboarding',
+    'appraisal',
+    'learning',
+    // Operations
+    'project',
+    'travel-expense',
+    'assets',
+    // Support & Intelligence
+    'support',
+    'collaboration',
+    // Governance
+    'governance',
+  ],
+};
+
+/**
+ * Dynamic module overrides from the database (set by super admin UI).
+ * This map is populated at runtime by the tenantModuleStore.
+ * When a tenant has DB-based module flags, this takes precedence
+ * over the hardcoded TENANT_MODULE_WHITELIST.
+ *
+ * Key = tenantSlug, Value = Set of enabled module keys.
+ * If a tenant is in this map, ONLY the modules in the Set are visible.
+ * If a tenant is NOT in this map, falls back to TENANT_MODULE_WHITELIST.
+ */
+let _dbModuleOverrides: Record<string, Set<string>> = {};
+
+/**
+ * Update the runtime DB module overrides (called from tenantModuleStore).
+ */
+export function setDbModuleOverrides(overrides: Record<string, Set<string>>) {
+  _dbModuleOverrides = overrides;
+}
+
+/**
+ * Get the current DB module overrides (for reading in hooks).
+ */
+export function getDbModuleOverrides(): Record<string, Set<string>> {
+  return _dbModuleOverrides;
+}
+
+/**
+ * Check if a nav section key is enabled for a specific tenant.
+ * Resolution order:
+ *   1. DB-based overrides (set by super admin via Module Management UI)
+ *   2. Hardcoded TENANT_MODULE_WHITELIST (fallback for tenants not yet migrated)
+ *   3. No restrictions = all modules visible
+ */
+export function isModuleEnabledForTenant(tenantSlug: string, moduleKey: string): boolean {
+  // 1. Check DB overrides first (dynamic, set by super admin UI)
+  const dbOverride = _dbModuleOverrides[tenantSlug];
+  if (dbOverride) return dbOverride.has(moduleKey);
+
+  // 2. Fallback to hardcoded whitelist
+  const whitelist = TENANT_MODULE_WHITELIST[tenantSlug];
+  if (!whitelist) return true; // No whitelist = all modules visible
+  return whitelist.includes(moduleKey);
+}
+
+/**
+ * Sidebar / layout role when JWT user is not loaded yet.
+ * Must be least privilege so employees never flash HR menus.
+ */
+export function navRoleOrLeastPrivilege(role?: string | null): string {
+  return role && role.trim() ? role : 'employee';
+}
+
+/** Platform navigation is independent of the company selected for data. */
+export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey: string, enabledModules?: Set<string>): boolean {
+  if (role === 'super_admin' && moduleKey === 'super-admin') return true;
+  // The employee self-service module must remain available for employee
+  // accounts across tenants, even if a tenant has a stale/incomplete module
+  // override. Item-level role checks below still hide HR/admin operations.
+  if (
+    moduleKey === 'employees' &&
+    ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead', 'employee'].includes(role)
+  ) return true;
+  return enabledModules ? enabledModules.has(moduleKey) : isModuleEnabledForTenant(tenantSlug, moduleKey);
+}
+
+/** Super admins land on the platform management dashboard. */
+export function dashboardHrefForRole(role?: string | null): string {
+  return role === 'super_admin' ? '/super-admin' : '/dashboard';
+}
+
+/**
+ * Check if a role can access a module.
+ * Super admin always returns true.
+ *
+ * IMPORTANT: Also handles legacy role names. If the role isn't directly in
+ * the MODULE_ACCESS list, we check the LEGACY_ROLE_MAP migration target.
+ * For example, 'company_hr_admin' maps to 'admin', so it inherits the
+ * admin's module access.
+ */
+export function canRoleAccessModule(role: string, moduleKey: string): boolean {
+  if (!role) return false;
+  if (role === 'super_admin') return true;
+
+  // Direct check
+  const allowed = MODULE_ACCESS[moduleKey];
+  if (allowed && allowed.includes(role)) return true;
+
+  // Legacy role fallback: check the migrated role
+  const migratedRole = LEGACY_ROLE_MAP[role];
+  if (migratedRole && migratedRole !== role) {
+    if (allowed && allowed.includes(migratedRole)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get the data scope for a role — determines how much data a role can see.
+ * - 'all': Full access to all records
+ * - 'team': Access to own + direct reports (managers)
+ * - 'self': Access to own records only (employees)
+ *
+ * IMPORTANT: This function also handles LEGACY role names that exist in older
+ * database rows. Legacy roles like 'company_hr_admin', 'hr_admin',
+ * 'finance_admin', 'it_admin', 'hrhead', 'recruitmenthead' are mapped to
+ * 'admin' scope ('all') so they retain full company-level access. Without
+ * this, a user created with role 'company_hr_admin' would get 'self' scope
+ * and only see their own employee record.
+ */
+export function getDataScope(role: string): 'all' | 'team' | 'self' {
+  if (!role) return 'self';
+
+  // Normalize: lowercase the role for comparison
+  const r = role.toLowerCase();
+
+  // 'all' scope — full access (includes legacy admin-equivalent roles)
+  // Task 131: 'ceo' is a tenant-admin-equivalent role (Task 129) — without it
+  // every CEO resolved to SELF scope and saw only their own record in the
+  // employee directory, dashboards and every report.
+  if ([
+    'super_admin', 'tenant_admin', 'ceo', 'admin',
+    'company_hr_admin', 'hr_admin', 'hrhead', 'recruitmenthead',
+  ].includes(r)) return 'all';
+
+  // 'team' scope — manager + direct reports
+  if (r === 'manager') return 'team';
+
+  // Everyone else (employee, recruiter, candidate, etc.) → self only
+  return 'self';
+}
+
+/**
+ * Get the dashboard access level for a role.
+ */
+export function getDashboardAccess(role: string): 'full' | 'team' | 'self' {
+  const details = ROLE_ACCESS_DETAILS[role];
+  return details?.dashboardAccess || 'self';
+}
+
+/**
+ * Get the report access level for a role.
+ */
+export function getReportAccess(role: string): 'all' | 'team' | 'self' | 'none' {
+  const details = ROLE_ACCESS_DETAILS[role];
+  return details?.reportAccess || 'self';
+}
+
+/**
+ * Get the employee access level for a role.
+ */
+export function getEmployeeAccess(role: string): 'all' | 'team' | 'self' {
+  const details = ROLE_ACCESS_DETAILS[role];
+  return details?.employeeAccess || 'self';
+}
+
+/**
+ * Filter sidebar navigation items based on role.
+ * Returns the list of module keys the role can see.
+ */
+export function getAccessibleModules(role: string): string[] {
+  return Object.keys(MODULE_ACCESS).filter((moduleKey) => canRoleAccessModule(role, moduleKey));
+}
+
+/**
+ * Check if a role can create/edit content in the docs module.
+ */
+export function canManageDocs(role: string): boolean {
+  return ['super_admin', 'admin', 'tenant_admin', 'ceo'].includes(role);
+}
+
+/**
+ * Check if a role can access statutory reports.
+ */
+export function canAccessStatutoryReports(role: string): boolean {
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
+}
+
+/**
+ * Check if a role can access AI reports.
+ */
+export function canAccessAIReports(role: string): boolean {
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
+}
+
+/**
+ * Check if a role can see the full employee list (all departments).
+ */
+export function canSeeAllEmployees(role: string): boolean {
+  const r = (role || '').toLowerCase();
+  if (SELF_SERVICE_ROLE_KEYS.includes(r)) return false;
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(r);
+}
+
+/** Employee Settings / company mapping management — not employees or HR-only roles. */
+export function canAccessEmployeeSettings(role?: string | null): boolean {
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role || '');
+}
+
+/** Create or edit another person’s employee record (not view-only). */
+export function canEditEmployeeRecords(role?: string | null): boolean {
+  return ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(role || '');
+}
+
+/**
+ * Legacy role migration map — maps old role keys to the new 5-role system.
+ * Used for migrating existing users and role assignments.
+ *
+ * IMPORTANT: 'manager' and 'employee' are NOT mapped to 'admin' anymore —
+ * they are first-class roles in the new RBAC system with their own data scope
+ * and module access (see ROLE_ACCESS_DETAILS and MODULE_ACCESS above).
+ */
+export const LEGACY_ROLE_MAP: Record<string, string> = {
+  super_admin: 'super_admin',
+  tenant_admin: 'tenant_admin',
+  ceo: 'ceo', // Task 129 — first-class role (NOT degraded to employee)
+  hr_admin: 'admin',
+  company_hr_admin: 'admin',
+  finance_admin: 'employee',
+  finance: 'employee',
+  it_admin: 'employee',
+  manager: 'manager',
+  employee: 'employee',
+  recruiter: 'admin',
+  candidate: 'employee',
+  job_seeker: 'employee',
+  admin: 'admin',
+  hrhead: 'admin',
+  recruitmenthead: 'admin',
+};
+
+/**
+ * Get the new role for a legacy role key.
+ * 'manager' and 'employee' now map to themselves (first-class roles).
+ * Unknown legacy roles default to 'employee' (least privilege) for safety.
+ */
+export function migrateRole(legacyRole: string): string {
+  return LEGACY_ROLE_MAP[legacyRole] || 'employee';
+}
+
+export function isSelfServiceRole(role?: string | null): boolean {
+  const r = (role || '').toLowerCase();
+  if (!r) return true;
+  if (SELF_SERVICE_ROLE_KEYS.includes(r)) return true;
+  return migrateRole(r) === 'employee';
+}
+
+/** Paths employee / finance / IT self-service users may open. */
+export function isSelfServicePathAllowed(pathname: string, search = ''): boolean {
+  const path = (pathname.replace(/\/+$/, '') || '/').split('?')[0];
+  const query = search.startsWith('?') ? search.slice(1) : search;
+  const viewSelf = new URLSearchParams(query).get('view') === 'self';
+
+  if (path === '/employees' && viewSelf) return true;
+  if (path === '/employees/dashboard') return true;
+  if (path === '/my-profile' || path.startsWith('/my-profile/')) return true;
+  if (
+    path === '/employees/update-requests' ||
+    path.startsWith('/employees/update-requests/') ||
+    path === '/employees/edit-log' ||
+    path.startsWith('/employees/edit-log/') ||
+    path === '/employees/resignation' ||
+    path.startsWith('/employees/resignation/')
+  ) {
+    return true;
+  }
+
+  const deniedPrefixes = [
+    '/leave/leave-policy',
+    '/leave/types',
+    '/leave/apply-by-hr',
+    '/leave/settings',
+    '/leave/reports',
+    '/attendance/apply-by-hr',
+    '/attendance/shifts',
+    '/attendance/holidays',
+    '/attendance/geofence',
+    '/attendance/biometric',
+    '/attendance/muster-roll',
+    '/attendance/settings',
+    '/attendance/burnout',
+    '/attendance/audit-log',
+    '/attendance/reports',
+    '/helpdesk/settings',
+    '/helpdesk/reports',
+    '/docs/settings',
+    '/docs/reports',
+    '/employees',
+    '/recruitment',
+    '/onboarding',
+    '/ai-interview',
+    '/company',
+    '/org-chart',
+    '/employees/settings',
+  ];
+  if (deniedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+    return false;
+  }
+
+  const allowedPrefixes = [
+    '/home',
+    '/dashboard',
+    '/modules',
+    '/policies-handbook',
+    '/leave',
+    '/attendance',
+    '/docs',
+    '/documents',
+    '/helpdesk',
+    '/notifications',
+    '/payroll/payslips',
+    '/payroll/loans',
+    '/performance',
+    '/training',
+    '/learning',
+    '/projects',
+    '/timesheets',
+    '/travel',
+    '/expenses',
+    '/assets',
+  ];
+  return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+}

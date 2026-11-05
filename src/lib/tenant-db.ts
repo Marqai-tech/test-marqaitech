@@ -1,0 +1,459 @@
+/**
+ * 3Boxes HRMS — Per-Tenant Database Isolation (Centralized Routing)
+ *
+ * ⚠️  This is THE canonical module for database access in all API routes.
+ * ⚠️  Always import { getDb } from '@/lib/tenant-db' — never use prisma directly.
+ *
+ * GOLDEN RULES:
+ *   1. Demo link (nexus-hrms-mu.vercel.app) shows SAMPLE data only —
+ *      routed to the demo tenant's dedicated database.
+ *   2. Tenant links (e.g., marqaitechgroup.3boxeshrms.com) show REAL data —
+ *      routed to that tenant's dedicated database.
+ *   3. Every tenant + demo gets its own separate database.
+ *   4. Same frontend for all links — only the DB routing differs.
+ *
+ * Architecture:
+ *   - Platform DB: Stores Tenant, User (platform-level), TenantDatabase,
+ *     TrialRegistration, and other cross-tenant data.
+ *     Used by: super_admin operations, auth, tenant provisioning.
+ *   - Tenant DB (e.g., tenant_marqaitechgroup): Stores the tenant's own data —
+ *     CompanyGroup, Company, Department, Employee, Payroll, etc.
+ *     Used by: all tenant-scoped CRUD operations.
+ *   - Demo DB: Separate database with sample/demo data only.
+ *     Routed to when the request comes from the demo domain.
+ *
+ * How it works:
+ *   1. API route calls `const db = await getDb(request)`.
+ *   2. getDb() extracts the tenant slug from:
+ *      a. x-tenant-slug header (set by middleware from subdomain/query)
+ *      b. JWT token's tenantId (decoded, then looked up)
+ *   3. If the tenant has a dedicated database (TenantDatabase record),
+ *      a PrismaClient connected to that DB is returned.
+ *   4. If no dedicated DB exists yet, falls back to platform DB
+ *      with tenantId filtering (shared-DB compatibility mode).
+ *   5. For super_admin with no tenant context, returns platform DB.
+ *
+ * Usage in API routes:
+ *   import { getDb, getPlatformDb } from '@/lib/tenant-db';
+ *
+ *   // For tenant-scoped data (most routes):
+ *   const db = await getDb(request);
+ *   const employees = await db.employee.findMany({ ... });
+ *
+ *   // For platform-level data (auth, tenant management):
+ *   const platformDb = getPlatformDb();
+ *   const tenants = await platformDb.tenant.findMany();
+ */
+
+import { PrismaClient } from '@/generated/prisma/client'
+import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { neonConfig } from '@neondatabase/serverless'
+import wsModule from 'ws'
+
+// Local development (plain PostgreSQL on localhost) needs the standard pg
+// adapter — the Neon serverless driver only speaks Neon's HTTP/WebSocket
+// protocol. Neon URLs (production) are unaffected.
+function createDbAdapter(connectionString: string) {
+  if (/localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
+    return new PrismaPg({ connectionString })
+  }
+  // Task 78: some tenant registry rows carry `channel_binding=require` (Neon
+  // default in some console copies). The neon HTTP driver path used in the
+  // Vercel runtime cannot complete the SCRAM channel-binding handshake for
+  // those rows, so every tenant query 503s (DB_UNAVAILABLE) — while the same
+  // string works from local scripts. Strip the parameter defensively; the
+  // connection stays TLS-encrypted via sslmode=require.
+  const sanitized = connectionString
+    .replace(/([?&])channel_binding=[^&]*&?/, '$1')
+    .replace(/\?&/, '?')
+    .replace(/[?&]$/, '')
+  return new PrismaNeon({ connectionString: sanitized })
+}
+
+// Node-side Neon fix: the serverless driver needs an explicit WebSocket
+// constructor outside edge runtimes. Native WebSocket can be unavailable or
+// shimmed in some Node/Next runtimes — the `ws` package is always reliable.
+neonConfig.webSocketConstructor = wsModule as unknown as typeof WebSocket
+import { db as platformDb } from '@/lib/db'
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth'
+import { DEMO_HIDDEN_SLUGS, isTestPlatformHost } from '@/lib/tenant-filter'
+
+// Cache tenant DB clients to avoid recreating on every request
+const tenantDbCache = new Map<string, { client: PrismaClient; lastAccess: number }>()
+// Dashboard pages often start several API calls together. Coalesce cold
+// tenant lookups so one page load creates only one Prisma client per tenant.
+const tenantDbPending = new Map<string, Promise<PrismaClient>>()
+
+// Clean up cache entries older than 5 minutes (300000ms)
+const CACHE_TTL = 300000
+
+// Periodic cleanup
+if (typeof globalThis !== 'undefined' && typeof setInterval === 'function') {
+  const timer = setInterval(() => {
+    const now = Date.now()
+    for (const [key, entry] of tenantDbCache.entries()) {
+      if (now - entry.lastAccess > CACHE_TTL) {
+        entry.client.$disconnect().catch(() => {})
+        tenantDbCache.delete(key)
+      }
+    }
+  }, 60000)
+  if (timer && typeof timer.unref === 'function') timer.unref()
+}
+
+// ─── Demo domain detection ───────────────────────────────────────────
+
+const DEMO_DOMAINS = [
+  'nexus-hrms-demo.vercel.app',
+  'nexus-hrms-mu.vercel.app',
+  'nexus-hrms.vercel.app',
+  '3boxes-hrms.vercel.app',
+  '3boxeshrms.vercel.app',
+  '3boxes-hrms-mu.vercel.app',
+]
+
+const DEMO_SLUG = '3boxes-hrms-demo'
+
+/**
+ * Check if a host is the demo domain.
+ * Returns the demo tenant slug if it is, empty string otherwise.
+ */
+function resolveDemoSlug(host: string): string {
+  const hostname = (host || '').split(':')[0].toLowerCase()
+  if (DEMO_DOMAINS.includes(hostname)) {
+    return DEMO_SLUG
+  }
+  // Also check vercel.app subdomains that aren't tenant subdomains
+  if (hostname.endsWith('.vercel.app') && !hostname.includes('3boxeshrms')) {
+    return DEMO_SLUG
+  }
+  return ''
+}
+
+// ─── Core: getDb(request) ────────────────────────────────────────────
+
+/**
+ * Get the PrismaClient for the current request's tenant context.
+ *
+ * This is the PRIMARY function all API routes should use.
+ * It automatically routes to the correct database based on:
+ *   1. x-tenant-slug header (set by middleware from subdomain)
+ *   2. JWT token's tenantId
+ *   3. Demo domain detection
+ *
+ * Returns:
+ *   - Tenant-specific PrismaClient if the tenant has a dedicated DB
+ *   - Platform DB (with tenantId filtering) as fallback
+ *   - Platform DB for super_admin with no tenant context
+ */
+export async function getDb(request?: Request | null): Promise<PrismaClient> {
+  let tenantSlug = ''
+
+  // 1. Try x-tenant-slug header (set by middleware)
+  if (request) {
+    const headerSlug = request.headers.get('x-tenant-slug')
+    if (headerSlug) {
+      tenantSlug = headerSlug
+    }
+    const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
+    const testPlatform = isTestPlatformHost(reqHost) || tenantSlug === 'test'
+    if (testPlatform) {
+      // The QA host has its own copied tenant database. Keep the platform
+      // host isolated from production, but route tenant requests to that DB
+      // so QA users can see the copied employees and attendance data.
+      tenantSlug = process.env.TEST_TENANT_SLUG || 'acme-global-demo'
+    } else if (!tenantSlug) {
+      // 2. Try demo domain detection from host header
+      const host = request.headers.get('host') || ''
+      const demoSlug = resolveDemoSlug(host)
+      if (demoSlug) {
+        tenantSlug = demoSlug
+      }
+    }
+
+    // 3. Try JWT token's tenantId
+    // On test Super Admin, ignore JWT tenant — it often points at MarqAI or
+    // the platform placeholder and would load live employees instead of samples.
+    if (!tenantSlug && !testPlatform) {
+      try {
+        const token = getTokenFromHeaders(request)
+        if (token) {
+          const decoded = await verifyToken(token)
+          if (decoded?.tenantId && typeof decoded.tenantId === 'string') {
+            // Look up slug from tenantId
+            const tenant = await platformDb.tenant.findUnique({
+              where: { id: decoded.tenantId },
+              select: { slug: true },
+            })
+            if (tenant?.slug) {
+              tenantSlug = tenant.slug
+            }
+          }
+        }
+      } catch {
+        // Token invalid or expired — no tenant context
+      }
+    }
+
+    // 4. Try ?tenantId= query param (super_admin company switcher)
+    // When super_admin selects a tenant/company in the switcher, the frontend
+    // sends tenantId so we can resolve the correct tenant DB instead of
+    // falling back to the platform DB (which has no real tenant data).
+    if (!tenantSlug) {
+      try {
+        const url = new URL(request.url)
+        const queryTenantId = url.searchParams.get('tenantId')
+        if (queryTenantId) {
+          const tenant = await platformDb.tenant.findUnique({
+            where: { id: queryTenantId },
+            select: { slug: true },
+          })
+          if (tenant?.slug && !(testPlatform && DEMO_HIDDEN_SLUGS.includes(tenant.slug))) {
+            tenantSlug = tenant.slug
+          }
+        }
+      } catch {
+        // URL parsing failed — no tenant context
+      }
+    }
+  }
+
+  // No tenant context — return platform DB (super_admin / unauthenticated)
+  if (!tenantSlug) {
+    return platformDb
+  }
+
+  // Route to tenant's dedicated database
+  return getDbForTenant(tenantSlug)
+}
+
+// ─── getDbForTenant(slug) ────────────────────────────────────────────
+
+/**
+ * Get the PrismaClient for a specific tenant's database by slug.
+ *
+ * If the tenant has a dedicated database (TenantDatabase record exists and is active),
+ * returns a PrismaClient connected to that database.
+ * Otherwise, returns the platform DB (shared mode with tenantId filtering).
+ */
+export async function getDbForTenant(tenantSlug: string): Promise<PrismaClient> {
+  if (!tenantSlug) return platformDb
+
+  // Check cache first
+  const cached = tenantDbCache.get(tenantSlug)
+  if (cached) {
+    cached.lastAccess = Date.now()
+    return cached.client
+  }
+
+  const pending = tenantDbPending.get(tenantSlug)
+  if (pending) return pending
+
+  // Look up the tenant's dedicated database
+  const initialization = (async (): Promise<PrismaClient> => {
+    try {
+      const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
+        where: {
+          tenant: { slug: tenantSlug },
+          isActive: true,
+        },
+        select: {
+          connectionString: true,
+          databaseName: true,
+        },
+      })
+
+      if (!tenantDbRecord) {
+        // No dedicated DB — use platform DB (shared mode); callers still apply
+        // tenantId filtering to their data queries.
+        console.log(`[TenantDB] No dedicated DB for "${tenantSlug}" — using platform DB with tenantId filtering`)
+        return platformDb
+      }
+
+      console.log(`[TenantDB] Routing to dedicated DB "${tenantDbRecord.databaseName}" for tenant "${tenantSlug}"`)
+      const adapter = createDbAdapter(tenantDbRecord.connectionString)
+      const tenantClient = new PrismaClient({ adapter })
+      tenantDbCache.set(tenantSlug, {
+        client: tenantClient,
+        lastAccess: Date.now(),
+      })
+      return tenantClient
+    } catch (error) {
+      console.error(`[TenantDB] Failed to get DB for tenant "${tenantSlug}":`, error)
+      try {
+        const props: Record<string, unknown> = {}
+        for (const k of Object.getOwnPropertyNames(error as object)) props[k] = (error as Record<string, unknown>)[k]
+        console.error('[TenantDB] failure detail:', JSON.stringify(props, (k, v) => (typeof v === 'bigint' ? String(v) : v), 2).slice(0, 1500))
+        const stack = (error as { stack?: string })?.stack || (props.error as { stack?: string })?.stack
+        if (stack) console.error('[TenantDB] failure stack:', String(stack).split('\n').slice(0, 8).join('\n'))
+      } catch { /* diagnostics only */ }
+      // Do not silently fall back to the platform DB when a dedicated tenant DB
+      // fails. A missing dedicated DB is handled above; this is a connection error.
+      throw new Error(`Tenant database unavailable for "${tenantSlug}"`)
+    }
+  })()
+
+  tenantDbPending.set(tenantSlug, initialization)
+  try {
+    return await initialization
+  } finally {
+    if (tenantDbPending.get(tenantSlug) === initialization) {
+      tenantDbPending.delete(tenantSlug)
+    }
+  }
+}
+
+// ─── getDbForTenantById(tenantId) ────────────────────────────────────
+
+/**
+ * Get the PrismaClient for a tenant by tenantId (instead of slug).
+ * Useful when you already have the tenantId from the JWT.
+ */
+export async function getDbForTenantById(tenantId: string): Promise<PrismaClient> {
+  if (!tenantId) return platformDb
+
+  try {
+    const tenant = await platformDb.tenant.findUnique({
+      where: { id: tenantId },
+      select: { slug: true },
+    })
+
+    if (!tenant) return platformDb
+    return getDbForTenant(tenant.slug)
+  } catch (error) {
+    console.error(`[TenantDB] Failed to get DB for tenantId "${tenantId}":`, error)
+    return platformDb
+  }
+}
+
+// ─── getPlatformDb() ─────────────────────────────────────────────────
+
+/**
+ * Get the platform (shared) database client.
+ * Use this ONLY for cross-tenant operations:
+ *   - Tenant management (CRUD)
+ *   - User authentication (login, register)
+ *   - TenantDatabase provisioning
+ *   - Super admin dashboard (cross-tenant views)
+ *
+ * For all tenant-scoped data, use getDb(request) instead.
+ */
+export function getPlatformDb(): PrismaClient {
+  return platformDb
+}
+
+// ─── Utility functions ───────────────────────────────────────────────
+
+/**
+ * Check if a tenant has a dedicated database (isolated mode).
+ */
+export async function isTenantIsolated(tenantSlug: string): Promise<boolean> {
+  try {
+    const count = await platformDb.tenantDatabase.count({
+      where: {
+        tenant: { slug: tenantSlug },
+        isActive: true,
+      },
+    })
+    return count > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Register a new dedicated database for a tenant.
+ * Called during trial provisioning or when a separate DB is created.
+ */
+export async function registerTenantDatabase(params: {
+  tenantId: string
+  connectionString: string
+  directUrl?: string
+  databaseName: string
+  neonBranchId?: string
+  neonProjectId?: string
+}) {
+  // Invalidate cache if exists
+  const tenant = await platformDb.tenant.findUnique({
+    where: { id: params.tenantId },
+    select: { slug: true },
+  })
+  if (tenant) {
+    const cached = tenantDbCache.get(tenant.slug)
+    if (cached) {
+      cached.client.$disconnect().catch(() => {})
+      tenantDbCache.delete(tenant.slug)
+    }
+  }
+
+  return platformDb.tenantDatabase.upsert({
+    where: { tenantId: params.tenantId },
+    create: {
+      tenantId: params.tenantId,
+      connectionString: params.connectionString,
+      directUrl: params.directUrl,
+      databaseName: params.databaseName,
+      neonBranchId: params.neonBranchId,
+      neonProjectId: params.neonProjectId,
+      isActive: true,
+    },
+    update: {
+      connectionString: params.connectionString,
+      directUrl: params.directUrl,
+      databaseName: params.databaseName,
+      neonBranchId: params.neonBranchId,
+      neonProjectId: params.neonProjectId,
+      isActive: true,
+    },
+  })
+}
+
+/**
+ * Disconnect a tenant's dedicated database client from cache.
+ */
+export function disconnectTenantDb(tenantSlug: string) {
+  const cached = tenantDbCache.get(tenantSlug)
+  if (cached) {
+    cached.client.$disconnect().catch(() => {})
+    tenantDbCache.delete(tenantSlug)
+  }
+}
+
+/**
+ * Extract the tenant slug from a request.
+ * Tries: x-tenant-slug header → demo domain → JWT tenantId.
+ * Returns the slug or empty string.
+ */
+export async function getTenantSlugFromRequest(request: Request): Promise<string> {
+  const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
+  if (isTestPlatformHost(reqHost)) return ''
+
+  // 1. Header from middleware
+  const headerSlug = request.headers.get('x-tenant-slug')
+  if (headerSlug && headerSlug !== 'test') return headerSlug
+
+  // 2. Demo domain
+  const host = request.headers.get('host') || ''
+  const demoSlug = resolveDemoSlug(host)
+  if (demoSlug) return demoSlug
+
+  // 3. JWT token
+  try {
+    const token = getTokenFromHeaders(request)
+    if (token) {
+      const decoded = await verifyToken(token)
+      if (decoded?.tenantId && typeof decoded.tenantId === 'string') {
+        const tenant = await platformDb.tenant.findUnique({
+          where: { id: decoded.tenantId },
+          select: { slug: true },
+        })
+        if (tenant?.slug) return tenant.slug
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return ''
+}

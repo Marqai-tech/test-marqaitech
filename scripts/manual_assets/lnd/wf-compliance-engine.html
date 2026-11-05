@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 1080px 738px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 1080px; height: 738px; background: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1080px; height: 738px; position: relative; padding: 22px 24px; box-sizing: border-box; }
+  .lane-label { font-size: 20px; font-weight: 800; letter-spacing: 1.2px; color: #365345; margin-bottom: 10px; }
+  .row { display: flex; align-items: stretch; justify-content: space-between; width: 100%; margin-bottom: 18px; }
+  .stage {
+    flex: 1 1 0; min-width: 175px;
+    background: #f4f7f5; border: 1.5px solid #b9d0c4; border-radius: 10px;
+    padding: 12px 13px 10px 13px; box-sizing: border-box; position: relative;
+  }
+  .stage.gate { background: #fdf6ec; border-color: #dcbf94; }
+  .stage.crit { background: #fdeeee; border-color: #d99a9a; }
+  .stage-num {
+    display: inline-block; background: #365345; color: #ffffff; font-size: 17px;
+    font-weight: 700; border-radius: 6px; padding: 2px 9px; letter-spacing: 0.5px;
+  }
+  .stage-num.gate { background: #8a6320; }
+  .stage-num.crit { background: #a04040; }
+  .stage h3 { margin: 7px 0 5px 0; font-size: 24px; font-weight: 800; color: #222523; line-height: 1.12; }
+  .stage li { font-size: 20px; color: #4d5a53; line-height: 1.32; margin-bottom: 3px; }
+  .stage ul { margin: 0; padding-left: 20px; }
+  .chip {
+    margin-top: 7px; display: inline-block; background: #e7f2ec; border: 1px solid #288a59;
+    color: #1d6b45; font-size: 17px; font-weight: 700; border-radius: 20px; padding: 2px 10px;
+  }
+  .chip.gate { background: #fbf0dc; border-color: #b98a2e; color: #7c5a1a; }
+  .chip.crit { background: #fbe3e3; border-color: #b04a4a; color: #8a2f2f; }
+  .arrow { flex: 0 0 30px; display: flex; align-items: center; justify-content: center; }
+  .arrow svg { display: block; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="lane-label">ROW A — RECURRING AUTO-ASSIGNMENT (DAILY CRON 03:00 UTC)</div>
+  <div class="row">
+    <div class="stage">
+      <span class="stage-num">INPUT</span>
+      <h3>Compliance Requirement</h3>
+      <ul><li>POSH / Cyber / Safety</li><li>Frequency: annual etc.</li><li>Department scope</li></ul>
+      <span class="chip">Requirement card</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">ACTION</span>
+      <h3>Auto-Assign Now</h3>
+      <ul><li>All active employees</li><li>Mandatory, due +30 days</li><li>Up to 60 notified per run</li></ul>
+      <span class="chip">compliance_auto</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">TRACK</span>
+      <h3>Compliance Matrix</h3>
+      <ul><li>Per-employee status</li><li>Dept &amp; overall %</li><li>One-click audit CSV</li></ul>
+      <span class="chip">Audit-ready</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">PROOF</span>
+      <h3>Bulk Policy Sign-Offs</h3>
+      <ul><li>Push to all employees</li><li>Typed e-signature</li><li>Timestamped acks</li></ul>
+      <span class="chip">Legally binding</span>
+    </div>
+  </div>
+
+  <div class="lane-label" style="margin-top:2px">ROW B — CERTIFICATE EXPIRATION LADDER (VALIDITY 12 MONTHS)</div>
+  <div class="row" style="margin-bottom:0">
+    <div class="stage">
+      <span class="stage-num">ACTIVE</span>
+      <h3>Valid Certificate</h3>
+      <ul><li>Issued on pass</li><li>CERT-FY number</li><li>validUntil tracked</li></ul>
+      <span class="chip">Band: Valid</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">60 d</span>
+      <h3>First Alert</h3>
+      <ul><li>Expiring &lt; 60 days</li><li>One alert, deduped</li><li>Employee notified</li></ul>
+      <span class="chip">Reminders sent JSON</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage gate">
+      <span class="stage-num gate">30 d</span>
+      <h3>Second Alert</h3>
+      <ul><li>Expiring &lt; 30 days</li><li>Renewal reminded</li><li>Still not renewed?</li></ul>
+      <span class="chip gate">Band: Warning</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage crit">
+      <span class="stage-num crit">15 d</span>
+      <h3>Manager Escalation</h3>
+      <ul><li>Direct manager added</li><li>"ESCALATED to manager"</li><li>Final 15-day window</li></ul>
+      <span class="chip crit">Band: Critical</span>
+    </div>
+    <div class="arrow"><svg width="24" height="24" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage crit">
+      <span class="stage-num crit">0 d</span>
+      <h3>Expired → Renew</h3>
+      <ul><li>Status auto-expired</li><li>Renew = +12 months</li><li>Alert counters reset</li></ul>
+      <span class="chip crit">Cycle restarts</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,105 @@
+{
+  "design": {
+    "title": "3Boxes HRMS Mobile App — SOP & Training Guide",
+    "style_name": "Corporate training deck — light, green brand family, weight-contrast Inter",
+    "palette": { "background": "#f7faf8", "primary": "#123527", "accent": "#1f7a4d" },
+    "typography": { "heading": "Inter (800/900, tight tracking)", "body": "Inter (400/500)", "numeric": "Inter tabular" },
+    "reference": "Clean SaaS onboarding deck (Notion / Linear style)"
+  },
+  "global_css_path": "global.css",
+  "slides_dir": ".",
+  "language": "en",
+  "speaker_notes": "none",
+  "slides": [
+    {
+      "title": "Cover — 3Boxes HRMS Mobile App: SOP & Training",
+      "layout": "cover",
+      "output_path": "slide_01.html",
+      "task_brief": "Full-bleed dark cover on primary #123527 with light text (#f2f8f4). Left vertical accent line (5px, #4a9a6a) with content starting ~50px right of it. Kicker chip: 'STANDARD OPERATING PROCEDURE · TRAINING GUIDE'. Hero title (two lines, 800/900 weight, ~60px): '3Boxes HRMS' / 'Mobile App' (second line in #7fc79b). Subtitle (300 weight, ~20px): 'Everyday operations for HR, Admin and Employees — on the go'. Summary paragraph (max 430px, 85% opacity). Audience chips row (rounded pills, subtle green tint bg): 'HR / ADMIN', 'EMPLOYEES', 'CEO', 'MANAGERS'. Meta block bottom: 'App version v1.6.6 (build 33) · Released October 2026' and 'Platform Android APK · Distribution Web login page download only'. Footer label bottom-left: '3BOXES HRMS · EDITION 2026.10'. Decorative: large ghost 'HRMS' text bottom-right at ~4% opacity white, ring circle top-right, dot grid top-left. No photos."
+    },
+    {
+      "title": "About This Training & Getting the App",
+      "layout": "split text+steps",
+      "output_path": "slide_02.html",
+      "task_brief": "Header: kicker 'ABOUT THIS TRAINING', title 'Who this is for — and how to get the app'. Left column (two stacked cards): card 1 'Employees' — punch attendance, apply leave, view payslips, work project tasks, chat, keep profile current. Card 2 'HR / Admin & CEO' — everything employees do, plus employee records, approvals, reports, team attendance monitoring. Note under cards: 'The mobile app mirrors the web — a task started on web finishes on mobile, and vice versa.' Right column card 'Install the app (one time)' with 4 numbered steps; step 2 mentions the current release APK (v1.6.6). Callout strip at bottom (accent-tint bg): 'APK only — downloaded ONLY from the web login page. No Play Store listing, no PWA shortcut.'"
+    },
+    {
+      "title": "What's New in v1.6.6 (build 33)",
+      "layout": "bento grid — release highlights",
+      "output_path": "slide_03.html",
+      "task_brief": "Header: kicker 'RELEASE HIGHLIGHTS', title 'What's new in v1.6.6 (build 33)', 'October 2026 release' chip on the right. Bento grid of 5 cards: Card 'Brand-new sign-in experience' (icon login) — starry welcome screen with the 3Boxes HRMS logo and tagline 'Your workplace, in one place'; two sign-in tabs Mobile Number (+91, one-time code) or Employee ID + password; 6-box OTP verification with resend countdown, code lands in registered email; Face ID / fingerprint unlock after first sign-in. Card 'HR Help Desk' (icon headset_mic) — raise, track and reply to support tickets from the phone; same ticketing system as the web app (Support & AI → Help Desk); HR/Admin see all tenant tickets and change status on the go. Card 'Smarter Home dashboard' (icon dashboard) — auto-rotating announcements banner from the company feed; Last week Attendance bar chart with absent days in red; Quick Links rail (Requests · Directory · Payslips · Documents · Help Desk · Feeds · Reports); birthdays card (today + upcoming 45 days) with Send Wishes. Card 'Chat everywhere' (icon chat_bubble) — Chat joins the bottom navigation Home · Chat · Attendance · Profile; floating chat bubble on the web dashboard too, project & team conversations on both. Card 'Web parity' (icon devices) — announcements banner on the employee dashboard (web); one ticketing queue, two front-ends."
+    },
+    {
+      "title": "Signing In — Welcome, Mobile Number or Employee ID, OTP",
+      "layout": "numbered steps + side cards",
+      "output_path": "slide_04.html",
+      "task_brief": "Header: kicker 'GETTING STARTED', title 'A brand-new way in — mobile number, employee ID, OTP & fingerprint'. Left: 5 numbered steps in cards: 1. Starry welcome screen — deep-navy sky, 3Boxes HRMS logo card, tagline 'Your workplace, in one place'; tap the arrow to continue. 2. Pick a tab — violet gradient header with two sign-in methods: Mobile Number or Employee ID; both lead to the same account. 3. Mobile Number tab — country code (+91 default) + registered number → Continue → sends a 6-digit one-time code; Employee ID tab — ID/email + password, Save me, Forgot password?, Sign in. 4. Verify your number (OTP) — six code boxes, resend countdown, Change number link; the code is delivered to the registered email; tap Verify & continue. 5. Enable fingerprint / Face ID — offered after the first sign-in; next launch opens with a biometric prompt instead of the keyboard. Right column cards: 'OTP tips' (icon mark_email_unread) — code lands in the email registered in HRMS; check spam, then Resend after the countdown; codes are single-use and expire quickly. 'Biometric unlock' (icon fingerprint) — tied to the device's own fingerprint/face store; on shared devices skip biometrics and sign out after use. 'New employee? Contact HR' (icon support_agent) — both tabs end with a Contact HR link; super admins keep the Switch Workspace tile."
+    },
+    {
+      "title": "Home Dashboard Tour",
+      "layout": "bento grid",
+      "output_path": "slide_05.html",
+      "task_brief": "Header: kicker 'HOME DASHBOARD', title 'Your operations hub — banner, chart, quick links, birthdays'. Bento grid of cards: Card 'Punch tabs' — Check / Break / Leave tabs with fingerprint-style punch buttons; Today Time Log (late-in, early-out, break, worked, overtime); This Month (presents / late / absent). Card 'Announcements banner' (icon campaign) — auto-rotates pinned posts & HR announcements from the company feed; tap to open the full Announcements list; what HR posts on web reaches every phone in seconds. Card 'Last week Attendance' (icon bar_chart) — bar chart of worked hours for the trailing 7 days; absent days highlighted in red; quick Monday-morning self-audit. Card 'Quick Links rail' — one-tap circular shortcuts rendered as coloured icon chips: Requests, Directory, Payslips, Documents, Help Desk, Feeds, Reports*, Att. Report; footnote: Reports appears for HR/Admin roles; bottom navigation is now Home · Chat · Attendance · Profile with a floating chat bubble. Card 'Birthdays & organization' (icon cake) — celebrants today + upcoming 45 days, hidden when empty; Send Wishes — instant in-app + email greeting; organization card Total · Active · On Leave · Exits — same numbers for every login."
+    },
+    {
+      "title": "Attendance SOP",
+      "layout": "timeline / steps",
+      "output_path": "slide_06.html",
+      "task_brief": "Header: kicker 'ATTENDANCE SOP', title 'Punch with GPS — regularise the misses'. Horizontal 4-step timeline with icons: 1. Enable location (icon location_on) — GPS must be ON before punching; keep device time automatic. 2. Check In (icon login) — from Home quick card or Attendance module; the card shows today's status and hours so far. 3. Breaks (icon free_breakfast) — Start Break when stepping away, End Break on return; windows count into worked hours. 4. Check Out (icon logout) — at shift end; in/out, breaks and total hours complete the day. Below, two cards side by side: 'Forgot to punch?' — do not double-punch; raise a regularisation request from the Attendance module with the correct in/out times; manager and HR approve, attendance is corrected at the source. 'If GPS fails' — enable Location permission for the app, remove any mock/fake-GPS app, retry near a window or open space; the app blocks spoofed locations. Accent-left card 'For HR / Admin': Team Attendance tile shows who is present / on leave / missing punches, with daily status entry; Reports module adds attendance and leave reports — review it first thing every morning."
+    },
+    {
+      "title": "Leave SOP",
+      "layout": "steps + status chips",
+      "output_path": "slide_07.html",
+      "task_brief": "Header: kicker 'LEAVE SOP', title 'Apply ahead, track live, approve on the go'. Left: 4 numbered steps: 1. Open Leave Management (or tap Requests on the Quick Links rail) → Apply Leave. 2. Choose the leave type — casual, sick, earned, plus company-specific types. 3. Pick dates and add a short reason — apply BEFORE the leave date whenever possible. 4. Submit — track status chips in your list; you are notified the moment a decision lands. Middle/right: card 'Live balances' — remaining balance per leave type with this year's usage; check before applying. Card 'For approvers (HR/Admin/CEO/managers)' — Approve / Reject actions sit right on each pending card, and leave can be applied on behalf of an employee from the same screen; every action is audit-logged. Status chips row rendered as real pills: PENDING (warn), APPROVED (yes-green), REJECTED (red). Footer note: every decision triggers an in-app notification AND an email."
+    },
+    {
+      "title": "Payroll & Payslips",
+      "layout": "split text+list",
+      "output_path": "slide_08.html",
+      "task_brief": "Header: kicker 'PAYROLL', title 'Payslips on the go — no more asking HR'. Left column: 3 numbered steps: 1. Open Payroll — the Payslips list shows each processed month with its net salary. 2. Filter by month, employee (HR/Admin and payroll managers) or status from the filter bar. 3. Tap a payslip for the detail sheet — earnings, deductions and net pay for that month; raise a Help Desk ticket immediately if figures look wrong. Right column card 'What you see': bullet list — month-wise payslip history; gross / deductions / net breakdown; the official company payslip format as on web. Card 'Good to know': payslips appear once the payroll run is processed and RELEASED by the payroll manager; mobile follows the same release rules and permissions as web; missing payslip → check the month's payroll run was released."
+    },
+    {
+      "title": "Projects, Tasks & Chat",
+      "layout": "three-column",
+      "output_path": "slide_09.html",
+      "task_brief": "Header: kicker 'WORK & COLLABORATION', title 'Projects, tasks and chat — the office in your pocket'. Three columns with Material Icons: Column 'Projects' (icon folder_special): see your allocated projects; tap one for detail view with tasks, members and progress. Column 'Tasks' (icon assignment): what is assigned to you, descriptions, dates and attachments; updates move task steps forward. Column 'Chat' (icon chat_bubble): now in the bottom navigation — project & team conversations; floating chat bubble on the web dashboard too — start on phone, continue on laptop; keep decisions inside the organisation's record. Below: wide accent-left card 'Notifications — dual channel' (icon notifications_active): task assignments and workflow-step changes, leave decisions, photo approval results, payslip releases and HR announcements arrive as push notification on the phone AND email — the same dual-channel alerts as web. Footer strip: practical rhythm — check the bell first thing, punch in, work the Projects list, punch out; status flows to assignee and manager automatically, replacing the 'any update?' follow-up."
+    },
+    {
+      "title": "HR Help Desk — Support Ticketing",
+      "layout": "numbered steps + sync flow",
+      "output_path": "slide_10.html",
+      "task_brief": "Header: kicker 'SUPPORT & TICKETING', title 'HR Help Desk — one ticketing system, phone and web', pill 'Connected to web Support & AI' on the right. Left: 4 numbered steps in cards: 1. Raise a ticket — tap the Help Desk tile in Quick Links, pick a category, write a clear subject and description; HR/Admin are notified instantly. 2. Track 'My tickets' — live status (open / in progress / resolved / closed); the server enforces self-scope, so nobody sees a colleague's tickets. 3. Reply in the thread — open a ticket, read the full conversation and add comments; every reply reaches HR/Admin on web the moment it lands. 4. HR/Admin operations — see all tenant tickets, answer from the phone and change ticket status between meetings, without a laptop. Right: card 'How it syncs' with a 3-box flow diagram Mobile ⇄ Same ticket API (/api/tickets) ⇄ Web queue (Support & AI) — one queue, two front-ends, nothing duplicated. Card 'Good ticket hygiene' — one issue per ticket; descriptive subject ('Payslip September — HRA component wrong' beats 'help'); attach context up front, say it in the thread instead of raising duplicates; only HR/Admin change status — tracked, searchable, answered faster."
+    },
+    {
+      "title": "My Profile — What You Can Change",
+      "layout": "three-tier comparison",
+      "output_path": "slide_11.html",
+      "task_brief": "Header: kicker 'MY PROFILE', title 'Self-service with guardrails — know your three tiers'. Three comparison cards side by side: Card 1 header pill YES 'EDIT DIRECTLY' — phone, personal email, current & permanent address, emergency contacts, blood group; saves immediately; HR/Admin automatically get an in-app notification AND an email with field, old and new values. Card 2 header pill REV 'HR/ADMIN APPROVAL' — profile photo: upload parks in a pending state; colleagues keep seeing the current photo; HR/Admin review in the Photo Approvals queue; approve publishes, reject returns a reason; you are notified either way. Card 3 header pill NO 'LOCKED' — date of birth, first name, last name; fields render disabled on mobile and web; wrong identity data → raise with HR/Admin who correct it from the employee module. Bottom wide card 'Also inside My Profile': interests chips · technical skills with level & years · experience per company with multiple work domains, logo, category & level, and letters (offer / relieving / experience / appraisal) · achievements · insurance & family details · original birthday (celebrations date — can differ from official DOB) · documents & assigned policies with View + Download."
+    },
+    {
+      "title": "For HR / Admin — Mobile Management",
+      "layout": "role cards (5-up grid)",
+      "output_path": "slide_12.html",
+      "task_brief": "Header: kicker 'FOR HR / ADMIN', title 'Run the organisation from the same app'. Grid of 5 cards with Material Icons (single row, repeat(5,1fr)): Card 'Employee Management' (icon people_alt): directory & list with total experience per employee; guided multi-step Add Employee form with the same mandatory-field rules as web; employee documents with download; Aadhaar QR verification from the verification tab. Card 'Photo Approvals' (icon verified_user): review submissions in the queue; approve publishes the new photo; reject requires a reason; the employee is notified automatically. Card 'Help Desk Ops' (icon headset_mic): all tenant tickets in one queue; reply in threads from the phone; change ticket status on the go; same ticketing system as web Support & AI. Card 'Reports' (icon bar_chart): leave, attendance, employees & projects reports; the web admin dashboard's reports, formatted for the phone. Card 'Team Attendance' (icon groups): day view of present / on leave / missing punches with daily status entry for supervisors. Bottom accent-left card 'Recommended routine': review Team Attendance every morning → clear pending leave approvals before lunch → skim Reports weekly to catch trends (rising regularisations, unused leave) → keep every employee's Original Birthday filled so month-long birthday celebrations and the automatic greeting fire correctly."
+    },
+    {
+      "title": "Roles & Permissions Matrix",
+      "layout": "comparison_table",
+      "output_path": "slide_13.html",
+      "task_brief": "Header: kicker 'GOVERNANCE', title 'Who can do what — the same model as web'. Full-width table, header row dark green (#35604a) white text, striped rows (#f0f7f2 / white), columns: Capability | Employee | HR / Admin | CEO. Rows (use YES/NO/VIEW/Locked pills, consistent colors): Check in/out, breaks, regularisation → Yes / Yes / Yes. Apply for leave (self) → Yes / Yes / Yes. Approve or reject leave, apply on behalf → No / Yes / Yes. View own payslips → Yes / Yes / Yes. Employee directory with experience → No / Yes / Yes. Add / view employees, documents → No / Yes / View. Reports (leave/attendance/employees/projects) → No / Yes / Yes. Team attendance + daily status → No / Yes / Yes. Approve / reject profile photos → No / Yes / No. Edit own contact details (HR notified) → Yes / Yes / Yes. Edit DOB / first / last name → Locked / Yes / Via HR. Send birthday wishes → Yes / Yes / Yes. Raise & reply to Help Desk tickets (self-scope) → Yes / Yes / Yes. View all tickets & change ticket status → No / Yes / View. Chat on projects & teams (mobile + web) → Yes / Yes / Yes. Footer note: every sensitive action is validated server-side — the app never grants a right the web would deny."
+    },
+    {
+      "title": "Golden Rules & Troubleshooting",
+      "layout": "split rules+table",
+      "output_path": "slide_14.html",
+      "task_brief": "Header: kicker 'SUPPORT', title 'Six habits, nine fixes, one escalation path'. Left card 'Golden rules' (checklist with check icons): punch in and out every working day with location enabled; apply for leave in advance — regularisation only for genuine misses; keep your profile current — phone, address, emergency contacts, skills, experience letters; never share your login or install the APK from unofficial sources; check the notification bell daily and act on approvals the same day; raise a Help Desk ticket instead of side-channel messages — tracked, searchable, answered faster. Right: compact troubleshooting table (2 columns Problem | Fix): APK blocked → allow 'Install unknown apps' for the browser, reopen the file; upgrades install over the old app. Cannot sign in → verify credentials on web login; on the Mobile Number tab check the registered number; update the APK; ask HR/Admin for a reset. OTP not received → code goes to your registered email — check spam, Resend after the countdown, or switch to the Employee ID tab. Ticket stuck → reply in the thread with details — HR/Admin see it instantly; only HR/Admin change ticket status. GPS punch rejected → enable app location permission, remove fake-GPS apps, retry near a window. Data looks stale → pull to refresh; verify on web; ask HR to confirm save/release. Notification missed → open the bell tile; check Android notification permission. Change locked/rejected → identity fields locked by policy — contact HR/Admin; photo rejections include a reason. Bottom strip 'Escalation': Employee → HR/Admin → Super admin (include app version and affected account)."
+    },
+    {
+      "title": "Closing — You're Ready",
+      "layout": "closing",
+      "output_path": "slide_15.html",
+      "task_brief": "Full-bleed dark closing on #123527 with light text, ring decoration bottom-left (partially visible, clipped layer), no photos. Title (900 weight, ~44px): 'You are ready to go.' with 'ready to go' in #7fc79b. Checklist of 4 items (circle check badges, light green): Install v1.6.6 from your workspace's web login page and sign in with mobile number or employee ID; Punch in with GPS, apply leave ahead of time, check payslips yourself; Complete My Profile — skills, experience, achievements, family details; HR/Admin: clear approvals and Help Desk tickets daily, watch Team Attendance each morning. Divider line, then meta block: '3Boxes HRMS Mobile App · SOP & Training Guide · App v1.6.6 (build 33)' / 'Download: your company workspace web login page · Support: your HR/Admin team' / '3BOXES HRMS · EDITION 2026.10'."
+    }
+  ]
+}

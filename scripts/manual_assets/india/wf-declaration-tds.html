@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 1280px 285px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 1280px; height: 285px; background: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1280px; height: 285px; position: relative; padding: 24px 28px; box-sizing: border-box; }
+  .timeline { display: flex; align-items: stretch; justify-content: space-between; width: 100%; position: relative; }
+  .timeline:before { content: ''; position: absolute; top: 46px; left: 60px; right: 60px; height: 3px; background: #cfe0d7; border-radius: 2px; }
+  .month { flex: 1 1 0; min-width: 130px; position: relative; padding-top: 0; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; background: #ffffff; border: 4px solid #288a59; margin: 38px auto 10px auto; position: relative; z-index: 2; }
+  .dot.gate { border-color: #b98a2e; }
+  .month h3 { text-align: center; font-size: 18px; font-weight: 800; color: #222523; margin: 0 0 4px 0; }
+  .month .range { text-align: center; font-size: 12.5px; font-weight: 700; color: #1d6b45; letter-spacing: 0.6px; margin-bottom: 7px; }
+  .month ul { margin: 0; padding-left: 16px; }
+  .month li { font-size: 13.5px; color: #4d5a53; line-height: 1.4; margin-bottom: 3px; }
+  .badge { display: block; width: fit-content; margin: 8px auto 0 auto; background: #e7f2ec; border: 1px solid #288a59; color: #1d6b45; font-size: 11.5px; font-weight: 700; border-radius: 20px; padding: 2px 10px; }
+  .badge.gate { background: #fbf0dc; border-color: #b98a2e; color: #7c5a1a; }
+  .badge.warn { background: #fdeaea; border-color: #c0564f; color: #8a2f2a; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="timeline">
+    <div class="month">
+      <h3>April</h3>
+      <div class="range">WINDOW OPENS</div>
+      <div class="dot"></div>
+      <ul><li>Declaration window opens</li><li>Regime election (Old / New)</li><li>Declare 80C, 80D, 24(b), HRA</li></ul>
+      <span class="badge">Provisional tax computed</span>
+    </div>
+    <div class="month">
+      <h3>Apr – Dec</h3>
+      <div class="range">MONTHLY RUNS</div>
+      <div class="dot"></div>
+      <ul><li>TDS on DECLARED figures</li><li>Monthly projection ÷ remaining months</li><li>Update declarations any time</li></ul>
+      <span class="badge">Declaration-based TDS</span>
+    </div>
+    <div class="month">
+      <h3>January</h3>
+      <div class="range">PROOF WINDOW</div>
+      <div class="dot gate"></div>
+      <ul><li>Employees upload proofs</li><li>HR / Finance verify per section</li><li>VERIFIED / PARTIAL / REJECTED</li></ul>
+      <span class="badge gate">Verification deadline</span>
+    </div>
+    <div class="month">
+      <h3>Feb – Mar</h3>
+      <div class="range">TRUE-UP</div>
+      <div class="dot"></div>
+      <ul><li>VERIFIED figures replace declared</li><li>Shortfall spread over remaining months</li><li>Regime locked after verification</li></ul>
+      <span class="badge">TDS trued-up automatically</span>
+    </div>
+    <div class="month">
+      <h3>Post Year-End</h3>
+      <div class="range">FILINGS</div>
+      <div class="dot"></div>
+      <ul><li>Form 24Q Q4 + Form 16 issue</li><li>15 June deadline for Form 16</li><li>Reconciliation via TRACES</li></ul>
+      <span class="badge warn">Miss = higher TDS in Feb–Mar</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

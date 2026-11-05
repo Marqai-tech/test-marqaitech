@@ -1,0 +1,771 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import {
+  FiClock, FiUser, FiSearch, FiPlus, FiRefreshCw,
+  FiCheck, FiAlertCircle, FiUsers, FiCalendar,
+  FiLogIn, FiLogOut, FiMapPin, FiZap, FiFileText,
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+import TimePickerAmPm from '@/components/TimePickerAmPm';
+import { validatePunchTime } from '@/lib/punch-time-validation';
+import { getDataScope } from '@/lib/roleAccess';
+import { useRouter } from 'next/navigation';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+/* ── Types ── */
+interface Employee {
+  id: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string | null;
+  department?: { name: string } | null;
+  designation?: { name: string } | null;
+}
+
+type AttendanceRequestType = 'regularize' | 'permission' | 'gatepass' | 'overtime' | 'comp-off' | 'wfh';
+
+/* ── Task 135: employee context shown to HR when applying on behalf ── */
+interface EmpAttendanceContext {
+  shift: { start: string; end: string } | null;
+  recentPunches: Array<{ id: string; date: string; checkIn: string | null; checkOut: string | null; status: string; workHours: unknown }>;
+  regularizations: Array<{ id: string; date: string; punchType: string; status: string }>;
+  pendingByType: Array<{ type: string; count: number; latestDate?: string }>;
+  balances: Array<{ name: string; total: number; used: number; remaining: number }>;
+}
+
+const emptyContext: EmpAttendanceContext = { shift: null, recentPunches: [], regularizations: [], pendingByType: [], balances: [] };
+
+/** "2026-10-23T13:42:00.000Z" → "13:42" (best-effort HH:mm for ISO datetimes). */
+function hmOf(v: unknown): string {
+  if (!v) return '—';
+  const s = String(v);
+  return s.length >= 16 && s[10] === 'T' ? s.slice(11, 16) : s;
+}
+
+function ctxStatusChipCls(status: string): string {
+  const s = (status || '').toLowerCase();
+  if (s === 'approved') return 'bg-emerald-100 text-emerald-700';
+  if (s === 'rejected') return 'bg-red-100 text-red-600';
+  if (s === 'pending') return 'bg-amber-100 text-amber-700';
+  return 'bg-slate-100 text-slate-600';
+}
+
+interface RequestTypeOption {
+  key: AttendanceRequestType;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+  apiEndpoint: string;
+}
+
+const REQUEST_TYPES: RequestTypeOption[] = [
+  { key: 'regularize', label: 'Regularization', icon: <FiRefreshCw className="w-4 h-4" />, description: 'Missed punch / incorrect time correction', apiEndpoint: '/api/attendance/regularize' },
+  { key: 'permission', label: 'Permission', icon: <FiClock className="w-4 h-4" />, description: 'Short leave / permission request (1-4 hours)', apiEndpoint: '/api/attendance/permission' },
+  { key: 'gatepass', label: 'Gate Pass', icon: <FiLogOut className="w-4 h-4" />, description: 'Early departure / temporary exit request', apiEndpoint: '/api/attendance/gatepass' },
+  { key: 'overtime', label: 'Overtime', icon: <FiZap className="w-4 h-4" />, description: 'Overtime work authorization', apiEndpoint: '/api/attendance/overtime-request' },
+  { key: 'comp-off', label: 'Comp-Off', icon: <FiCalendar className="w-4 h-4" />, description: 'Compensatory off request', apiEndpoint: '/api/attendance/comp-off' },
+  { key: 'wfh', label: 'Work From Home', icon: <FiMapPin className="w-4 h-4" />, description: 'WFH request for a date range', apiEndpoint: '/api/attendance/wfh' },
+];
+
+export default function ApplyAttendanceByHRPage() {
+  const { user } = useAuthStore();
+  const router = useRouter();
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
+
+  useEffect(() => {
+    if (!user) return;
+    if (getDataScope(user.role) !== 'all') {
+      toast.error('This page is for HR only');
+      router.replace('/home');
+    }
+  }, [user, router]);
+
+  // Employee search & selection
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+
+  // Request type selection
+  const [selectedRequestType, setSelectedRequestType] = useState<AttendanceRequestType | null>(null);
+
+  // Forms for each type
+  const [regularizeForm, setRegularizeForm] = useState({ date: new Date().toISOString().split('T')[0], punchType: 'check_in', requestedTime: '', reason: '' });
+  const [permissionForm, setPermissionForm] = useState({ date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', reason: '' });
+  const [gatepassForm, setGatepassForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'early_departure', outTime: '', reason: '' });
+  const [overtimeForm, setOvertimeForm] = useState({ date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', reason: '' });
+  const [compoffForm, setCompoffForm] = useState({ date: new Date().toISOString().split('T')[0], hours: 8, reason: '' });
+  const [wfhForm, setWfhForm] = useState({ date: new Date().toISOString().split('T')[0], endDate: '', reason: '' });
+
+  const [submitting, setSubmitting] = useState(false);
+
+  // ─── Task 135: employee context (punch history, regularizations, pending
+  // requests, leave balances) loaded whenever HR picks an employee ──────
+  const [empContext, setEmpContext] = useState<EmpAttendanceContext | null>(null);
+  const [loadingContext, setLoadingContext] = useState(false);
+
+  // ─── Fetch Employees ───────────────────────────
+  const fetchEmployees = useCallback(async (search = '') => {
+    setLoadingEmployees(true);
+    try {
+      const sq = scopeQuery();
+      const r = await fetch(`/api/employees?limit=50&excludeInactive=true&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      setEmployees(d.employees || []);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load employees');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }, [scopeQuery, selectedTenantId]);
+
+  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+
+  // ─── Handle Employee Selection ─────────────────
+  const fetchEmployeeContext = useCallback(async (emp: Employee) => {
+    setLoadingContext(true);
+    setEmpContext(null);
+    try {
+      const today = new Date();
+      const iso = (d: Date) => d.toISOString().split('T')[0];
+      const from = iso(new Date(today.getTime() - 13 * 86400000));
+      const headers = getAuthHeaders();
+      const [punchRes, regRes, reqRes, balRes] = await Promise.all([
+        fetch(`/api/attendance?employeeId=${emp.id}&startDate=${from}&endDate=${iso(today)}&limit=15`, { headers }).catch(() => null),
+        fetch(`/api/attendance/regularize?employeeId=${emp.id}&limit=50`, { headers }).catch(() => null),
+        fetch(`/api/attendance/requests?scope=all&status=pending&limit=200`, { headers }).catch(() => null),
+        fetch(`/api/leave/balance?employeeId=${emp.id}`, { headers }).catch(() => null),
+      ]);
+      const ctx: EmpAttendanceContext = { ...emptyContext, recentPunches: [], regularizations: [], pendingByType: [], balances: [] };
+      if (punchRes && punchRes.ok) {
+        const d = await punchRes.json();
+        const rows = Array.isArray(d?.attendance) ? d.attendance : [];
+        ctx.recentPunches = rows.slice(0, 5).map((r: Record<string, unknown>) => ({
+          id: String(r.id || ''),
+          date: String(r.date || '').slice(0, 10),
+          checkIn: (r.checkIn as string) || null,
+          checkOut: (r.checkOut as string) || null,
+          status: String(r.status || '—'),
+          workHours: r.workHours ?? null,
+        }));
+        const win = d?.shiftWindows?.[emp.id];
+        if (win?.start && win?.end) ctx.shift = { start: String(win.start), end: String(win.end) };
+      }
+      if (regRes && regRes.ok) {
+        const d = await regRes.json();
+        const regs = Array.isArray(d?.regularizations) ? d.regularizations : [];
+        ctx.regularizations = regs.slice(0, 6).map((r: Record<string, unknown>) => ({
+          id: String(r.id || ''),
+          date: String(r.date || '').slice(0, 10),
+          punchType: String(r.punchType || '—').replace(/_/g, ' '),
+          status: String(r.status || 'pending'),
+        }));
+      }
+      if (reqRes && reqRes.ok) {
+        const d = await reqRes.json();
+        const reqs = (Array.isArray(d?.requests) ? d.requests : []).filter((r: Record<string, unknown>) => r.employeeId === emp.id || (r.employee as Record<string, unknown> | undefined)?.id === emp.id);
+        const byType = new Map<string, { count: number; latest?: string }>();
+        for (const r of reqs) {
+          const key = String(r.requestType || 'OTHER').replace(/_/g, ' ');
+          const cur = byType.get(key) || { count: 0 };
+          cur.count += 1;
+          const sd = r.startDate ? String(r.startDate).slice(0, 10) : '';
+          if (sd && (!cur.latest || sd > cur.latest)) cur.latest = sd;
+          byType.set(key, cur);
+        }
+        ctx.pendingByType = Array.from(byType.entries()).map(([type, v]) => ({ type, count: v.count, latestDate: v.latest }));
+      }
+      if (balRes && balRes.ok) {
+        const d = await balRes.json();
+        const bals = Array.isArray(d?.balances) ? d.balances : [];
+        ctx.balances = bals
+          .filter((b: Record<string, unknown>) => Number(b.remaining || 0) > 0 || Number(b.used || 0) > 0)
+          .slice(0, 8)
+          .map((b: Record<string, unknown>) => ({
+            name: String((b.leaveType as Record<string, unknown> | undefined)?.name || (b.leaveType as Record<string, unknown> | undefined)?.code || 'Leave'),
+            total: Number(b.total || 0),
+            used: Number(b.used || 0),
+            remaining: Number(b.remaining || 0),
+          }));
+      }
+      setEmpContext(ctx);
+    } catch {
+      /* context is best-effort — never block the apply flow */
+    } finally {
+      setLoadingContext(false);
+    }
+  }, []);
+
+  const handleSelectEmployee = (emp: Employee) => {
+    setSelectedEmployee(emp);
+    setShowEmployeeDropdown(false);
+    setEmployeeSearch('');
+    fetchEmployeeContext(emp);
+  };
+
+  // ─── Submit Attendance Request on Behalf ───────
+  const handleSubmit = async () => {
+    if (!selectedEmployee) {
+      toast.error('Please select an employee first');
+      return;
+    }
+    if (!selectedRequestType) {
+      toast.error('Please select a request type');
+      return;
+    }
+
+    const reqType = REQUEST_TYPES.find(r => r.key === selectedRequestType);
+    if (!reqType) return;
+
+    setSubmitting(true);
+    try {
+      let body: Record<string, unknown> = {};
+
+      switch (selectedRequestType) {
+        case 'regularize': {
+          // Trim-validate — whitespace-only reasons must be rejected (the raw
+          // reason is prefixed with "[HR] " before sending, which would
+          // otherwise mask an empty/whitespace value)
+          if (!regularizeForm.date || !regularizeForm.requestedTime || !regularizeForm.reason.trim()) {
+            toast.error(!regularizeForm.date || !regularizeForm.requestedTime
+              ? 'All fields are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
+            setSubmitting(false);
+            return;
+          }
+          const punchCheck = validatePunchTime({
+            punchType: regularizeForm.punchType === 'check_out' ? 'check_out' : 'check_in',
+            time: regularizeForm.requestedTime,
+          });
+          if (!punchCheck.ok) {
+            toast.error(punchCheck.error);
+            setSubmitting(false);
+            return;
+          }
+          const dt = new Date(`${regularizeForm.date}T${regularizeForm.requestedTime}`);
+          body = { employeeId: selectedEmployee.id, date: regularizeForm.date, punchType: regularizeForm.punchType, requestedTime: dt, reason: `[HR] ${regularizeForm.reason.trim()}`, clientToday: new Date().toLocaleDateString('en-CA') };
+          break;
+        }
+        case 'permission': {
+          if (!permissionForm.date || !permissionForm.startTime || !permissionForm.endTime || !permissionForm.reason.trim()) {
+            toast.error(!permissionForm.date || !permissionForm.startTime || !permissionForm.endTime
+              ? 'All fields are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
+            setSubmitting(false);
+            return;
+          }
+          // Build full local datetimes — the API parses Date values, and raw
+          // "HH:mm" strings would produce "Invalid start time format"
+          const permStart = new Date(`${permissionForm.date}T${permissionForm.startTime}`);
+          const permEnd = new Date(`${permissionForm.date}T${permissionForm.endTime}`);
+          if (isNaN(permStart.getTime()) || isNaN(permEnd.getTime())) {
+            toast.error('Invalid start/end time — please pick the times again');
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, date: permissionForm.date, startTime: permStart, endTime: permEnd, reason: `[HR] ${permissionForm.reason.trim()}` };
+          break;
+        }
+        case 'gatepass': {
+          if (!gatepassForm.date || !gatepassForm.outTime || !gatepassForm.reason.trim()) {
+            toast.error(!gatepassForm.date || !gatepassForm.outTime
+              ? 'Date, out time, and reason are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
+            setSubmitting(false);
+            return;
+          }
+          // Full local datetime for requestedAt + explicit gatepass type —
+          // the API rejects submissions without a valid type
+          const gpAt = new Date(`${gatepassForm.date}T${gatepassForm.outTime}`);
+          if (isNaN(gpAt.getTime())) {
+            toast.error('Invalid out time — please pick the time again');
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, type: gatepassForm.type, requestedAt: gpAt, date: gatepassForm.date, outTime: gatepassForm.outTime, reason: `[HR] ${gatepassForm.reason.trim()}` };
+          break;
+        }
+        case 'overtime': {
+          if (!overtimeForm.date || !overtimeForm.startTime || !overtimeForm.endTime || !overtimeForm.reason.trim()) {
+            toast.error(!overtimeForm.date || !overtimeForm.startTime || !overtimeForm.endTime
+              ? 'All fields are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
+            setSubmitting(false);
+            return;
+          }
+          // Full local datetimes — raw "HH:mm" strings produced
+          // Invalid Date / NaN estimatedHours on the server
+          const otStart = new Date(`${overtimeForm.date}T${overtimeForm.startTime}`);
+          const otEnd = new Date(`${overtimeForm.date}T${overtimeForm.endTime}`);
+          if (isNaN(otStart.getTime()) || isNaN(otEnd.getTime())) {
+            toast.error('Invalid start/end time — please pick the times again');
+            setSubmitting(false);
+            return;
+          }
+          if (otEnd <= otStart) {
+            toast.error('OT end time must be after the start time');
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, date: overtimeForm.date, startTime: otStart, endTime: otEnd, reason: `[HR] ${overtimeForm.reason.trim()}` };
+          break;
+        }
+        case 'comp-off': {
+          if (!compoffForm.date || !compoffForm.reason.trim()) {
+            toast.error(!compoffForm.date
+              ? 'Date and reason are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, date: compoffForm.date, hours: compoffForm.hours, reason: `[HR] ${compoffForm.reason.trim()}` };
+          break;
+        }
+        case 'wfh': {
+          if (!wfhForm.date || !wfhForm.reason.trim()) {
+            toast.error(!wfhForm.date
+              ? 'Date and reason are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
+            setSubmitting(false);
+            return;
+          }
+          // The WFH API requires the WfhRequest contract (startDate/endDate/
+          // requestType/reason) — posting to regularize with punchType 'wfh'
+          // used to fail with "Invalid punch type"
+          const wfhReason = `[HR WFH] ${wfhForm.reason.trim()}`;
+          if (wfhReason.length < 20) {
+            toast.error(`WFH reason must be at least 20 characters (currently ${wfhReason.length} including the [HR WFH] tag)`);
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, startDate: wfhForm.date, endDate: wfhForm.endDate || wfhForm.date, requestType: 'full_day', reasonCategory: 'other', reason: wfhReason };
+          break;
+        }
+      }
+
+      const r = await fetch(reqType.apiEndpoint, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+
+      toast.success(`${reqType.label} request submitted for ${selectedEmployee.firstName} ${selectedEmployee.lastName}`);
+      setSelectedRequestType(null);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to submit request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const overtimeDuration = (() => {
+    if (!overtimeForm.date || !overtimeForm.startTime || !overtimeForm.endTime) return 0;
+    const start = new Date(`${overtimeForm.date}T${overtimeForm.startTime}`);
+    const end = new Date(`${overtimeForm.date}T${overtimeForm.endTime}`);
+    const hours = (end.getTime() - start.getTime()) / 3600000;
+    return hours > 0 ? Math.round(hours * 100) / 100 : 0;
+  })();
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <FiUsers className="w-6 h-6 text-cyan-500" />
+          Apply Attendance by HR
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">Submit attendance requests on behalf of employees — regularization, permission, gate pass, overtime, comp-off &amp; WFH</p>
+      </div>
+
+      {/* Info Banner */}
+      <div className="thb-card p-4 border-l-4 border-l-cyan-500 bg-cyan-50/30">
+        <div className="flex items-start gap-3">
+          <FiAlertCircle className="w-5 h-5 text-cyan-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-cyan-800">HR Proxy Attendance Application</p>
+            <p className="text-xs text-cyan-700 mt-1">Requests submitted through this page are recorded on behalf of the selected employee. Standard approval workflows and AI auto-approval rules still apply. All requests are tagged with [HR] prefix.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Employee Selection */}
+      <div className="thb-card p-6">
+        <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+          <FiUsers className="w-5 h-5 text-cyan-500" />
+          Select Employee
+        </h2>
+        <div className="relative">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={employeeSearch}
+            onChange={(e) => {
+              setEmployeeSearch(e.target.value);
+              setShowEmployeeDropdown(true);
+              if (e.target.value.length >= 2) fetchEmployees(e.target.value);
+            }}
+            onFocus={() => setShowEmployeeDropdown(true)}
+            placeholder="Search by name, employee ID, or email..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-400 transition-all"
+          />
+
+          {showEmployeeDropdown && (
+            <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto z-50">
+              {loadingEmployees ? (
+                <div className="p-4 text-center text-sm text-slate-500">Loading...</div>
+              ) : employees.length === 0 ? (
+                <div className="p-4 text-center text-sm text-slate-500">No employees found</div>
+              ) : employees.map(emp => (
+                <button
+                  key={emp.id}
+                  onClick={() => handleSelectEmployee(emp)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-cyan-50 transition-colors ${
+                    selectedEmployee?.id === emp.id ? 'bg-cyan-50 text-cyan-700' : 'text-slate-700'
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {emp.firstName[0]}{emp.lastName[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-xs text-slate-400 truncate">{emp.employeeId} · {emp.department?.name || 'No Dept'} · {emp.designation?.name || 'No Desg'}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {selectedEmployee && (
+          <div className="mt-4 p-4 bg-cyan-50/40 border border-cyan-200 rounded-lg flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              {selectedEmployee.firstName[0]}{selectedEmployee.lastName[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-slate-800">{selectedEmployee.firstName} {selectedEmployee.lastName}</p>
+              <p className="text-xs text-slate-500">{selectedEmployee.employeeId} · {selectedEmployee.email}</p>
+              <p className="text-xs text-slate-400">{selectedEmployee.department?.name || 'No Department'} · {selectedEmployee.designation?.name || 'No Designation'}</p>
+            </div>
+            <button
+              onClick={() => { setSelectedEmployee(null); setSelectedRequestType(null); }}
+              className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+              title="Clear selection"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* ── Task 135: employee context for HR decisions ── */}
+        {selectedEmployee && loadingContext && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+            <FiRefreshCw className="w-4 h-4 animate-spin" /> Loading employee context…
+          </div>
+        )}
+        {selectedEmployee && !loadingContext && empContext && (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <FiFileText className="w-4 h-4 text-cyan-500" /> Employee Context
+              </h3>
+              {empContext.shift && (
+                <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-medium">
+                  Shift {empContext.shift.start} – {empContext.shift.end}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Recent punches */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recent Punches (last 14 days)</p>
+                {empContext.recentPunches.length === 0 ? (
+                  <p className="text-xs text-slate-400">No attendance rows in the last 14 days.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {empContext.recentPunches.map(p => (
+                      <div key={p.id} className="flex items-center justify-between text-xs bg-white rounded border border-slate-100 px-2 py-1.5">
+                        <span className="text-slate-600 font-medium w-24">{p.date}</span>
+                        <span className="text-slate-500">{hmOf(p.checkIn)} → {hmOf(p.checkOut)}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full font-medium ${ctxStatusChipCls(p.status)}`}>{p.status.replace(/_/g, ' ')}</span>
+                        <span className="text-slate-400 w-12 text-right">{p.workHours ? `${p.workHours}h` : '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Regularization dates */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Regularization Dates (latest)</p>
+                {empContext.regularizations.length === 0 ? (
+                  <p className="text-xs text-slate-400">No regularizations on record.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {empContext.regularizations.map(r => (
+                      <div key={r.id} className="flex items-center justify-between text-xs bg-white rounded border border-slate-100 px-2 py-1.5">
+                        <span className="text-slate-600 font-medium w-24">{r.date}</span>
+                        <span className="text-slate-500 capitalize flex-1 px-2">{r.punchType}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full font-medium ${ctxStatusChipCls(r.status)}`}>{r.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pending requests */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Pending Requests</p>
+                {empContext.pendingByType.length === 0 ? (
+                  <p className="text-xs text-slate-400">No pending attendance requests.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {empContext.pendingByType.map(p => (
+                      <span key={p.type} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded-full">
+                        {p.type}: {p.count} pending{p.latestDate ? ` · latest ${p.latestDate}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Leave balances */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Leave Balances</p>
+                {empContext.balances.length === 0 ? (
+                  <p className="text-xs text-slate-400">No leave balance data.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {empContext.balances.map(b => (
+                      <span key={b.name} className="text-xs bg-white border border-slate-200 text-slate-700 px-2 py-1 rounded-full">
+                        {b.name}: <strong className="text-emerald-600">{b.remaining}</strong>/{b.total} left
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Request Type Selection & Form — shown only after employee selection */}
+
+      {selectedEmployee && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Request Type Cards */}
+          <div className="lg:col-span-1 thb-card p-5">
+            <h3 className="text-sm font-semibold text-slate-800 mb-3">Request Type</h3>
+            <div className="space-y-2">
+              {REQUEST_TYPES.map(rt => (
+                <button
+                  key={rt.key}
+                  onClick={() => setSelectedRequestType(rt.key)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
+                    selectedRequestType === rt.key
+                      ? 'bg-cyan-50 border border-cyan-300 text-cyan-700 shadow-sm'
+                      : 'bg-slate-50 border border-transparent text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    selectedRequestType === rt.key ? 'bg-cyan-500 text-white' : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {rt.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{rt.label}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{rt.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dynamic Form */}
+          <div className="lg:col-span-2 thb-card p-6">
+            {!selectedRequestType ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <FiClock className="w-10 h-10 mb-3" />
+                <p className="text-sm">Select a request type to proceed</p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                  {REQUEST_TYPES.find(r => r.key === selectedRequestType)?.icon}
+                  {REQUEST_TYPES.find(r => r.key === selectedRequestType)?.label} for {selectedEmployee.firstName}
+                </h2>
+
+                {/* Regularize Form */}
+                {selectedRequestType === 'regularize' && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
+                        <input type="date" value={regularizeForm.date} onChange={e => setRegularizeForm({ ...regularizeForm, date: e.target.value })} className="3boxes-input w-full" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Punch Type <span className="text-red-500 font-bold">*</span></label>
+                        <select value={regularizeForm.punchType} onChange={e => setRegularizeForm({ ...regularizeForm, punchType: e.target.value })} className="3boxes-input w-full">
+                          <option value="check_in">Check-In (forgot to clock in)</option>
+                          <option value="check_out">Check-Out (forgot to clock out)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Actual Time <span className="text-red-500 font-bold">*</span></label>
+                        <TimePickerAmPm value={regularizeForm.requestedTime} onChange={v => setRegularizeForm({ ...regularizeForm, requestedTime: v })} className="w-full" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
+                        <input type="text" value={regularizeForm.reason} onChange={e => setRegularizeForm({ ...regularizeForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Forgot to punch in after meeting" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Permission Form */}
+                {selectedRequestType === 'permission' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
+                      <input type="date" value={permissionForm.date} onChange={e => setPermissionForm({ ...permissionForm, date: e.target.value })} className="3boxes-input w-full" />
+                    </div>
+                    <div />
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Time <span className="text-red-500 font-bold">*</span></label>
+                      <TimePickerAmPm value={permissionForm.startTime} onChange={v => setPermissionForm({ ...permissionForm, startTime: v })} className="w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">End Time <span className="text-red-500 font-bold">*</span></label>
+                      <TimePickerAmPm value={permissionForm.endTime} onChange={v => setPermissionForm({ ...permissionForm, endTime: v })} className="w-full" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
+                      <input type="text" value={permissionForm.reason} onChange={e => setPermissionForm({ ...permissionForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Personal work for 2 hours" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Gate Pass Form */}
+                {selectedRequestType === 'gatepass' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
+                      <input type="date" value={gatepassForm.date} onChange={e => setGatepassForm({ ...gatepassForm, date: e.target.value })} className="3boxes-input w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Gate Pass Type <span className="text-red-500 font-bold">*</span></label>
+                      <select value={gatepassForm.type} onChange={e => setGatepassForm({ ...gatepassForm, type: e.target.value })} className="3boxes-input w-full">
+                        <option value="early_departure">Early Departure</option>
+                        <option value="late_arrival">Late Arrival</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">{gatepassForm.type === 'late_arrival' ? 'Arrival Time' : 'Out Time'} <span className="text-red-500 font-bold">*</span></label>
+                      <TimePickerAmPm value={gatepassForm.outTime} onChange={v => setGatepassForm({ ...gatepassForm, outTime: v })} className="w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
+                      <input type="text" value={gatepassForm.reason} onChange={e => setGatepassForm({ ...gatepassForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Doctor appointment" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Overtime Form */}
+                {selectedRequestType === 'overtime' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
+                      <input type="date" value={overtimeForm.date} onChange={e => setOvertimeForm({ ...overtimeForm, date: e.target.value })} className="3boxes-input w-full" />
+                    </div>
+                    <div />
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">OT Start Time <span className="text-red-500 font-bold">*</span></label>
+                      <TimePickerAmPm value={overtimeForm.startTime} onChange={v => setOvertimeForm({ ...overtimeForm, startTime: v })} className="w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">OT End Time <span className="text-red-500 font-bold">*</span></label>
+                      <TimePickerAmPm value={overtimeForm.endTime} onChange={v => setOvertimeForm({ ...overtimeForm, endTime: v })} className="w-full" />
+                    </div>
+                    {overtimeDuration > 0 && (
+                      <div className="sm:col-span-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2">
+                        <p className="text-sm font-medium text-teal-700">OT Duration: {overtimeDuration} hour{overtimeDuration === 1 ? '' : 's'}</p>
+                        <p className="text-xs text-teal-600 mt-0.5">The server will verify attendance, leave, conflicts, and scheduled shift hours before submission.</p>
+                      </div>
+                    )}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
+                      <input type="text" value={overtimeForm.reason} onChange={e => setOvertimeForm({ ...overtimeForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Project deadline" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Comp-Off Form */}
+                {selectedRequestType === 'comp-off' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Comp-Off Date <span className="text-red-500 font-bold">*</span></label>
+                      <input type="date" value={compoffForm.date} onChange={e => setCompoffForm({ ...compoffForm, date: e.target.value })} className="3boxes-input w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Comp-Off Hours</label>
+                      <input type="number" min={0.5} max={12} step={0.5} value={compoffForm.hours} onChange={e => setCompoffForm({ ...compoffForm, hours: Number(e.target.value) || 8 })} className="3boxes-input w-full" />
+                      <p className="text-[10px] text-slate-400 mt-0.5">Credited hours (default 8h for a full day). Expires in 90 days.</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
+                      <input type="text" value={compoffForm.reason} onChange={e => setCompoffForm({ ...compoffForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Worked on holiday" />
+                    </div>
+                  </div>
+                )}
+
+                {/* WFH Form */}
+                {selectedRequestType === 'wfh' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">From Date <span className="text-red-500 font-bold">*</span></label>
+                      <input type="date" value={wfhForm.date} onChange={e => setWfhForm({ ...wfhForm, date: e.target.value })} className="3boxes-input w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">To Date</label>
+                      <input type="date" value={wfhForm.endDate} onChange={e => setWfhForm({ ...wfhForm, endDate: e.target.value })} className="3boxes-input w-full" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
+                      <input type="text" value={wfhForm.reason} onChange={e => setWfhForm({ ...wfhForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Personal reason / unwell" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="3boxes-btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
+                    Submit {REQUEST_TYPES.find(r => r.key === selectedRequestType)?.label} for {selectedEmployee.firstName}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

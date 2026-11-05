@@ -1,0 +1,716 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { FiSettings, FiRefreshCw, FiSave, FiShield, FiSearch, FiX, FiCheck, FiUsers } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+interface CollaborationSettings {
+  id: string;
+  tenantId: string;
+  encryptionEnabled: boolean;
+  fileSharingLimitMB: number;
+  messageRetentionDays: number;
+  calendarSyncEnabled: boolean;
+  calendarSyncProvider: string;
+  emailIntegrationEnabled: boolean;
+  emailProvider: string;
+  autoDeleteMessages: boolean;
+  maxCallDurationMin: number;
+  allowExternalSharing: boolean;
+  watermarkEnabled: boolean;
+  updatedBy?: string;
+}
+
+interface ManagerOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string | null;
+  department?: { name: string } | null;
+  designation?: { name: string } | null;
+}
+
+const RETENTION_OPTIONS: { label: string; days: number }[] = [
+  { label: '30 Days', days: 30 },
+  { label: '90 Days', days: 90 },
+  { label: '6 Months', days: 180 },
+  { label: '1 Year', days: 365 },
+  { label: 'Indefinite', days: 0 },
+];
+
+function daysToLabel(days: number): string {
+  const match = RETENTION_OPTIONS.find((o) => o.days === days);
+  return match ? match.label : `${days} Days`;
+}
+
+function labelToDays(label: string): number {
+  const match = RETENTION_OPTIONS.find((o) => o.label === label);
+  return match ? match.days : parseInt(label, 10) || 365;
+}
+
+export default function CollaborationSettingsPage() {
+  const { user } = useAuthStore();
+  const scopeQuery = useCompanyContextStore((s) => s.scopeQuery);
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Chat Settings
+  const [encryption, setEncryption] = useState(true);
+  const [fileSharingLimit, setFileSharingLimit] = useState('25');
+  const [messageRetention, setMessageRetention] = useState('1 Year');
+  const [autoDeleteMessages, setAutoDeleteMessages] = useState(false);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
+  const [allowExternalSharing, setAllowExternalSharing] = useState(true);
+
+  // Productivity
+  const [calendarSync, setCalendarSync] = useState(true);
+  const [calendarSyncProvider, setCalendarSyncProvider] = useState('google');
+  const [emailIntegration, setEmailIntegration] = useState(false);
+  const [emailProvider, setEmailProvider] = useState('smtp');
+
+  // Calls
+  const [maxCallDuration, setMaxCallDuration] = useState('60');
+
+  // Task 122 — Chat Governance
+  const [customManagers, setCustomManagers] = useState(false);
+  const [directDelete, setDirectDelete] = useState(true);
+  const [managerIds, setManagerIds] = useState<string[]>([]);
+  const [managerOptions, setManagerOptions] = useState<ManagerOption[]>([]);
+  const [managerSearch, setManagerSearch] = useState('');
+
+  // Task 138 — Social Feed governance (who may RAISE feeds)
+  const [feedMode, setFeedMode] = useState<'admins' | 'selected'>('admins');
+  const [feedCreatorIds, setFeedCreatorIds] = useState<string[]>([]);
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const sq = scopeQuery();
+      const res = await fetch(`/api/collaboration/settings${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      const data = await res.json();
+      const s: CollaborationSettings = data.settings;
+      if (s) {
+        setEncryption(s.encryptionEnabled);
+        setFileSharingLimit(String(s.fileSharingLimitMB));
+        setMessageRetention(daysToLabel(s.messageRetentionDays));
+        setAutoDeleteMessages(s.autoDeleteMessages);
+        setWatermarkEnabled(s.watermarkEnabled);
+        setAllowExternalSharing(s.allowExternalSharing);
+        setCalendarSync(s.calendarSyncEnabled);
+        setCalendarSyncProvider(s.calendarSyncProvider || 'google');
+        setEmailIntegration(s.emailIntegrationEnabled);
+        setEmailProvider(s.emailProvider || 'smtp');
+        setMaxCallDuration(String(s.maxCallDurationMin));
+      }
+    } catch {
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+
+    // Task 122 — chat governance (separate endpoint, admin-editable).
+    try {
+      const sq = scopeQuery();
+      const cr = await fetch(`/api/collaboration/chat/settings${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
+      if (cr.ok) {
+        const cd = await cr.json();
+        setCustomManagers(cd.settings?.customManagersEnabled === true);
+        setDirectDelete(cd.settings?.directDeleteEnabled !== false);
+        setManagerIds(Array.isArray(cd.settings?.managerIds) ? cd.settings.managerIds : []);
+      }
+    } catch {
+      /* governance load failure must not block the page */
+    }
+
+    // Task 138 — social feed governance (separate endpoint).
+    try {
+      const sq2 = scopeQuery();
+      const fr = await fetch(`/api/social-feed/settings${sq2 ? `?${sq2}` : ''}`, { headers: getAuthHeaders() });
+      if (fr.ok) {
+        const fd = await fr.json();
+        setFeedMode(fd.settings?.creationMode === 'selected' ? 'selected' : 'admins');
+        setFeedCreatorIds(Array.isArray(fd.settings?.creatorIds) ? fd.settings.creatorIds : []);
+      }
+    } catch {
+      /* feed governance load failure must not block the page */
+    }
+  };
+
+  // Task 122 — active-employee options for the chat-manager picker.
+  const fetchManagerOptions = async () => {
+    try {
+      const res = await fetch('/api/employees?limit=200&excludeInactive=true', { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = Array.isArray(data.employees) ? data.employees : Array.isArray(data.data) ? data.data : [];
+      setManagerOptions(rows as ManagerOption[]);
+    } catch {
+      /* picker stays empty; the list is still editable by id */
+    }
+  };
+
+  useEffect(() => {
+    fetchSettings();
+    fetchManagerOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeQuery]);
+
+  const handleRefresh = () => {
+    fetchSettings();
+    toast.success('Settings refreshed');
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        encryptionEnabled: encryption,
+        fileSharingLimitMB: parseInt(fileSharingLimit, 10) || 25,
+        messageRetentionDays: labelToDays(messageRetention),
+        calendarSyncEnabled: calendarSync,
+        calendarSyncProvider,
+        emailIntegrationEnabled: emailIntegration,
+        emailProvider,
+        autoDeleteMessages,
+        maxCallDurationMin: parseInt(maxCallDuration, 10) || 60,
+        allowExternalSharing,
+        watermarkEnabled,
+      };
+      const res = await fetch('/api/collaboration/settings', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Failed to save settings');
+      }
+      // Task 122 — chat governance persists through its own endpoint.
+      const chatRes = await fetch('/api/collaboration/chat/settings', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          customManagersEnabled: customManagers,
+          directDeleteEnabled: directDelete,
+          managerIds,
+        }),
+      });
+      if (!chatRes.ok) {
+        const err = await chatRes.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Failed to save chat governance');
+      }
+      // Task 138 — social feed governance persists through its own endpoint.
+      const feedRes = await fetch('/api/social-feed/settings', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ creationMode: feedMode, creatorIds: feedCreatorIds }),
+      });
+      if (!feedRes.ok) {
+        const err = await feedRes.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Failed to save social feed governance');
+      }
+      toast.success('Collaboration settings saved successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectClass =
+    'w-full px-3 py-2 rounded-lg border border-thb-border text-sm text-thb-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
+  const inputClass =
+    'w-full px-3 py-2 rounded-lg border border-thb-border text-sm text-thb-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-green-50 text-green-600">
+            <FiSettings className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-thb-text-primary">Collaboration Settings</h1>
+            <p className="text-sm text-thb-text-secondary">
+              Configure chat preferences and productivity integrations for your team
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
+          >
+            <FiRefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
+          {isAdmin && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiSave className="w-3.5 h-3.5" />
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Settings Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Chat Settings */}
+        <div className="thb-card p-6 space-y-5">
+          <h2 className="text-base font-semibold text-thb-text-primary">Chat Settings</h2>
+
+          {/* Encryption */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-thb-text-primary">Encryption</p>
+              <p className="text-xs text-thb-text-muted">End-to-end encryption for all chat messages</p>
+            </div>
+            <button
+              onClick={() => setEncryption(!encryption)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                encryption ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {encryption ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+
+          {/* File Sharing Limit */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-thb-text-secondary">File Sharing Limit (MB)</label>
+            <input
+              type="number"
+              value={fileSharingLimit}
+              onChange={(e) => setFileSharingLimit(e.target.value)}
+              min="1"
+              max="100"
+              className={inputClass}
+            />
+            <p className="text-xs text-thb-text-muted">Maximum file size allowed for sharing in chat</p>
+          </div>
+
+          {/* Message Retention */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-thb-text-secondary">Message Retention</label>
+            <select
+              value={messageRetention}
+              onChange={(e) => setMessageRetention(e.target.value)}
+              className={selectClass}
+            >
+              {RETENTION_OPTIONS.map((o) => (
+                <option key={o.label} value={o.label}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Auto Delete Messages */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-thb-text-primary">Auto-Delete Expired Messages</p>
+              <p className="text-xs text-thb-text-muted">Automatically delete messages past retention period</p>
+            </div>
+            <button
+              onClick={() => setAutoDeleteMessages(!autoDeleteMessages)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                autoDeleteMessages ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {autoDeleteMessages ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+
+          {/* Watermark */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-thb-text-primary">Watermark</p>
+              <p className="text-xs text-thb-text-muted">Apply user watermark to shared files</p>
+            </div>
+            <button
+              onClick={() => setWatermarkEnabled(!watermarkEnabled)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                watermarkEnabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {watermarkEnabled ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+
+          {/* External Sharing */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-thb-text-primary">Allow External Sharing</p>
+              <p className="text-xs text-thb-text-muted">Allow sharing files and messages with external users</p>
+            </div>
+            <button
+              onClick={() => setAllowExternalSharing(!allowExternalSharing)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                allowExternalSharing ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {allowExternalSharing ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+        </div>
+
+        {/* Productivity */}
+        <div className="thb-card p-6 space-y-5">
+          <h2 className="text-base font-semibold text-thb-text-primary">Productivity</h2>
+
+          {/* Calendar Sync */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-thb-text-primary">Calendar Sync</p>
+              <p className="text-xs text-thb-text-muted">
+                Synchronize meetings and events with your team calendar
+              </p>
+            </div>
+            <button
+              onClick={() => setCalendarSync(!calendarSync)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                calendarSync ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {calendarSync ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+
+          {/* Calendar Sync Provider */}
+          {calendarSync && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-thb-text-secondary">Calendar Provider</label>
+              <select
+                value={calendarSyncProvider}
+                onChange={(e) => setCalendarSyncProvider(e.target.value)}
+                className={selectClass}
+              >
+                <option value="google">Google Calendar</option>
+                <option value="outlook">Outlook Calendar</option>
+                <option value="ical">iCal</option>
+              </select>
+            </div>
+          )}
+
+          {/* Email Integration */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-thb-text-primary">Email Integration</p>
+              <p className="text-xs text-thb-text-muted">
+                Connect email to send and receive messages within the collaboration hub
+              </p>
+            </div>
+            <button
+              onClick={() => setEmailIntegration(!emailIntegration)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                emailIntegration ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {emailIntegration ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+
+          {/* Email Provider */}
+          {emailIntegration && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-thb-text-secondary">Email Provider</label>
+              <select
+                value={emailProvider}
+                onChange={(e) => setEmailProvider(e.target.value)}
+                className={selectClass}
+              >
+                <option value="smtp">SMTP</option>
+                <option value="google">Google</option>
+                <option value="outlook">Outlook</option>
+              </select>
+            </div>
+          )}
+
+          {/* Max Call Duration */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-thb-text-secondary">Max Call Duration (minutes)</label>
+            <input
+              type="number"
+              value={maxCallDuration}
+              onChange={(e) => setMaxCallDuration(e.target.value)}
+              min="5"
+              max="480"
+              className={inputClass}
+            />
+            <p className="text-xs text-thb-text-muted">Maximum duration for video/audio calls</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Task 122 — Chat Governance (full width) */}
+      <div className="thb-card p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <FiShield className="w-4 h-4 text-green-600" />
+          <h2 className="text-base font-semibold text-thb-text-primary">Chat Governance</h2>
+        </div>
+        <p className="text-xs text-thb-text-muted -mt-3">
+          Controls who can create, edit and delete chats across the web and mobile apps. Group-chat deletions are
+          soft — the full history stays available to the Super Admin in eDiscovery.
+        </p>
+
+        {/* Custom chat managers */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-thb-text-primary">Additional Chat Managers</p>
+            <p className="text-xs text-thb-text-muted">
+              Off (default): only HR / tenant admins can create, rename, populate or delete group chats. On: the
+              selected employees also get those rights.
+            </p>
+          </div>
+          <button
+            onClick={() => setCustomManagers(!customManagers)}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors flex-shrink-0 ml-4 ${
+              customManagers ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {customManagers ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+
+        {customManagers && (
+          <div className="space-y-3 rounded-xl border border-thb-border p-4">
+            <div className="relative">
+              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={managerSearch}
+                onChange={(e) => setManagerSearch(e.target.value)}
+                placeholder="Search employees to grant chat manager rights..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+            </div>
+
+            {/* Selected managers */}
+            {managerIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {managerIds.map((id) => {
+                  const emp = managerOptions.find((e) => e.id === id);
+                  return (
+                    <span
+                      key={id}
+                      className="px-2 py-1 bg-green-50 text-green-700 text-xs rounded-lg flex items-center gap-1"
+                    >
+                      {emp ? `${emp.firstName} ${emp.lastName}` : id}
+                      <button
+                        onClick={() => setManagerIds((prev) => prev.filter((m) => m !== id))}
+                        className="text-green-500 hover:text-red-500"
+                      >
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Employee picker */}
+            <div className="max-h-48 overflow-y-auto border border-thb-border rounded-lg">
+              {managerOptions.length === 0 ? (
+                <div className="p-4 text-center text-xs text-thb-text-muted">No active employees loaded</div>
+              ) : (
+                managerOptions
+                  .filter((e) => {
+                    const q = managerSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return (
+                      `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) ||
+                      (e.email ?? '').toLowerCase().includes(q) ||
+                      (e.department?.name ?? '').toLowerCase().includes(q)
+                    );
+                  })
+                  .map((emp) => (
+                    <button
+                      key={emp.id}
+                      onClick={() =>
+                        setManagerIds((prev) =>
+                          prev.includes(emp.id) ? prev.filter((m) => m !== emp.id) : [...prev, emp.id],
+                        )
+                      }
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
+                        managerIds.includes(emp.id) ? 'bg-green-50' : ''
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                        {emp.firstName[0]}
+                        {emp.lastName[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-thb-text-primary truncate">
+                          {emp.firstName} {emp.lastName}
+                        </p>
+                        <p className="text-[10px] text-thb-text-muted">{emp.department?.name || emp.email || ''}</p>
+                      </div>
+                      {managerIds.includes(emp.id) && <FiCheck className="w-3.5 h-3.5 text-green-500 ml-auto flex-shrink-0" />}
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Direct chat delete */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-thb-text-primary">Allow Users To Delete Direct Chats</p>
+            <p className="text-xs text-thb-text-muted">
+              On (default): every user can delete their 1:1 chats to free up their chat list (the other participant
+              keeps the conversation, and history stays auditable). Off: only HR / tenant admins can.
+            </p>
+          </div>
+          <button
+            onClick={() => setDirectDelete(!directDelete)}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors flex-shrink-0 ml-4 ${
+              directDelete ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {directDelete ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+      </div>
+
+      {/* Task 138 — Social Feed Governance (full width) */}
+      <div className="thb-card p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <FiUsers className="w-4 h-4 text-teal-600" />
+          <h2 className="text-base font-semibold text-thb-text-primary">Social Feed</h2>
+        </div>
+        <p className="text-xs text-thb-text-muted -mt-3">
+          Controls who can RAISE feeds (like / comment stays open to everyone). The Employee module dashboard shows
+          these feeds right after the Overview so every login sees the HR / employee shares from their respective
+          logins.
+        </p>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-thb-text-primary">Who can raise feeds</p>
+            <p className="text-xs text-thb-text-muted">
+              Admins only (default): HR / Admin / CEO logins share feeds and employees respond (like / comment).
+              Selected employees: the employees picked below can also raise feeds from their own logins.
+            </p>
+          </div>
+          <div className="flex rounded-lg border border-thb-border overflow-hidden flex-shrink-0 ml-4">
+            <button
+              onClick={() => setFeedMode('admins')}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${feedMode === 'admins' ? 'bg-teal-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+            >
+              Admins only
+            </button>
+            <button
+              onClick={() => setFeedMode('selected')}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${feedMode === 'selected' ? 'bg-teal-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+            >
+              + Selected employees
+            </button>
+          </div>
+        </div>
+
+        {feedMode === 'selected' && (
+          <div className="space-y-3 rounded-xl border border-thb-border p-4">
+            <div className="relative">
+              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={managerSearch}
+                onChange={(e) => setManagerSearch(e.target.value)}
+                placeholder="Search employees to allow raising feeds..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
+            </div>
+
+            {feedCreatorIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {feedCreatorIds.map((id) => {
+                  const emp = managerOptions.find((e) => e.id === id);
+                  return (
+                    <span
+                      key={id}
+                      className="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-lg flex items-center gap-1"
+                    >
+                      {emp ? `${emp.firstName} ${emp.lastName}` : id}
+                      <button
+                        onClick={() => setFeedCreatorIds((prev) => prev.filter((m) => m !== id))}
+                        className="text-teal-500 hover:text-red-500"
+                      >
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="max-h-48 overflow-y-auto border border-thb-border rounded-lg">
+              {managerOptions.length === 0 ? (
+                <div className="p-4 text-center text-xs text-thb-text-muted">No active employees loaded</div>
+              ) : (
+                managerOptions
+                  .filter((e) => {
+                    const q = managerSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return (
+                      `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) ||
+                      (e.email ?? '').toLowerCase().includes(q) ||
+                      (e.department?.name ?? '').toLowerCase().includes(q)
+                    );
+                  })
+                  .map((emp) => (
+                    <button
+                      key={emp.id}
+                      onClick={() =>
+                        setFeedCreatorIds((prev) =>
+                          prev.includes(emp.id) ? prev.filter((m) => m !== emp.id) : [...prev, emp.id],
+                        )
+                      }
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
+                        feedCreatorIds.includes(emp.id) ? 'bg-teal-50' : ''
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                        {emp.firstName[0]}
+                        {emp.lastName[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-thb-text-primary truncate">
+                          {emp.firstName} {emp.lastName}
+                        </p>
+                        <p className="text-[10px] text-thb-text-muted">{emp.department?.name || emp.email || ''}</p>
+                      </div>
+                      {feedCreatorIds.includes(emp.id) && <FiCheck className="w-3.5 h-3.5 text-teal-600 ml-auto flex-shrink-0" />}
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

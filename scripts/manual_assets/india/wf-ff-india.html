@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 1280px 430px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 1280px; height: 430px; background: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1280px; height: 430px; position: relative; padding: 24px 28px; box-sizing: border-box; }
+  .lane-label { font-size: 15px; font-weight: 800; letter-spacing: 1.2px; color: #365345; margin-bottom: 8px; }
+  .row { display: flex; align-items: stretch; justify-content: space-between; width: 100%; margin-bottom: 14px; }
+  .stage {
+    flex: 1 1 0; min-width: 150px;
+    background: #f4f7f5; border: 1.5px solid #b9d0c4; border-radius: 10px;
+    padding: 12px 12px 10px 12px; box-sizing: border-box;
+  }
+  .stage.gate { background: #fdf6ec; border-color: #dcbf94; }
+  .stage-num { display: inline-block; background: #365345; color: #ffffff; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px; letter-spacing: 0.5px; }
+  .stage-num.gate { background: #8a6320; }
+  .stage h3 { margin: 7px 0 5px 0; font-size: 19px; font-weight: 800; color: #222523; line-height: 1.15; }
+  .stage li { font-size: 14.5px; color: #4d5a53; line-height: 1.38; margin-bottom: 3px; }
+  .stage ul { margin: 0; padding-left: 16px; }
+  .chip { margin-top: 7px; display: inline-block; background: #e7f2ec; border: 1px solid #288a59; color: #1d6b45; font-size: 12px; font-weight: 700; border-radius: 20px; padding: 2px 9px; }
+  .chip.gate { background: #fbf0dc; border-color: #b98a2e; color: #7c5a1a; }
+  .arrow { flex: 0 0 26px; display: flex; align-items: center; justify-content: center; }
+  .arrow svg { display: block; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="lane-label">SEPARATION (FULL &amp; FINAL) FLOW — INDIA</div>
+  <div class="row">
+    <div class="stage">
+      <span class="stage-num">1</span>
+      <h3>Resignation Approved</h3>
+      <ul><li>Manager + HR accept</li><li>LWD computed from notice</li><li>Manager + HR notified</li></ul>
+      <span class="chip">exit.resignation events</span>
+    </div>
+    <div class="arrow"><svg width="22" height="22" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">2</span>
+      <h3>F&amp;F Auto-Computation</h3>
+      <ul><li>Pending salary to LWD</li><li>Notice buy-out: days × salary/30</li><li>Gratuity 15/26 (≥ 5 yrs, cap ₹20L)</li><li>Leave encashment (exempt ≤ ₹25L)</li></ul>
+      <span class="chip">India engine computes</span>
+    </div>
+    <div class="arrow"><svg width="22" height="22" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage gate">
+      <span class="stage-num gate">3 · GATE</span>
+      <h3>Parallel Clearance</h3>
+      <ul><li>IT — access revoke</li><li>Admin — hardware return</li><li>Finance — dues &amp; loans</li><li>Legal — NDA / contracts</li></ul>
+      <span class="chip gate">Payout held till all clear</span>
+    </div>
+    <div class="arrow"><svg width="22" height="22" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">4</span>
+      <h3>Settlement &amp; Payout</h3>
+      <ul><li>Earnings − recoveries = net</li><li>Tax: gratuity 10(10), encashment 10(10AA)</li><li>Paid with final run / off-cycle</li></ul>
+      <span class="chip">exit.fnf.ready notification</span>
+    </div>
+    <div class="arrow"><svg width="22" height="22" viewBox="0 0 26 26"><line x1="1" y1="13" x2="19" y2="13" stroke="#478d6a" stroke-width="2.5"/><polygon points="18,6 26,13 18,20" fill="#478d6a"/></svg></div>
+    <div class="stage">
+      <span class="stage-num">5</span>
+      <h3>Statutory Exit Filings</h3>
+      <ul><li>EPF Form 10 (exit month)</li><li>EPS withdrawal / transfer</li><li>ESIC IP disablement</li></ul>
+      <span class="chip">Generated from run data</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

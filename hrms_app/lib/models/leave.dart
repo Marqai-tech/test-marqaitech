@@ -1,0 +1,70 @@
+class LeaveModel {
+  final String id;
+  final String? employeeId;
+  final String? employeeName;
+  final String leaveType;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String status;
+  final String? reason;
+  final double? daysCount;
+  final DateTime? createdAt;
+  final String? approvedBy;
+  final String? contactNumber;
+
+  LeaveModel({
+    required this.id,
+    this.employeeId,
+    this.employeeName,
+    required this.leaveType,
+    required this.startDate,
+    required this.endDate,
+    required this.status,
+    this.reason,
+    this.daysCount,
+    this.createdAt,
+    this.approvedBy,
+    this.contactNumber,
+  });
+
+  factory LeaveModel.fromJson(Map<String, dynamic> json) {
+    return LeaveModel(
+      id: json['id'] ?? '',
+      employeeId: json['employeeId'],
+      employeeName: json['employeeName'] ?? (json['employee'] is Map ? '${json['employee']['firstName'] ?? ''} ${json['employee']['lastName'] ?? ''}'.trim() : null),
+      leaveType: json['leaveType'] is Map ? ((json['leaveType']['name'] ?? json['leaveType']['code'])?.toString() ?? 'Leave') : ((json['leaveType'] ?? json['type'] ?? 'Leave').toString()),
+      startDate: DateTime.tryParse(json['startDate']?.toString() ?? '') ?? DateTime.now(),
+      endDate: DateTime.tryParse(json['endDate']?.toString() ?? '') ?? DateTime.now(),
+      status: json['status'] ?? 'PENDING',
+      reason: json['reason'] is String ? json['reason'] : json['reason']?.toString(),
+      daysCount: _num(json['totalDays'] ?? json['daysCount'] ?? json['numberOfDays']),
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      approvedBy: json['approvedBy'] is String ? json['approvedBy'] : json['approverName']?.toString(),
+      contactNumber: json['contactNumber']?.toString(),
+    );
+  }
+
+  static double? _num(Object? v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '');
+  }
+
+  Map<String, dynamic> toJson() => {
+        'leaveType': leaveType,
+        'startDate': startDate.toIso8601String().split('T')[0],
+        'endDate': endDate.toIso8601String().split('T')[0],
+        'reason': reason,
+        'contactNumber': contactNumber,
+        if (daysCount != null) 'numberOfDays': daysCount,
+      };
+
+  bool get isPending => status.toUpperCase() == 'PENDING';
+  bool get isApproved => status.toUpperCase() == 'APPROVED';
+  bool get isRejected => status.toUpperCase() == 'REJECTED';
+
+  String get durationText {
+    if (daysCount != null && daysCount! > 0) return '${daysCount!.toInt()} day${daysCount! > 1 ? 's' : ''}';
+    final diff = endDate.difference(startDate).inDays + 1;
+    return '$diff day${diff > 1 ? 's' : ''}';
+  }
+}
