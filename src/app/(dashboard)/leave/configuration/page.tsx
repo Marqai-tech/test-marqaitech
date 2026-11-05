@@ -511,7 +511,7 @@ function MappingForm({ editItem, leaveTypes, policies, onClose, onSaved }: { edi
     const h = getAuthHeaders();
     fetch('/api/branches', { headers: h }).then(r => r.json()).then(d => setBranches(d.data || d || [])).catch(() => {});
     fetch('/api/departments', { headers: h }).then(r => r.json()).then(d => setDepartments(d.data || d || [])).catch(() => {});
-    fetch('/api/employees?limit=500', { headers: h }).then(r => r.json()).then(d => setEmployees((d.employees || []).map((e:any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, employeeId: e.employeeId })))).catch(() => {});
+    fetch('/api/employees?limit=500', { headers: h }).then(r => r.json()).then(d => setEmployees((d.employees || []).map((e:any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, employeeId: e.employeeId }))).catch(() => {});
   }, []);
 
   useEffect(() => {
