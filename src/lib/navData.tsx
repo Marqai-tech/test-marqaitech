@@ -402,6 +402,7 @@ export const navSections: NavSection[] = [
       { label: 'Recruitment', href: '/recruitment', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Interviews', href: '/interviews', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
