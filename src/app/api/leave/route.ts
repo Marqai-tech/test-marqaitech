@@ -16,6 +16,7 @@ import {
   WorkingDayWalk,
 } from '@/lib/working-days';
 import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
+import { resolveLeavePolicy, validateLeaveAgainstPolicy } from '@/lib/leave-policy-resolver';
 
 /**
  * Deduct leave balance for an approved leave request.
@@ -305,6 +306,33 @@ export async function POST(request: Request) {
         { error: "The selected leave type does not belong to the employee's company." },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // ─── Mapping enforcement: check if this leave type is mapped to this employee ───
+    // If mappings exist for this company, the employee can only use leave types
+    // that have an active mapping matching their scope (branch, dept, gender, etc.)
+    // If NO mappings exist at all, all types are allowed (backward-compat).
+    try {
+      let mappingsExist = false;
+      try {
+        const rows: any[] = await db.$queryRawUnsafe(
+          `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
+          targetEmployee.companyId
+        );
+        mappingsExist = rows[0]?.cnt > 0;
+      } catch { /* table might not exist — skip check */ }
+
+      if (mappingsExist) {
+        const policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: targetEmployee.companyId });
+        if (policy.source === 'none') {
+          return NextResponse.json(
+            { error: 'This leave type is not available for you. Please contact HR if you believe this is an error.' },
+            { status: 403, headers: corsHeaders() }
+          );
+        }
+      }
+    } catch (policyErr) {
+      console.warn('[leave] Mapping check failed (non-fatal, allowing):', policyErr);
     }
 
     if (scope.scope === 'self') {

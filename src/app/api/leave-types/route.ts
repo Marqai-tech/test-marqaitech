@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
+import { resolveLeavePolicy } from '@/lib/leave-policy-resolver';
 
 function corsHeaders() {
   return {
@@ -39,12 +40,56 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const leaveTypes = await db.leaveType.findMany({
+    const allLeaveTypes = await db.leaveType.findMany({
       where: { status: 'active', ...companyFilter },
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({ data: leaveTypes }, { headers: corsHeaders() });
+    // ─── Mapping enforcement: filter leave types by LeaveTypePolicyMapping ───
+    // For employees (scope='self'), only show leave types that have an active
+    // mapping matching the employee's scope (branch, dept, gender, etc.).
+    // Admins see all types (for configuration purposes).
+    // If NO mappings exist at all for this company, show all types (backward-compat).
+    let filteredTypes = allLeaveTypes;
+
+    if (scope && scope.scope === 'self') {
+      // Find the employee's record
+      const emp = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { id: true, companyId: true },
+      }).catch(() => null);
+
+      if (emp?.id) {
+        // Check if ANY mappings exist for this company
+        let mappingsExist = false;
+        try {
+          const rows: any[] = await db.$queryRawUnsafe(
+            `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
+            emp.companyId
+          );
+          mappingsExist = rows[0]?.cnt > 0;
+        } catch { /* table might not exist yet — no filtering */ }
+
+        if (mappingsExist) {
+          // Filter: only keep types where the resolver finds a match
+          const visibleTypes = [];
+          for (const lt of allLeaveTypes) {
+            try {
+              const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: emp.companyId });
+              if (policy.source !== 'none') {
+                visibleTypes.push(lt);
+              }
+            } catch {
+              // If resolver fails, include the type (don't block the employee)
+              visibleTypes.push(lt);
+            }
+          }
+          filteredTypes = visibleTypes;
+        }
+      }
+    }
+
+    return NextResponse.json({ data: filteredTypes }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Leave types GET error:', error);
     return NextResponse.json({ data: [] }, { headers: corsHeaders() });
