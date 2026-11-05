@@ -96,8 +96,12 @@ function getDaysBetween(start: string, end: string, holidayDates: Set<string> = 
   // BUG FIX: exclude weekends (Sat+Sun) and configured holidays from the
   // displayed duration — matches the server-side working-day computation
   // that drives balance deduction.
-  const s = new Date(`${start}T00:00:00Z`);
-  const e = new Date(`${end}T00:00:00Z`);
+  // Handle both ISO datetime strings ("2026-11-04T00:00:00.000Z") and
+  // plain date strings ("2026-11-04") by taking only the date part.
+  const startDate = (start || '').split('T')[0];
+  const endDate = (end || '').split('T')[0];
+  const s = new Date(`${startDate}T00:00:00Z`);
+  const e = new Date(`${endDate}T00:00:00Z`);
   if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
   let count = 0;
   const cursor = new Date(s.getTime());
