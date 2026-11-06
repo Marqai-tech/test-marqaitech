@@ -15,6 +15,7 @@ export type ModuleKey =
   | 'resumes'
   | 'submissions'
   | 'offer_dashboard'
+  | 'offer_create'
   | 'offer_approvals'
   | 'offer_branding'
   | 'offer_workflow'

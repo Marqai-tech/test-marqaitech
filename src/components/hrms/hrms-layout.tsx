@@ -15,6 +15,7 @@ import { TalentPool } from './talent-pool';
 import { Resumes } from './resumes';
 import { Submissions } from './submissions';
 import { OfferDashboard } from './offer-dashboard';
+import { CreateOffer } from './create-offer';
 import { OfferApprovalQueue } from './offer-approval-queue';
 import { OfferBrandingSettings } from './offer-branding-settings';
 import { OfferWorkflowSettings } from './offer-workflow-settings';
@@ -56,6 +57,7 @@ const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   resumes: Resumes,
   submissions: Submissions,
   offer_dashboard: OfferDashboard,
+  offer_create: CreateOffer,
   offer_approvals: OfferApprovalQueue,
   offer_branding: OfferBrandingSettings,
   offer_workflow: OfferWorkflowSettings,

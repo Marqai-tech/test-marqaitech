@@ -32,6 +32,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { OfferHistory } from './offer-history';
+import ConvertCandidateButton from './ConvertCandidateButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -137,9 +138,10 @@ export function OfferDashboard() {
           method: 'POST', headers: getAuthHeaders(),
         });
       } else if (action === 'send') {
-        res = await fetch(`/api/offers/${offer.id}`, {
-          method: 'PATCH', headers: getAuthHeaders(),
-          body: JSON.stringify({ action: 'send' }),
+        // Send offer via dedicated endpoint (with delivery tracking + email)
+        res = await fetch(`/api/offers/${offer.id}/send`, {
+          method: 'POST', headers: getAuthHeaders(),
+          body: JSON.stringify({ bccHr: true }),
         });
       } else if (action === 'pdf') {
         // Generate branded PDF
@@ -338,7 +340,13 @@ export function OfferDashboard() {
                           <ActionBtn title="Cancel" icon={<XCircle className="h-4 w-4" />} loading={actionLoading[`${o.id}-cancel`]} onClick={() => handleAction(o, 'cancel')} />
                         )}
                         {o.status === 'accepted' && (
-                          <ActionBtn title="Convert to Employee" icon={<CheckCircle2 className="h-4 w-4" />} onClick={() => toast.info('Convert to Employee — opens the existing recruitment convert flow')} />
+                          <ConvertCandidateButton
+                            offerId={o.id}
+                            defaultJoiningDate={o.joiningDate ? new Date(o.joiningDate).toISOString().split('T')[0] : null}
+                            defaultProbationDays={o.probationPeriod}
+                            label=""
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                          />
                         )}
                       </div>
                     </td>

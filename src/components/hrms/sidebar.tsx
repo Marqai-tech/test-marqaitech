@@ -14,7 +14,7 @@ import {
   Heart, Headphones, Plane, Monitor, ShieldCheck, WorkflowIcon,
   Building2, Truck, UserCog, BarChart3, MessageSquare, UserMinus,
   Building, ClipboardList, Settings, ChevronLeft, ChevronRight,
-  Hexagon, BookOpen, Video, FileText, Zap, CalendarClock, UsersRound, Inbox, KanbanSquare, Search, FileCheck, Clock as ClockIcon, Palette, Shield
+  Hexagon, BookOpen, Video, FileText, Zap, CalendarClock, UsersRound, Inbox, KanbanSquare, Search, FileCheck, Clock as ClockIcon, Palette, Shield, Plus
 } from 'lucide-react';
 
 interface NavSection {
@@ -55,6 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'OFFER MANAGEMENT',
     items: [
       { key: 'offer_dashboard', label: 'Offer Dashboard', icon: <FileText className="h-4 w-4" /> },
+      { key: 'offer_create', label: 'Create Offer', icon: <Plus className="h-4 w-4" /> },
       { key: 'offer_approvals', label: 'Approval Queue', icon: <ClockIcon className="h-4 w-4" /> },
       { key: 'offer_branding', label: 'Company Branding', icon: <Palette className="h-4 w-4" /> },
       { key: 'offer_workflow', label: 'Workflow Settings', icon: <FileCheck className="h-4 w-4" /> },
@@ -147,14 +148,14 @@ const NAV_SECTIONS: NavSection[] = [
 
 const ROLE_VISIBILITY: Record<UserRole, ModuleKey[]> = {
   super_admin: NAV_SECTIONS.flatMap(s => s.items.map(i => i.key)),
-  company_hr_admin: ['dashboard', 'employees', 'onboarding', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'offer_approvals', 'offer_branding', 'offer_workflow', 'offer_permissions', 'attendance', 'leave', 'payroll', 'performance', 'learning', 'engagement', 'helpdesk', 'travel_expense', 'assets', 'compliance', 'workflow', 'client_portal', 'vendor_portal', 'analytics', 'ai_chatbot', 'alumni', 'settings', 'help_training'],
-  hr_executive: ['dashboard', 'employees', 'onboarding', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'offer_approvals', 'offer_permissions', 'attendance', 'leave', 'performance', 'learning', 'engagement', 'helpdesk', 'assets', 'compliance', 'analytics', 'ai_chatbot', 'alumni', 'settings', 'help_training'],
+  company_hr_admin: ['dashboard', 'employees', 'onboarding', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'offer_create', 'offer_approvals', 'offer_branding', 'offer_workflow', 'offer_permissions', 'attendance', 'leave', 'payroll', 'performance', 'learning', 'engagement', 'helpdesk', 'travel_expense', 'assets', 'compliance', 'workflow', 'client_portal', 'vendor_portal', 'analytics', 'ai_chatbot', 'alumni', 'settings', 'help_training'],
+  hr_executive: ['dashboard', 'employees', 'onboarding', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'offer_create', 'offer_approvals', 'offer_permissions', 'attendance', 'leave', 'performance', 'learning', 'engagement', 'helpdesk', 'assets', 'compliance', 'analytics', 'ai_chatbot', 'alumni', 'settings', 'help_training'],
   dept_head: ['dashboard', 'employees', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'attendance', 'leave', 'performance', 'learning', 'engagement', 'helpdesk', 'travel_expense', 'assets', 'analytics', 'ai_chatbot', 'settings', 'help_training'],
   reporting_manager: ['dashboard', 'employees', 'recruitment', 'schedule_interview', 'attendance', 'leave', 'performance', 'learning', 'engagement', 'helpdesk', 'travel_expense', 'analytics', 'ai_chatbot', 'settings', 'help_training'],
   employee: ['dashboard', 'attendance', 'leave', 'payroll', 'performance', 'learning', 'engagement', 'helpdesk', 'travel_expense', 'assets', 'job_portal', 'ai_chatbot', 'settings', 'help_training'],
   finance: ['dashboard', 'employees', 'payroll', 'travel_expense', 'analytics', 'ai_chatbot', 'settings', 'help_training'],
   it_admin: ['dashboard', 'employees', 'assets', 'compliance', 'workflow', 'analytics', 'ai_chatbot', 'settings', 'help_training'],
-  recruiter: ['dashboard', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'analytics', 'ai_chatbot', 'settings', 'help_training'],
+  recruiter: ['dashboard', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'offer_create', 'analytics', 'ai_chatbot', 'settings', 'help_training'],
   vendor: ['dashboard', 'vendor_portal', 'ai_chatbot', 'settings', 'help_training'],
   sub_vendor: ['dashboard', 'sub_vendor_portal', 'ai_chatbot', 'settings', 'help_training'],
   client: ['dashboard', 'client_portal', 'ai_chatbot', 'settings', 'help_training'],
