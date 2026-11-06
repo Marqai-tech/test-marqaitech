@@ -362,23 +362,39 @@ export async function POST(request: Request) {
 
     // ─── Mapping enforcement: check if this leave type is mapped to this employee ───
     // If mappings exist for this company, the employee can only use leave types
-    // that have an active mapping matching their scope (branch, dept, gender, etc.)
+    // that have an active mapping matching their scope (branch, dept, gender, employeeIds, etc.)
     // If NO mappings exist at all, all types are allowed (backward-compat).
+    //
+    // BUG FIX: check BOTH the employee's company AND the leave type's company for
+    // mappings. Due to the previous misfiled-records bug, the leave type might be
+    // in a different company — but the mapping was created under the employee's
+    // company. We need to find the mapping regardless of which company the leave
+    // type is stored in.
     try {
+      const companiesToCheck = [targetEmployee.companyId, leaveType.companyId].filter(Boolean) as string[];
       let mappingsExist = false;
-      try {
-        const rows: any[] = await db.$queryRawUnsafe(
-          `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
-          targetEmployee.companyId
-        );
-        mappingsExist = rows[0]?.cnt > 0;
-      } catch { /* table might not exist — skip check */ }
+      for (const cId of companiesToCheck) {
+        try {
+          const rows: any[] = await db.$queryRawUnsafe(
+            `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
+            cId
+          );
+          if (rows[0]?.cnt > 0) { mappingsExist = true; break; }
+        } catch { /* table might not exist — skip */ }
+      }
 
       if (mappingsExist) {
-        const policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: targetEmployee.companyId });
+        // Try the employee's company first, then the leave type's company
+        let policy: any = { source: 'none' };
+        for (const cId of companiesToCheck) {
+          try {
+            policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: cId });
+            if (policy.source !== 'none') break;
+          } catch { /* try next company */ }
+        }
         if (policy.source === 'none') {
           return NextResponse.json(
-            { error: 'This leave type is not available for you. Please contact HR if you believe this is an error.' },
+            { error: 'This leave type is not mapped to you. Please contact HR if you believe this is an error.' },
             { status: 403, headers: corsHeaders() }
           );
         }

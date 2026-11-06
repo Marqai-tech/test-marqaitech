@@ -47,15 +47,19 @@ export async function GET(req: NextRequest) {
 
     // ─── Mapping enforcement: filter leave types by LeaveTypePolicyMapping ───
     // For employees (scope='self'), only show leave types that have an active
-    // mapping matching the employee's scope (branch, dept, gender, etc.).
+    // mapping matching the employee's scope (branch, dept, gender, employeeIds, etc.).
     // Admins see all types (for configuration purposes).
-    // If NO mappings exist at all for this company, show all types (backward-compat).
     //
-    // BUG FIX: if the mapping enforcement filters out ALL types (e.g. the
-    // employee doesn't match any mapping's branch/dept/gender criteria),
-    // fall back to showing ALL the company's leave types. An empty dropdown
-    // blocks the employee from applying for leave entirely — never the
-    // intended behavior. Mapping enforcement is a refinement, not a gate.
+    // RULE:
+    //   • If NO mappings exist at all for this company → show ALL types (backward-compat
+    //     for companies that haven't set up mappings yet).
+    //   • If mappings DO exist → only show types where the resolver finds a match
+    //     for THIS employee. If an employee-specific mapping exists (employeeIds set),
+    //     only employees in that list see the type. Other employees don't see it.
+    //   • If the resolver fails for a type → include it (don't block on resolver errors).
+    //   • If mappings exist but the employee matches NONE → show empty (this is the
+    //     intended behavior — the admin configured mappings, and this employee isn't
+    //     in any of them). The admin can add a mapping for them or use "all employees".
     let filteredTypes = allLeaveTypes;
 
     if (scope && scope.scope === 'self') {
@@ -77,7 +81,8 @@ export async function GET(req: NextRequest) {
         } catch { /* table might not exist yet — no filtering */ }
 
         if (mappingsExist) {
-          // Filter: only keep types where the resolver finds a match
+          // Mapping enforcement is ACTIVE — only show types where the resolver
+          // finds a match for THIS employee.
           const visibleTypes = [];
           for (const lt of allLeaveTypes) {
             try {
@@ -90,41 +95,33 @@ export async function GET(req: NextRequest) {
               visibleTypes.push(lt);
             }
           }
-          // BUG FIX: if mapping enforcement filtered out EVERY type, fall back
-          // to showing all types. The employee might not match any mapping's
-          // criteria (branch/dept/gender), but they should still be able to
-          // apply for leave. The POST handler re-validates, so this is safe.
-          if (visibleTypes.length > 0) {
-            filteredTypes = visibleTypes;
-          } else {
-            console.warn(
-              `[leave-types] Mapping enforcement filtered out ALL ${allLeaveTypes.length} type(s) for employee=${emp.id}. Falling back to showing all types.`
-            );
-            // keep filteredTypes = allLeaveTypes (no filtering)
-          }
+          // Respect the mapping enforcement result — even if it's empty.
+          // The admin configured mappings; if this employee doesn't match any,
+          // they don't see those leave types. This is the intended behavior.
+          filteredTypes = visibleTypes;
+          console.log(
+            `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (mappings exist for company=${emp.companyId}).`
+          );
         }
+        // If no mappings exist → filteredTypes stays = allLeaveTypes (backward-compat)
       }
     }
 
     // ─── FALLBACK (2026-11-06) ───
-    // If the company-scoped + mapping-enforced query returned 0 leave types,
-    // the apply-leave dropdown renders completely empty — even when leave
-    // types DO exist in other companies of the same tenant. This commonly
-    // happens when:
-    //   • An admin's company switcher is set to a company that has no
-    //     leave types configured yet (but other companies do).
-    //   • An employee's companyId doesn't match where the admin created
-    //     the leave types (the previous misfiled-records bug).
-    // Recovery:
-    //   • For admins (super_admin/tenant_admin/ceo/admin): fall back to all
-    //     active leave types across the tenant so they can still apply/test.
-    //   • For employees: fall back to ALL active leave types across the tenant
-    //     so they're never blocked from applying. (Previously used
-    //     scope.companyId which is null for employees → empty filter → all
-    //     types. The logic is now explicit.)
-    if (filteredTypes.length === 0) {
+    // If the company-scoped query returned 0 leave types (NOT because of mapping
+    // enforcement, but because the company has no leave types at all), fall back
+    // to ALL active leave types across the tenant. This handles:
+    //   • An admin's company switcher is set to a company that has no leave types
+    //     configured yet (but other companies do).
+    //   • An employee's companyId doesn't match where the admin created the leave
+    //     types (the previous misfiled-records bug).
+    //
+    // IMPORTANT: this fallback only triggers when `allLeaveTypes` is empty (the
+    // company has NO types). If mapping enforcement returned 0 types (the employee
+    // doesn't match any mapping), we do NOT fall back — that's the intended
+    // behavior of employee-specific mappings.
+    if (allLeaveTypes.length === 0) {
       const auth = await getAuthInfo(req).catch(() => null);
-      const isAdmin = auth && ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role);
       // For both admins and employees: fetch ALL active leave types across
       // the tenant. The POST handler does its own validation, so showing
       // cross-company types here is safe — better than an empty dropdown.
@@ -138,6 +135,26 @@ export async function GET(req: NextRequest) {
         );
         filteredTypes = fallback;
       }
+    }
+
+    // ─── DEBUG support: ?debug=1 shows the enforcement breakdown ───
+    // Usage: GET /api/leave-types?debug=1
+    // Returns the same data PLUS a _debug object showing how many types exist,
+    // how many mappings exist, and how many the employee is allowed to see.
+    const { searchParams } = new URL(req.url);
+    const isDebug = searchParams.get('debug') === '1';
+    if (isDebug) {
+      return NextResponse.json({
+        data: filteredTypes,
+        _debug: {
+          scope: scope?.scope,
+          role: (await getAuthInfo(req).catch(() => null))?.role,
+          companyFilter,
+          totalTypesInCompany: allLeaveTypes.length,
+          visibleAfterMapping: filteredTypes.length,
+          fallbackUsed: allLeaveTypes.length === 0 && filteredTypes.length > 0,
+        },
+      }, { headers: corsHeaders() });
     }
 
     return NextResponse.json({ data: filteredTypes }, { headers: corsHeaders() });
