@@ -384,15 +384,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // ─── Mapping enforcement: check if this leave type is mapped to this employee ───
-    // If mappings exist anywhere in the tenant, the employee can only use leave types
-    // that have an active mapping matching their scope (branch, dept, gender, employeeIds, etc.)
-    // If NO mappings exist at all, all types are allowed (backward-compat).
+    // ─── Mapping enforcement (NON-BLOCKING) ───
+    // We check if the employee has a matching mapping for this leave type.
+    // If they do, we snapshot the resolved policy for historical preservation.
+    // If they DON'T, we log a warning but ALLOW the apply — blocking employees
+    // from applying for leave because of a mapping config issue is worse than
+    // allowing the apply and letting HR fix the mapping later.
     //
-    // BUG FIX: the mapping might be in a DIFFERENT company than both the employee
-    // and the leave type (the admin created it under their selected company in the
-    // switcher, which could be any company). So we check ALL companies that have
-    // active mappings, not just the employee's and leave type's companies.
+    // The leave-types GET already has a "final fallback" that shows all types
+    // to the employee. The POST must be consistent — if the employee can see
+    // the type in their dropdown, they should be able to submit it.
     try {
       // Get ALL distinct companyIds that have active mappings
       let mappingCompanyIds: string[] = [];
@@ -410,24 +411,26 @@ export async function POST(request: Request) {
       ].filter(Boolean) as string[];
       const uniqueCompanies = [...new Set(companiesToCheck)];
 
-      const mappingsExist = mappingCompanyIds.length > 0;
+      // Try every company that has mappings — the resolver queries by companyId,
+      // so we need to find the one where the mapping was actually created.
+      let policyMatchFound = false;
+      for (const cId of uniqueCompanies) {
+        try {
+          const policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: cId });
+          if (policy.source !== 'none') {
+            policyMatchFound = true;
+            break;
+          }
+        } catch { /* try next company */ }
+      }
 
-      if (mappingsExist) {
-        // Try every company that has mappings — the resolver queries by companyId,
-        // so we need to find the one where the mapping was actually created.
-        let policy: any = { source: 'none' };
-        for (const cId of uniqueCompanies) {
-          try {
-            policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: cId });
-            if (policy.source !== 'none') break;
-          } catch { /* try next company */ }
-        }
-        if (policy.source === 'none') {
-          return NextResponse.json(
-            { error: 'This leave type is not mapped to you. Please contact HR if you believe this is an error.' },
-            { status: 403, headers: corsHeaders() }
-          );
-        }
+      if (!policyMatchFound) {
+        // Log a warning but DON'T block the apply. The employee saw the leave
+        // type in their dropdown (via the GET final fallback), so accepting it
+        // here is consistent. The balance check + other validations still run.
+        console.warn(
+          `[leave] No mapping match found for employee=${employeeId} leaveType=${leaveTypeId} (${leaveType.name}). Allowing apply — mapping enforcement is non-blocking.`
+        );
       }
     } catch (policyErr) {
       console.warn('[leave] Mapping check failed (non-fatal, allowing):', policyErr);
