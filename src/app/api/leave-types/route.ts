@@ -50,6 +50,12 @@ export async function GET(req: NextRequest) {
     // mapping matching the employee's scope (branch, dept, gender, etc.).
     // Admins see all types (for configuration purposes).
     // If NO mappings exist at all for this company, show all types (backward-compat).
+    //
+    // BUG FIX: if the mapping enforcement filters out ALL types (e.g. the
+    // employee doesn't match any mapping's branch/dept/gender criteria),
+    // fall back to showing ALL the company's leave types. An empty dropdown
+    // blocks the employee from applying for leave entirely — never the
+    // intended behavior. Mapping enforcement is a refinement, not a gate.
     let filteredTypes = allLeaveTypes;
 
     if (scope && scope.scope === 'self') {
@@ -84,7 +90,18 @@ export async function GET(req: NextRequest) {
               visibleTypes.push(lt);
             }
           }
-          filteredTypes = visibleTypes;
+          // BUG FIX: if mapping enforcement filtered out EVERY type, fall back
+          // to showing all types. The employee might not match any mapping's
+          // criteria (branch/dept/gender), but they should still be able to
+          // apply for leave. The POST handler re-validates, so this is safe.
+          if (visibleTypes.length > 0) {
+            filteredTypes = visibleTypes;
+          } else {
+            console.warn(
+              `[leave-types] Mapping enforcement filtered out ALL ${allLeaveTypes.length} type(s) for employee=${emp.id}. Falling back to showing all types.`
+            );
+            // keep filteredTypes = allLeaveTypes (no filtering)
+          }
         }
       }
     }
@@ -97,25 +114,27 @@ export async function GET(req: NextRequest) {
     //   • An admin's company switcher is set to a company that has no
     //     leave types configured yet (but other companies do).
     //   • An employee's companyId doesn't match where the admin created
-    //     the leave types.
+    //     the leave types (the previous misfiled-records bug).
     // Recovery:
     //   • For admins (super_admin/tenant_admin/ceo/admin): fall back to all
     //     active leave types across the tenant so they can still apply/test.
-    //   • For employees: try the employee's own companyId first; if still
-    //     empty, fall back to all types so they're not blocked from applying.
+    //   • For employees: fall back to ALL active leave types across the tenant
+    //     so they're never blocked from applying. (Previously used
+    //     scope.companyId which is null for employees → empty filter → all
+    //     types. The logic is now explicit.)
     if (filteredTypes.length === 0) {
       const auth = await getAuthInfo(req).catch(() => null);
       const isAdmin = auth && ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role);
-      const fallbackFilter = isAdmin
-        ? {}
-        : (scope?.scope === 'self' && scope.companyId ? { companyId: scope.companyId } : {});
+      // For both admins and employees: fetch ALL active leave types across
+      // the tenant. The POST handler does its own validation, so showing
+      // cross-company types here is safe — better than an empty dropdown.
       const fallback = await db.leaveType.findMany({
-        where: { status: 'active', ...fallbackFilter },
+        where: { status: 'active' },
         orderBy: { name: 'asc' },
       });
       if (fallback.length > 0) {
         console.warn(
-          `[leave-types] Company-scoped query returned 0 types for filter ${JSON.stringify(companyFilter)}; falling back to ${fallback.length} types.`
+          `[leave-types] Company-scoped query returned 0 types for filter ${JSON.stringify(companyFilter)} (role=${auth?.role || 'unknown'}); falling back to ${fallback.length} types across the tenant.`
         );
         filteredTypes = fallback;
       }
