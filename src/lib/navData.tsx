@@ -16,7 +16,7 @@ import {
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
   FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward, FiCheckCircle,
-  FiPlus, FiDownload, FiPenTool,
+  FiPlus, FiDownload, FiPenTool, FiCalendarClock, FiInbox, FiColumns,
 } from 'react-icons/fi';
 
 export interface NavItem {
@@ -399,12 +399,21 @@ export const navSections: NavSection[] = [
       // ── Pipeline ──
       { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
       { label: 'Recruitment', href: '/recruitment', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Find Candidates', href: '/recruitment?tab=find-candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Pipeline (Kanban)', href: '/recruitment?tab=kanban', icon: <FiColumns className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
+      { label: 'Schedule Interview', href: '/interviews', icon: <FiCalendarClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Interviews', href: '/interviews', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+
+      // ── Talent Tools ──
+      { label: 'Talent Tools', href: '#talent-divider', icon: <FiUserCheck className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Talent Pool', href: '/recruitment?tab=talent-pool', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Resumes', href: '/recruitment?tab=resumes', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Submissions', href: '/recruitment?tab=submissions', icon: <FiInbox className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
       // ── Offer Management ──
       { label: 'Offer Management', href: '#offer-divider', icon: <FiStar className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
