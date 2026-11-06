@@ -70,28 +70,41 @@ export async function GET(req: NextRequest) {
       }).catch(() => null);
 
       if (emp?.id) {
-        // Check if ANY mappings exist for this company
+        // Check if ANY mappings exist — across ALL companies (not just the
+        // employee's company). The admin might have created the mapping under
+        // a different company than the employee's (due to the company-switcher
+        // selection at mapping-creation time). If we only checked the employee's
+        // company, we'd miss the mapping → no enforcement → employee sees all types.
         let mappingsExist = false;
+        let mappingCompanyIds: string[] = [];
         try {
           const rows: any[] = await db.$queryRawUnsafe(
-            `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
-            emp.companyId
+            `SELECT DISTINCT "companyId" FROM "LeaveTypePolicyMapping" WHERE status = 'active'`
           );
-          mappingsExist = rows[0]?.cnt > 0;
+          mappingCompanyIds = rows.map((r: any) => r.companyId).filter(Boolean);
+          mappingsExist = mappingCompanyIds.length > 0;
         } catch { /* table might not exist yet — no filtering */ }
 
         if (mappingsExist) {
           // Mapping enforcement is ACTIVE — only show types where the resolver
-          // finds a match for THIS employee.
+          // finds a match for THIS employee. Try the employee's company first,
+          // then every other company that has mappings (handles cross-company
+          // scenarios where the leave type / mapping is in a different company).
+          const companiesToCheck = [emp.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
+          const uniqueCompanies = [...new Set(companiesToCheck)];
+
           const visibleTypes = [];
           for (const lt of allLeaveTypes) {
-            try {
-              const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: emp.companyId });
-              if (policy.source !== 'none') {
-                visibleTypes.push(lt);
+            let matched = false;
+            for (const cId of uniqueCompanies) {
+              try {
+                const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: cId });
+                if (policy.source !== 'none') { matched = true; break; }
+              } catch {
+                // If resolver fails for one company, try the next
               }
-            } catch {
-              // If resolver fails, include the type (don't block the employee)
+            }
+            if (matched) {
               visibleTypes.push(lt);
             }
           }
@@ -100,7 +113,7 @@ export async function GET(req: NextRequest) {
           // they don't see those leave types. This is the intended behavior.
           filteredTypes = visibleTypes;
           console.log(
-            `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (mappings exist for company=${emp.companyId}).`
+            `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (checked ${uniqueCompanies.length} companies for mappings).`
           );
         }
         // If no mappings exist → filteredTypes stays = allLeaveTypes (backward-compat)
