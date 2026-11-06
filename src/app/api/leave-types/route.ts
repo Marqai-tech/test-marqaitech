@@ -121,23 +121,16 @@ export async function GET(req: NextRequest) {
     }
 
     // ─── FALLBACK (2026-11-06) ───
-    // If the company-scoped query returned 0 leave types (NOT because of mapping
-    // enforcement, but because the company has no leave types at all), fall back
-    // to ALL active leave types across the tenant. This handles:
-    //   • An admin's company switcher is set to a company that has no leave types
-    //     configured yet (but other companies do).
-    //   • An employee's companyId doesn't match where the admin created the leave
-    //     types (the previous misfiled-records bug).
+    // If the company-scoped query returned 0 leave types (the company has no
+    // types at all — e.g. they were all created under a different company due
+    // to the previous misfiled-records bug), fall back to ALL active leave types
+    // across the tenant.
     //
-    // IMPORTANT: this fallback only triggers when `allLeaveTypes` is empty (the
-    // company has NO types). If mapping enforcement returned 0 types (the employee
-    // doesn't match any mapping), we do NOT fall back — that's the intended
-    // behavior of employee-specific mappings.
+    // CRITICAL: after fetching the fallback types, we MUST re-run mapping
+    // enforcement on them. Otherwise the fallback bypasses the employee-specific
+    // filtering and the employee sees types that were mapped to OTHER employees.
     if (allLeaveTypes.length === 0) {
       const auth = await getAuthInfo(req).catch(() => null);
-      // For both admins and employees: fetch ALL active leave types across
-      // the tenant. The POST handler does its own validation, so showing
-      // cross-company types here is safe — better than an empty dropdown.
       const fallback = await db.leaveType.findMany({
         where: { status: 'active' },
         orderBy: { name: 'asc' },
@@ -146,7 +139,56 @@ export async function GET(req: NextRequest) {
         console.warn(
           `[leave-types] Company-scoped query returned 0 types for filter ${JSON.stringify(companyFilter)} (role=${auth?.role || 'unknown'}); falling back to ${fallback.length} types across the tenant.`
         );
-        filteredTypes = fallback;
+
+        // Re-run mapping enforcement on the fallback types for employees.
+        // Admins see all fallback types (no enforcement for admins).
+        if (scope && scope.scope === 'self') {
+          const emp = await db.employee.findFirst({
+            where: { userId: scope.userId, status: 'active' },
+            select: { id: true, companyId: true },
+          }).catch(() => null);
+
+          if (emp?.id) {
+            // Get all companies that have mappings
+            let mappingCompanyIds: string[] = [];
+            let mappingsExist = false;
+            try {
+              const rows: any[] = await db.$queryRawUnsafe(
+                `SELECT DISTINCT "companyId" FROM "LeaveTypePolicyMapping" WHERE status = 'active'`
+              );
+              mappingCompanyIds = rows.map((r: any) => r.companyId).filter(Boolean);
+              mappingsExist = mappingCompanyIds.length > 0;
+            } catch { /* table might not exist */ }
+
+            if (mappingsExist) {
+              const companiesToCheck = [emp.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
+              const uniqueCompanies = [...new Set(companiesToCheck)];
+              const enforcedTypes = [];
+              for (const lt of fallback) {
+                let matched = false;
+                for (const cId of uniqueCompanies) {
+                  try {
+                    const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: cId });
+                    if (policy.source !== 'none') { matched = true; break; }
+                  } catch { /* try next */ }
+                }
+                if (matched) enforcedTypes.push(lt);
+              }
+              filteredTypes = enforcedTypes;
+              console.log(
+                `[leave-types] Fallback + mapping enforcement: employee=${emp.id} sees ${enforcedTypes.length} of ${fallback.length} fallback type(s).`
+              );
+            } else {
+              // No mappings exist → show all fallback types (backward-compat)
+              filteredTypes = fallback;
+            }
+          } else {
+            filteredTypes = fallback;
+          }
+        } else {
+          // Admin → show all fallback types
+          filteredTypes = fallback;
+        }
       }
     }
 

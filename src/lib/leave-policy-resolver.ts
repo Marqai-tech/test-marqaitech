@@ -266,6 +266,23 @@ export async function resolveLeavePolicy(
   }
 
   // ─── Step 2: Fall back to LeavePolicyRule rows directly ───
+  // IMPORTANT: only run Step 2 if NO mappings exist at all for this
+  // (leaveType, company) pair. If mappings DO exist but none matched the
+  // employee (e.g. employee-specific mapping for a DIFFERENT employee),
+  // the admin's intent was to RESTRICT this leave type — falling back to
+  // the policy rule's broader scope would defeat that. Return 'none' so
+  // the employee doesn't see the leave type.
+  if (mappings.length > 0) {
+    // Mappings exist for this leave type but none matched this employee.
+    // Respect the restriction — do NOT fall back to policy rules.
+    return {
+      source: 'none',
+      priority: 0,
+      effective: {},
+      allMatches,
+      _reason: `mapping exists but employee doesn't match any of ${mappings.length} mapping(s)`,
+    };
+  }
   let rules: any[] = [];
   try {
     rules = await db.$queryRawUnsafe(`
