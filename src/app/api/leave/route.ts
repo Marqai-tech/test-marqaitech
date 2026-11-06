@@ -311,9 +311,32 @@ export async function POST(request: Request) {
       );
     }
     if (leaveType.companyId !== targetEmployee.companyId) {
-      return NextResponse.json(
-        { error: "The selected leave type does not belong to the employee's company." },
-        { status: 400, headers: corsHeaders() }
+      // ─── BUG FIX: cross-company leave type rejection ───
+      // Previously this was a hard block: if the leave type was created under
+      // company A but the employee belongs to company B, the apply was rejected
+      // with "The selected leave type does not belong to the employee's company."
+      //
+      // This happened a lot because the Leave Configuration page used to store
+      // leave types in the FIRST company in the DB (not the selected one), so
+      // employees in other companies could never apply for leave.
+      //
+      // Recovery: if the employee's own company has NO leave types configured
+      // at all, allow the cross-company leave type (the dropdown showed it to
+      // them, so it's reasonable to accept it). If the employee's company DOES
+      // have leave types, keep the strict block (the user picked the wrong type
+      // from a stale dropdown).
+      const ownCompanyTypeCount = await db.leaveType.count({
+        where: { companyId: targetEmployee.companyId, status: 'active' },
+      }).catch(() => 0);
+      if (ownCompanyTypeCount > 0) {
+        return NextResponse.json(
+          { error: `The selected leave type ("${leaveType.name}") belongs to a different company. Please pick a leave type from your company's leave types list. If you don't see any, contact HR to configure leave types for your company.` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      // Employee's company has no leave types — allow the cross-company type.
+      console.warn(
+        `[leave] Cross-company leave type accepted: employee=${employeeId} (company=${targetEmployee.companyId}) using leaveType=${leaveTypeId} (company=${leaveType.companyId}). Employee's company has 0 active leave types.`
       );
     }
 
