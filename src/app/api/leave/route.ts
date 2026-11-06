@@ -385,32 +385,38 @@ export async function POST(request: Request) {
     }
 
     // ─── Mapping enforcement: check if this leave type is mapped to this employee ───
-    // If mappings exist for this company, the employee can only use leave types
+    // If mappings exist anywhere in the tenant, the employee can only use leave types
     // that have an active mapping matching their scope (branch, dept, gender, employeeIds, etc.)
     // If NO mappings exist at all, all types are allowed (backward-compat).
     //
-    // BUG FIX: check BOTH the employee's company AND the leave type's company for
-    // mappings. Due to the previous misfiled-records bug, the leave type might be
-    // in a different company — but the mapping was created under the employee's
-    // company. We need to find the mapping regardless of which company the leave
-    // type is stored in.
+    // BUG FIX: the mapping might be in a DIFFERENT company than both the employee
+    // and the leave type (the admin created it under their selected company in the
+    // switcher, which could be any company). So we check ALL companies that have
+    // active mappings, not just the employee's and leave type's companies.
     try {
-      const companiesToCheck = [targetEmployee.companyId, leaveType.companyId].filter(Boolean) as string[];
-      let mappingsExist = false;
-      for (const cId of companiesToCheck) {
-        try {
-          const rows: any[] = await db.$queryRawUnsafe(
-            `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
-            cId
-          );
-          if (rows[0]?.cnt > 0) { mappingsExist = true; break; }
-        } catch { /* table might not exist — skip */ }
-      }
+      // Get ALL distinct companyIds that have active mappings
+      let mappingCompanyIds: string[] = [];
+      try {
+        const rows: any[] = await db.$queryRawUnsafe(
+          `SELECT DISTINCT "companyId" FROM "LeaveTypePolicyMapping" WHERE status = 'active'`
+        );
+        mappingCompanyIds = rows.map((r: any) => r.companyId).filter(Boolean);
+      } catch { /* table might not exist — skip */ }
+
+      const companiesToCheck = [
+        targetEmployee.companyId,
+        leaveType.companyId,
+        ...mappingCompanyIds,
+      ].filter(Boolean) as string[];
+      const uniqueCompanies = [...new Set(companiesToCheck)];
+
+      const mappingsExist = mappingCompanyIds.length > 0;
 
       if (mappingsExist) {
-        // Try the employee's company first, then the leave type's company
+        // Try every company that has mappings — the resolver queries by companyId,
+        // so we need to find the one where the mapping was actually created.
         let policy: any = { source: 'none' };
-        for (const cId of companiesToCheck) {
+        for (const cId of uniqueCompanies) {
           try {
             policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: cId });
             if (policy.source !== 'none') break;
