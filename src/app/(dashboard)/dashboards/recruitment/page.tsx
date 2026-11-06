@@ -82,10 +82,10 @@ const STAT_ACCENTS: Record<string, { bg: string; ring: string }> = {
 };
 
 const QUICK_ACTIONS = [
-  { label: 'Post New Job', icon: FiPlus, color: COLORS.indigo, href: '/recruitment' },
-  { label: 'Schedule Interview', icon: FiCalendar, color: COLORS.emerald, href: '/recruitment' },
+  { label: 'Post New Job', icon: FiPlus, color: COLORS.indigo, href: '/job-portal' },
+  { label: 'Schedule Interview', icon: FiCalendar, color: COLORS.emerald, href: '/interviews' },
   { label: 'Review Applications', icon: FiEye, color: COLORS.amber, href: '/recruitment' },
-  { label: 'Talent Pool', icon: FiUsers, color: COLORS.pink, href: '/recruitment' },
+  { label: 'Talent Pool', icon: FiUsers, color: COLORS.pink, href: '/recruitment/talent-pool' },
   { label: 'Offer Management', icon: FiSend, color: COLORS.cyan, href: '/offers' },
   { label: 'Analytics', icon: FiBarChart2, color: COLORS.violet, href: '/recruitment/analytics' },
 ];

@@ -122,7 +122,7 @@ export default function RequisitionsPage() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [form, setForm] = useState(initialForm);
-  const [scope, setScope] = useState<'all' | 'mine'>('all');
+  const [scope, setScope] = useState<'all' | 'mine'>(typeof window !== 'undefined' ? (localStorage.getItem('tb_req_scope') as 'all' | 'mine') || 'all' : 'all');
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
   // C-30: designations now carry their departmentId so the dropdown can
   // be cascaded by the selected department (only show designations that
@@ -230,6 +230,13 @@ export default function RequisitionsPage() {
     finally { setLoading(false); }
   }, [scope]);
 
+  // Persist scope to localStorage so it survives browser refresh
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tb_req_scope', scope);
+    }
+  }, [scope]);
+
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
   const handleAddNew = () => {
@@ -271,6 +278,7 @@ export default function RequisitionsPage() {
   // Task 164: handle both 'draft' and 'submit' actions
   const handleSave = async (action: 'draft' | 'submit') => {
     if (!form.departmentId) { toast.error('Department is required'); return; }
+    if (!form.designationId) { toast.error('Position/Designation is required'); return; }
     if (action === 'submit' && !form.reason) { toast.error('Reason for hiring is required to submit'); return; }
     setSubmitting(true);
     try {
@@ -436,9 +444,26 @@ export default function RequisitionsPage() {
           <p className="text-thb-text-secondary mt-1">Raise and approve hiring requests</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Task 164: scope filter */}
-          <button onClick={() => setScope(scope === 'all' ? 'mine' : 'all')} className="px-3 py-2 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            {scope === 'all' ? 'All Requests' : 'My Requests'}
+          {/* Task 164: scope filter — show BOTH buttons with active highlighting */}
+          <button
+            onClick={() => setScope('all')}
+            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+              scope === 'all'
+                ? 'bg-green-500 text-white border-green-500'
+                : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'
+            }`}
+          >
+            All Requests
+          </button>
+          <button
+            onClick={() => setScope('mine')}
+            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+              scope === 'mine'
+                ? 'bg-green-500 text-white border-green-500'
+                : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'
+            }`}
+          >
+            My Requests
           </button>
           <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
             <FiPlus className="w-4 h-4" /> Raise Requisition

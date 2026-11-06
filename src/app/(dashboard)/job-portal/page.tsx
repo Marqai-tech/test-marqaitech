@@ -415,6 +415,16 @@ function CreateJobPostingForm() {
       toast.error('Title, description, and department are required');
       return;
     }
+    // RD-017 fix: Validate closing date is not in the past
+    if (form.closingDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const closingDate = new Date(form.closingDate);
+      if (closingDate < today) {
+        toast.error('Closing date cannot be earlier than today');
+        return;
+      }
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/jobs', {

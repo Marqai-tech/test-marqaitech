@@ -344,6 +344,11 @@ export default function RecruitmentPage() {
   // Task 167: Schedule interview handler
   const handleScheduleInterview = async () => {
     if (!scheduleAppId || !interviewForm.date) { toast.error('Date is required'); return; }
+    // RD-018 fix: Validate date is not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(interviewForm.date);
+    if (selectedDate < today) { toast.error('Interview date cannot be in the past'); return; }
     if (!scheduleAppDept) { toast.error('Please select a department'); return; }
     if (selectedPanelIds.length === 0) { toast.error('Select at least one panel member'); return; }
     // Task 167: BLOCK Busy/On Leave from being selected (not just warn)
