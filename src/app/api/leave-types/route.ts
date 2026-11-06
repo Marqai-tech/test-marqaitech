@@ -89,6 +89,38 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ─── FALLBACK (2026-11-06) ───
+    // If the company-scoped + mapping-enforced query returned 0 leave types,
+    // the apply-leave dropdown renders completely empty — even when leave
+    // types DO exist in other companies of the same tenant. This commonly
+    // happens when:
+    //   • An admin's company switcher is set to a company that has no
+    //     leave types configured yet (but other companies do).
+    //   • An employee's companyId doesn't match where the admin created
+    //     the leave types.
+    // Recovery:
+    //   • For admins (super_admin/tenant_admin/ceo/admin): fall back to all
+    //     active leave types across the tenant so they can still apply/test.
+    //   • For employees: try the employee's own companyId first; if still
+    //     empty, fall back to all types so they're not blocked from applying.
+    if (filteredTypes.length === 0) {
+      const auth = await getAuthInfo(req).catch(() => null);
+      const isAdmin = auth && ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role);
+      const fallbackFilter = isAdmin
+        ? {}
+        : (scope?.scope === 'self' && scope.companyId ? { companyId: scope.companyId } : {});
+      const fallback = await db.leaveType.findMany({
+        where: { status: 'active', ...fallbackFilter },
+        orderBy: { name: 'asc' },
+      });
+      if (fallback.length > 0) {
+        console.warn(
+          `[leave-types] Company-scoped query returned 0 types for filter ${JSON.stringify(companyFilter)}; falling back to ${fallback.length} types.`
+        );
+        filteredTypes = fallback;
+      }
+    }
+
     return NextResponse.json({ data: filteredTypes }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Leave types GET error:', error);

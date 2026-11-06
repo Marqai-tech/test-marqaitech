@@ -458,7 +458,7 @@ function EmployeeContent() {
   /* ── quick links config ── */
 
   const quickLinks: QuickLink[] = useMemo(() => [
-    { label: 'Apply Leave', icon: <FiCalendar className="w-5 h-5" />, color: COLORS.indigo, bg: 'bg-emerald-50', href: '/leave' },
+    { label: 'Apply Leave', icon: <FiCalendar className="w-5 h-5" />, color: COLORS.indigo, bg: 'bg-emerald-50', href: '/leave?action=apply' },
     { label: 'Submit Expense', icon: <FiDollarSign className="w-5 h-5" />, color: COLORS.emerald, bg: 'bg-emerald-50', href: '/expenses' },
     { label: 'View Payslip', icon: <FiFileText className="w-5 h-5" />, color: COLORS.amber, bg: 'bg-amber-50', href: '/payroll/payslips' },
     { label: 'Update Profile', icon: <FiEdit3 className="w-5 h-5" />, color: COLORS.pink, bg: 'bg-pink-50', href: '/my-profile' },

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
 
-    const rules = await db.leavePolicyRule.findMany({
+    let rules = await db.leavePolicyRule.findMany({
       where: { status: 'active', ...companyFilter },
       orderBy: [{ priority: 'desc' }, { name: 'asc' }],
       include: {
@@ -38,6 +38,34 @@ export async function GET(req: NextRequest) {
         department: { select: { id: true, name: true } },
       },
     });
+
+    // ─── FALLBACK (2026-11-06) ───
+    // Same fix as /api/leave-types: if the company-scoped query returns 0
+    // rules, the Leave Type Mapping tab shows "No policy rules defined yet"
+    // even when rules DO exist in other companies of the same tenant. This
+    // happens when an admin's company switcher is set to a company that has
+    // no rules configured yet (but other companies do). Fall back to all
+    // active rules across the tenant so admins can still see/map them.
+    if (rules.length === 0) {
+      const auth = await getAuthInfo(req).catch(() => null);
+      const isAdmin = auth && ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role);
+      if (isAdmin) {
+        const fallback = await db.leavePolicyRule.findMany({
+          where: { status: 'active' },
+          orderBy: [{ priority: 'desc' }, { name: 'asc' }],
+          include: {
+            branch: { select: { id: true, name: true } },
+            department: { select: { id: true, name: true } },
+          },
+        });
+        if (fallback.length > 0) {
+          console.warn(
+            `[leave-policy-rules] Company-scoped query returned 0 rules for filter ${JSON.stringify(companyFilter)}; falling back to ${fallback.length} rules.`
+          );
+          rules = fallback;
+        }
+      }
+    }
 
     return NextResponse.json({ data: rules }, { headers: corsHeaders() });
   } catch (error) {
