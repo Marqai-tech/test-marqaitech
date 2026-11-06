@@ -240,7 +240,7 @@ function LeavePageContent() {
       }
       if (empRes.ok) {
         const empData = await empRes.json();
-        const myEmp = empData.employees?.find((e: { id: string; email: string; userId?: string }) =>
+        let myEmp = empData.employees?.find((e: { id: string; email: string; userId?: string }) =>
           (user?.employee?.id && e.id === user.employee.id) || e.email === user?.email || e.userId === user?.id
         ) || null;
         const ltMap = new Map<string, LeaveType>();
@@ -253,13 +253,43 @@ function LeavePageContent() {
         // Balances and the leave-type fallback do not depend on one another;
         // fetch them together instead of making the employee wait through two
         // database round trips in sequence.
-        const balanceRequest = myEmp
-          ? fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers })
-          : Promise.resolve(null);
+        const balanceRequest = fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers }).catch(() => null);
         const leaveTypesRequest = ltMap.size === 0
           ? fetch(`/api/leave-types?limit=50${sq ? `&${sq}` : ''}`, { headers }).catch(() => null)
           : Promise.resolve(null);
         const [balanceRes, ltRes] = await Promise.all([balanceRequest, leaveTypesRequest]);
+
+        // Read the balance response body ONCE and reuse it for both the
+        // fallback employee lookup and the balance card rendering.
+        let balanceData: any = null;
+        try {
+          balanceData = balanceRes && (balanceRes as any)?.ok ? await (balanceRes as any).json() : null;
+        } catch { /* balance parse failed */ }
+
+        // ─── BUG FIX: Employee record not found ───
+        // The search-based lookup above can fail when:
+        //   • user.email is null/empty (search param is empty → no results)
+        //   • the employees API search doesn't match exactly (case, partial email)
+        //   • user.employee.id from auth store is stale or missing
+        // Fallback: the /api/leave/balance endpoint resolves the SELF employee
+        // server-side via userId (token). If myEmp is null but the balance API
+        // returned balances, synthesize a minimal employee object so the user
+        // can still apply for leave. Also prefer user.employee.id from the auth
+        // store as a last-resort fallback.
+        if (!myEmp) {
+          if (balanceData?.balances?.length > 0 && (user?.employee?.id || user?.id)) {
+            myEmp = {
+              id: user?.employee?.id || '',
+              employeeId: user?.employee?.employeeId || '',
+              firstName: user?.employee?.firstName || (user?.name?.split(' ')[0] || 'Employee'),
+              lastName: user?.employee?.lastName || (user?.name?.split(' ').slice(1).join(' ') || ''),
+              // EmployeeInfo.status maps to Employee.employeeStatus
+              employeeStatus: (user?.employee as any)?.status || (user?.employee as any)?.employeeStatus,
+              dateOfJoining: null,
+              gender: null,
+            } as Employee;
+          }
+        }
 
         if (myEmp) {
           // The list endpoint already includes the scalar profile fields used
@@ -267,7 +297,6 @@ function LeavePageContent() {
           // Avoid a second, heavier employee-detail request for the same row.
           setEmployee(myEmp);
           const probation = isActiveProbation(myEmp);
-          const balanceData = balanceRes?.ok ? await balanceRes.json() : null;
           const currentBalances = balanceData?.balances || myEmp.leaveBalances || [];
           const normalizedBalances = normalizeLeaveBalances(currentBalances as LeaveBalance[], {
             gender: myEmp.gender || balanceData?.gender,
@@ -470,8 +499,16 @@ function LeavePageContent() {
       toast.error('Please fill in all required fields');
       return;
     }
-    if (!employee?.id) {
-      toast.error('Employee record not found');
+    // ─── BUG FIX: Employee record not found ───
+    // Use the employee id from the page state. If that's missing (the search-
+    // based lookup failed AND the balance fallback didn't synthesize one),
+    // fall back to user.employee.id from the auth store as a last resort.
+    // This covers the case where /api/employees?search=email returns no rows
+    // (e.g. the employee's email field is empty in the DB) but the auth token
+    // still carries a valid employeeId.
+    let applyEmployeeId = employee?.id || user?.employee?.id || '';
+    if (!applyEmployeeId) {
+      toast.error('Employee record not found. Please log out and log back in, or contact HR to link your user account to an employee record.');
       return;
     }
     if (form.startDate < todayStr) {
@@ -513,7 +550,7 @@ function LeavePageContent() {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          employeeId: employee.id,
+          employeeId: applyEmployeeId,
           leaveTypeId: form.leaveTypeId,
           startDate: form.startDate,
           endDate: form.endDate,
