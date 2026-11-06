@@ -148,6 +148,12 @@ const NAV_SECTIONS: NavSection[] = [
 
 const ROLE_VISIBILITY: Record<UserRole, ModuleKey[]> = {
   super_admin: NAV_SECTIONS.flatMap(s => s.items.map(i => i.key)),
+  // FIX: tenant_admin and admin were missing from this map, causing
+  // tenant admins to see only the Dashboard. Both roles get full
+  // access (same as super_admin but tenant-scoped via JWT checks
+  // in the API routes).
+  tenant_admin: NAV_SECTIONS.flatMap(s => s.items.map(i => i.key)),
+  admin: NAV_SECTIONS.flatMap(s => s.items.map(i => i.key)),
   company_hr_admin: ['dashboard', 'employees', 'onboarding', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'offer_create', 'offer_approvals', 'offer_branding', 'offer_workflow', 'offer_permissions', 'attendance', 'leave', 'payroll', 'performance', 'learning', 'engagement', 'helpdesk', 'travel_expense', 'assets', 'compliance', 'workflow', 'client_portal', 'vendor_portal', 'analytics', 'ai_chatbot', 'alumni', 'settings', 'help_training'],
   hr_executive: ['dashboard', 'employees', 'onboarding', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'job_portal', 'ai_interview', 'offer_dashboard', 'offer_create', 'offer_approvals', 'offer_permissions', 'attendance', 'leave', 'performance', 'learning', 'engagement', 'helpdesk', 'assets', 'compliance', 'analytics', 'ai_chatbot', 'alumni', 'settings', 'help_training'],
   dept_head: ['dashboard', 'employees', 'recruitment', 'recruitment_dashboard', 'find_candidates', 'pipeline_kanban', 'schedule_interview', 'talent_pool', 'resumes', 'submissions', 'attendance', 'leave', 'performance', 'learning', 'engagement', 'helpdesk', 'travel_expense', 'assets', 'analytics', 'ai_chatbot', 'settings', 'help_training'],
