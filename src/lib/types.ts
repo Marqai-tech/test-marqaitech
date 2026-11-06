@@ -7,6 +7,7 @@ export type UserRole =
 export type ModuleKey =
   | 'dashboard'
   | 'recruitment'
+  | 'recruitment_dashboard'
   | 'pipeline_kanban'
   | 'schedule_interview'
   | 'talent_pool'
