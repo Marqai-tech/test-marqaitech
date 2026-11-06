@@ -8,6 +8,7 @@ import { Header } from './header';
 import { Dashboard } from './dashboard';
 import { Recruitment } from './recruitment';
 import { RecruitmentDashboard } from './recruitment-dashboard';
+import { FindCandidates } from './find-candidates';
 import { PipelineKanban } from './pipeline-kanban';
 import { ScheduleInterview } from './schedule-interview';
 import { TalentPool } from './talent-pool';
@@ -43,6 +44,7 @@ const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   dashboard: Dashboard,
   recruitment: Recruitment,
   recruitment_dashboard: RecruitmentDashboard,
+  find_candidates: FindCandidates,
   pipeline_kanban: PipelineKanban,
   schedule_interview: ScheduleInterview,
   talent_pool: TalentPool,

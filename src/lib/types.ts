@@ -8,6 +8,7 @@ export type ModuleKey =
   | 'dashboard'
   | 'recruitment'
   | 'recruitment_dashboard'
+  | 'find_candidates'
   | 'pipeline_kanban'
   | 'schedule_interview'
   | 'talent_pool'
