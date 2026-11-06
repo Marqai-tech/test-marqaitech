@@ -18,6 +18,7 @@ export type ModuleKey =
   | 'offer_approvals'
   | 'offer_branding'
   | 'offer_workflow'
+  | 'offer_permissions'
   | 'employees'
   | 'attendance'
   | 'leave'

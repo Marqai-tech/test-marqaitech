@@ -18,7 +18,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   FileText, RefreshCw, AlertTriangle, Loader2, Search, Eye, Send, XCircle,
-  CheckCircle2, Edit2, ArrowUpRight, Clock, FileCheck, X,
+  CheckCircle2, Edit2, ArrowUpRight, Clock, FileCheck, X, History, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { OfferHistory } from './offer-history';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -81,6 +82,7 @@ export function OfferDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [viewing, setViewing] = useState<Offer | null>(null);
+  const [historyId, setHistoryId] = useState<string | null>(null);
 
   const fetchOffers = useCallback(async () => {
     setLoading(true);
@@ -126,7 +128,7 @@ export function OfferDashboard() {
     };
   }, [offers]);
 
-  const handleAction = async (offer: Offer, action: 'submit' | 'send' | 'cancel') => {
+  const handleAction = async (offer: Offer, action: 'submit' | 'send' | 'cancel' | 'pdf') => {
     setActionLoading((s) => ({ ...s, [`${offer.id}-${action}`]: true }));
     try {
       let res: Response;
@@ -135,11 +137,39 @@ export function OfferDashboard() {
           method: 'POST', headers: getAuthHeaders(),
         });
       } else if (action === 'send') {
-        // Send offer — for now uses existing PATCH on /api/offers/[id]
         res = await fetch(`/api/offers/${offer.id}`, {
           method: 'PATCH', headers: getAuthHeaders(),
           body: JSON.stringify({ action: 'send' }),
         });
+      } else if (action === 'pdf') {
+        // Generate branded PDF
+        res = await fetch(`/api/offers/${offer.id}/generate-branded-pdf`, {
+          method: 'POST', headers: getAuthHeaders(),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+        // Open the PDF in a new tab (data URL)
+        if (data.pdfUrl) {
+          // data:image URL — open in new tab via blob
+          try {
+            const byteString = atob(data.pdfUrl.split(',')[1]);
+            const mime = data.pdfUrl.match(/data:([^;]+);/)?.[1] || 'application/pdf';
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+            const blob = new Blob([ab], { type: mime });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            // Revoke after 60s
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          } catch {
+            // Fallback: open as data URL directly
+            window.open(data.pdfUrl, '_blank');
+          }
+        }
+        toast.success(`Branded PDF generated — ${data.pageCount || 1} page${(data.pageCount || 1) > 1 ? 's' : ''}`);
+        fetchOffers();
+        return;
       } else {
         res = await fetch(`/api/offers/${offer.id}`, {
           method: 'PATCH', headers: getAuthHeaders(),
@@ -152,7 +182,7 @@ export function OfferDashboard() {
         submit: 'Offer submitted for approval',
         send: 'Offer sent to candidate',
         cancel: 'Offer cancelled',
-      }[action] || 'Action completed');
+      }[action as 'submit' | 'send' | 'cancel'] || 'Action completed');
       fetchOffers();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Action failed');
@@ -294,6 +324,10 @@ export function OfferDashboard() {
                       <div className="flex items-center justify-end gap-1">
                         <ActionBtn title="View" icon={<Eye className="h-4 w-4" />} onClick={() => setViewing(o)} />
                         <ActionBtn title="Edit" icon={<Edit2 className="h-4 w-4" />} onClick={() => window.open(`/offers/${o.id}/preview`, '_blank')} />
+                        <ActionBtn title="View History" icon={<History className="h-4 w-4" />} onClick={() => setHistoryId(o.id)} />
+                        {!['sent', 'accepted', 'rejected', 'withdrawn'].includes(o.status) && (
+                          <ActionBtn title="Generate Branded PDF" icon={<Download className="h-4 w-4" />} loading={actionLoading[`${o.id}-pdf`]} onClick={() => handleAction(o, 'pdf')} />
+                        )}
                         {o.status === 'draft' && (
                           <ActionBtn title="Submit for Approval" icon={<ArrowUpRight className="h-4 w-4" />} loading={actionLoading[`${o.id}-submit`]} onClick={() => handleAction(o, 'submit')} />
                         )}
@@ -338,6 +372,24 @@ export function OfferDashboard() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewing(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History modal */}
+      <Dialog open={!!historyId} onOpenChange={(o) => !o && setHistoryId(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-emerald-600" /> Offer History
+            </DialogTitle>
+            <DialogDescription>
+              Timeline of all events for this offer — creation, edits, approvals, and candidate actions.
+            </DialogDescription>
+          </DialogHeader>
+          {historyId && <OfferHistory offerId={historyId} />}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryId(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

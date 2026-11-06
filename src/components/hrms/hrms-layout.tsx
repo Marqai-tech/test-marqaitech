@@ -18,6 +18,7 @@ import { OfferDashboard } from './offer-dashboard';
 import { OfferApprovalQueue } from './offer-approval-queue';
 import { OfferBrandingSettings } from './offer-branding-settings';
 import { OfferWorkflowSettings } from './offer-workflow-settings';
+import { OfferRolePermissions } from './offer-role-permissions';
 import { Employees } from './employees';
 import { Attendance } from './attendance';
 import { Leave } from './leave';
@@ -58,6 +59,7 @@ const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   offer_approvals: OfferApprovalQueue,
   offer_branding: OfferBrandingSettings,
   offer_workflow: OfferWorkflowSettings,
+  offer_permissions: OfferRolePermissions,
   employees: Employees,
   attendance: Attendance,
   leave: Leave,
