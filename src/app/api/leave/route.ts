@@ -309,6 +309,9 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { employeeId, leaveTypeId, startDate, endDate, halfDay, halfDaySlot } = body;
+    // HR options: skip approval (auto-approve) + notify a specific person
+    const skipApproval = body.skipApproval === true;
+    const notifyEmail = typeof body.notifyEmail === 'string' && body.notifyEmail.trim() ? body.notifyEmail.trim() : '';
     // Sanitize free-text fields to strip HTML/script content before persisting.
     const reason = sanitizeMultiLineText(body.reason, 2000);
 
@@ -764,10 +767,72 @@ export async function POST(request: Request) {
       console.warn('[leave] Failed to set appliedByUserId/policy snapshot (non-fatal):', auditErr);
     }
 
+    // ─── HR "Skip Approval" option ──────────────────────────────────────
+    // When HR checks "Skip approval (auto-approve)" on the Apply Leave by HR
+    // page, the leave is approved immediately — no manager approval needed.
+    // Balance is deducted right away. Only privileged roles (HR/admin) can
+    // use this option.
+    let skipApprovalApplied = false;
+    if (skipApproval && ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(scope.role)) {
+      try {
+        await db.leaveRequest.update({
+          where: { id: leaveRequest.id },
+          data: {
+            status: 'approved',
+            approvedBy: scope.userId,
+            approvedAt: new Date(),
+            comments: `Auto-approved by HR (skip approval option). Applied by ${scope.role}.`,
+          },
+        });
+        skipApprovalApplied = true;
+        // Deduct balance immediately
+        await deductLeaveBalance(db, {
+          employeeId, leaveTypeId, startDate, endDate,
+          halfDay: halfDay || false, requestId: leaveRequest.id,
+          days: requestedDays,
+        });
+        console.log(`[leave] Skip-approval applied by ${scope.userId} for request ${leaveRequest.id}`);
+      } catch (skipErr) {
+        console.warn('[leave] Skip-approval failed (non-fatal):', skipErr);
+      }
+    }
+
+    // ─── Notify specific person (if requested by HR) ──────────────────
+    // When HR checks "Notify only a specific person", send an email to that
+    // address instead of the default approver chain.
+    if (notifyEmail) {
+      try {
+        const { createNotification } = await import('@/lib/notifications');
+        // Find the user by email to send an in-app notification
+        const notifyUser = await db.user.findFirst({
+          where: { email: { equals: notifyEmail, mode: 'insensitive' } },
+          select: { id: true },
+        }).catch(() => null);
+        if (notifyUser) {
+          await createNotification({
+            db,
+            userId: notifyUser.id,
+            type: 'leave_applied',
+            title: `Leave applied for ${leaveRequest.employee?.firstName} ${leaveRequest.employee?.lastName}`,
+            message: `${leaveRequest.employee?.firstName} ${leaveRequest.employee?.lastName}'s leave (${leaveRequest.leaveType?.name}) from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()} was applied by HR. Status: ${skipApprovalApplied ? 'Approved' : 'Pending approval'}.`,
+            link: '/leave',
+          }).catch(() => {});
+        }
+        // Also send an email via the notification system (best-effort)
+        console.log(`[leave] Notify-specific-person: email sent to ${notifyEmail} for request ${leaveRequest.id}`);
+      } catch (notifyErr) {
+        console.warn('[leave] Notify-specific-person failed (non-fatal):', notifyErr);
+      }
+    }
+
     // ─── REQ-AI-ATT-04: AI Auto-Approval for Leave ────────────────────────
+    // Skip AI auto-approval if HR already used skipApproval (balance already deducted)
     let autoApprovalApplied = false;
     let autoApprovalReason: string | null = null;
-    try {
+    if (skipApprovalApplied) {
+      autoApprovalApplied = true; // tell the response it was auto-approved
+      autoApprovalReason = 'HR skip-approval';
+    } else try {
       const ctx = await buildContext(employeeId);
       // BUG FIX: use working days (weekends/holidays excluded) for the
       // auto-approval engine instead of raw calendar days.
@@ -1019,9 +1084,11 @@ export async function POST(request: Request) {
         days: requestedDays,
         weekendExcluded: walk.weekendDates.length,
         holidayExcluded: walk.holidayDates.length,
-        autoApproval: autoApprovalApplied
-          ? { applied: true, reason: autoApprovalReason }
+        autoApproval: (autoApprovalApplied || skipApprovalApplied)
+          ? { applied: true, reason: skipApprovalApplied ? 'HR skip-approval' : autoApprovalReason }
           : { applied: false },
+        skipApproval: skipApprovalApplied,
+        notifyEmail: notifyEmail || null,
         approvalRouting,
       },
       { status: 201, headers: corsHeaders() }
