@@ -729,7 +729,7 @@ export default function ApplyLeaveByHRPage() {
           {/* Sidebar: Balances & Recent Requests */}
           <div className="space-y-6">
             {/* Leave Balances */}
-            <div className="thb-card p-5">
+            {/* <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
                 <FiFileText className="w-4 h-4 text-teal-500" />
                 Leave Balances
@@ -749,10 +749,10 @@ export default function ApplyLeaveByHRPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Recent Requests */}
-            <div className="thb-card p-5">
+            {/* <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
                 <FiClock className="w-4 h-4 text-slate-500" />
                 Recent Requests
@@ -777,9 +777,9 @@ export default function ApplyLeaveByHRPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
             {/* Task 135 — Attendance & Regularizations */}
-            <div className="thb-card p-5">
+            {/* <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
                 <FiCalendar className="w-4 h-4 text-cyan-500" />
                 Attendance &amp; Regularizations
@@ -813,7 +813,7 @@ export default function ApplyLeaveByHRPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Team Leave Calendar sidebar — same as Apply Leave form */}
             <TeamLeaveSidebar
