@@ -192,6 +192,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ─── FINAL FALLBACK ───
+    // If after all the above (company scope + mapping enforcement + cross-company
+    // fallback + re-enforcement) the employee still has 0 leave types, show ALL
+    // active types. An empty dropdown blocks the employee from applying for leave
+    // entirely — that's never acceptable. The POST handler does its own validation,
+    // so showing types here is safe.
+    if (filteredTypes.length === 0) {
+      const allTypes = await db.leaveType.findMany({
+        where: { status: 'active' },
+        orderBy: { name: 'asc' },
+      });
+      if (allTypes.length > 0) {
+        console.warn(
+          `[leave-types] Final fallback: showing all ${allTypes.length} active type(s) — mapping enforcement returned 0 for this employee.`
+        );
+        filteredTypes = allTypes;
+      }
+    }
+
     // ─── DEBUG support: ?debug=1 shows the enforcement breakdown ───
     // Usage: GET /api/leave-types?debug=1
     // Returns the same data PLUS a _debug object showing how many types exist,
