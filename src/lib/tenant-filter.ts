@@ -52,7 +52,16 @@ export const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
 /** Test Super Admin host (develop). Sample tenants stay visible; MarqAI is hidden. */
 export function isTestPlatformHost(host: string): boolean {
   const h = (host || '').split(':')[0].toLowerCase();
-  return h === 'test.3boxeshrms.com' || h === 'www.test.3boxeshrms.com' || h === 'test-marqaitech-ontt.vercel.app';
+  return (
+    h === 'test.3boxeshrms.com' ||
+    h === 'www.test.3boxeshrms.com' ||
+    // Old Vercel project (team: marq01marqaitech-7911)
+    h === 'test-marqaitech-ontt.vercel.app' ||
+    // New Vercel project (team: marshshaik-5449s-projects) — added 2026-11-06
+    h === 'test-marqaitech.vercel.app' ||
+    h === 'test-marqaitech-marshshaik-5449s-projects.vercel.app' ||
+    h === 'test-marqaitech-git-main-marshshaik-5449s-projects.vercel.app'
+  );
 }
 
 /**
