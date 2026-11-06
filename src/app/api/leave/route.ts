@@ -223,13 +223,33 @@ export async function GET(request: Request) {
       db.leaveRequest.count({ where }),
     ]);
 
-    // BUG_139: annotate each request with appliedByHR flag (true when the
-    // submitter's userId differs from the employee's userId). The UI shows
-    // an "Applied by HR" badge on these rows.
-    const leaveRequestsWithFlag = leaveRequests.map((lr: any) => ({
-      ...lr,
-      appliedByHR: !!(lr.appliedByUserId && lr.employee?.userId && lr.appliedByUserId !== lr.employee.userId),
-    }));
+    // BUG_139: fetch appliedByUserId via raw SQL (Prisma doesn't know the column
+    // because it's added via ALTER TABLE, not in schema.prisma). Build a map of
+    // requestId → appliedByUserId so we can annotate the Prisma results.
+    const requestIds = leaveRequests.map((lr: any) => lr.id);
+    let appliedByMap: Record<string, string | null> = {};
+    if (requestIds.length > 0) {
+      try {
+        const rows: any[] = await db.$queryRawUnsafe(
+          `SELECT id, "appliedByUserId" FROM "LeaveRequest" WHERE id = ANY($1::text[])`,
+          requestIds
+        );
+        for (const r of rows) {
+          appliedByMap[r.id] = r.appliedByUserId || null;
+        }
+      } catch { /* column may not exist yet — all appliedByHR will be false */ }
+    }
+
+    // Annotate each request with appliedByHR flag (true when the submitter's
+    // userId differs from the employee's userId). The UI shows an "Applied by
+    // HR" badge on these rows.
+    const leaveRequestsWithFlag = leaveRequests.map((lr: any) => {
+      const appliedByUserId = appliedByMap[lr.id] || null;
+      return {
+        ...lr,
+        appliedByHR: !!(appliedByUserId && lr.employee?.userId && appliedByUserId !== lr.employee.userId),
+      };
+    });
 
     return NextResponse.json(
       {
@@ -616,6 +636,10 @@ export async function POST(request: Request) {
       await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedByUserId" TEXT`);
     } catch { /* non-fatal — column may already exist */ }
 
+    // BUG FIX: Prisma's generated client does NOT know about the appliedByUserId
+    // column (it's not in schema.prisma), so passing it in `data` throws a
+    // Prisma UnknownArg error → 500 Internal server error. Create the row first
+    // with Prisma, then update the column via raw SQL.
     const leaveRequest = await db.leaveRequest.create({
       data: {
         employeeId,
@@ -627,10 +651,6 @@ export async function POST(request: Request) {
         halfDaySlot: halfDaySlot || null,
         aiCollaborativeWarning,
         status: 'pending',
-        // BUG_139: record who applied this leave. For self-service, this is
-        // the employee's own userId. For HR apply-on-behalf, it's the HR
-        // admin's userId. The UI uses this to show an "Applied by HR" tag.
-        appliedByUserId: scope.userId,
       },
       include: {
         employee: {
@@ -639,6 +659,19 @@ export async function POST(request: Request) {
         leaveType: true,
       },
     });
+
+    // BUG_139: now set appliedByUserId via raw SQL (Prisma doesn't know the column).
+    // For self-service, this is the employee's own userId. For HR apply-on-behalf,
+    // it's the HR admin's userId. The UI uses this to show an "Applied by HR" tag.
+    try {
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest" SET "appliedByUserId" = $1 WHERE id = $2`,
+        scope.userId, leaveRequest.id
+      );
+    } catch (auditErr) {
+      // Non-fatal — the leave request itself succeeded; just log the audit failure.
+      console.warn('[leave] Failed to set appliedByUserId (non-fatal):', auditErr);
+    }
 
     // ─── REQ-AI-ATT-04: AI Auto-Approval for Leave ────────────────────────
     let autoApprovalApplied = false;
