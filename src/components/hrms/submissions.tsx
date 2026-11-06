@@ -15,7 +15,7 @@
  */
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
-  Inbox, Search, RefreshCw, AlertTriangle, Loader2, Trash2, X, CheckSquare, Square, ChevronDown,
+  Inbox, Search, RefreshCw, AlertTriangle, Loader2, Trash2, X, CheckSquare, Square, ChevronDown, Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -337,6 +337,7 @@ export function Submissions() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resume</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -371,6 +372,28 @@ export function Submissions() {
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/recruitment/talent-pool', {
+                              method: 'POST',
+                              headers: getAuthHeaders(),
+                              body: JSON.stringify({ applicationId: a.id }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+                            toast.success(`${a.candidateName} added to talent pool`);
+                          } catch (e) {
+                            toast.error(e instanceof Error ? e.message : 'Failed to add to pool');
+                          }
+                        }}
+                        title="Add to Talent Pool"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      >
+                        <Star className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}

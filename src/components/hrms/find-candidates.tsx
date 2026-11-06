@@ -25,7 +25,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Search, RefreshCw, AlertTriangle, Loader2, Eye, MapPin, Briefcase, Mail, Phone,
-  Star, Clock, DollarSign, Award, X, ChevronDown, ChevronUp, Filter,
+  Star, Clock, DollarSign, Award, X, ChevronDown, ChevronUp, Filter, CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -376,6 +376,32 @@ function CandidateCard({ candidate, onView }: { candidate: Candidate; onView: ()
   const matchScore = candidate.matchScore;
   const latestStatus = candidate.latestStatus;
   const applicationsCount = candidate.applications?.length || 0;
+  const firstApplicationId = candidate.applications?.[0]?.id;
+  const [addingPool, setAddingPool] = useState(false);
+  const [addedPool, setAddedPool] = useState(false);
+
+  const addToPool = async () => {
+    if (!firstApplicationId) {
+      toast.error('Cannot add to pool — no application ID linked to this candidate');
+      return;
+    }
+    setAddingPool(true);
+    try {
+      const res = await fetch('/api/recruitment/talent-pool', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ applicationId: firstApplicationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+      toast.success(`${candidate.candidateName} added to talent pool`);
+      setAddedPool(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add to pool');
+    } finally {
+      setAddingPool(false);
+    }
+  };
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -445,6 +471,16 @@ function CandidateCard({ candidate, onView }: { candidate: Candidate; onView: ()
           <Button size="sm" variant="outline" onClick={onView}>
             <Eye className="h-3.5 w-3.5 mr-1.5" /> View Profile
           </Button>
+          {addedPool ? (
+            <Button size="sm" variant="outline" disabled className="text-emerald-600 border-emerald-300 bg-emerald-50">
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> In Pool
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={addToPool} disabled={addingPool || !firstApplicationId}>
+              {addingPool ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Star className="h-3.5 w-3.5 mr-1.5 text-amber-500" />}
+              Add to Pool
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
