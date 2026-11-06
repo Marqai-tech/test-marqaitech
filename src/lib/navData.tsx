@@ -16,7 +16,7 @@ import {
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
   FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward, FiCheckCircle,
-  FiPlus, FiDownload, FiPenTool, FiCalendarClock, FiInbox, FiColumns,
+  FiPlus, FiDownload, FiPenTool, FiInbox, FiColumns,
 } from 'react-icons/fi';
 
 export interface NavItem {
@@ -402,7 +402,7 @@ export const navSections: NavSection[] = [
       { label: 'Find Candidates', href: '/recruitment?tab=find-candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Pipeline (Kanban)', href: '/recruitment?tab=kanban', icon: <FiColumns className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
-      { label: 'Schedule Interview', href: '/interviews', icon: <FiCalendarClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Schedule Interview', href: '/interviews', icon: <FiClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Interviews', href: '/interviews', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
