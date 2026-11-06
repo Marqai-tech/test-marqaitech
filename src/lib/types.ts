@@ -9,6 +9,8 @@ export type ModuleKey =
   | 'recruitment'
   | 'schedule_interview'
   | 'talent_pool'
+  | 'resumes'
+  | 'submissions'
   | 'employees'
   | 'attendance'
   | 'leave'

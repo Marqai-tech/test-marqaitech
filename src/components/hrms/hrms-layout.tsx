@@ -9,6 +9,8 @@ import { Dashboard } from './dashboard';
 import { Recruitment } from './recruitment';
 import { ScheduleInterview } from './schedule-interview';
 import { TalentPool } from './talent-pool';
+import { Resumes } from './resumes';
+import { Submissions } from './submissions';
 import { Employees } from './employees';
 import { Attendance } from './attendance';
 import { Leave } from './leave';
@@ -40,6 +42,8 @@ const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   recruitment: Recruitment,
   schedule_interview: ScheduleInterview,
   talent_pool: TalentPool,
+  resumes: Resumes,
+  submissions: Submissions,
   employees: Employees,
   attendance: Attendance,
   leave: Leave,
