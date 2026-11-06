@@ -433,7 +433,7 @@ function CreateJobPostingForm() {
         body: JSON.stringify({ ...form, status, requisitionId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      if (!res.ok) throw new Error(data.error || 'Failed to create job posting');
       toast.success(status === 'open' ? 'Job posting published!' : 'Job posting saved as draft');
       // Clear the query params and reload
       window.location.href = '/job-portal';

@@ -99,6 +99,23 @@ export async function POST(req: NextRequest) {
       } catch { /* keep raw value */ }
     }
 
+    // RD-017 fix: Check for duplicate job posting (same title + same department)
+    if (status === 'open') {
+      try {
+        const existingJobs = await db.$queryRawUnsafe(
+          `SELECT "id" FROM "JobPosting" WHERE LOWER("title") = LOWER($1) AND "departmentId" = $2 AND "status" = 'open' LIMIT 1`,
+          title,
+          resolvedDeptId,
+        ) as any[];
+        if (existingJobs[0]?.id) {
+          return NextResponse.json(
+            { error: `A job posting with the title "${title}" already exists in this department. Please use a different title or edit the existing posting.` },
+            { status: 409 }
+          );
+        }
+      } catch { /* table might not exist — non-fatal, skip duplicate check */ }
+    }
+
     // Task 165: if requisitionId is provided, verify it's approved
     if (requisitionId) {
       try {

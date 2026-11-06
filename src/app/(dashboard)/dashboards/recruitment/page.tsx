@@ -644,9 +644,14 @@ function RecruitmentContent() {
               icon={<FiCalendar className="w-4 h-4" />}
               accent="text-[#FF9B44]"
               action={
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#10B981]/10 text-[#10B981] text-[10px] font-bold">
-                  {upcomingInterviews.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => router.push('/interviews')} className="text-xs text-[#3A57C4] font-semibold hover:underline flex items-center gap-1 cursor-pointer">
+                    View All <FiChevronRight className="w-3 h-3" />
+                  </button>
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#10B981]/10 text-[#10B981] text-[10px] font-bold">
+                    {upcomingInterviews.length}
+                  </span>
+                </div>
               }
             >
               <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
