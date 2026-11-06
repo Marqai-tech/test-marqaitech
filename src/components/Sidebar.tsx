@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiLogOut,
@@ -26,6 +26,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, currentModuleKey, onModuleSelect }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const userRole = navRoleOrLeastPrivilege(user?.role);
@@ -281,7 +282,22 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
                     <Link
                       href={item.href}
                       prefetch={false}
-                      onClick={() => { if (isMobileMenu) onToggle(); }}
+                      scroll={true}
+                      onClick={() => {
+                        // BUG FIX: when clicking a nav item whose pathname matches
+                        // the current page but has a different query string (e.g.
+                        // /leave → /leave?action=apply), Next.js Link doesn't
+                        // trigger a navigation. Force it with router.push + a
+                        // unique timestamp to bust the cache.
+                        const hrefPath = item.href.split('?')[0];
+                        const hrefQuery = item.href.includes('?') ? item.href.split('?')[1] : '';
+                        if (pathname === hrefPath && hrefQuery) {
+                          // Same path, different query — force navigation
+                          const sep = hrefQuery ? '?' : '';
+                          router.push(`${hrefPath}${sep}${hrefQuery}`);
+                        }
+                        if (isMobileMenu) onToggle();
+                      }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
                         isActive
                           ? 'bg-green-500/15 text-green-400'

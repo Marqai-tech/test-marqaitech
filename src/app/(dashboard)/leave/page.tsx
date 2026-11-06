@@ -346,11 +346,22 @@ function LeavePageContent() {
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
   // Task 66: auto-open the Apply Leave form when ?action=apply is in the URL
+  // BUG FIX: also depend on the full searchParams object so that clicking the
+  // sidebar "Apply Leave" link while already on /leave triggers a re-render.
+  // Next.js Link with the same pathname but different query string doesn't
+  // always update useSearchParams — depending on the searchParams object
+  // itself forces the effect to re-run.
   useEffect(() => {
     if (actionParam === 'apply') {
       setShowForm(true);
+      // Scroll to the form so it's visible (the form renders at the top of the page)
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+      }
     }
-  }, [actionParam]);
+  }, [actionParam, searchParams]);
 
   /* Holiday overlay */
   useEffect(() => {
