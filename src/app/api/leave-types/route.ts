@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { resolveLeavePolicy } from '@/lib/leave-policy-resolver';
+import { validateCompanyOwnership } from '@/lib/company-ownership';
 
 function corsHeaders() {
   return {
@@ -244,7 +245,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await getAuthInfo(req);
     if (!auth) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() }); }
-    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) { return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() }); }
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(auth.role)) { return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() }); }
     try { await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "calendarColor" TEXT`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "documentRequirement" TEXT NOT NULL DEFAULT 'never'`); } catch {}
 
     const body = await req.json();
@@ -291,6 +292,14 @@ export async function POST(req: NextRequest) {
 
     if (!resolvedCompanyId) { try { const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } }); if (fc) resolvedCompanyId = fc.id; } catch {} }
     if (!resolvedCompanyId) { return NextResponse.json({ error: 'Company ID required. Ensure a company exists.' }, { status: 400, headers: corsHeaders() }); }
+
+    // ─── COMPANY OWNERSHIP VALIDATION ───
+    // Verify the authenticated admin can manage this company (prevents
+    // cross-tenant data leakage via direct API requests with a foreign companyId).
+    const ownership = await validateCompanyOwnership(req, resolvedCompanyId);
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error || 'Access denied' }, { status: 403, headers: corsHeaders() });
+    }
 
     // ─── Check for duplicate code within the same company ───
     const existingByCode = await db.leaveType.findFirst({

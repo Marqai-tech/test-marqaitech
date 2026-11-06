@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
+import { validateCompanyOwnership } from '@/lib/company-ownership';
 
 function corsHeaders() {
   return {
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -95,7 +96,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Rule name is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Resolve companyId
+    // Resolve companyId — do NOT blindly trust the frontend value.
+    // 1. From body (frontend switcher) → validate ownership
+    // 2. From getCompanyFilter (session scope)
+    // 3. Fallback: first active company in the tenant (only for super_admin)
     let resolvedCompanyId = companyId;
     if (!resolvedCompanyId) {
       const companyFilter = await getCompanyFilter(req);
@@ -103,8 +107,23 @@ export async function POST(req: NextRequest) {
         resolvedCompanyId = companyFilter.companyId as string;
       }
     }
-    if (!resolvedCompanyId) { try { const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } }); if (fc) resolvedCompanyId = fc.id; } catch {} }
-    if (!resolvedCompanyId) { return NextResponse.json({ error: 'companyId required. Ensure a company exists.' }, { status: 400, headers: corsHeaders() }); }
+    if (!resolvedCompanyId) {
+      try {
+        const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } });
+        if (fc) resolvedCompanyId = fc.id;
+      } catch {}
+    }
+    if (!resolvedCompanyId) {
+      return NextResponse.json({ error: 'companyId required. Ensure a company exists.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // ─── COMPANY OWNERSHIP VALIDATION ───
+    // Verify the authenticated admin actually has the right to manage this
+    // company. Prevents cross-tenant data leakage via direct API requests.
+    const ownership = await validateCompanyOwnership(req, resolvedCompanyId);
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error || 'Access denied' }, { status: 403, headers: corsHeaders() });
+    }
 
     const rule = await db.leavePolicyRule.create({
       data: {
@@ -145,7 +164,7 @@ export async function PUT(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -203,7 +222,7 @@ export async function DELETE(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
 

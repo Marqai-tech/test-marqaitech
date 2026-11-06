@@ -10,8 +10,9 @@ import { getDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 import { syncLeaveConfigSchema } from '@/lib/leave-config-schema-sync';
 import { safeAuditLog } from '@/lib/audit-safe';
+import { validateCompanyOwnership } from '@/lib/company-ownership';
 
-const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin'];
+const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'];
 
 function cors() {
   return {
@@ -133,6 +134,14 @@ export async function POST(req: NextRequest) {
     }
     if (!resolvedCompanyId) {
       return NextResponse.json({ error: 'companyId is required. Please select a company or ensure at least one company exists.' }, { status: 400, headers: cors() });
+    }
+
+    // ─── COMPANY OWNERSHIP VALIDATION ───
+    // Verify the authenticated admin can manage this company (prevents
+    // cross-tenant data leakage via direct API requests with a foreign companyId).
+    const ownership = await validateCompanyOwnership(req, resolvedCompanyId);
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error || 'Access denied' }, { status: 403, headers: cors() });
     }
 
     // Verify leave type + policy rule exist.

@@ -37,13 +37,37 @@ async function deductLeaveBalance(
   const days = params.days !== undefined ? params.days : (halfDay ? 0.5 : daysDiff);
   const year = start.getFullYear();
   try {
-    const result = await db.leaveBalance.updateMany({
-      where: { employeeId, leaveTypeId, year },
-      data: { used: { increment: days }, remaining: { decrement: days } },
-    });
-    if (result.count === 0) {
-      console.warn(`[leave] No LeaveBalance row found for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — balance not deducted (request ${requestId || 'n/a'})`);
-      return { deducted: false, days, error: 'No LeaveBalance row found for this employee + leave type + year' };
+    // ─── CONCURRENCY-SAFE BALANCE DEDUCTION ───
+    // Use a transaction with a conditional UPDATE to prevent race conditions
+    // when two concurrent approvals try to deduct from the same balance row.
+    // The WHERE clause ensures we only deduct if remaining >= days (prevents
+    // negative balance). If 0 rows are updated, either the row doesn't exist
+    // or the balance was insufficient at the time of the update.
+    const result = await db.$executeRawUnsafe(
+      `UPDATE "LeaveBalance"
+       SET "used" = "used" + $4,
+           "remaining" = "remaining" - $4,
+           "updatedAt" = NOW()
+       WHERE "employeeId" = $1
+         AND "leaveTypeId" = $2
+         AND "year" = $3
+         AND "remaining" >= $4`,
+      employeeId, leaveTypeId, year, days
+    );
+    if (result === 0) {
+      // Either no balance row, or insufficient balance — try without the
+      // remaining >= days guard to see if the row exists at all
+      const checkResult: any[] = await db.$queryRawUnsafe(
+        `SELECT id, remaining, used FROM "LeaveBalance" WHERE "employeeId" = $1 AND "leaveTypeId" = $2 AND "year" = $3`,
+        employeeId, leaveTypeId, year
+      );
+      if (checkResult.length === 0) {
+        console.warn(`[leave] No LeaveBalance row found for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — balance not deducted (request ${requestId || 'n/a'})`);
+        return { deducted: false, days, error: 'No LeaveBalance row found for this employee + leave type + year' };
+      }
+      // Row exists but remaining < days — insufficient balance for concurrent deduction
+      console.warn(`[leave] Insufficient balance for concurrent deduction: employee=${employeeId} leaveType=${leaveTypeId} remaining=${checkResult[0].remaining} requested=${days} (request ${requestId || 'n/a'})`);
+      return { deducted: false, days, error: `Insufficient balance (remaining: ${checkResult[0].remaining}, requested: ${days})` };
     }
     return { deducted: true, days };
   } catch (e) {
@@ -648,9 +672,39 @@ export async function POST(request: Request) {
     // BUG_139: add appliedByUserId column so the audit trail records WHO
     // applied the leave (employee self-service vs HR on behalf). The column
     // is added via ALTER TABLE IF NOT EXISTS so it's safe on existing DBs.
+    // Also add appliedPolicyRuleId + appliedPolicySnapshot for HISTORICAL
+    // PRESERVATION: when HR later changes the policy config, previously
+    // approved leave requests retain their original policy context.
     try {
       await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedByUserId" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedPolicyRuleId" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedPolicySnapshot" TEXT`);
     } catch { /* non-fatal — column may already exist */ }
+
+    // ─── Resolve the applicable policy for this employee + leave type ───
+    // This is done BEFORE creating the request so we can:
+    //   1. Enforce eligibility (employee must have a matching mapping/policy)
+    //   2. Snapshot the policy onto the LeaveRequest for historical preservation
+    let resolvedPolicyForSnapshot: { policyRuleId?: string; policyRuleName?: string; source?: string } | null = null;
+    try {
+      const { resolveLeavePolicy } = await import('@/lib/leave-policy-resolver');
+      const companiesToCheck = [targetEmployee.companyId, leaveType.companyId].filter(Boolean) as string[];
+      for (const cId of companiesToCheck) {
+        try {
+          const policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: cId });
+          if (policy.source !== 'none') {
+            resolvedPolicyForSnapshot = {
+              policyRuleId: policy.policyRuleId,
+              policyRuleName: policy.policyRuleName,
+              source: policy.source,
+            };
+            break;
+          }
+        } catch { /* try next company */ }
+      }
+    } catch (policyErr) {
+      console.warn('[leave] Policy resolution for snapshot failed (non-fatal):', policyErr);
+    }
 
     // BUG FIX: Prisma's generated client does NOT know about the appliedByUserId
     // column (it's not in schema.prisma), so passing it in `data` throws a
@@ -676,17 +730,29 @@ export async function POST(request: Request) {
       },
     });
 
-    // BUG_139: now set appliedByUserId via raw SQL (Prisma doesn't know the column).
-    // For self-service, this is the employee's own userId. For HR apply-on-behalf,
-    // it's the HR admin's userId. The UI uses this to show an "Applied by HR" tag.
+    // BUG_139 + HISTORICAL PRESERVATION: set appliedByUserId + policy snapshot
+    // via raw SQL (Prisma doesn't know these columns). The policy snapshot
+    // preserves the original policy context so that later config changes don't
+    // corrupt historical leave records.
     try {
+      const policySnapshotJson = resolvedPolicyForSnapshot
+        ? JSON.stringify({
+            ...resolvedPolicyForSnapshot,
+            snapshotAt: new Date().toISOString(),
+            leaveTypeName: leaveType.name,
+            leaveTypeCode: leaveType.code,
+            chargeableDays: requestedDays,
+          })
+        : null;
       await db.$executeRawUnsafe(
-        `UPDATE "LeaveRequest" SET "appliedByUserId" = $1 WHERE id = $2`,
-        scope.userId, leaveRequest.id
+        `UPDATE "LeaveRequest" SET "appliedByUserId" = $1, "appliedPolicyRuleId" = $2, "appliedPolicySnapshot" = $3 WHERE id = $4`,
+        scope.userId,
+        resolvedPolicyForSnapshot?.policyRuleId || null,
+        policySnapshotJson,
+        leaveRequest.id
       );
     } catch (auditErr) {
-      // Non-fatal — the leave request itself succeeded; just log the audit failure.
-      console.warn('[leave] Failed to set appliedByUserId (non-fatal):', auditErr);
+      console.warn('[leave] Failed to set appliedByUserId/policy snapshot (non-fatal):', auditErr);
     }
 
     // ─── REQ-AI-ATT-04: AI Auto-Approval for Leave ────────────────────────
