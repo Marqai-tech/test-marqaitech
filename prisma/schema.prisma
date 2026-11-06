@@ -5688,6 +5688,100 @@ model OfferDeclineSurvey {
   @@index([offerId])
 }
 
+// ─── Offer Management module (2026-11): per-tenant branding, approval
+// workflow, role permissions, and per-offer approval trail. ───
+
+model OfferBranding {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  // logo stored as data URL or external URL
+  logo            String?
+  companyName     String?
+  address         String?
+  email           String?
+  phone           String?
+  website         String?
+  // JSON { primary, secondary } hex colors
+  colors          String?
+  // HR signature image (data URL)
+  signature       String?
+  signatoryName        String?
+  signatoryDesignation String?
+  defaultFooterText String?
+  legalNotice      String?
+  // bumped whenever branding changes — stored on Offer to detect stale PDFs
+  version         Int      @default(1)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model OfferApproval {
+  id              String   @id @default(cuid())
+  tenantId        String
+  offerId         String
+  // 1-based level number from the workflow config
+  level           Int
+  // role that should approve this level: hr_admin | finance | ceo | etc.
+  approverRole    String
+  // specific user assigned (optional — null means any user with the role)
+  approverUserId  String?
+  // pending | approved | rejected | sent_back
+  status          String   @default("pending")
+  comments        String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  dueDate         DateTime?
+  // who actually acted (filled when status changes)
+  actedByUserId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, offerId])
+  @@index([tenantId, status])
+  @@index([approverUserId])
+}
+
+model OfferPermission {
+  id              String   @id @default(cuid())
+  tenantId        String
+  // role: hr_admin | tenant_admin | manager | finance | dept_head | ceo | hr_head | candidate
+  role            String
+  // permission key: view_offers | create_offer | edit_offer | delete_draft |
+  //   select_template | generate_preview | download_pdf | submit_for_approval |
+  //   approve_offer | reject_offer | send_offer | cancel_offer |
+  //   view_offer_history | convert_employee
+  permission      String
+  allowed         Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([tenantId, role, permission])
+  @@index([tenantId])
+}
+
+model OfferWorkflowConfig {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  // workflow type — currently only 'recruitment'
+  workflowType    String   @default("recruitment")
+  approvalRequired Boolean  @default(true)
+  // JSON array of { tier, approverType, approverUserId?, label? }
+  levels          String?
+  // JSON object with rule settings:
+  //   salaryThreshold, requiredApproverRoles, rejectionBehavior,
+  //   candidateNotification, approvalReminderDays, offerExpiryDays,
+  //   esignatureRequired, autoConvertAfterAcceptance, bgvRequired,
+  //   preboardingAfterAcceptance, employeeIdFormat
+  rules           String?
+  updatedBy       String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+}
+
 // ─── REQ-ONB-01/05/08: Onboarding task templates + cascade wiring ───
 model OnboardingTaskTemplate {
   id              String   @id @default(cuid())

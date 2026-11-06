@@ -1485,6 +1485,80 @@ async function main() {
   // the migration). Safe to re-run — `ALTER COLUMN TYPE` is a no-op if the
   // column is already TIMESTAMP(3).
   // MUST run AFTER the CREATE TABLE statements above so all tables exist.
+
+  // ─── Offer Management module (2026-11): per-tenant branding, approval
+  // trail, role permissions, and workflow config. All CREATE TABLE IF NOT
+  // EXISTS so this is idempotent and safe to re-run. ───
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferBranding" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL UNIQUE,
+    "logo" TEXT,
+    "companyName" TEXT,
+    "address" TEXT,
+    "email" TEXT,
+    "phone" TEXT,
+    "website" TEXT,
+    "colors" TEXT,
+    "signature" TEXT,
+    "signatoryName" TEXT,
+    "signatoryDesignation" TEXT,
+    "defaultFooterText" TEXT,
+    "legalNotice" TEXT,
+    "version" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferBranding_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferBranding_tenantId_idx" ON "OfferBranding"("tenantId")`);
+
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferApproval" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "offerId" TEXT NOT NULL,
+    "level" INTEGER NOT NULL,
+    "approverRole" TEXT NOT NULL,
+    "approverUserId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "comments" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "rejectedAt" TIMESTAMP(3),
+    "dueDate" TIMESTAMP(3),
+    "actedByUserId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferApproval_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferApproval_tenantId_offerId_idx" ON "OfferApproval"("tenantId", "offerId")`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferApproval_tenantId_status_idx" ON "OfferApproval"("tenantId", "status")`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferApproval_approverUserId_idx" ON "OfferApproval"("approverUserId")`);
+
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferPermission" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "permission" TEXT NOT NULL,
+    "allowed" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferPermission_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE UNIQUE INDEX IF NOT EXISTS "OfferPermission_tenantId_role_permission_key" ON "OfferPermission"("tenantId", "role", "permission")`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferPermission_tenantId_idx" ON "OfferPermission"("tenantId")`);
+
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferWorkflowConfig" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL UNIQUE,
+    "workflowType" TEXT NOT NULL DEFAULT 'recruitment',
+    "approvalRequired" BOOLEAN NOT NULL DEFAULT true,
+    "levels" TEXT,
+    "rules" TEXT,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferWorkflowConfig_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferWorkflowConfig_tenantId_idx" ON "OfferWorkflowConfig"("tenantId")`);
+
   statements.push(timestampFixSql);
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.

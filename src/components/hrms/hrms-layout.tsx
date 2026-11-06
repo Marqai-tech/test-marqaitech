@@ -14,6 +14,10 @@ import { ScheduleInterview } from './schedule-interview';
 import { TalentPool } from './talent-pool';
 import { Resumes } from './resumes';
 import { Submissions } from './submissions';
+import { OfferDashboard } from './offer-dashboard';
+import { OfferApprovalQueue } from './offer-approval-queue';
+import { OfferBrandingSettings } from './offer-branding-settings';
+import { OfferWorkflowSettings } from './offer-workflow-settings';
 import { Employees } from './employees';
 import { Attendance } from './attendance';
 import { Leave } from './leave';
@@ -50,6 +54,10 @@ const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   talent_pool: TalentPool,
   resumes: Resumes,
   submissions: Submissions,
+  offer_dashboard: OfferDashboard,
+  offer_approvals: OfferApprovalQueue,
+  offer_branding: OfferBrandingSettings,
+  offer_workflow: OfferWorkflowSettings,
   employees: Employees,
   attendance: Attendance,
   leave: Leave,
