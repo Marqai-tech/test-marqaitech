@@ -16,6 +16,7 @@ import {
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
   FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward, FiCheckCircle,
+  FiPlus, FiDownload, FiPenTool,
 } from 'react-icons/fi';
 
 export interface NavItem {
@@ -404,7 +405,17 @@ export const navSections: NavSection[] = [
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Offers', href: '/offers', icon: <FiStar className="w-4 h-4" />, moduleKey: 'recruitment' },
+
+      // ── Offer Management ──
+      { label: 'Offer Management', href: '#offer-divider', icon: <FiStar className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Offer Dashboard', href: '/offers', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Create Offer', href: '/offers/new', icon: <FiPlus className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Approval Queue', href: '/offers/approvals', icon: <FiClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Offer Templates', href: '/offers/templates', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment' },
+      { label: 'Company Branding', href: '/settings/company-branding', icon: <FiPenTool className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Workflow Settings', href: '/settings/recruitment/offer-workflow', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Role Permissions', href: '/settings/recruitment/offer-permissions', icon: <FiShield className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Offer Rules', href: '/settings/recruitment/offer-rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
       // ── Analytics ──
       { label: 'Analytics', href: '#analytics-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
