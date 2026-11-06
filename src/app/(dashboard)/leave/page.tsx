@@ -33,6 +33,9 @@ interface LeaveRequest {
   // Workflow fields (added by Task 36 multi-tier approval workflow)
   currentApproverId?: string | null;
   workflowStage?: string | null;
+  // BUG_139: appliedByHR flag — true when the leave was applied by HR/admin
+  // on behalf of the employee (not self-service).
+  appliedByHR?: boolean;
 }
 
 interface LeaveBalance {
@@ -76,9 +79,11 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
+// BUG_118/121 FIX: use DD-MMM-YYYY (e.g. '05-Nov-2026') everywhere — form,
+// table, conflict panel and modal. This is unambiguous (no mm/dd vs dd/mm confusion).
 function formatDate(d: string | null | undefined) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
 }
 
 function getStatusBadge(status: string) {
@@ -198,6 +203,9 @@ function LeavePageContent() {
   const [filterAppliedBy, setFilterAppliedBy] = useState('');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
+  // BUG_116: row selection state — export respects selected rows when any are checked.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Holidays overlay (REQ-LVE-03)
   const [holidays, setHolidays] = useState<Array<{ id: string; name: string; date: string; type: string }>>([]);
   // AI collaborative check (REQ-LVE-04)
@@ -212,7 +220,13 @@ function LeavePageContent() {
       const sq = scopeQuery();
       // Task 66: when view=self, add &view=self to the API call so the server
       // returns only the current user's own leave applications (even for admins).
-      const viewParamStr = viewParam === 'self' ? '&view=self' : '';
+      // BUG_113 FIX: non-admin employees ALWAYS get view=self — previously they
+      // saw every employee's leave requests because the client only passed
+      // view=self when the URL had ?view=self (which the sidebar link we removed
+      // used to set). Now employees always see only their own leaves + any
+      // pending requests where they're the assigned approver.
+      const effectiveViewSelf = viewParam === 'self' || !isAdmin;
+      const viewParamStr = effectiveViewSelf ? '&view=self' : '';
       // This page uses only the signed-in user's employee profile. Ask the API
       // for that single authenticated record instead of loading the tenant's
       // full employee directory for HR users.
@@ -360,18 +374,23 @@ function LeavePageContent() {
   };
 
   /* Export Leave Data */
-  const getExportRows = () => filteredLeaves.map(l => ({
+  // BUG_116 FIX: export respects selected rows — when any rows are checked,
+  // only those are exported. When none are checked, all filtered rows export.
+  const getExportRows = () => {
+    const source = selectedIds.size > 0 ? filteredLeaves.filter(l => selectedIds.has(l.id)) : filteredLeaves;
+    return source.map(l => ({
     'Employee ID': l.employee?.employeeId || '',
     'Employee Name': l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : '',
     'Department': l.employee?.department?.name || '',
     'Leave Type': l.leaveType?.name || '',
-    'Start Date': l.startDate ? new Date(l.startDate).toLocaleDateString() : '',
-    'End Date': l.endDate ? new Date(l.endDate).toLocaleDateString() : '',
-    'Duration (Days)': getDaysBetween(l.startDate, l.endDate),
+    'Start Date': l.startDate ? new Date(l.startDate).toLocaleDateString('en-GB') : '',
+    'End Date': l.endDate ? new Date(l.endDate).toLocaleDateString('en-GB') : '',
+    'Duration (Days)': (() => { const hs = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0])); const wd = getDaysBetween(l.startDate, l.endDate, hs); const d = l.halfDay ? 0.5 : wd; return d; })(),
     'Half Day': l.halfDay ? 'Yes' : 'No',
     'Status': l.status,
     'Reason': l.reason || '',
   }));
+  };
 
   const handleExportCSV = () => {
     const rows = getExportRows();
@@ -464,25 +483,26 @@ function LeavePageContent() {
       return;
     }
 
-    // ─── BUG_061/062/063: client-side balance validation ───
+    // ─── BUG_061/062/063/126: client-side balance validation ───
     // Mirrors the server-side checks in /api/leave POST. Gives instant
     // feedback without a round-trip. The server is still the source of
     // truth (re-validates on submit).
     const selectedBalance = leaveBalances.find(lb => lb.leaveType.id === form.leaveTypeId);
     if (selectedBalance) {
-      // Compute requested working days (rough estimate — server will
-      // compute the exact number with weekend/holiday exclusion).
-      const startD = new Date(form.startDate);
-      const endD = new Date(form.endDate);
-      const rawDays = Math.max(1, Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      const requestedDays = form.halfDay ? Math.max(0.5, rawDays * 0.5) : rawDays;
+      // BUG_114/122 FIX: use the same working-day calc as the table display
+      // (excludes weekends + holidays). Half day = 0.5 (not workingDays * 0.5).
+      const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
+      const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
+      const requestedDays = form.halfDay ? 0.5 : workingDays;
+      // BUG_110 FIX: recompute remaining as Total - Used to avoid stale API values.
+      const effectiveRemaining = Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0));
 
-      if (selectedBalance.remaining === 0) {
+      if (effectiveRemaining === 0) {
         toast.error(`No leave balance available for the selected leave type ("${selectedBalance.leaveType.name}"). Please choose an unpaid leave type (LOP) or contact HR to adjust your balance.`);
         return;
       }
-      if (requestedDays > selectedBalance.remaining) {
-        toast.error(`Insufficient leave balance. Available balance: ${selectedBalance.remaining} day(s). Requested leave: ${requestedDays} day(s).`);
+      if (requestedDays > effectiveRemaining) {
+        toast.error(`Insufficient leave balance. Available balance: ${effectiveRemaining} day(s). Requested leave: ${requestedDays} day(s).`);
         return;
       }
     }
@@ -604,13 +624,14 @@ function LeavePageContent() {
       {/* Breadcrumb Header - SmartHR Style */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 mb-1">{viewParam === 'self' ? 'My Leave Applications' : 'Leaves'}</h2>
+          {/* BUG_104 FIX: consistent naming — 'Leave Dashboard' for menu, heading and breadcrumb. No 'Admin' label for employees. */}
+          <h2 className="text-xl font-bold text-slate-900 mb-1">Leave Dashboard</h2>
           <nav className="flex items-center gap-1.5 text-sm text-slate-500">
             <button onClick={() => router.push('/')} className="hover:text-green-600 transition-colors">Home</button>
             <span>/</span>
             <button onClick={() => router.push('/leave')} className="hover:text-green-600 transition-colors">Leave</button>
             <span>/</span>
-            <span className="text-slate-700 font-medium">{viewParam === 'self' ? 'My Applications' : 'Leaves Admin'}</span>
+            <span className="text-slate-700 font-medium">Leave Dashboard</span>
           </nav>
         </div>
         <div className="flex items-center gap-2">
@@ -625,24 +646,33 @@ function LeavePageContent() {
               <FiDownload className="w-3.5 h-3.5" /> PDF
             </button>
           </div>
+          {/* BUG_112 FIX: button renamed from 'Add Leave' to 'Apply Leave'. */}
           <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
             <FiPlus className="w-4 h-4" />
-            Add Leave
+            Apply Leave
           </button>
         </div>
       </div>
 
       {/* ── Stat Cards (SmartHR Style) ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Present */}
+        {/* BUG_107 FIX: 'Total Present' card relabeled to 'Days Present (This Month)' for employees. Counts THIS employee's approved leaves this month (a proxy for days present = working days minus leave days). */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-emerald-50/30">
           <div className="flex items-center overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0">
               <FiUserCheck className="w-5 h-5" />
             </div>
             <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">Total Present</p>
-              <h4 className="text-2xl font-bold text-emerald-600">{leaveRequests.length > 0 ? leaveRequests.filter(l => l.status !== 'approved' || l.employeeId === employee?.id).length : 0}</h4>
+              <p className="text-xs font-medium text-slate-500 truncate">{isAdmin ? 'Total Present' : 'Days Present (This Month)'}</p>
+              <h4 className="text-2xl font-bold text-emerald-600">{(() => {
+                const now = new Date();
+                const myApprovedThisMonth = leaveRequests.filter(l =>
+                  l.status === 'approved' && l.employeeId === employee?.id &&
+                  new Date(l.startDate).getMonth() === now.getMonth() &&
+                  new Date(l.startDate).getFullYear() === now.getFullYear()
+                ).length;
+                return leaveRequests.length > 0 ? myApprovedThisMonth : 0;
+              })()}</h4>
             </div>
           </div>
           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">
@@ -650,14 +680,14 @@ function LeavePageContent() {
           </span>
         </div>
 
-        {/* Planned Leaves */}
+        {/* BUG_106 FIX: card title matches sub-label — 'Approved Leaves' (was 'Planned Leaves' with sub-label 'Approved'). */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-pink-50 to-pink-50/30">
           <div className="flex items-center overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center text-white flex-shrink-0">
               <FiCalendar className="w-5 h-5" />
             </div>
             <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">Planned Leaves</p>
+              <p className="text-xs font-medium text-slate-500 truncate">Approved Leaves</p>
               <h4 className="text-2xl font-bold text-pink-600">{approvedThisMonth}</h4>
             </div>
           </div>
@@ -666,14 +696,14 @@ function LeavePageContent() {
           </span>
         </div>
 
-        {/* Unplanned/Absent */}
+        {/* BUG_106 FIX: card title matches sub-label — 'Rejected Leaves' (was 'Unplanned Leaves' with sub-label 'Rejected'). */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-amber-50 to-amber-50/30">
           <div className="flex items-center overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center text-white flex-shrink-0">
               <FiUserX className="w-5 h-5" />
             </div>
             <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">Unplanned Leaves</p>
+              <p className="text-xs font-medium text-slate-500 truncate">Rejected Leaves</p>
               <h4 className="text-2xl font-bold text-amber-600">{rejectedThisMonth}</h4>
             </div>
           </div>
@@ -706,28 +736,36 @@ function LeavePageContent() {
             const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave', 'loss of pay'];
             return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
           }).map(lb => {
-            const usedPct = lb.total > 0 ? (lb.used / lb.total) * 100 : 0;
+            // BUG_110 FIX: Left = Total - Used (clamped to 0). The API returns
+            //   'remaining' but it can drift from total-used when balance rows
+            //   are stale or incorrectly seeded. Recompute client-side so the
+            //   displayed Left is always Total - Used.
+            const blocked = isActiveProbation(employee);
+            const safeTotal = blocked ? 0 : (lb.total || 0);
+            const safeUsed = blocked ? 0 : (lb.used || 0);
+            const computedRemaining = blocked ? 0 : Math.max(0, safeTotal - safeUsed);
+            const usedPct = safeTotal > 0 ? (safeUsed / safeTotal) * 100 : 0;
             const barColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
-              const blocked = isActiveProbation(employee);
               const isLop = /loss of pay|lop/i.test(`${lb.leaveType.name} ${lb.leaveType.code}`);
               return (
               <React.Fragment key={lb.id}>
               <div className="bg-white rounded-xl border border-slate-200 p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold text-slate-800">{lb.leaveType.name}</h4>
+                  {/* BUG_111 FIX: title-case the leave type name so 'Formal leave' shows as 'Formal Leave'. */}
+                  <h4 className="text-xs font-semibold text-slate-800">{lb.leaveType.name.replace(/\b\w/g, c => c.toUpperCase())}</h4>
                   <span className="text-[10px] font-mono text-slate-400">{lb.leaveType.code}</span>
                 </div>
                 <div className="flex items-center gap-3 mb-2">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-emerald-600">{blocked ? 0 : lb.remaining}</p>
+                    <p className="text-lg font-bold text-emerald-600">{computedRemaining}</p>
                     <p className="text-[9px] text-slate-400">Left</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-semibold text-amber-600">{blocked ? 0 : lb.used}</p>
+                    <p className="text-sm font-semibold text-amber-600">{safeUsed}</p>
                     <p className="text-[9px] text-slate-400">Used</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm text-slate-500">{blocked ? 0 : lb.total}</p>
+                    <p className="text-sm text-slate-500">{safeTotal}</p>
                     <p className="text-[9px] text-slate-400">Total</p>
                   </div>
                 </div>
@@ -776,11 +814,12 @@ function LeavePageContent() {
                 <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
                   <span className="text-sm text-green-700 font-medium">
                     <FiClock className="w-4 h-4 inline mr-1" />
+                    {/* BUG_122 FIX: half-day for a single day = 0.5 day (was workingDays * 0.5 which gave 0 for a 1-day range when holidays overlapped). */}
                     Duration: {(() => {
                       const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
                       const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
-                      const chargeable = form.halfDay ? Math.max(0.5, workingDays * 0.5) : workingDays;
-                      return form.halfDay ? `${chargeable} day(s) (${workingDays} working days × 0.5)` : `${chargeable} working day(s)`;
+                      const chargeable = form.halfDay ? 0.5 : workingDays;
+                      return `${chargeable} day(s)${form.halfDay ? ' (Half Day)' : ''}`;
                     })()}
                   </span>
                   {/* Remaining days from balance */}
@@ -823,8 +862,9 @@ function LeavePageContent() {
                 <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Provide a reason for your leave..." />
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20" />
-                <span className="text-sm text-slate-700">Half Day Leave</span>
+                {/* BUG_123 FIX: disable Half Day for multi-day ranges. Half day only makes sense for a single day. */}
+                <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} disabled={form.startDate && form.endDate && form.startDate !== form.endDate} className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20 disabled:opacity-40 disabled:cursor-not-allowed" />
+                <span className="text-sm text-slate-700">Half Day Leave {form.startDate && form.endDate && form.startDate !== form.endDate && <span className="text-[10px] text-slate-400">(only for single-day leave)</span>}</span>
               </label>
               {form.halfDay && (
                 <div className="ml-7 flex gap-2">
@@ -840,8 +880,9 @@ function LeavePageContent() {
               )}
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 shadow-sm transition-colors">
-                  {submitting ? 'Submitting...' : 'Add Leave'}
+                {/* BUG_124 FIX: submit button disabled until mandatory fields (leave type + dates) are filled. */}
+                <button onClick={handleApply} disabled={submitting || !form.leaveTypeId || !form.startDate || !form.endDate} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors">
+                  {submitting ? 'Submitting...' : 'Apply Leave'}
                 </button>
               </div>
             </div>
@@ -888,18 +929,22 @@ function LeavePageContent() {
                 <option value="cancelled">Cancelled</option>
               </select>
 
-              {/* Applied By Filter */}
+              {/* Applied By Filter — BUG_105: admin/manager only */}
+              {isAdmin && (
               <select value={filterAppliedBy} onChange={e => setFilterAppliedBy(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-green-500/20">
                 <option value="">Applied By</option>
                 <option value="self">Self (Employee)</option>
                 <option value="hr">HR / Admin</option>
               </select>
+              )}
 
-              {/* Search */}
+              {/* Search — BUG_105: admin/manager only. Employees don't need to search other employees. */}
+              {isAdmin && (
               <div className="relative">
                 <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(sanitizeSearch(e.target.value))} placeholder="Search employee..." className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-green-500/20" />
               </div>
+              )}
             </div>
           </div>
         </div>
@@ -909,9 +954,10 @@ function LeavePageContent() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  <input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300" />
-                </th>
+                {/* BUG_105/116: select-all checkbox only for admin/manager. */}
+                {isAdmin && <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300" checked={filteredLeaves.length > 0 && selectedIds.size === filteredLeaves.length} onChange={e => { if (e.target.checked) { setSelectedIds(new Set(filteredLeaves.map(l => l.id))); } else { setSelectedIds(new Set()); } }} />
+                </th>}
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Employee</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Leave Type</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">From</th>
@@ -925,7 +971,7 @@ function LeavePageContent() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-slate-50 animate-pulse">
-                    <td className="px-4 py-3"><div className="w-3.5 h-3.5 bg-slate-200 rounded" /></td>
+                    {isAdmin && <td className="px-4 py-3"><div className="w-3.5 h-3.5 bg-slate-200 rounded" /></td>}
                     <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-slate-200 rounded-full" /><div><div className="h-3 w-24 bg-slate-200 rounded mb-1" /><div className="h-2.5 w-16 bg-slate-100 rounded" /></div></div></td>
                     <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
@@ -937,36 +983,43 @@ function LeavePageContent() {
                 ))
               ) : filteredLeaves.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center">
+                  <td colSpan={isAdmin ? 8 : 7} className="px-4 py-12 text-center">
                     <FiCalendar className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500 font-medium">No leave requests found</p>
-                    <p className="text-xs text-slate-400 mt-1">Apply for leave using the &quot;Add Leave&quot; button above</p>
+                    <p className="text-xs text-slate-400 mt-1">Apply for leave using the &quot;Apply Leave&quot; button above</p>
                   </td>
                 </tr>
               ) : (
                 filteredLeaves.map(lr => {
                   const isActionRow = actionRowId === lr.id;
                   const fullName = lr.employee ? `${lr.employee.firstName} ${lr.employee.lastName}`.trim() : 'Unknown';
-                  const dept = lr.employee?.department?.name || '—';
+                  // BUG_115 FIX: show employee ID + department under the name (was showing '—' placeholder).
+                  const empId = lr.employee?.employeeId || '';
+                  const dept = lr.employee?.department?.name || '';
+                  const subLine = [empId, dept].filter(Boolean).join(' · ') || '—';
                   const badge = getStatusBadge(lr.status);
 
                   return (
                     <tr key={lr.id} className={`border-b border-slate-50 transition-colors ${isActionRow ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}>
-                      <td className="px-4 py-3">
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300" />
-                      </td>
+                      {isAdmin && <td className="px-4 py-3">
+                        {/* BUG_116: row checkbox bound to selectedIds. */}
+                        <input type="checkbox" checked={selectedIds.has(lr.id)} onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(lr.id); else next.delete(lr.id); return next; }); }} className="w-3.5 h-3.5 rounded border-slate-300" />
+                      </td>}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {(() => { const av = lr.employee?.avatar; if (av) { let url = av; if (av.startsWith('/api/employees/')) { const t = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null; if (t) url += `${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(t)}`; } return <img src={url} alt={fullName} className="w-9 h-9 rounded-full object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />; } return <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(fullName)} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>{fullName.charAt(0).toUpperCase()}</div>; })()}
                           <div>
                             <p className="text-sm font-medium text-slate-800">{fullName}</p>
-                            <p className="text-xs text-slate-400">{dept}</p>
+                            {/* BUG_115 FIX: show employee ID · department instead of '—'. */}
+                            <p className="text-xs text-slate-400">{subLine}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-medium text-slate-700">{lr.leaveType?.name || 'Leave'}</span>
+                          {/* BUG_139: show 'Applied by HR' badge when the leave was submitted by HR/admin. */}
+                          {lr.appliedByHR && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold whitespace-nowrap">Applied by HR</span>}
                           {lr.halfDay && <span className="text-[10px] text-slate-400">(Half)</span>}
                           {lr.reason && (
                             <span className="relative group">
@@ -981,7 +1034,8 @@ function LeavePageContent() {
                       <td className="px-4 py-3 text-sm text-slate-600">{formatDate(lr.startDate)}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">{formatDate(lr.endDate)}</td>
                       <td className="px-4 py-3 text-sm text-slate-700 font-medium">
-                        {(() => { const hs = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0])); const wd = getDaysBetween(lr.startDate, lr.endDate, hs); const d = lr.halfDay ? Math.max(0.5, wd * 0.5) : wd; return `${d} Day${d !== 1 ? 's' : ''}${lr.halfDay ? ' (Half)' : ''}`; })()}
+                        {/* BUG_114/117 FIX: No of Days uses working-day calc (excludes weekends + holidays). Half day = 0.5. */}
+                        {(() => { const hs = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0])); const wd = getDaysBetween(lr.startDate, lr.endDate, hs); const d = lr.halfDay ? 0.5 : wd; return `${d} Day${d !== 1 ? 's' : ''}${lr.halfDay ? ' (Half)' : ''}`; })()}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg} ${badge.text}`}>

@@ -28,7 +28,12 @@ interface Employee {
   companyId?: string;
   avatar?: string | null;
   department?: { name: string } | null;
-  designation?: { name: string } | null;
+  // BUG_128 FIX: Designation model uses 'title' not 'name'. The API returns
+  // { id, title } so the frontend must read .title (was reading .name → 'No Designation').
+  designation?: { id: string; title: string } | null;
+  // BUG_136: probation status + dateOfJoining for paid-leave blocking.
+  employeeStatus?: string | null;
+  dateOfJoining?: string | null;
 }
 
 interface LeaveType {
@@ -261,6 +266,9 @@ export default function ApplyLeaveByHRPage() {
   // BUG FIX: weekends (Sat+Sun) and configured holidays are excluded from
   // the duration — matches the server-side working-day count used for the
   // balance check and deduction.
+  // BUG_132/133 FIX: half-day for a multi-day range is now disabled in the
+  // UI (see checkbox below). When half-day IS checked (single day only),
+  // duration = 0.5 (was 0.5 for the WHOLE multi-day range).
   const calculateDays = () => {
     if (!form.startDate || !form.endDate) return 0;
     const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
@@ -277,6 +285,7 @@ export default function ApplyLeaveByHRPage() {
       if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) workingDays++;
       cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
+    // BUG_132/133: half day = 0.5 (single day only, enforced by checkbox disabled state)
     return form.halfDay ? 0.5 : workingDays;
   };
 
@@ -298,11 +307,44 @@ export default function ApplyLeaveByHRPage() {
       toast.error('End date cannot be before start date');
       return;
     }
-    // BUG FIX: block past dates for HR-applied leave too
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    if (form.startDate < todayStr) {
-      toast.error(`Leave cannot be applied for past dates. ${form.startDate} has already passed (today is ${todayStr}).`);
+    // BUG_131 FIX: HR/admin CAN apply past-dated leave (per spec). Remove the past-date block.
+    // (The server already allows privileged roles to apply past dates.)
+
+    // BUG_136 FIX: block paid leave for probation employees. Probation employees
+    // can only take LOP (unpaid) leave. Paid leave types are blocked per policy.
+    const selectedLt = leaveTypes.find(lt => lt.id === form.leaveTypeId);
+    const isProbation = (() => {
+      const status = (selectedEmployee.employeeStatus || '').toLowerCase();
+      if (!status.includes('probation') || !selectedEmployee.dateOfJoining) return false;
+      const end = new Date(selectedEmployee.dateOfJoining);
+      end.setMonth(end.getMonth() + 6);
+      return end.getTime() > Date.now();
+    })();
+    if (isProbation && selectedLt?.isPaid) {
+      toast.error(`${selectedEmployee.firstName} is on probation — paid leave is blocked during probation. Please select Loss of Pay (LOP) or an unpaid leave type.`);
       return;
+    }
+
+    // BUG_135: client-side insufficient-balance validation for HR apply.
+    const selectedBalance = leaveBalances.find(b => b.leaveType.id === form.leaveTypeId);
+    if (selectedBalance) {
+      const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
+      const start = new Date(`${form.startDate}T00:00:00Z`);
+      const end = new Date(`${form.endDate}T00:00:00Z`);
+      let workingDays = 0;
+      const cursor = new Date(start.getTime());
+      let guard = 0;
+      while (cursor <= end && guard < 4000) { guard++; const dow = cursor.getUTCDay(); const dateStr = cursor.toISOString().split('T')[0]; if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) workingDays++; cursor.setUTCDate(cursor.getUTCDate() + 1); }
+      const requestedDays = form.halfDay ? 0.5 : workingDays;
+      const effectiveRemaining = Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0));
+      if (effectiveRemaining === 0 && selectedBalance.total > 0) {
+        toast.error(`No leave balance available for ${selectedEmployee.firstName} for "${selectedBalance.leaveType.name}". Please choose an unpaid leave type (LOP).`);
+        return;
+      }
+      if (requestedDays > effectiveRemaining && selectedBalance.total > 0) {
+        toast.error(`Insufficient leave balance for ${selectedEmployee.firstName}. Available: ${effectiveRemaining} day(s). Requested: ${requestedDays} day(s).`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -414,7 +456,7 @@ export default function ApplyLeaveByHRPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium truncate">{emp.firstName} {emp.lastName}</p>
-                    <p className="text-xs text-slate-400 truncate">{emp.employeeId} · {emp.department?.name || 'No Dept'} · {emp.designation?.name || 'No Desg'}</p>
+                    <p className="text-xs text-slate-400 truncate">{emp.employeeId} · {emp.department?.name || 'No Dept'} · {emp.designation?.title || 'No Desg'}</p>
                   </div>
                 </button>
               ))}
@@ -431,7 +473,7 @@ export default function ApplyLeaveByHRPage() {
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-slate-800">{selectedEmployee.firstName} {selectedEmployee.lastName}</p>
               <p className="text-xs text-slate-500">{selectedEmployee.employeeId} · {selectedEmployee.email}</p>
-              <p className="text-xs text-slate-400">{selectedEmployee.department?.name || 'No Department'} · {selectedEmployee.designation?.name || 'No Designation'}</p>
+              <p className="text-xs text-slate-400">{selectedEmployee.department?.name || 'No Department'} · {selectedEmployee.designation?.title || 'No Designation'}</p>
             </div>
             <button
               onClick={() => { setSelectedEmployee(null); setLeaveTypes([]); setLeaveBalances([]); setRecentRequests([]); }}
@@ -490,14 +532,18 @@ export default function ApplyLeaveByHRPage() {
                 )}
 
                 {/* Date Range */}
+                {/* BUG_130 FIX: date format helper text shows DD-MMM-YYYY so day/month is unambiguous. */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Date <span className="text-red-500 font-bold">*</span></label>
-                    <input type="date" value={form.startDate} min={new Date().toLocaleDateString('en-CA')} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
+                    {/* BUG_131 FIX: HR can select past dates — no min attribute. */}
+                    <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
+                    {form.startDate && <p className="text-[10px] text-slate-400 mt-0.5">{new Date(form.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">End Date <span className="text-red-500 font-bold">*</span></label>
-                    <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} min={form.startDate || new Date().toLocaleDateString('en-CA')} className="3boxes-input w1-full" />
+                    <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} min={form.startDate} className="3boxes-input w-full" />
+                    {form.endDate && <p className="text-[10px] text-slate-400 mt-0.5">{new Date(form.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
                   </div>
                 </div>
 
@@ -510,10 +556,11 @@ export default function ApplyLeaveByHRPage() {
                 )}
 
                 {/* Half Day */}
+                {/* BUG_123/132/133 FIX: Half Day disabled for multi-day ranges — half day only makes sense for a single day. */}
                 <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.halfDay} onChange={e => setForm({ ...form, halfDay: e.target.checked })} className="w-4 h-4 text-teal-500 rounded border-slate-300 focus:ring-teal-500" />
-                    <span className="text-sm text-slate-700">Half Day</span>
+                  <label className={`flex items-center gap-2 ${(form.startDate && form.endDate && form.startDate !== form.endDate) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                    <input type="checkbox" checked={form.halfDay} onChange={e => setForm({ ...form, halfDay: e.target.checked })} disabled={form.startDate && form.endDate && form.startDate !== form.endDate} className="w-4 h-4 text-teal-500 rounded border-slate-300 focus:ring-teal-500 disabled:cursor-not-allowed" />
+                    <span className="text-sm text-slate-700">Half Day {form.startDate && form.endDate && form.startDate !== form.endDate && <span className="text-[10px] text-slate-400">(only for single-day leave)</span>}</span>
                   </label>
                   {form.halfDay && (
                     <select value={form.halfDaySlot} onChange={e => setForm({ ...form, halfDaySlot: e.target.value })} className="3boxes-input text-sm">
@@ -524,12 +571,14 @@ export default function ApplyLeaveByHRPage() {
                 </div>
 
                 {/* Reason */}
+                {/* BUG_134 FIX: max length 1000 chars + char counter. */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-[10px] text-slate-400">({form.reason.length}/1000)</span></label>
                   <textarea
                     value={form.reason}
-                    onChange={e => setForm({ ...form, reason: e.target.value })}
+                    onChange={e => setForm({ ...form, reason: e.target.value.slice(0, 1000) })}
                     rows={3}
+                    maxLength={1000}
                     className="3boxes-input w-full resize-none"
                     placeholder="Reason for leave (optional — auto-filled if left blank)"
                   />

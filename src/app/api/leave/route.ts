@@ -223,9 +223,17 @@ export async function GET(request: Request) {
       db.leaveRequest.count({ where }),
     ]);
 
+    // BUG_139: annotate each request with appliedByHR flag (true when the
+    // submitter's userId differs from the employee's userId). The UI shows
+    // an "Applied by HR" badge on these rows.
+    const leaveRequestsWithFlag = leaveRequests.map((lr: any) => ({
+      ...lr,
+      appliedByHR: !!(lr.appliedByUserId && lr.employee?.userId && lr.appliedByUserId !== lr.employee.userId),
+    }));
+
     return NextResponse.json(
       {
-        leaveRequests,
+        leaveRequests: leaveRequestsWithFlag,
         pagination: {
           page,
           limit,
@@ -578,6 +586,13 @@ export async function POST(request: Request) {
       }
     }
 
+    // BUG_139: add appliedByUserId column so the audit trail records WHO
+    // applied the leave (employee self-service vs HR on behalf). The column
+    // is added via ALTER TABLE IF NOT EXISTS so it's safe on existing DBs.
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedByUserId" TEXT`);
+    } catch { /* non-fatal — column may already exist */ }
+
     const leaveRequest = await db.leaveRequest.create({
       data: {
         employeeId,
@@ -589,10 +604,14 @@ export async function POST(request: Request) {
         halfDaySlot: halfDaySlot || null,
         aiCollaborativeWarning,
         status: 'pending',
+        // BUG_139: record who applied this leave. For self-service, this is
+        // the employee's own userId. For HR apply-on-behalf, it's the HR
+        // admin's userId. The UI uses this to show an "Applied by HR" tag.
+        appliedByUserId: scope.userId,
       },
       include: {
         employee: {
-          select: { firstName: true, lastName: true, employeeId: true },
+          select: { firstName: true, lastName: true, employeeId: true, userId: true },
         },
         leaveType: true,
       },

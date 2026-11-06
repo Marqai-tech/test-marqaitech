@@ -85,30 +85,45 @@ export default function TeamLeaveSidebar({ startDate, endDate, scopeQuery, emplo
         </div>
       </div>
 
-      {!loading && (
+      {!loading && (() => {
+        // BUG_120 FIX: count distinct TEAM members (exclude the logged-in employee). Previously the count included the employee's own leaves.
+        const distinctTeamMembers = allOnLeave.filter(l => !employeeId || l.employee?.id !== employeeId);
+        return (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-3 border-b border-slate-100 flex items-center gap-1.5"><FiUsers className="w-3.5 h-3.5 text-slate-600" /><h4 className="text-xs font-semibold text-slate-700">{allOnLeave.length} team member(s) on leave this month</h4></div>
-          {allOnLeave.length > 0 ? (
+          <div className="p-3 border-b border-slate-100 flex items-center gap-1.5"><FiUsers className="w-3.5 h-3.5 text-slate-600" /><h4 className="text-xs font-semibold text-slate-700">{distinctTeamMembers.length} team member(s) on leave this month</h4></div>
+          {distinctTeamMembers.length > 0 ? (
             <ul className="divide-y divide-slate-50 max-h-48 overflow-y-auto">
-              {allOnLeave.map((l, i) => { const name = l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.trim() : 'Unknown'; const ls = dayKey(l.startDate); const le = dayKey(l.endDate); const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); const dr = ls === le ? fmt(ls) : `${fmt(ls)} – ${fmt(le)}`; const ia = l.status === 'approved'; const isMe = employeeId && l.employee?.id === employeeId;
+              {/* BUG_120: only list team members (not the logged-in employee). */}
+              {distinctTeamMembers.map((l, i) => { const name = l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.trim() : 'Unknown'; const ls = dayKey(l.startDate); const le = dayKey(l.endDate); const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }); const dr = ls === le ? fmt(ls) : `${fmt(ls)} – ${fmt(le)}`; const ia = l.status === 'approved';
                 return (<li key={`${l.id || ''}-${i}`} className="flex items-center gap-2 p-2 hover:bg-slate-50">
                   <EmpAvatar emp={l.employee} name={name} />
-                  <div className="flex-1 min-w-0"><p className="text-xs font-medium text-slate-700 truncate">{name}{isMe && <span className="ml-1 text-[8px] px-1 py-0.5 rounded bg-violet-100 text-violet-700 font-semibold">YOU</span>}</p><p className="text-[10px] text-slate-500 truncate">{l.leaveType?.name || 'Leave'} · {dr}{l.halfDay && <span className="italic"> (half day)</span>}</p></div>
+                  <div className="flex-1 min-w-0"><p className="text-xs font-medium text-slate-700 truncate">{name}</p><p className="text-[10px] text-slate-500 truncate">{l.leaveType?.name || 'Leave'} · {dr}{l.halfDay && <span className="italic"> (half day)</span>}</p></div>
                   <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${ia ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{ia ? 'APPROVED' : 'PENDING'}</span>
                 </li>); })}
             </ul>
           ) : <div className="p-4 text-center"><p className="text-xs text-slate-400">No team members on leave this month.</p></div>}
         </div>
-      )}
+        );
+      })()}
 
       {startDate && endDate && isFutureRange && !loading && (
         <div className={`p-3 rounded-xl border shadow-sm ${hasConflict ? 'border-amber-300 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
-          {hasConflict ? (<div className="mb-2"><p className="text-xs font-semibold text-amber-800 flex items-start gap-1.5"><FiAlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Team Conflict — {otherCount} teammate(s) on leave during your dates</span></p><p className="text-xs text-amber-900 font-semibold pl-5 mt-0.5">→ Approval chances are lower.</p></div>) : <p className="text-xs text-emerald-700 flex items-center gap-1.5 mb-2"><FiCheck className="w-3.5 h-3.5" /> No team conflicts.</p>}
-          {teamOnLeaveDuringRange.length > 0 && (<><p className="text-[10px] font-medium text-slate-500 mb-1.5 pl-0.5">{teamOnLeaveDuringRange.length} on leave during {startDate} → {endDate}:</p><ul className="space-y-1.5 max-h-60 overflow-y-auto">
-            {teamOnLeaveDuringRange.map((l, i) => { const name = l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.trim() : 'Unknown'; const ls = dayKey(l.startDate); const le = dayKey(l.endDate); const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); const dr = ls === le ? fmt(ls) : `${fmt(ls)} – ${fmt(le)}`; const os = ls > startDate ? ls : startDate; const oe = le < (endDate || startDate) ? le : (endDate || startDate); const ostr = os === oe ? fmt(os) : `${fmt(os)} – ${fmt(oe)}`; const ia = l.status === 'approved'; const isMe = employeeId && l.employee?.id === employeeId;
-              return (<li key={`${l.id || ''}-${i}`} className={`flex items-start gap-2 p-2 rounded-md border ${isMe ? 'bg-violet-50/50 border-violet-200' : 'bg-white border-amber-100'}`}>
+          {/* BUG_119 FIX: if the selected range overlaps the employee's OWN leave, show a warning and DON'T say 'No team conflicts'. */}
+          {(() => {
+            const ownOverlap = teamOnLeaveDuringRange.filter(l => employeeId && l.employee?.id === employeeId);
+            const teamOverlap = teamOnLeaveDuringRange.filter(l => !employeeId || l.employee?.id !== employeeId);
+            return (<>
+            {ownOverlap.length > 0 && (
+              <div className="mb-2"><p className="text-xs font-semibold text-red-800 flex items-start gap-1.5"><FiAlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Warning: your selected dates overlap your own existing leave.</span></p><p className="text-xs text-red-900 font-semibold pl-5 mt-0.5">→ Please choose different dates.</p></div>
+            )}
+            {hasConflict ? (<div className="mb-2"><p className="text-xs font-semibold text-amber-800 flex items-start gap-1.5"><FiAlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Team Conflict — {teamOverlap.length} teammate(s) on leave during your dates</span></p><p className="text-xs text-amber-900 font-semibold pl-5 mt-0.5">→ Approval chances are lower.</p></div>) : ownOverlap.length === 0 && <p className="text-xs text-emerald-700 flex items-center gap-1.5 mb-2"><FiCheck className="w-3.5 h-3.5" /> No team conflicts.</p>}
+            </>);
+          })()}
+          {teamOnLeaveDuringRange.length > 0 && (<><p className="text-[10px] font-medium text-slate-500 mb-1.5 pl-0.5">{teamOnLeaveDuringRange.length} on leave during {(() => { const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }); return `${fmt(startDate)} → ${fmt(endDate)}`; })()}:</p><ul className="space-y-1.5 max-h-60 overflow-y-auto">
+            {teamOnLeaveDuringRange.map((l, i) => { const name = l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.trim() : 'Unknown'; const ls = dayKey(l.startDate); const le = dayKey(l.endDate); const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }); const dr = ls === le ? fmt(ls) : `${fmt(ls)} – ${fmt(le)}`; const os = ls > startDate ? ls : startDate; const oe = le < (endDate || startDate) ? le : (endDate || startDate); const ostr = os === oe ? fmt(os) : `${fmt(os)} – ${fmt(oe)}`; const ia = l.status === 'approved'; const isMe = employeeId && l.employee?.id === employeeId;
+              return (<li key={`${l.id || ''}-${i}`} className={`flex items-start gap-2 p-2 rounded-md border ${isMe ? 'bg-red-50/50 border-red-200' : 'bg-white border-amber-100'}`}>
                 <EmpAvatar emp={l.employee} name={name} />
-                <div className="flex-1 min-w-0"><p className="text-xs font-medium text-slate-800 truncate">{name}{isMe && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-violet-100 text-violet-700 font-semibold">YOU</span>}<span className="ml-1.5 text-[10px] font-normal text-slate-500">{l.leaveType?.name || 'Leave'}</span></p><p className="text-[10px] text-slate-600 mt-0.5"><span className="text-slate-500">On leave:</span> <span className="font-medium text-slate-700">{dr}</span></p><p className="text-[10px] text-amber-700 mt-0.5"><FiAlertCircle className="w-2.5 h-2.5 inline mr-0.5" />Overlaps: <strong>{ostr}</strong></p></div>
+                <div className="flex-1 min-w-0"><p className="text-xs font-medium text-slate-800 truncate">{name}{isMe && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-700 font-semibold">YOU</span>}<span className="ml-1.5 text-[10px] font-normal text-slate-500">{l.leaveType?.name || 'Leave'}</span></p><p className="text-[10px] text-slate-600 mt-0.5"><span className="text-slate-500">On leave:</span> <span className="font-medium text-slate-700">{dr}</span></p><p className="text-[10px] text-amber-700 mt-0.5"><FiAlertCircle className="w-2.5 h-2.5 inline mr-0.5" />Overlaps: <strong>{ostr}</strong></p></div>
                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${ia ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{ia ? 'ON LEAVE' : 'PENDING'}</span>
               </li>); })}
           </ul>{hasConflict && <Link href="/leave/team-calendar" className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 underline hover:text-amber-900 mt-2 pl-0.5"><FiCalendar className="w-3 h-3" /> View Team Calendar</Link>}</>)}
