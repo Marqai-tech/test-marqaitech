@@ -44,12 +44,14 @@ export default function LeaveTypesTab() {
   const [search, setSearch] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [editItem, setEditItem] = useState<LeaveType | null>(null);
-  const { scopeQuery } = useCompanyContextStore();
+  const { scopeQuery, effectiveCompanyId } = useCompanyContextStore();
 
   const fetchTypes = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/leave-types', { headers: getAuthHeaders() });
+      // BUG FIX: pass scopeQuery() so the API filters by the selected company.
+      const sq = scopeQuery();
+      const res = await fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       setTypes(data.data || []);
     } catch (e) {
@@ -286,6 +288,9 @@ function LeaveTypeDialog({ mode, editItem, onClose, onSaved }: {
 
     setSaving(true);
     try {
+      // BUG FIX: send companyId from the company switcher so the leave type
+      // is stored in the SELECTED company, not the first company in the DB.
+      const currentCompanyId = effectiveCompanyId();
       const payload = {
         name: name.trim(),
         code: upperCode,
@@ -298,6 +303,8 @@ function LeaveTypeDialog({ mode, editItem, onClose, onSaved }: {
         probationRestricted,
         sandwichRuleEnabled: sandwichRule,
         encashmentAllowed,
+        // BUG FIX: explicitly send the selected company's id.
+        companyId: currentCompanyId || undefined,
       };
       const url = mode === 'edit' ? `/api/leave-types/${editItem!.id}` : '/api/leave-types';
       const method = mode === 'edit' ? 'PATCH' : 'POST';

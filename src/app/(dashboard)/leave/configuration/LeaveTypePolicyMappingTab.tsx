@@ -63,15 +63,17 @@ export default function LeaveTypePolicyMappingTab() {
   const [search, setSearch] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [editItem, setEditItem] = useState<Mapping | null>(null);
-  const { scopeQuery } = useCompanyContextStore();
+  const { scopeQuery, effectiveCompanyId } = useCompanyContextStore();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
+      // BUG FIX: pass scopeQuery() so all three APIs filter by the selected company.
+      const sq = scopeQuery();
       const [mRes, ltRes, pRes] = await Promise.all([
-        fetch('/api/leave-type-policy-mappings', { headers: getAuthHeaders() }),
-        fetch('/api/leave-types', { headers: getAuthHeaders() }),
-        fetch('/api/leave-policy-rules', { headers: getAuthHeaders() }),
+        fetch(`/api/leave-type-policy-mappings${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave-policy-rules${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       const mData = await mRes.json();
       const ltData = await ltRes.json();
@@ -334,6 +336,9 @@ function MappingDialog({ mode, editItem, leaveTypes, policies, onClose, onSaved 
         branchId: branchId || null,
         departmentId: departmentId || null,
         employeeIds: selectedEmployeeIds.length > 0 ? JSON.stringify(selectedEmployeeIds) : null,
+        // BUG FIX: send companyId from the company switcher so the mapping is
+        // stored in the SELECTED company, not the first company in the DB.
+        companyId: effectiveCompanyId() || undefined,
       };
       const url = mode === 'edit' ? `/api/leave-type-policy-mappings/${editItem!.id}` : '/api/leave-type-policy-mappings';
       const method = mode === 'edit' ? 'PUT' : 'POST';

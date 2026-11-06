@@ -109,16 +109,21 @@ export default function LeavePoliciesTab() {
   const [search, setSearch] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [editItem, setEditItem] = useState<PolicyRule | null>(null);
-  const { scopeQuery } = useCompanyContextStore();
+  const { scopeQuery, effectiveCompanyId } = useCompanyContextStore();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
+      // BUG FIX: pass scopeQuery() so the API filters by the selected company.
+      // Previously the GET fetched ALL policies across the tenant, and the POST
+      // fell back to the first company in the DB — so policies were stored in
+      // the wrong company.
+      const sq = scopeQuery();
       const [pRes, bRes, dRes, ltRes] = await Promise.all([
-        fetch('/api/leave-policy-rules', { headers: getAuthHeaders() }),
-        fetch('/api/branches', { headers: getAuthHeaders() }).catch(() => null),
-        fetch('/api/departments', { headers: getAuthHeaders() }).catch(() => null),
-        fetch('/api/leave-types', { headers: getAuthHeaders() }),
+        fetch(`/api/leave-policy-rules${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/branches${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/departments${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       const pData = await pRes.json();
       setPolicies(pData.data || []);
@@ -373,6 +378,11 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
     if (!name.trim()) { toast.error('Policy name is required'); return; }
     setSaving(true);
     try {
+      // BUG FIX: send companyId from the company switcher so the policy is
+      // stored in the SELECTED company, not the first company in the DB.
+      // effectiveCompanyId() returns the selected company for admins, or the
+      // employee's own company for non-admins.
+      const currentCompanyId = effectiveCompanyId();
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
@@ -393,6 +403,8 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
         encashmentAllowed, encashmentBasis, encashmentMaxDays: Number(encashmentMaxDays),
         encashmentAutoYearEnd, encashmentEmployeeInitiated,
         leaveTypeAllocations: allocations,
+        // BUG FIX: explicitly send the selected company's id.
+        companyId: currentCompanyId || undefined,
       };
       const url = mode === 'edit' ? '/api/leave-policy-rules' : '/api/leave-policy-rules';
       const method = mode === 'edit' ? 'PUT' : 'POST';
