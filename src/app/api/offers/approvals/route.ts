@@ -181,10 +181,15 @@ export async function POST(request: Request) {
 
       const pendingCount = pending[0]?.count || 0;
       const newOfferStatus = pendingCount === 0 ? 'approved' : 'pending_approval';
+      // FIX: previously passed 3 args ($1, $2, $3) but the SQL only had $1 and $3.
+      // Prisma's $executeRawUnsafe positional params must be contiguous starting
+      // at $1 — when we skip $2 the call silently no-ops. Use only 2 params here.
       await db.$executeRawUnsafe(
-        `UPDATE "Offer" SET "status" = $3, "updatedAt" = NOW() WHERE "id" = $1`,
-        approval.offerId, tenantId, newOfferStatus,
-      ).catch(() => {});
+        `UPDATE "Offer" SET "status" = $2, "updatedAt" = NOW() WHERE "id" = $1`,
+        approval.offerId, newOfferStatus,
+      ).catch((e) => {
+        console.warn('[Approvals POST] Failed to update offer status to', newOfferStatus, ':', e instanceof Error ? e.message : e);
+      });
     } else if (action === 'reject') {
       await db.$executeRawUnsafe(
         `UPDATE "Offer" SET "status" = 'rejected', "updatedAt" = NOW() WHERE "id" = $1`,
