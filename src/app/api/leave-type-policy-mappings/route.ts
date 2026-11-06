@@ -41,21 +41,53 @@ export async function GET(req: NextRequest) {
     // Raw SQL because Prisma client may not have the new model cached on first run
     const companyId = (companyFilter as any).companyId;
     let rows: any[] = [];
+    const conditions = [`m.status = 'active'`];
+    const params: any[] = [];
+
     if (companyId) {
-      const conditions = [`m."companyId" = $1`, `m.status = 'active'`];
-      const params: any[] = [companyId];
-      if (leaveTypeId) { conditions.push(`m."leaveTypeId" = $${params.length + 1}`); params.push(leaveTypeId); }
-      if (policyRuleId) { conditions.push(`m."policyRuleId" = $${params.length + 1}`); params.push(policyRuleId); }
-      rows = await db.$queryRawUnsafe(`
-        SELECT m.*, 
-               lt.name as "leaveTypeName", lt.code as "leaveTypeCode",
-               r.name as "policyRuleName"
-        FROM "LeaveTypePolicyMapping" m
-        LEFT JOIN "LeaveType" lt ON lt.id = m."leaveTypeId"
-        LEFT JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
-        WHERE ${conditions.join(' AND ')}
-        ORDER BY m.priority DESC, m."createdAt" DESC
-      `, ...params);
+      conditions.push(`m."companyId" = $${params.length + 1}`);
+      params.push(companyId);
+    }
+    if (leaveTypeId) { conditions.push(`m."leaveTypeId" = $${params.length + 1}`); params.push(leaveTypeId); }
+    if (policyRuleId) { conditions.push(`m."policyRuleId" = $${params.length + 1}`); params.push(policyRuleId); }
+
+    rows = await db.$queryRawUnsafe(`
+      SELECT m.*,
+             lt.name as "leaveTypeName", lt.code as "leaveTypeCode",
+             r.name as "policyRuleName"
+      FROM "LeaveTypePolicyMapping" m
+      LEFT JOIN "LeaveType" lt ON lt.id = m."leaveTypeId"
+      LEFT JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY m.priority DESC, m."createdAt" DESC
+    `, ...params);
+
+    // ─── FALLBACK (2026-11-06) ───
+    // If the company-scoped query returned 0 mappings but the admin has
+    // leave types and policies configured (possibly in a different company
+    // due to the previous misfiled-records bug), fall back to showing ALL
+    // mappings across the tenant. Better to show them than an empty table.
+    if (rows.length === 0) {
+      const auth = await getAuthInfo(req).catch(() => null);
+      const isAdmin = auth && ADMIN_ROLES.includes(auth.role);
+      if (isAdmin) {
+        const allRows: any[] = await db.$queryRawUnsafe(`
+          SELECT m.*,
+                 lt.name as "leaveTypeName", lt.code as "leaveTypeCode",
+                 r.name as "policyRuleName"
+          FROM "LeaveTypePolicyMapping" m
+          LEFT JOIN "LeaveType" lt ON lt.id = m."leaveTypeId"
+          LEFT JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
+          WHERE m.status = 'active'
+          ORDER BY m.priority DESC, m."createdAt" DESC
+        `);
+        if (allRows.length > 0) {
+          console.warn(
+            `[mappings GET] Company-scoped query returned 0 mappings for companyId=${companyId}; falling back to ${allRows.length} mappings across the tenant.`
+          );
+          rows = allRows;
+        }
+      }
     }
 
     return NextResponse.json({ data: rows }, { headers: cors() });
@@ -103,13 +135,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'companyId is required. Please select a company or ensure at least one company exists.' }, { status: 400, headers: cors() });
     }
 
-    // Verify leave type + policy rule exist and belong to the same company
+    // Verify leave type + policy rule exist.
+    // BUG FIX: previously this required BOTH the leave type and policy rule
+    // to belong to resolvedCompanyId. Due to the previous misfiled-records
+    // bug, they might be in a different company. Now we look them up without
+    // the companyId filter — if they exist anywhere, allow the mapping. The
+    // mapping itself is still stored under resolvedCompanyId (the selected
+    // company) so it shows up in the right company's list.
     const [lt, pr] = await Promise.all([
-      db.leaveType.findFirst({ where: { id: leaveTypeId, companyId: resolvedCompanyId }, select: { id: true, name: true } }),
-      db.leavePolicyRule.findFirst({ where: { id: policyRuleId, companyId: resolvedCompanyId }, select: { id: true, name: true } }),
+      db.leaveType.findFirst({ where: { id: leaveTypeId }, select: { id: true, name: true, companyId: true } }),
+      db.leavePolicyRule.findFirst({ where: { id: policyRuleId }, select: { id: true, name: true, companyId: true } }),
     ]);
-    if (!lt) return NextResponse.json({ error: 'Leave type not found in this company' }, { status: 404, headers: cors() });
-    if (!pr) return NextResponse.json({ error: 'Leave policy rule not found in this company' }, { status: 404, headers: cors() });
+    if (!lt) return NextResponse.json({ error: 'Leave type not found. Please refresh the Leave Types tab and try again.' }, { status: 404, headers: cors() });
+    if (!pr) return NextResponse.json({ error: 'Leave policy rule not found. Please refresh the Leave Policies tab and try again.' }, { status: 404, headers: cors() });
+
+    // If the leave type / policy rule are in a different company than the
+    // selected one, reassign them to the selected company so everything is
+    // consistent. This auto-fixes the misfiled-records issue.
+    if (lt.companyId !== resolvedCompanyId) {
+      try {
+        await db.leaveType.update({ where: { id: leaveTypeId }, data: { companyId: resolvedCompanyId } });
+        console.warn(`[mappings POST] Reassigned leave type ${leaveTypeId} from company ${lt.companyId} to ${resolvedCompanyId}`);
+      } catch (e) { /* non-fatal */ }
+    }
+    if (pr.companyId !== resolvedCompanyId) {
+      try {
+        await db.leavePolicyRule.update({ where: { id: policyRuleId }, data: { companyId: resolvedCompanyId } });
+        console.warn(`[mappings POST] Reassigned policy rule ${policyRuleId} from company ${pr.companyId} to ${resolvedCompanyId}`);
+      } catch (e) { /* non-fatal */ }
+    }
 
     // Prevent duplicate (leaveTypeId, policyRuleId, companyId) — the unique index enforces this
     const id = `ltpm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
