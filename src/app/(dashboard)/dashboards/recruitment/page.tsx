@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   FiBriefcase, FiFileText, FiCalendar, FiClock,
   FiUserCheck, FiTrendingUp, FiPieChart,
@@ -325,6 +326,7 @@ export default function RecruitmentDashboardPage() {
 function RecruitmentContent() {
   const { user } = useAuthStore();
   const { selectedCompany } = useCompanyContextStore();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StatItem[]>(INITIAL_STATS.map(s => ({ ...s })));
@@ -595,7 +597,7 @@ function RecruitmentContent() {
               icon={<FiFileText className="w-4 h-4" />}
               accent="text-[#10B981]"
               action={
-                <button className="text-xs text-[#3A57C4] font-semibold hover:underline flex items-center gap-1">
+                <button onClick={() => router.push('/recruitment')} className="text-xs text-[#3A57C4] font-semibold hover:underline flex items-center gap-1 cursor-pointer">
                   View All <FiChevronRight className="w-3 h-3" />
                 </button>
               }
@@ -612,8 +614,10 @@ function RecruitmentContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentApplications.map((app) => (
-                      <tr key={app.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                    {recentApplications.length === 0 ? (
+                      <tr><td colSpan={5} className="py-8 text-center text-sm text-thb-text-muted">No recent applications found.</td></tr>
+                    ) : recentApplications.map((app) => (
+                      <tr key={app.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => router.push('/recruitment')}>
                         <td className="py-3 px-3 font-medium text-thb-text-primary">{app.candidate}</td>
                         <td className="py-3 px-3 text-thb-text-secondary max-w-[180px] truncate">{app.role}</td>
                         <td className="py-3 px-3"><SourceBadge source={app.source} /></td>
@@ -646,13 +650,16 @@ function RecruitmentContent() {
               }
             >
               <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
-                {upcomingInterviews.map((interview) => {
+                {upcomingInterviews.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-thb-text-muted">No upcoming interviews scheduled.</div>
+                ) : upcomingInterviews.map((interview) => {
                   const dateObj = new Date(interview.date);
                   const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                   return (
                     <div
                       key={interview.id}
-                      className="rounded-xl border border-slate-100 p-3 hover:bg-slate-50/50 transition-colors"
+                      className="rounded-xl border border-slate-100 p-3 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                      onClick={() => router.push('/interviews')}
                     >
                       <div className="flex items-start gap-3">
                         {/* Date indicator */}
