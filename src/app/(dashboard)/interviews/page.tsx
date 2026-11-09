@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   FiCalendar, FiClock, FiVideo, FiMapPin, FiUser, FiStar, FiCheck, FiX,
   FiAlertCircle, FiBriefcase, FiXCircle,
-  FiFilter, FiEye, FiCheckCircle,
+  FiFilter, FiEye, FiCheckCircle, FiSearch, FiUsers, FiChevronDown,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -140,6 +140,22 @@ export default function InterviewsPage() {
   } | null>(null);
   const [attendanceModal, setAttendanceModal] = useState<{ interviewId: string; candidateAttendance: string; panelAttendance: Record<string, string> } | null>(null);
 
+  // ── Schedule Interview Modal state ──
+  // Lets HR schedule a new interview directly from the Interview Management
+  // page (without navigating to Find Candidates first).
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [applicants, setApplicants] = useState<Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }>>([]);
+  const [applicantSearch, setApplicantSearch] = useState('');
+  const [selectedAppId, setSelectedAppId] = useState<string>('');
+  const [selectedAppDept, setSelectedAppDept] = useState<string>('');
+  const [modalDepartments, setModalDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
+  const [interviewForm, setInterviewForm] = useState({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
+  const [panelMembers, setPanelMembers] = useState<Array<{ id: string; userId: string; name: string; email: string; designation: string; department: string; role: string; availability: string; reason: string; conflictTime: string }>>([]);
+  const [selectedPanelIds, setSelectedPanelIds] = useState<string[]>([]);
+  const [loadingPanel, setLoadingPanel] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [showApplicantDropdown, setShowApplicantDropdown] = useState(false);
+
   // For next_round / schedule_another: candidate panel members to choose from
   const [panelCandidates, setPanelCandidates] = useState<Array<{ id: string; name: string; email: string; designation: string }>>([]);
 
@@ -218,6 +234,164 @@ export default function InterviewsPage() {
       queueMicrotask(() => fetchPanelCandidates());
     }
   }, [decisionModal, fetchPanelCandidates]);
+
+  // ── Schedule Interview Modal: fetch all job applicants for the dropdown ──
+  const fetchApplicants = useCallback(async () => {
+    try {
+      const res = await fetch('/api/recruitment?limit=200', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const jobs = data.jobPostings || [];
+        const allApps: Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }> = [];
+        for (const job of jobs) {
+          const apps = job.applications || [];
+          for (const app of apps) {
+            allApps.push({
+              ...app,
+              jobPosting: { id: job.id, title: job.title, department: job.department },
+              jobPostingId: job.id,
+            });
+          }
+        }
+        setApplicants(allApps);
+      }
+    } catch {
+      // non-fatal — dropdown will just be empty
+    }
+  }, []);
+
+  // ── Schedule Interview Modal: fetch departments for the panel-member picker ──
+  const fetchModalDepartments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/departments?limit=200&noDedupe=1', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const depts = (data.departments || data || []).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          companyName: d.company?.name || d.companyName,
+        }));
+        setModalDepartments(depts);
+      }
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
+  // ── Schedule Interview Modal: fetch panel members with availability ──
+  const fetchPanelAvailability = useCallback(async () => {
+    if (!selectedAppDept) { setPanelMembers([]); return; }
+    setLoadingPanel(true);
+    try {
+      const params = new URLSearchParams({
+        departmentId: selectedAppDept,
+        duration: String(interviewForm.duration || 60),
+        interviewType: interviewForm.type,
+      });
+      if (interviewForm.date) {
+        params.set('date', interviewForm.date);
+        if (interviewForm.time) params.set('time', interviewForm.time);
+      }
+      const res = await fetch(`/api/interviews/panel-availability?${params}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setPanelMembers(data.employees || []);
+      }
+    } catch { /* non-fatal */ }
+    finally { setLoadingPanel(false); }
+  }, [selectedAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type]);
+
+  // Refresh panel members when department or date/time/duration/type changes
+  useEffect(() => {
+    if (selectedAppDept) {
+      queueMicrotask(() => fetchPanelAvailability());
+    } else {
+      setPanelMembers([]);
+    }
+  }, [selectedAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type, fetchPanelAvailability]);
+
+  // ── Open the Schedule Interview Modal ──
+  const handleOpenScheduleModal = () => {
+    setShowScheduleModal(true);
+    setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
+    setSelectedAppId('');
+    setSelectedAppDept('');
+    setSelectedPanelIds([]);
+    setPanelMembers([]);
+    setApplicantSearch('');
+    // Fetch applicants + departments if not already loaded
+    if (applicants.length === 0) queueMicrotask(() => fetchApplicants());
+    if (modalDepartments.length === 0) queueMicrotask(() => fetchModalDepartments());
+  };
+
+  // ── When a candidate is selected from the dropdown, auto-set their department ──
+  const handleSelectApplicant = (appId: string) => {
+    setSelectedAppId(appId);
+    setShowApplicantDropdown(false);
+    setApplicantSearch('');
+    setSelectedPanelIds([]);
+    // Auto-set the department from the candidate's job posting
+    const app = applicants.find(a => a.id === appId);
+    if (app?.jobPosting?.department?.id) {
+      setSelectedAppDept(app.jobPosting.department.id);
+    }
+  };
+
+  // ── Submit: schedule the interview via POST /api/interviews ──
+  const handleScheduleInterview = async () => {
+    if (!selectedAppId) { toast.error('Please select a candidate'); return; }
+    if (!interviewForm.date) { toast.error('Date is required'); return; }
+    // Validate date is not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(interviewForm.date);
+    if (selectedDate < today) { toast.error('Interview date cannot be in the past'); return; }
+    if (!selectedAppDept) { toast.error('Please select a department'); return; }
+    if (selectedPanelIds.length === 0) { toast.error('Select at least one panel member'); return; }
+    // Block Busy/On Leave members
+    const unavailableMembers = selectedPanelIds.filter(uid => {
+      const m = panelMembers.find(p => p.userId === uid);
+      return m && (m.availability === 'Busy' || m.availability === 'On Leave');
+    });
+    if (unavailableMembers.length > 0) {
+      const names = unavailableMembers.map(uid => panelMembers.find(p => p.userId === uid)?.name).join(', ');
+      toast.error(`Cannot select unavailable members: ${names}. Please remove them and try again.`);
+      return;
+    }
+    setScheduling(true);
+    try {
+      const res = await fetch('/api/interviews', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          jobApplicationId: selectedAppId,
+          type: interviewForm.type,
+          date: interviewForm.date,
+          time: interviewForm.time,
+          duration: Number(interviewForm.duration) || 60,
+          location: interviewForm.location || undefined,
+          meetingUrl: interviewForm.meetingUrl || undefined,
+          panelMemberIds: selectedPanelIds,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to schedule interview');
+      toast.success(`Interview scheduled — ${selectedPanelIds.length} panel member(s) notified. Round ${data.round || '?'}.`);
+      setShowScheduleModal(false);
+      // Reset form
+      setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
+      setSelectedAppId('');
+      setSelectedAppDept('');
+      setSelectedPanelIds([]);
+      setPanelMembers([]);
+      // Refresh the interviews list
+      fetchInterviews();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to schedule interview');
+    } finally {
+      setScheduling(false);
+    }
+  };
 
   const fetchFeedback = async (interviewId: string) => {
     setLoadingFeedback(true);
@@ -433,15 +607,15 @@ export default function InterviewsPage() {
             All interviews across the tenant — view panel status, mark completed, see feedback, make final decisions.
           </p>
         </div>
-        {/* Schedule New Interview — links to Find Candidates where the per-candidate
-            Schedule Interview action lives (recruitment page, candidates tab). */}
-        <a
-          href="/recruitment?tab=candidates&single=candidates"
+        {/* Schedule New Interview — opens the schedule modal directly on this page.
+            No more navigating away to Find Candidates. */}
+        <button
+          onClick={handleOpenScheduleModal}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm shrink-0"
         >
           <FiCalendar className="w-4 h-4" />
           Schedule New Interview
-        </a>
+        </button>
       </div>
 
       {/* Stats row */}
@@ -1055,6 +1229,314 @@ export default function InterviewsPage() {
                 className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
               >
                 {actionLoading === attendanceModal.interviewId + '-complete' ? 'Saving…' : 'Save & Mark Completed'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Schedule Interview Modal ═══ */}
+      {/* Opens when HR clicks "Schedule New Interview" — lets them pick a
+          candidate from a dropdown, fill in interview details, and select
+          panel members. Submits to POST /api/interviews. */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-thb-border sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-bold text-thb-text-primary flex items-center gap-2">
+                <FiCalendar className="w-5 h-5 text-teal-600" />
+                Schedule New Interview
+              </h2>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              {/* Step 1: Select Candidate */}
+              <div>
+                <label className="block text-xs font-semibold text-thb-text-secondary mb-1.5 uppercase tracking-wide">
+                  <FiUser className="w-3 h-3 inline mr-1" />
+                  Select Candidate *
+                </label>
+                {/* Selected candidate display or search dropdown */}
+                {selectedAppId ? (
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-teal-300 bg-teal-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
+                        {(applicants.find(a => a.id === selectedAppId)?.candidateName || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-thb-text-primary">
+                          {applicants.find(a => a.id === selectedAppId)?.candidateName || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-thb-text-secondary">
+                          {applicants.find(a => a.id === selectedAppId)?.candidateEmail}
+                        </p>
+                        <p className="text-xs text-thb-text-muted">
+                          Applied for: {applicants.find(a => a.id === selectedAppId)?.jobPosting?.title || '—'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedAppId(''); setSelectedAppDept(''); setSelectedPanelIds([]); setPanelMembers([]); }}
+                      className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50"
+                      title="Change candidate"
+                    >
+                      <FiX className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="relative">
+                      <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+                      <input
+                        type="text"
+                        value={applicantSearch}
+                        onChange={(e) => { setApplicantSearch(e.target.value); setShowApplicantDropdown(true); }}
+                        onFocus={() => setShowApplicantDropdown(true)}
+                        placeholder="Search by candidate name or email..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                      />
+                      <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+                    </div>
+                    {showApplicantDropdown && (
+                      <div className="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-thb-border rounded-lg shadow-lg">
+                        {applicants.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-thb-text-muted">Loading candidates...</div>
+                        ) : (
+                          (() => {
+                            const filtered = applicants.filter(a => {
+                              if (!applicantSearch) return true;
+                              const q = applicantSearch.toLowerCase();
+                              return (a.candidateName || '').toLowerCase().includes(q) ||
+                                     (a.candidateEmail || '').toLowerCase().includes(q) ||
+                                     (a.jobPosting?.title || '').toLowerCase().includes(q);
+                            });
+                            if (filtered.length === 0) {
+                              return <div className="p-4 text-center text-sm text-thb-text-muted">No candidates match your search</div>;
+                            }
+                            return filtered.slice(0, 50).map(app => (
+                              <button
+                                key={app.id}
+                                onClick={() => handleSelectApplicant(app.id)}
+                                className="w-full text-left p-3 hover:bg-teal-50 border-b border-thb-border/50 last:border-0 transition-colors"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                    {(app.candidateName || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-thb-text-primary truncate">{app.candidateName || 'Unknown'}</p>
+                                    <p className="text-xs text-thb-text-muted truncate">{app.candidateEmail}</p>
+                                    <p className="text-xs text-thb-text-secondary truncate">
+                                      {app.jobPosting?.title || '—'} · <span className="capitalize">{app.status}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </button>
+                            ));
+                          })()
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {applicants.length > 0 && (
+                  <p className="text-[10px] text-thb-text-muted mt-1">{applicants.length} candidates available</p>
+                )}
+              </div>
+
+              {/* Step 2: Interview Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Interview Type *</label>
+                  <select
+                    value={interviewForm.type}
+                    onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
+                  >
+                    <option value="technical">Technical Interview</option>
+                    <option value="hr">HR Interview</option>
+                    <option value="ai">AI Interview</option>
+                    <option value="offline_panel">Panel Interview (Offline)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Duration (mins)</label>
+                  <input
+                    type="number"
+                    value={interviewForm.duration}
+                    onChange={(e) => setInterviewForm({ ...interviewForm, duration: Number(e.target.value) })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Date *</label>
+                  <input
+                    type="date"
+                    value={interviewForm.date}
+                    onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={interviewForm.time}
+                    onChange={(e) => setInterviewForm({ ...interviewForm, time: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
+                    <FiMapPin className="w-3 h-3 inline mr-1" />Location
+                  </label>
+                  <input
+                    value={interviewForm.location}
+                    onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })}
+                    placeholder="e.g. Conference Room A"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
+                    <FiVideo className="w-3 h-3 inline mr-1" />Meeting Link (optional)
+                  </label>
+                  <input
+                    value={interviewForm.meetingUrl}
+                    onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })}
+                    placeholder="https://meet.google.com/..."
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Step 3: Department (for panel members) */}
+              <div>
+                <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
+                  Department (panel members will be drawn from this department) *
+                </label>
+                <select
+                  value={selectedAppDept}
+                  onChange={(e) => { setSelectedAppDept(e.target.value); setSelectedPanelIds([]); }}
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
+                >
+                  <option value="">Select a department…</option>
+                  {modalDepartments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}{d.companyName ? ` — ${d.companyName}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-thb-text-muted mt-1">
+                  💡 Auto-filled from the candidate's job posting. Change if you want panel members from a different department.
+                </p>
+              </div>
+
+              {/* Step 4: Panel Members */}
+              <div>
+                <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
+                  <FiUsers className="w-3 h-3 inline mr-1" />
+                  Select Panel Members *
+                </label>
+                <p className="text-xs text-thb-text-muted mb-2">
+                  Employees from the selected department are listed below.
+                  {!interviewForm.date && ' Pick a date above to see availability badges.'}
+                </p>
+                {loadingPanel ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Loading panel members…</div>
+                ) : !selectedAppDept ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">Select a department to load available panel members</div>
+                ) : panelMembers.length === 0 ? (
+                  <div className="py-4 text-center text-sm text-thb-text-muted">No employees found in this department</div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
+                    {panelMembers.map((m) => {
+                      const isSelected = selectedPanelIds.includes(m.userId);
+                      const isBlocked = m.availability === 'Busy' || m.availability === 'On Leave';
+                      const availBadge: Record<string, string> = {
+                        Available: 'bg-emerald-50 text-emerald-700',
+                        Busy: 'bg-red-50 text-red-700',
+                        'On Leave': 'bg-amber-50 text-amber-700',
+                        Tentative: 'bg-blue-50 text-blue-700',
+                        'No Date Set': 'bg-slate-50 text-slate-500',
+                      };
+                      return (
+                        <label
+                          key={m.id}
+                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isBlocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={isBlocked}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedPanelIds([...selectedPanelIds, m.userId]);
+                              else setSelectedPanelIds(selectedPanelIds.filter(uid => uid !== m.userId));
+                            }}
+                            className="w-4 h-4 rounded text-teal-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
+                            <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
+                            {m.availability === 'Available' && (
+                              <p className="text-[10px] text-slate-400">Workload: {m.reason || 'No conflicts'}</p>
+                            )}
+                            {m.availability === 'No Date Set' && (
+                              <p className="text-[10px] text-slate-400">{m.reason}</p>
+                            )}
+                          </div>
+                          <span className={`text-xs whitespace-nowrap px-2 py-0.5 rounded-full font-medium ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`} title={m.reason}>
+                            {m.availability}{m.conflictTime ? ` (${m.conflictTime})` : ''}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {selectedPanelIds.length > 0 && (
+                  <p className="text-xs text-teal-600 mt-1 font-medium">{selectedPanelIds.length} member(s) selected</p>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border sticky bottom-0 bg-white">
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleScheduleInterview}
+                disabled={scheduling}
+                className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50 shadow-sm transition-colors flex items-center gap-2"
+              >
+                {scheduling ? (
+                  <>
+                    <FiClock className="w-4 h-4 animate-spin" />
+                    Scheduling...
+                  </>
+                ) : (
+                  <>
+                    <FiCalendar className="w-4 h-4" />
+                    Schedule Interview
+                  </>
+                )}
               </button>
             </div>
           </div>
