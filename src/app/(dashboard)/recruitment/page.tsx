@@ -289,6 +289,369 @@ const initialAppForm = {
   source: 'website',
 };
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* InterviewSyncView — candidates in 'interview' status synced    */
+/* with the Interview table (round + type + panel + date).        */
+/* ═══════════════════════════════════════════════════════════════ */
+function InterviewSyncView({ applications, jobPostings, departments, loading }: {
+  applications: JobApplication[];
+  jobPostings: JobPosting[];
+  departments: Department[];
+  loading: boolean;
+}) {
+  const [interviews, setInterviews] = useState<any[]>([]);
+  const [loadingInts, setLoadingInts] = useState(true);
+
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+    if (!token) { setLoadingInts(false); return; }
+    fetch('/api/interviews?limit=100', { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(d => setInterviews(d.data || []))
+      .catch(() => setInterviews([]))
+      .finally(() => setLoadingInts(false));
+  }, []);
+
+  // Map of jobApplicationId → interviews array (latest first)
+  const interviewsByApp = useMemo(() => {
+    const m = new Map<string, any[]>();
+    for (const i of interviews) {
+      const arr = m.get(i.jobApplicationId) || [];
+      arr.push(i);
+      m.set(i.jobApplicationId, arr);
+    }
+    return m;
+  }, [interviews]);
+
+  // Candidates in 'interview' status
+  const interviewCandidates = applications.filter(a => a.status === 'interview');
+
+  const typeLabels: Record<string, string> = {
+    ai: 'AI Interview', technical: 'Technical', hr: 'HR', offline_panel: 'Panel',
+  };
+  const typeColors: Record<string, string> = {
+    ai: 'bg-violet-50 text-violet-700 border-violet-200',
+    technical: 'bg-blue-50 text-blue-700 border-blue-200',
+    hr: 'bg-amber-50 text-amber-700 border-amber-200',
+    offline_panel: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  };
+
+  return (
+    <div className="thb-card p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-thb-text-primary">Interview Sync</h2>
+          <p className="text-sm text-thb-text-secondary mt-0.5">
+            Candidates currently in &quot;Interview&quot; stage — synced with the Interview table.
+            Shows round number + interview type (HR / Technical / AI).
+          </p>
+        </div>
+        <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+          {interviewCandidates.length} in interview stage
+        </span>
+      </div>
+
+      {loading || loadingInts ? (
+        <div className="p-8 text-center text-sm text-thb-text-muted">Loading interviews...</div>
+      ) : interviewCandidates.length === 0 ? (
+        <div className="p-10 text-center">
+          <FiCalendar className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No candidates in interview stage</p>
+          <p className="text-xs text-thb-text-muted mt-1">
+            Move candidates to the &quot;Interview&quot; stage in the pipeline to see them here with their scheduled interview details.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-thb-border bg-slate-50/80">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Candidate</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applied Role</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Department</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Round</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Scheduled Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Panel</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {interviewCandidates.map(app => {
+                const appInterviews = interviewsByApp.get(app.id) || [];
+                const latest = appInterviews[0];
+                const job = jobPostings.find(j => j.id === app.jobPostingId);
+                const dept = departments.find(d => d.id === job?.department?.id);
+                const initials = getInitials(app.candidateName);
+                return (
+                  <tr key={app.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                          {initials}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-thb-text-primary">{app.candidateName || 'Unknown'}</p>
+                          <p className="text-xs text-thb-text-muted">{app.candidateEmail}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-thb-text-secondary">{app.jobPosting?.title || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-thb-text-secondary">{dept?.name || '—'}</td>
+                    <td className="px-4 py-3">
+                      {latest?.round ? (
+                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                          Round {latest.round}
+                        </span>
+                      ) : appInterviews.length > 0 ? (
+                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                          Round {appInterviews.length}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-thb-text-muted">Not scheduled yet</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {latest?.type ? (
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold border ${typeColors[latest.type] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                          {typeLabels[latest.type] || latest.type}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-thb-text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-thb-text-secondary whitespace-nowrap">
+                      {latest?.date ? (
+                        <>
+                          {new Date(latest.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {latest.time && <span className="text-thb-text-muted ml-1">{latest.time}</span>}
+                        </>
+                      ) : (
+                        <span className="text-xs text-thb-text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-thb-text-secondary">
+                      {latest?.panelMembers && latest.panelMembers.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          <span>{latest.panelMembers.length} panelist{latest.panelMembers.length !== 1 ? 's' : ''}</span>
+                          <div className="flex -space-x-1">
+                            {latest.panelMembers.slice(0, 3).map((pm: any, i: number) => (
+                              <div key={i} className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-[10px] font-bold border-2 border-white" title={pm.name}>
+                                {(pm.name || '?').charAt(0).toUpperCase()}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-thb-text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {latest ? (
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                          latest.status === 'scheduled' ? 'bg-amber-50 text-amber-700' :
+                          latest.status === 'completed' ? 'bg-emerald-50 text-emerald-700' :
+                          latest.status === 'cancelled' ? 'bg-red-50 text-red-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {latest.status}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-thb-text-muted">No interview scheduled</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* ResumeFilterView — filter bar (type/role/department) + resume   */
+/* list for all candidates who applied for jobs.                   */
+/* ═══════════════════════════════════════════════════════════════ */
+function ResumeFilterView({ applications, jobPostings, departments, loading, search, setSearch }: {
+  applications: JobApplication[];
+  jobPostings: JobPosting[];
+  departments: Department[];
+  loading: boolean;
+  search: string;
+  setSearch: (s: string) => void;
+}) {
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [deptFilter, setDeptFilter] = useState<string>('');
+
+  // Distinct list of roles (job titles) and types from jobPostings
+  const roles = useMemo(() => {
+    const s = new Set<string>();
+    for (const j of jobPostings) if (j.title) s.add(j.title);
+    return Array.from(s).sort();
+  }, [jobPostings]);
+  const types = useMemo(() => {
+    const s = new Set<string>();
+    for (const j of jobPostings) if (j.type) s.add(j.type);
+    return Array.from(s).sort();
+  }, [jobPostings]);
+
+  const filtered = useMemo(() => {
+    return applications.filter(a => {
+      if (search) {
+        const q = search.toLowerCase();
+        const matches = (a.candidateName || '').toLowerCase().includes(q) ||
+                        (a.candidateEmail || '').toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+      // Look up the full job posting to get type/department
+      const job = jobPostings.find(j => j.id === a.jobPostingId);
+      if (typeFilter && (job?.type || '') !== typeFilter) return false;
+      if (roleFilter && (job?.title || '') !== roleFilter) return false;
+      if (deptFilter && (job?.department?.id || '') !== deptFilter) return false;
+      return true;
+    });
+  }, [applications, jobPostings, search, typeFilter, roleFilter, deptFilter]);
+
+  const getInitialsLocal = (name: string) =>
+    (name || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  return (
+    <div className="space-y-4">
+      {/* Filter Bar */}
+      <div className="thb-card p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+          <div className="relative flex-1 min-w-0">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+            <input
+              type="text"
+              placeholder="Search by candidate name or email..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+            />
+          </div>
+          <select
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white min-w-[140px]"
+          >
+            <option value="">All Types</option>
+            {types.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white min-w-[180px]"
+          >
+            <option value="">All Roles</option>
+            {roles.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <select
+            value={deptFilter}
+            onChange={e => setDeptFilter(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white min-w-[160px]"
+          >
+            <option value="">All Departments</option>
+            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          {(typeFilter || roleFilter || deptFilter) && (
+            <button
+              onClick={() => { setTypeFilter(''); setRoleFilter(''); setDeptFilter(''); }}
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+          <span className="text-xs text-thb-text-muted ml-auto">
+            {filtered.length} of {applications.length} resumes
+          </span>
+        </div>
+      </div>
+
+      {/* Resume List */}
+      <div className="thb-card overflow-hidden">
+        {loading ? (
+          <div className="p-10 text-center text-sm text-thb-text-muted">Loading resumes...</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-12 text-center">
+            <FiFileText className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+            <p className="text-thb-text-secondary font-medium">No resumes found</p>
+            <p className="text-sm text-thb-text-muted mt-1">Try adjusting your filters</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-thb-border bg-slate-50/80">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Candidate</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applied Role</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Department</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Resume</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applied</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(app => {
+                  const initials = getInitialsLocal(app.candidateName);
+                  const job = jobPostings.find(j => j.id === app.jobPostingId);
+                  const dept = departments.find(d => d.id === job?.department?.id);
+                  return (
+                    <tr key={app.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
+                            {initials}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-thb-text-primary">{app.candidateName || 'Unknown'}</p>
+                            <p className="text-xs text-thb-text-muted">{app.candidateEmail}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{job?.title || app.jobPosting?.title || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{job?.type || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{dept?.name || job?.department?.name || '—'}</td>
+                      <td className="px-4 py-3">
+                        {app.resume ? (
+                          <a
+                            href={app.resume}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-teal-600 hover:text-teal-700 text-xs font-medium"
+                          >
+                            <FiFileText className="w-3.5 h-3.5" />
+                            View
+                          </a>
+                        ) : (
+                          <span className="text-xs text-thb-text-muted">No resume</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-thb-text-muted whitespace-nowrap">
+                        {app.appliedDate ? new Date(app.appliedDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 capitalize">
+                          {app.status || 'applied'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Component ── */
 export default function RecruitmentPage() {
   const { user } = useAuthStore();
@@ -1707,6 +2070,23 @@ export default function RecruitmentPage() {
                 </div>
               </div>
             </div>
+          ) : urlView === 'interviews' ? (
+            /* ═══ Interview Sync View (?view=interviews) ═══ */
+            /* Shows candidates in 'interview' status with their interview round +
+               type (HR/Technical/AI) — synced with the Interview table. */
+            <InterviewSyncView applications={displayApplications} jobPostings={jobPostings} departments={departments} loading={loading} />
+          ) : urlView === 'resumes' ? (
+            /* ═══ Resume Filter View (?view=resumes) ═══ */
+            /* Filter bar (type/role/department) + resume list for all candidates
+               who applied for jobs. */
+            <ResumeFilterView
+              applications={displayApplications}
+              jobPostings={jobPostings}
+              departments={departments}
+              loading={loading}
+              search={candidateSearch}
+              setSearch={setCandidateSearch}
+            />
           ) : candidateViewMode === 'list' ? (
           <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
