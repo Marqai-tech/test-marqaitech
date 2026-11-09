@@ -387,6 +387,36 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── GENDER-BASED VALIDATION ───
+    // BUG FIX: block males from applying for Maternity Leave and females from
+    // Paternity Leave. This is a hard server-side block — even if the type
+    // somehow appears in the dropdown, the apply is rejected.
+    try {
+      const { getLeaveCategory } = await import('@/lib/leave-balance-rules');
+      const category = getLeaveCategory({ name: leaveType.name, code: leaveType.code });
+      if (category === 'maternity' || category === 'paternity') {
+        const emp = await db.employee.findUnique({
+          where: { id: employeeId },
+          select: { gender: true },
+        });
+        const empGender = (emp?.gender || '').toLowerCase();
+        if (category === 'maternity' && empGender !== 'female') {
+          return NextResponse.json({
+            error: `Maternity Leave is only applicable for female employees. ${emp?.firstName || 'This employee'}'s gender is set to '${empGender || 'not specified'}'. Please update the employee's gender in their profile or choose a different leave type.`,
+            code: 'GENDER_MISMATCH',
+          }, { status: 403, headers: corsHeaders() });
+        }
+        if (category === 'paternity' && empGender !== 'male') {
+          return NextResponse.json({
+            error: `Paternity Leave is only applicable for male employees. ${emp?.firstName || 'This employee'}'s gender is set to '${empGender || 'not specified'}'. Please update the employee's gender in their profile or choose a different leave type.`,
+            code: 'GENDER_MISMATCH',
+          }, { status: 403, headers: corsHeaders() });
+        }
+      }
+    } catch (genderErr) {
+      console.warn('[leave] Gender validation failed (non-fatal):', genderErr);
+    }
+
     // ─── Mapping enforcement (NON-BLOCKING) ───
     // We check if the employee has a matching mapping for this leave type.
     // If they do, we snapshot the resolved policy for historical preservation.

@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { resolveLeavePolicy } from '@/lib/leave-policy-resolver';
 import { validateCompanyOwnership } from '@/lib/company-ownership';
+import { getLeaveCategory } from '@/lib/leave-balance-rules';
 
 function corsHeaders() {
   return {
@@ -189,6 +190,37 @@ export async function GET(req: NextRequest) {
         } else {
           // Admin → show all fallback types
           filteredTypes = fallback;
+        }
+      }
+    }
+
+    // ─── GENDER-BASED FILTERING ───
+    // BUG FIX: maternity leave should only show for female employees, paternity
+    // only for male. Filter out gender-incompatible leave types from the final list.
+    // This runs AFTER all other filtering so it always applies.
+    if (scope && scope.scope === 'self') {
+      const emp = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { gender: true },
+      }).catch(() => null);
+
+      if (emp) {
+        const empGender = (emp.gender || '').toLowerCase();
+        const beforeGenderFilter = filteredTypes.length;
+        filteredTypes = filteredTypes.filter((lt: any) => {
+          const category = getLeaveCategory({ name: lt.name, code: lt.code });
+          if (category === 'maternity') return empGender === 'female';
+          if (category === 'paternity') return empGender === 'male';
+          if (category === 'parental') {
+            // Parental is gender-neutral — keep it (the resolver renames it)
+            return true;
+          }
+          return true; // non-gendered types always visible
+        });
+        if (filteredTypes.length < beforeGenderFilter) {
+          console.log(
+            `[leave-types] Gender filter: removed ${beforeGenderFilter - filteredTypes.length} type(s) for employee gender='${empGender || 'unknown'}'.`
+          );
         }
       }
     }
