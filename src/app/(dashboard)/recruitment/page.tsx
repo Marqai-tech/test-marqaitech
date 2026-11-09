@@ -119,6 +119,8 @@ interface JobApplication {
   rating?: number | null;
   expectedSalary?: string | null;
   notes?: string | null;
+  resume?: string | null;
+  coverLetter?: string | null;
   jobPosting?: { id: string; title: string };
   jobPostingId: string;
 }
@@ -496,6 +498,7 @@ function ResumeFilterView({ applications, jobPostings, departments, loading, sea
   const [expandedDetails, setExpandedDetails] = useState<Record<string, any>>({});
 
   // Fetch parsed resume data for each application
+  // Also fetch the raw resume file URL for apps that don't have a parsed resume.
   useEffect(() => {
     if (loading || applications.length === 0) {
       setLoadingResumes(false);
@@ -509,21 +512,26 @@ function ResumeFilterView({ applications, jobPostings, departments, loading, sea
       applications.map(app =>
         fetch(`/api/ats/parse-resume?jobApplicationId=${app.id}`, { headers })
           .then(r => r.ok ? r.json() : null)
-          .then(d => ({ appId: app.id, data: d }))
-          .catch(() => ({ appId: app.id, data: null }))
+          .then(d => ({ appId: app.id, data: d, rawResume: app.resume }))
+          .catch(() => ({ appId: app.id, data: null, rawResume: app.resume }))
       )
     ).then(results => {
       if (cancelled) return;
       const map: Record<string, any> = {};
       for (const r of results) {
-        if (r.data && r.data.parse) {
+        // Include apps that have EITHER a parsed resume OR a raw resume file URL
+        const hasParse = r.data && r.data.parse;
+        const hasRawResume = r.rawResume;
+        if (hasParse || hasRawResume) {
           map[r.appId] = {
-            skills: r.data.parsedData?.skills || [],
-            matchScore: r.data.matchScore ?? 0,
-            matchedSkills: r.data.matchedSkills || [],
-            unmatchedSkills: r.data.unmatchedSkills || [],
-            confidence: r.data.parse.confidence ?? 0,
-            sourceFormat: r.data.parse.sourceFormat || 'unknown',
+            skills: r.data?.parsedData?.skills || [],
+            matchScore: r.data?.matchScore ?? 0,
+            matchedSkills: r.data?.matchedSkills || [],
+            unmatchedSkills: r.data?.unmatchedSkills || [],
+            confidence: r.data?.parse?.confidence ?? 0,
+            sourceFormat: r.data?.parse?.sourceFormat || (hasRawResume ? 'file' : 'unknown'),
+            rawResumeUrl: r.rawResume || null,
+            parseId: r.data?.parse?.id || null,
           };
         }
       }
@@ -727,13 +735,31 @@ function ResumeFilterView({ applications, jobPostings, departments, loading, sea
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => toggleExpand(app.id)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100 transition-colors"
-                          >
-                            <FiFileText className="w-3.5 h-3.5" />
-                            {expandedApp === app.id ? 'Hide' : 'View'}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Download raw resume file (PDF/DOCX) if available */}
+                            {resume?.rawResumeUrl && (
+                              <a
+                                href={resume.rawResumeUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors"
+                                title="Download resume file (PDF/DOCX)"
+                              >
+                                <FiUpload className="w-3.5 h-3.5 rotate-180" />
+                                Download
+                              </a>
+                            )}
+                            {/* View parsed resume details */}
+                            {resume?.parseId && (
+                              <button
+                                onClick={() => toggleExpand(app.id)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100 transition-colors"
+                              >
+                                <FiFileText className="w-3.5 h-3.5" />
+                                {expandedApp === app.id ? 'Hide' : 'View'}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                       {expandedApp === app.id && expandedDetails[app.id] && (
