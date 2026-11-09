@@ -54,7 +54,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   dashboard: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   employees: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   company: ['super_admin', 'tenant_admin', 'ceo', 'admin'],
-  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'finance_admin'],
+  recruitment: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'finance_admin', 'recruiter', 'recruiter_admin'],
   onboarding: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager'],
   attendance: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],
   leave: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'manager', 'employee'],

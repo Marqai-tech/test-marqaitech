@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     // Task 167: permission check — only HR/admin can schedule interviews
-    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'recruiter', 'recruiter_admin'];
     if (!HR_ROLES.includes((decoded.role as string) || '')) {
       return NextResponse.json({ error: 'Only HR/Admin can schedule interviews' }, { status: 403, headers: corsHeaders() });
     }
@@ -617,7 +617,7 @@ export async function PATCH(req: NextRequest) {
       try { await db.$executeRawUnsafe(sql); } catch {}
     }
 
-    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'recruiter', 'recruiter_admin'];
 
     // ─── Action: RESCHEDULE (pt 12) ──────────────────────────────────
     if (action === 'reschedule') {
