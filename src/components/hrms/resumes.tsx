@@ -19,6 +19,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   FileText, Search, RefreshCw, AlertTriangle, Loader2, Eye, Wand2, Repeat, Smile, X,
+  Download, ExternalLink, FileWarning,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,158 @@ interface JobPosting {
   id: string;
   title: string;
   department?: string | null;
+}
+
+// ─── Resume file helpers ───
+// The resume field on JobApplication can be either:
+//   (a) An HTTP/HTTPS URL pointing to an externally hosted file
+//   (b) A data URL containing the file inline, e.g.
+//       "data:application/pdf;base64,JVBERi0xLjQK..."
+//       "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,..."
+//
+// Browsers can render PDF data URLs inline (in a new tab) but CANNOT
+// render DOCX/DOC inline. For DOCX we must trigger a download.
+
+interface ResumeMeta {
+  isDataUrl: boolean;
+  mimeType: string;       // e.g. "application/pdf"
+  fileExt: string;        // e.g. "pdf", "docx"
+  isPdf: boolean;         // PDFs can be previewed inline
+  isDoc: boolean;         // DOC/DOCX must be downloaded
+  canPreviewInline: boolean;
+}
+
+function parseResume(resume?: string | null): ResumeMeta | null {
+  if (!resume) return null;
+  if (resume.startsWith('http://') || resume.startsWith('https://')) {
+    // External URL — assume PDF if URL ends in .pdf, else assume it's viewable
+    const ext = resume.split('.').pop()?.toLowerCase().split('?')[0] || '';
+    return {
+      isDataUrl: false,
+      mimeType: ext === 'pdf' ? 'application/pdf' : 'application/octet-stream',
+      fileExt: ext || 'bin',
+      isPdf: ext === 'pdf',
+      isDoc: ['doc', 'docx'].includes(ext),
+      canPreviewInline: ext === 'pdf',
+    };
+  }
+  // Data URL
+  const match = resume.match(/^data:([^;]+);base64,/);
+  if (!match) return null;
+  const mime = match[1];
+  const isPdf = mime === 'application/pdf';
+  const isDoc = mime.includes('wordprocessing') || mime === 'application/msword';
+  let fileExt = 'bin';
+  if (isPdf) fileExt = 'pdf';
+  else if (mime.includes('wordprocessing')) fileExt = 'docx';
+  else if (mime === 'application/msword') fileExt = 'doc';
+  else if (mime === 'text/plain') fileExt = 'txt';
+  else if (mime === 'image/png') fileExt = 'png';
+  else if (mime === 'image/jpeg') fileExt = 'jpg';
+  return {
+    isDataUrl: true,
+    mimeType: mime,
+    fileExt,
+    isPdf,
+    isDoc,
+    canPreviewInline: isPdf,
+  };
+}
+
+function sanitizeFilename(name: string): string {
+  return (name || 'candidate').replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-').toLowerCase() || 'candidate';
+}
+
+function buildFilename(candidateName: string, jobTitle: string | undefined, ext: string): string {
+  const base = sanitizeFilename(candidateName);
+  const job = jobTitle ? `-${sanitizeFilename(jobTitle)}` : '';
+  return `${base}${job}-resume.${ext}`;
+}
+
+/** Convert a data URL string to a Blob (used for download + object URL preview). */
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return null;
+  const mime = match[1];
+  const base64 = match[2];
+  try {
+    const byteString = atob(base64);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+/** Open the resume in a new tab (PDFs render inline; DOCX falls back to download). */
+function openResume(resume: string, meta: ResumeMeta, filename: string) {
+  if (!meta.isDataUrl) {
+    // External URL — open directly
+    window.open(resume, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const blob = dataUrlToBlob(resume);
+  if (!blob) {
+    toast.error('Could not decode the resume file');
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  if (meta.canPreviewInline) {
+    // PDFs — open in new tab so the browser renders them inline
+    window.open(url, '_blank', 'noopener,noreferrer');
+    // Revoke after 60s to free memory
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } else {
+    // DOCX/DOC/etc — trigger a download (browsers can't render these inline)
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast.success(`Downloading ${filename}`);
+  }
+}
+
+/** Force-trigger a download (works for any file type). */
+function downloadResume(resume: string, meta: ResumeMeta, filename: string) {
+  if (!meta.isDataUrl) {
+    // External URL — trigger download via fetch + blob
+    fetch(resume).then(r => r.blob()).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast.success(`Downloading ${filename}`);
+    }).catch(() => {
+      // Fallback: open in new tab
+      window.open(resume, '_blank', 'noopener,noreferrer');
+    });
+    return;
+  }
+  const blob = dataUrlToBlob(resume);
+  if (!blob) {
+    toast.error('Could not decode the resume file');
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast.success(`Downloading ${filename}`);
 }
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -287,6 +440,7 @@ export function Resumes() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role Applied</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">File</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sentiment</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
@@ -304,6 +458,21 @@ export function Resumes() {
                     </td>
                     <td className="px-4 py-3"><Badge variant="outline">{a.status}</Badge></td>
                     <td className="px-4 py-3">
+                      {(() => {
+                        const meta = parseResume(a.resume);
+                        if (!meta) return <span className="text-xs text-muted-foreground">—</span>;
+                        return (
+                          <Badge variant="outline" className={`text-[10px] uppercase ${
+                            meta.isPdf ? 'bg-red-50 text-red-700 border-red-200' :
+                            meta.isDoc ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}>
+                            {meta.fileExt}
+                          </Badge>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-4 py-3">
                       {a.sentiment ? (
                         <Badge variant="outline" className={SENTIMENT_COLORS[a.sentiment] || ''}>{a.sentiment}</Badge>
                       ) : (
@@ -317,6 +486,28 @@ export function Resumes() {
                           icon={<Eye className="h-4 w-4" />}
                           loading={actionLoading[`${a.id}-view`]}
                           onClick={() => setViewing(a)}
+                        />
+                        {(() => {
+                          const meta = parseResume(a.resume);
+                          if (!meta) return null;
+                          const filename = buildFilename(a.candidateName, a.jobTitle, meta.fileExt);
+                          return (
+                            <ActionBtn
+                              title={meta.canPreviewInline ? `Open ${meta.fileExt.toUpperCase()} in new tab` : `Download ${meta.fileExt.toUpperCase()}`}
+                              icon={meta.canPreviewInline ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                              onClick={() => openResume(a.resume!, meta, filename)}
+                            />
+                          );
+                        })()}
+                        <ActionBtn
+                          title="Save to disk"
+                          icon={<Download className="h-4 w-4" />}
+                          onClick={() => {
+                            const meta = parseResume(a.resume);
+                            if (!meta) { toast.error('Resume format not recognized'); return; }
+                            const filename = buildFilename(a.candidateName, a.jobTitle, meta.fileExt);
+                            downloadResume(a.resume!, meta, filename);
+                          }}
                         />
                         <ActionBtn
                           title="Parse resume"
@@ -355,38 +546,86 @@ export function Resumes() {
               {viewing?.jobTitle ? `Applied for: ${viewing.jobTitle}` : ''}
             </DialogDescription>
           </DialogHeader>
-          {viewing?.resume && (
-            <div className="space-y-3">
-              <div className="rounded-md border border-border bg-muted/30 p-3">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Resume URL</div>
-                <a
-                  href={viewing.resume}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-emerald-600 hover:text-emerald-700 break-all"
-                >
-                  {viewing.resume}
-                </a>
+          {viewing?.resume && (() => {
+            const meta = parseResume(viewing.resume);
+            const filename = meta ? buildFilename(viewing.candidateName, viewing.jobTitle, meta.fileExt) : 'resume';
+            if (!meta) {
+              return (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 flex items-start gap-2">
+                  <FileWarning className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>Resume format not recognized. The resume field is set but doesn't look like a URL or data URL.</div>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-3">
+                {/* File info card */}
+                <div className="rounded-md border border-border bg-muted/30 p-3 flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-md flex items-center justify-center shrink-0 ${
+                    meta.isPdf ? 'bg-red-100 text-red-700' :
+                    meta.isDoc ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-700'
+                  }`}>
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">{filename}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[10px] uppercase">{meta.fileExt}</Badge>
+                      <span>{meta.mimeType}</span>
+                      {meta.isDataUrl ? (
+                        <span className="text-emerald-600">Embedded file</span>
+                      ) : (
+                        <span className="text-blue-600">External URL</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 flex-wrap">
+                  {meta.canPreviewInline ? (
+                    <Button onClick={() => openResume(viewing.resume!, meta, filename)}>
+                      <ExternalLink className="h-4 w-4 mr-2" /> Open in new tab
+                    </Button>
+                  ) : (
+                    <Button onClick={() => openResume(viewing.resume!, meta, filename)}>
+                      <Download className="h-4 w-4 mr-2" /> Download {meta.fileExt.toUpperCase()}
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => downloadResume(viewing.resume!, meta, filename)}>
+                    <Download className="h-4 w-4 mr-2" /> Save to disk
+                  </Button>
+                </div>
+
+                {/* Helper note for DOCX files */}
+                {meta.isDoc && (
+                  <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800 flex items-start gap-2">
+                    <FileWarning className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <div>
+                      DOC/DOCX files can't be previewed in the browser — they will be downloaded to your computer. Open the downloaded file with Microsoft Word, Google Docs, or LibreOffice.
+                    </div>
+                  </div>
+                )}
+
+                {/* Parsed notes */}
+                {viewing.notes && (
+                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Parsed Notes</div>
+                    <p className="text-sm whitespace-pre-wrap">{viewing.notes}</p>
+                  </div>
+                )}
+
+                {/* Cover letter */}
+                {viewing.coverLetter && (
+                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Cover Letter</div>
+                    <p className="text-sm whitespace-pre-wrap">{viewing.coverLetter}</p>
+                  </div>
+                )}
               </div>
-              {viewing.notes && (
-                <div className="rounded-md border border-border bg-muted/30 p-3">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Parsed Notes</div>
-                  <p className="text-sm whitespace-pre-wrap">{viewing.notes}</p>
-                </div>
-              )}
-              {viewing.coverLetter && (
-                <div className="rounded-md border border-border bg-muted/30 p-3">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Cover Letter</div>
-                  <p className="text-sm whitespace-pre-wrap">{viewing.coverLetter}</p>
-                </div>
-              )}
-              <Button asChild>
-                <a href={viewing.resume} target="_blank" rel="noopener noreferrer">
-                  <Eye className="h-4 w-4 mr-2" /> Open resume in new tab
-                </a>
-              </Button>
-            </div>
-          )}
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewing(null)}>Close</Button>
           </DialogFooter>
