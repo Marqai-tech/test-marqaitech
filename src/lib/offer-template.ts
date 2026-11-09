@@ -135,9 +135,19 @@ export function wrapRenderedOffer(
 <title>${title}</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; max-width: 800px; margin: 0 auto; padding: 40px; line-height: 1.6; }
-  .offer-header { border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
+  .offer-header { border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
   .offer-header h1 { color: #1e3a8a; font-size: 24px; margin: 0 0 4px 0; }
+  .offer-header h2 { color: #1e3a8a; font-size: 20px; margin: 0 0 4px 0; }
+  .offer-header .company-name { color: #1e3a8a; font-size: 22px; font-weight: 700; margin: 0; }
+  .offer-header .company-tagline { color: #64748b; font-size: 12px; margin: 2px 0 0 0; }
+  .offer-header img { max-height: 70px; max-width: 200px; object-fit: contain; }
+  .offer-header .header-left { flex: 1; min-width: 200px; }
+  .offer-header .header-right { text-align: right; }
   .offer-footer { border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 32px; font-size: 12px; color: #64748b; }
+  .offer-footer .footer-company { font-weight: 600; color: #475569; margin-bottom: 4px; }
+  .offer-footer .footer-address { margin: 2px 0; }
+  .offer-footer .footer-contact { margin: 4px 0; }
+  .offer-footer .footer-confidential { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #e2e8f0; font-style: italic; font-size: 11px; }
   .meta { color: #64748b; font-size: 13px; }
   @media print {
     body { padding: 20px; }

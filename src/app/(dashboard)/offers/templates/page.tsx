@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  FiPlus, FiX, FiEdit2, FiTrash2, FiFileText, FiEye, FiCopy,
+  FiPlus, FiX, FiEdit2, FiTrash2, FiFileText, FiEye, FiCopy, FiUpload, FiImage, FiLayout,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -87,6 +87,76 @@ const SAMPLE_DATA = {
   probationPeriod: 90,
   reportingTo: 'Priya Patel (Engineering Manager)',
 };
+
+// ── Header quick-fill templates ──
+// Each template inserts pre-styled HTML into the header textarea.
+const HEADER_TEMPLATES = [
+  {
+    key: 'logo-right',
+    label: 'Company Name + Logo (right)',
+    html: `<div class="header-left">
+  <p class="company-name">{{companyName}}</p>
+  <p class="company-tagline">Offer of Employment</p>
+</div>
+<div class="header-right">
+  <img src="LOGO_URL_HERE" alt="{{companyName}} Logo" />
+</div>`,
+  },
+  {
+    key: 'logo-left',
+    label: 'Logo (left) + Company Name',
+    html: `<div class="header-left">
+  <img src="LOGO_URL_HERE" alt="{{companyName}} Logo" />
+</div>
+<div class="header-right">
+  <p class="company-name">{{companyName}}</p>
+  <p class="company-tagline">Offer of Employment</p>
+</div>`,
+  },
+  {
+    key: 'name-only',
+    label: 'Company Name Only',
+    html: `<div class="header-left">
+  <h1>{{companyName}}</h1>
+  <p class="company-tagline">Offer of Employment</p>
+</div>`,
+  },
+  {
+    key: 'logo-only',
+    label: 'Logo Only (centered)',
+    html: `<div style="text-align:center; width:100%;">
+  <img src="LOGO_URL_HERE" alt="{{companyName}} Logo" style="margin: 0 auto;" />
+</div>`,
+  },
+];
+
+// ── Footer quick-fill templates ──
+const FOOTER_TEMPLATES = [
+  {
+    key: 'full',
+    label: 'Full Footer (Company + Address + Contact + Confidential)',
+    html: `<p class="footer-company">{{companyName}}</p>
+<p class="footer-address">123 Business Park, Phase 2, Mumbai, Maharashtra 400001, India</p>
+<p class="footer-contact">Phone: +91-22-1234-5678 | Email: hr@company.com | Web: www.company.com</p>
+<p class="footer-confidential">This offer letter is confidential and intended solely for the named recipient. If you are not the intended recipient, please notify the sender immediately and delete this document.</p>`,
+  },
+  {
+    key: 'address',
+    label: 'Company Address',
+    html: `<p class="footer-company">{{companyName}}</p>
+<p class="footer-address">123 Business Park, Phase 2, Mumbai, Maharashtra 400001, India</p>`,
+  },
+  {
+    key: 'contact',
+    label: 'Contact Info',
+    html: `<p class="footer-contact">Phone: +91-22-1234-5678 | Email: hr@company.com | Web: www.company.com</p>`,
+  },
+  {
+    key: 'confidential',
+    label: 'Confidentiality Notice',
+    html: `<p class="footer-confidential">This offer letter is confidential and intended solely for the named recipient. If you are not the intended recipient, please notify the sender immediately and delete this document.</p>`,
+  },
+];
 
 const initialForm = {
   name: '',
@@ -179,6 +249,51 @@ export default function OfferTemplatesPage() {
   const insertPlaceholder = (ph: string) => {
     setForm((prev) => ({ ...prev, body: `${prev.body}${prev.body.endsWith('\n') ? '' : ' '}${ph}` }));
   };
+
+  // ── Logo upload: converts image file to data URL and inserts an <img> tag
+  // into the header textarea. The data URL is self-contained (no external
+  // storage needed) and renders in both the preview and the generated PDF.
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'header' | 'footer') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file (PNG, JPG, SVG, etc.)');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 500 * 1024) {
+      toast.error('Logo must be under 500KB to keep the template lightweight');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const imgTag = `<img src="${dataUrl}" alt="Company Logo" />`;
+      setForm((prev) => ({
+        ...prev,
+        [target]: prev[target] ? `${prev[target]}\n${imgTag}` : imgTag,
+      }));
+      toast.success('Logo added to ' + target);
+    };
+    reader.onerror = () => toast.error('Failed to read logo file');
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // ── Quick-fill: insert a pre-built template into header or footer
+  const applyHeaderTemplate = (html: string) => {
+    setForm((prev) => ({ ...prev, header: html }));
+    toast.success('Header template applied');
+  };
+  const applyFooterTemplate = (html: string) => {
+    setForm((prev) => ({ ...prev, footer: html }));
+    toast.success('Footer template applied');
+  };
+
+  // ── Clear header or footer
+  const clearHeader = () => setForm((prev) => ({ ...prev, header: '' }));
+  const clearFooter = () => setForm((prev) => ({ ...prev, footer: '' }));
 
   const handleSubmit = async () => {
     if (!form.name || !form.body) {
@@ -408,30 +523,135 @@ export default function OfferTemplatesPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                    Header (HTML, optional)
-                  </label>
+                {/* ═══ HEADER SECTION (with logo upload + quick-fill templates) ═══ */}
+                <div className="thb-card p-4 border-l-4 border-l-blue-400 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wide">
+                      <FiLayout className="w-3.5 h-3.5" />
+                      Header
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="header-logo-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp"
+                        className="hidden"
+                        onChange={(e) => handleLogoUpload(e, 'header')}
+                      />
+                      <label
+                        htmlFor="header-logo-upload"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-blue-600 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 cursor-pointer transition-colors"
+                        title="Upload a company logo (PNG/JPG/SVG, max 500KB)"
+                      >
+                        <FiUpload className="w-3 h-3" />
+                        Upload Logo
+                      </label>
+                      {form.header && (
+                        <button
+                          type="button"
+                          onClick={clearHeader}
+                          className="px-2.5 py-1 text-[11px] font-medium text-red-500 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick-fill header templates */}
+                  <div>
+                    <p className="text-[10px] text-thb-text-muted mb-1.5">Quick-fill templates:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {HEADER_TEMPLATES.map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => applyHeaderTemplate(t.html)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-slate-600 bg-slate-100 rounded border border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors"
+                          title={t.label}
+                        >
+                          <FiImage className="w-2.5 h-2.5" />
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <textarea
-                    rows={2}
+                    rows={5}
                     value={form.header}
                     onChange={(e) => setForm({ ...form, header: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                    placeholder="<h1>Marq AI Tech Pvt Ltd</h1>"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    placeholder="Enter header HTML — upload a logo or use a quick-fill template above. Example: <h1>Company Name</h1><img src='...' />"
                   />
+                  <p className="text-[10px] text-thb-text-muted">
+                    💡 The header appears at the top of the offer letter with a blue bottom border. Upload a logo (PNG/JPG/SVG, max 500KB) or pick a template above. Replace <code className="bg-slate-100 px-1 rounded">LOGO_URL_HERE</code> with your logo URL, or use the Upload Logo button to embed it.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                    Footer (HTML, optional)
-                  </label>
+                {/* ═══ FOOTER SECTION (with quick-fill templates) ═══ */}
+                <div className="thb-card p-4 border-l-4 border-l-slate-400 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wide">
+                      <FiLayout className="w-3.5 h-3.5" />
+                      Footer
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="footer-logo-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp"
+                        className="hidden"
+                        onChange={(e) => handleLogoUpload(e, 'footer')}
+                      />
+                      <label
+                        htmlFor="footer-logo-upload"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-lg border border-slate-200 hover:bg-slate-200 cursor-pointer transition-colors"
+                        title="Upload a logo/image for the footer"
+                      >
+                        <FiUpload className="w-3 h-3" />
+                        Upload Image
+                      </label>
+                      {form.footer && (
+                        <button
+                          type="button"
+                          onClick={clearFooter}
+                          className="px-2.5 py-1 text-[11px] font-medium text-red-500 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick-fill footer templates */}
+                  <div>
+                    <p className="text-[10px] text-thb-text-muted mb-1.5">Quick-fill templates:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FOOTER_TEMPLATES.map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => applyFooterTemplate(t.html)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-slate-600 bg-slate-100 rounded border border-slate-200 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+                          title={t.label}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <textarea
-                    rows={2}
+                    rows={5}
                     value={form.footer}
                     onChange={(e) => setForm({ ...form, footer: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                    placeholder="<p>Marq AI Tech Pvt Ltd, Mumbai, India</p>"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400"
+                    placeholder="Enter footer HTML — use a quick-fill template above or write your own. Example: company address, contact info, confidentiality notice."
                   />
+                  <p className="text-[10px] text-thb-text-muted">
+                    💡 The footer appears at the bottom with a top border. Common uses: company address, contact info, GST/CIN number, confidentiality notice. Edit the template text to match your company details.
+                  </p>
                 </div>
 
                 <label className="flex items-center gap-2 text-sm text-thb-text-secondary">
