@@ -426,11 +426,22 @@ export default function InterviewsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-thb-text-primary">Interview Management</h1>
-        <p className="text-thb-text-secondary mt-1">
-          All interviews across the tenant — view panel status, mark completed, see feedback, make final decisions.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-thb-text-primary">Interview Management</h1>
+          <p className="text-thb-text-secondary mt-1">
+            All interviews across the tenant — view panel status, mark completed, see feedback, make final decisions.
+          </p>
+        </div>
+        {/* Schedule New Interview — links to Find Candidates where the per-candidate
+            Schedule Interview action lives (recruitment page, candidates tab). */}
+        <a
+          href="/recruitment?tab=candidates&single=candidates"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm shrink-0"
+        >
+          <FiCalendar className="w-4 h-4" />
+          Schedule New Interview
+        </a>
       </div>
 
       {/* Stats row */}

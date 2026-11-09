@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, Fragment, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   FiBriefcase,
   FiPlus,
@@ -295,7 +296,46 @@ export default function RecruitmentPage() {
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
-  const [activeTab, setActiveTab] = useState<'jobs' | 'candidates' | 'analytics'>('jobs');
+  // ── URL-driven tab + visibility (sidebar deep links) ──
+  // ?tab=jobs|candidates|analytics → initial active tab
+  // ?single=jobs|candidates|analytics → show ONLY that tab button (hide others)
+  // ?view=kanban|resumes|submissions → hint for the candidates view mode
+  const searchParams = useSearchParams();
+  const urlTab = (searchParams?.get('tab') as 'jobs' | 'candidates' | 'analytics' | null) || null;
+  const urlSingle = (searchParams?.get('single') as 'jobs' | 'candidates' | 'analytics' | null) || null;
+  const urlView = searchParams?.get('view') || null; // 'kanban' | 'resumes' | 'submissions'
+
+  const [activeTab, setActiveTab] = useState<'jobs' | 'candidates' | 'analytics'>(
+    urlTab === 'candidates' ? 'candidates' : urlTab === 'analytics' ? 'analytics' : 'jobs'
+  );
+
+  // Sync activeTab when URL ?tab= changes (e.g. user clicks a different sidebar item)
+  useEffect(() => {
+    if (urlTab === 'candidates') setActiveTab('candidates');
+    else if (urlTab === 'analytics') setActiveTab('analytics');
+    else if (urlTab === 'jobs') setActiveTab('jobs');
+  }, [urlTab]);
+
+  // Determine which tab buttons to render.
+  // - If ?single=X is set → render ONLY that tab.
+  // - Else (Recruitment sidebar, default) → render jobs + analytics (candidates is hidden,
+  //   it's now reached via the dedicated "Find Candidates" sidebar item).
+  const visibleTabs: Array<{ key: 'jobs' | 'candidates' | 'analytics'; label: string; icon: typeof FiBriefcase }> = useMemo(() => {
+    if (urlSingle === 'jobs') {
+      return [{ key: 'jobs', label: 'Jobs', icon: FiBriefcase }];
+    }
+    if (urlSingle === 'candidates') {
+      return [{ key: 'candidates', label: 'Candidates', icon: FiUsers }];
+    }
+    if (urlSingle === 'analytics') {
+      return [{ key: 'analytics', label: 'Analytics', icon: FiBarChart2 }];
+    }
+    // Default (Recruitment sidebar item): jobs + analytics only (no candidates)
+    return [
+      { key: 'jobs', label: 'Jobs', icon: FiBriefcase },
+      { key: 'analytics', label: 'Analytics', icon: FiBarChart2 },
+    ];
+  }, [urlSingle]);
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1210,11 +1250,7 @@ export default function RecruitmentPage() {
       {/* Tab Navigation */}
       <div className="thb-card p-1.5">
         <div className="flex gap-1">
-          {[
-            { key: 'jobs' as const, label: 'Jobs', icon: FiBriefcase },
-            { key: 'candidates' as const, label: 'Candidates', icon: FiUsers },
-            { key: 'analytics' as const, label: 'Analytics', icon: FiBarChart2 },
-          ].map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -1605,8 +1641,73 @@ export default function RecruitmentPage() {
             </div>
           </div>
 
-          {/* Candidates Table / Grid */}
-          {candidateViewMode === 'list' ? (
+          {/* ═══ Kanban Pipeline View (triggered by ?view=kanban) ═══ */}
+          {/* 6-column funnel: Sourced → Screening → Shortlisted → Interview → Offer → Hired */}
+          {/* Matches the Pipeline sidebar item's reference screenshot */}
+          {urlView === 'kanban' ? (
+            <div className="thb-card p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-thb-text-primary">Recruitment Pipeline</h2>
+                <span className="text-xs text-thb-text-secondary">
+                  {displayApplications.length} candidate{displayApplications.length !== 1 ? 's' : ''} total
+                </span>
+              </div>
+              <div className="overflow-x-auto pb-2">
+                <div className="flex gap-3 min-w-max">
+                  {[
+                    { key: 'applied', label: 'Sourced', color: 'bg-blue-500', headerBg: 'bg-blue-50', headerText: 'text-blue-700', border: 'border-blue-200' },
+                    { key: 'screening', label: 'Screening', color: 'bg-cyan-500', headerBg: 'bg-cyan-50', headerText: 'text-cyan-700', border: 'border-cyan-200' },
+                    { key: 'shortlisted', label: 'Shortlisted', color: 'bg-violet-500', headerBg: 'bg-violet-50', headerText: 'text-violet-700', border: 'border-violet-200' },
+                    { key: 'interview', label: 'Interview', color: 'bg-amber-500', headerBg: 'bg-amber-50', headerText: 'text-amber-700', border: 'border-amber-200' },
+                    { key: 'offered', label: 'Offer', color: 'bg-emerald-500', headerBg: 'bg-emerald-50', headerText: 'text-emerald-700', border: 'border-emerald-200' },
+                    { key: 'hired', label: 'Hired', color: 'bg-green-600', headerBg: 'bg-green-50', headerText: 'text-green-700', border: 'border-green-200' },
+                  ].map((col) => {
+                    const colCandidates = displayApplications.filter(a => a.status === col.key);
+                    return (
+                      <div key={col.key} className={`w-64 shrink-0 rounded-xl border ${col.border} bg-white`}>
+                        <div className={`px-3 py-2.5 rounded-t-xl ${col.headerBg} border-b ${col.border}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${col.color}`} />
+                              <span className={`text-sm font-semibold ${col.headerText}`}>{col.label}</span>
+                            </div>
+                            <span className="text-xs font-bold text-thb-text-secondary bg-white px-2 py-0.5 rounded-full border border-thb-border">
+                              {colCandidates.length}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="p-2 space-y-2 max-h-[60vh] overflow-y-auto">
+                          {colCandidates.length === 0 ? (
+                            <p className="text-center text-xs text-thb-text-muted py-6">No candidates</p>
+                          ) : (
+                            colCandidates.map((app) => {
+                              const initials = (app.candidateName || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                              return (
+                                <div key={app.id} className="p-2.5 rounded-lg border border-thb-border bg-white hover:shadow-sm transition-shadow cursor-pointer">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                                      {initials}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-semibold text-thb-text-primary truncate">{app.candidateName || 'Unknown'}</p>
+                                      <p className="text-[10px] text-thb-text-secondary truncate">{app.jobPosting?.title || '—'}</p>
+                                    </div>
+                                  </div>
+                                  {app.expectedSalary && (
+                                    <p className="text-[10px] text-thb-text-muted">Expected: {app.expectedSalary}</p>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : candidateViewMode === 'list' ? (
           <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
