@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // BUG FIX: allow dev origins — Next.js 16 blocks requests from unknown
+  // origins in dev mode. Add all Vercel deployment URLs + localhost.
+  allowedDevOrigins: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://test-marqaitech.vercel.app',
+    'https://test-marqaitech-marshshaik-5449s-projects.vercel.app',
+    'https://test-marqaitech-git-main-marshshaik-5449s-projects.vercel.app',
+  ],
   // Allow all subdomains of 3boxeshrms.com for image optimization and links
   images: {
     remotePatterns: [
