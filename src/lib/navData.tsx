@@ -380,14 +380,14 @@ export const navSections: NavSection[] = [
     ],
   },
 
-  // ─── 7. RECRUITMENT MODULE (now under "Jobs") ───
+  // ─── 7. RECRUITMENT MODULE ───
   // Reports / Settings → dashboardTabs
-  // Note: "Recruitment" + "Submissions" sidebar items removed — they duplicated
-  // Jobs and Resumes respectively. All sub-items now live under the Jobs section.
+  // Note: "Recruitment" sidebar item restored. "Submissions" remains removed
+  // (it duplicated Resumes).
   {
     key: 'recruitment',
-    label: 'Jobs',
-    sectionIcon: FiBriefcase,
+    label: 'Recruitment',
+    sectionIcon: FiUserPlus,
     sectionColor: C.recruitment,
     description: 'Talent acquisition & hiring pipeline',
     dashboardTabs: [
@@ -400,6 +400,7 @@ export const navSections: NavSection[] = [
 
       // ── Pipeline ──
       { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Recruitment', href: '/recruitment?tab=jobs', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Jobs', href: '/recruitment?tab=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Find Candidates', href: '/recruitment?tab=candidates&single=candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Pipeline (Kanban)', href: '/recruitment?tab=candidates&view=kanban&single=candidates', icon: <FiColumns className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
