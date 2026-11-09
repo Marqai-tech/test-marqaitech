@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   FiPlus, FiEdit2, FiTrash2, FiX, FiRefreshCw, FiSearch, FiAlertCircle,
-  FiChevronDown, FiChevronRight, FiClipboard, FiSave,
+  FiChevronDown, FiChevronRight, FiClipboard, FiSave, FiFileText,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -316,6 +316,14 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, exist
   const [encashmentEmployeeInitiated, setEncashmentEmployeeInitiated] = useState(true);
   // Leave type allocations
   const [allocations, setAllocations] = useState<Array<{ leaveTypeId: string; quota: number; carryForward: boolean; maxCarryForward: number }>>([]);
+  // Custom rules (per-policy)
+  const [customRules, setCustomRules] = useState<Array<{ title: string; description: string }>>([]);
+  // Policy document upload
+  const [policyDocName, setPolicyDocName] = useState('');
+  const [policyDocUrl, setPolicyDocUrl] = useState('');
+  const [policyDocMime, setPolicyDocMime] = useState('');
+  const [policyDocSize, setPolicyDocSize] = useState(0);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['basic', 'applicability']));
@@ -413,6 +421,13 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, exist
         encashmentAllowed, encashmentBasis, encashmentMaxDays: Number(encashmentMaxDays),
         encashmentAutoYearEnd, encashmentEmployeeInitiated,
         leaveTypeAllocations: allocations,
+        // Custom rules (stored as JSON in the description field alongside the text description)
+        customRules: customRules.filter(r => r.title.trim() || r.description.trim()),
+        // Policy document (stored as data URL)
+        policyDocName: policyDocName || undefined,
+        policyDocUrl: policyDocUrl || undefined,
+        policyDocMime: policyDocMime || undefined,
+        policyDocSize: policyDocSize || undefined,
         // BUG FIX: explicitly send the selected company's id.
         companyId: currentCompanyId || undefined,
       };
@@ -441,7 +456,41 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, exist
     { id: 'carryForward', label: 'Carry-Forward', icon: FiClipboard },
     { id: 'encashment', label: 'Encashment', icon: FiClipboard },
     { id: 'allocations', label: 'Leave Type Allocations', icon: FiClipboard },
+    { id: 'rules', label: 'Custom Rules', icon: FiClipboard },
+    { id: 'document', label: 'Policy Document', icon: FiClipboard },
   ];
+
+  // ─── File upload handler ───
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error('File too large — max 3 MB. Use a smaller PDF or Word document.');
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      // Read file as data URL (base64) — works for small files ≤3MB
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        setPolicyDocUrl(result);
+        setPolicyDocName(file.name);
+        setPolicyDocMime(file.type);
+        setPolicyDocSize(file.size);
+        setUploadingDoc(false);
+        toast.success(`Document "${file.name}" uploaded (${(file.size / 1024).toFixed(0)} KB)`);
+      };
+      reader.onerror = () => {
+        setUploadingDoc(false);
+        toast.error('Failed to read file');
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setUploadingDoc(false);
+      toast.error('Upload failed');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -730,6 +779,70 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, exist
               className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
               <FiPlus className="w-3 h-3" /> Add Allocation
             </button>
+          </Section>
+
+          {/* Section: Custom Rules */}
+          <Section id="rules" title="Custom Rules (per-policy)" openSections={openSections} onToggle={toggleSection}>
+            <p className="text-xs text-gray-500 mb-2">Add specific rules that apply to this policy. Each rule has a title and description. These are stored with the policy for reference.</p>
+            {customRules.length === 0 ? (
+              <div className="text-sm text-gray-400 py-2">No custom rules added. Click "Add Rule" to define policy-specific rules.</div>
+            ) : (
+              <div className="space-y-2">
+                {customRules.map((rule, i) => (
+                  <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={rule.title}
+                        onChange={(e) => { const next = [...customRules]; next[i].title = e.target.value; setCustomRules(next); }}
+                        placeholder="Rule title (e.g. 'No leave during peak season')"
+                        className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button onClick={() => setCustomRules(customRules.filter((_, idx) => idx !== i))}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <textarea
+                      value={rule.description}
+                      onChange={(e) => { const next = [...customRules]; next[i].description = e.target.value; setCustomRules(next); }}
+                      placeholder="Rule description — explain what this rule does and when it applies..."
+                      rows={2}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setCustomRules([...customRules, { title: '', description: '' }])}
+              className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+              <FiPlus className="w-3 h-3" /> Add Rule
+            </button>
+          </Section>
+
+          {/* Section: Policy Document */}
+          <Section id="document" title="Policy Document Upload" openSections={openSections} onToggle={toggleSection}>
+            <p className="text-xs text-gray-500 mb-2">Upload the official policy document (PDF, DOCX — max 3 MB). The document is stored with the policy and can be downloaded by employees.</p>
+            {policyDocUrl ? (
+              <div className="border border-green-200 bg-green-50 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FiFileText className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-green-800 truncate">{policyDocName}</p>
+                    <p className="text-xs text-green-600">{(policyDocSize / 1024).toFixed(0)} KB · {policyDocMime || 'file'}</p>
+                  </div>
+                </div>
+                <button onClick={() => { setPolicyDocUrl(''); setPolicyDocName(''); setPolicyDocMime(''); setPolicyDocSize(0); }}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded flex-shrink-0" title="Remove document">
+                  <FiTrash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50 transition-colors">
+                <FiFileText className="w-8 h-8 text-gray-400 mb-2" />
+                <span className="text-sm text-gray-600">{uploadingDoc ? 'Uploading...' : 'Click to upload policy document'}</span>
+                <span className="text-xs text-gray-400 mt-1">PDF or DOCX, max 3 MB</span>
+                <input type="file" accept=".pdf,.doc,.docx" onChange={handleFileUpload} className="hidden" disabled={uploadingDoc} />
+              </label>
+            )}
           </Section>
         </div>
 
