@@ -143,6 +143,9 @@ interface ResumeParseRow {
   sourceFormat: string;
   parseError: string | null;
   createdAt: string;
+  matchScore?: number | null;
+  matchedSkills?: string[];
+  unmatchedSkills?: string[];
 }
 
 interface SentimentRow {
@@ -1222,7 +1225,9 @@ export default function RecruitmentPage() {
       } else if (d.parsedData && typeof d.parsedData === 'object') {
         parsed = d.parsedData as ParsedResume;
       }
-      setParseByApp(prev => ({ ...prev, [appId]: { parse: d.parse || null, parsed, loading: false } }));
+      // Augment the parse row with match score fields from the API response
+      const parseRow = d.parse ? { ...d.parse, matchScore: d.matchScore ?? d.parse.matchScore ?? null, matchedSkills: d.matchedSkills ?? d.parse.matchedSkills ?? [], unmatchedSkills: d.unmatchedSkills ?? d.parse.unmatchedSkills ?? [] } : null;
+      setParseByApp(prev => ({ ...prev, [appId]: { parse: parseRow as ResumeParseRow | null, parsed, loading: false } }));
     } catch {
       setParseByApp(prev => ({ ...prev, [appId]: { parse: null, parsed: null, loading: false } }));
     }
@@ -2872,6 +2877,11 @@ function ParsedResumePanel({
                 {Math.round(parse.confidence * 100)}% conf
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 uppercase">{parse.sourceFormat}</span>
+              {parse.matchScore != null && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${parse.matchScore >= 75 ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : parse.matchScore >= 50 ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-rose-100 text-rose-700 border border-rose-300'}`} title={`Matched: ${(parse.matchedSkills || []).join(', ') || 'none'}\nMissing: ${(parse.unmatchedSkills || []).join(', ') || 'none'}`}>
+                  ★ Match: {Math.round(parse.matchScore)}%
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -2959,10 +2969,35 @@ function ParsedResumePanel({
             <div>
               <p className="text-xs font-semibold text-thb-text-muted uppercase mb-2">Skills ({parsed.skills.length})</p>
               <div className="flex flex-wrap gap-1.5">
-                {parsed.skills.map((s, i) => (
-                  <span key={`${s}-${i}`} className="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-xs font-medium border border-sky-100">{s}</span>
-                ))}
+                {parsed.skills.map((s, i) => {
+                  const isMatched = (parse?.matchedSkills || []).some(m => m.toLowerCase() === s.toLowerCase());
+                  const isUnmatched = (parse?.unmatchedSkills || []).some(m => m.toLowerCase() === s.toLowerCase());
+                  return (
+                    <span
+                      key={`${s}-${i}`}
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
+                        isMatched
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : isUnmatched
+                          ? 'bg-rose-50 text-rose-600 border-rose-200'
+                          : 'bg-sky-50 text-sky-700 border-sky-100'
+                      }`}
+                      title={isMatched ? 'Matches job requirements' : isUnmatched ? 'Not in job requirements' : ''}
+                    >
+                      {isMatched && '✓ '}{isUnmatched && '✗ '}{s}
+                    </span>
+                  );
+                })}
               </div>
+              {parse?.matchScore != null && (parse.matchedSkills || []).length + (parse.unmatchedSkills || []).length > 0 && (
+                <p className="text-[11px] text-thb-text-muted mt-2">
+                  <span className="text-emerald-600 font-medium">{(parse.matchedSkills || []).length} matched</span>
+                  {' · '}
+                  <span className="text-rose-600 font-medium">{(parse.unmatchedSkills || []).length} not in job reqs</span>
+                  {' · '}
+                  <span className="font-medium">Match score: {Math.round(parse.matchScore)}%</span>
+                </p>
+              )}
             </div>
           )}
 
