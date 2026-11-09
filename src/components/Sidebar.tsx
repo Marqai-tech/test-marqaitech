@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiLogOut,
@@ -27,6 +27,7 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, currentModuleKey, onModuleSelect }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const userRole = navRoleOrLeastPrivilege(user?.role);
@@ -134,20 +135,37 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
     ? filteredSections.find((s) => s.key === currentModuleKey)
     : null;
 
-  // Auto-detect active item (exact match preferred over prefix match)
+  // Build the full current URL (pathname + query string) for active-item matching.
+  // Many nav items now have query strings (e.g. '/recruitment?tab=jobs&single=jobs'),
+  // so we need to compare both the path AND the query to highlight the right item.
+  const currentFullPath = searchParams && searchParams.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname || '';
+
+  // Auto-detect active item — match either the full URL (path+query) or path-only
   const isItemActive = (href: string) => {
     if (href.startsWith('#')) return false; // dividers are never active
-    return pathname === href || pathname?.startsWith(href + '/');
+    // Full match (path + query)
+    if (currentFullPath === href) return true;
+    // Path-only match (for items without query strings)
+    const hrefPath = href.split('?')[0];
+    return pathname === hrefPath || (pathname?.startsWith(hrefPath + '/') || false);
   };
 
-  // Check if an item is the BEST match (exact match wins over prefix match)
+  // Check if an item is the BEST match (exact full-URL match wins over prefix match)
   const isBestMatch = (href: string, items: import('@/lib/navData').NavItem[]) => {
     if (href.startsWith('#')) return false;
-    // Exact match always wins
-    if (pathname === href) return true;
+    // Full URL match (path + query) always wins
+    if (currentFullPath === href) return true;
+    // Path-only exact match (for items without query strings)
+    const hrefPath = href.split('?')[0];
+    if (pathname === hrefPath && !href.includes('?')) return true;
     // For prefix matches, only active if no other item is an exact match
-    if (!pathname?.startsWith(href + '/')) return false;
-    const hasExactMatch = items.some(item => !item.isDivider && !item.href.startsWith('#') && pathname === item.href);
+    if (!pathname?.startsWith(hrefPath + '/')) return false;
+    const hasExactMatch = items.some(item => {
+      if (item.isDivider || item.href.startsWith('#')) return false;
+      return currentFullPath === item.href || pathname === item.href.split('?')[0];
+    });
     return !hasExactMatch;
   };
 

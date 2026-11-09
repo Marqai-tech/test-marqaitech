@@ -114,12 +114,20 @@ export default function DashboardLayout({
   }, [userRole, effectiveRoles]);
 
   // Auto-detect current module from pathname
+  // NOTE: item.href may contain a query string (e.g. '/recruitment?tab=jobs'),
+  // but `pathname` from usePathname() does NOT include the query string.
+  // Strip the query from href before comparing so module detection works.
   const autoDetectedModuleKey = useMemo(() => {
     if (!pathname) return null;
     if (PICKER_ROUTES.includes(pathname)) return null;
     for (const section of filteredSections) {
       for (const item of section.items) {
-        if (pathname === item.href || pathname.startsWith(item.href + '/')) {
+        // Skip dividers and anchor-only hrefs
+        if (item.href.startsWith('#')) continue;
+        // Strip query string — compare only the path portion
+        const hrefPath = item.href.split('?')[0];
+        if (!hrefPath) continue;
+        if (pathname === hrefPath || pathname.startsWith(hrefPath + '/')) {
           return section.key;
         }
       }
