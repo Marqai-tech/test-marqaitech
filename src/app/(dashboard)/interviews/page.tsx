@@ -266,7 +266,10 @@ export default function InterviewsPage() {
       const res = await fetch('/api/departments?limit=200&noDedupe=1', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        const depts = (data.departments || data || []).map((d: any) => ({
+        // API returns { data: [...], pagination: {...} } — extract the data array.
+        // Also handle fallback shapes (departments: [...] or bare array) for safety.
+        const rawDepts = data.data || data.departments || (Array.isArray(data) ? data : []);
+        const depts = rawDepts.map((d: any) => ({
           id: d.id,
           name: d.name,
           companyName: d.company?.name || d.companyName,
