@@ -31,8 +31,10 @@ type TabId = typeof TABS[number]['id'];
 export default function LeaveConfigurationPage() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabId>('types');
+  const effectiveCompanyLabel = useCompanyContextStore(s => s.effectiveCompanyLabel);
+  const companyLabel = effectiveCompanyLabel(user?.role);
 
-  const isAdmin = user && ['super_admin', 'tenant_admin', 'admin'].includes(user.role);
+  const isAdmin = user && ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(user.role);
 
   if (!isAdmin) {
     return (
@@ -49,9 +51,19 @@ export default function LeaveConfigurationPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Leave Configuration</h1>
-        <p className="text-sm text-slate-500 mt-1">Manage leave types, policies, and type-policy mappings.</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Leave Configuration</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage leave types, policies, and type-policy mappings.</p>
+        </div>
+        {/* BUG_140 FIX: show the selected company context so the admin knows which company the configuration applies to */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
+          <FiLayers className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <div>
+            <p className="text-[10px] text-blue-500 font-medium uppercase tracking-wide">Configuring for</p>
+            <p className="text-sm font-semibold text-blue-800">{companyLabel || 'All companies'}</p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}

@@ -246,6 +246,7 @@ export default function LeavePoliciesTab() {
           branches={branches}
           departments={departments}
           leaveTypes={leaveTypes}
+          existingPolicies={policies}
           onClose={() => setShowDialog(false)}
           onSaved={() => { setShowDialog(false); fetchAll(); }}
         />
@@ -255,12 +256,13 @@ export default function LeavePoliciesTab() {
 }
 
 /* ───────── Full Policy Editor Dialog ───────── */
-function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClose, onSaved }: {
+function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, existingPolicies, onClose, onSaved }: {
   mode: 'add' | 'edit';
   editItem: PolicyRule | null;
   branches: Branch[];
   departments: Department[];
   leaveTypes: LeaveType[];
+  existingPolicies: PolicyRule[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -294,8 +296,8 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
   const [overlappingLeaveAllowed, setOverlappingLeaveAllowed] = useState(false);
   // Holidays & Weekoffs
   const [sandwichRuleEnabled, setSandwichRuleEnabled] = useState(true);
-  // Probation
-  const [probationRestriction, setProbationRestriction] = useState(true);
+  // Probation — BUG_152: default off (consistent with Leave Type form)
+  const [probationRestriction, setProbationRestriction] = useState(false);
   const [probationMonths, setProbationMonths] = useState('6');
   const [proRataEnabled, setProRataEnabled] = useState(false);
   // Year-End
@@ -303,8 +305,8 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
   const [yearEndMaxCarryForward, setYearEndMaxCarryForward] = useState('0');
   const [yearEndMaxEncashment, setYearEndMaxEncashment] = useState('0');
   const [yearEndExpiryDays, setYearEndExpiryDays] = useState('0');
-  // Carry-Forward
-  const [carryForwardGlobal, setCarryForwardGlobal] = useState(true);
+  // Carry-Forward — BUG_152: default off (consistent with Leave Type form)
+  const [carryForwardGlobal, setCarryForwardGlobal] = useState(false);
   const [maxCarryForwardDays, setMaxCarryForwardDays] = useState('5');
   // Encashment
   const [encashmentAllowed, setEncashmentAllowed] = useState(false);
@@ -376,6 +378,14 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error('Policy name is required'); return; }
+    // BUG_148: duplicate name validation (client-side)
+    if (mode === 'add') {
+      const existing = existingPolicies.find(p => p.name.toLowerCase() === name.trim().toLowerCase());
+      if (existing) { toast.error(`A policy named "${name.trim()}" already exists. Please use a different name.`); return; }
+    } else if (mode === 'edit' && editItem) {
+      const existing = existingPolicies.find(p => p.id !== editItem.id && p.name.toLowerCase() === name.trim().toLowerCase());
+      if (existing) { toast.error(`A policy named "${name.trim()}" already exists. Please use a different name.`); return; }
+    }
     setSaving(true);
     try {
       // BUG FIX: send companyId from the company switcher so the policy is
@@ -439,7 +449,7 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div>
             <h3 className="font-semibold text-gray-900">{mode === 'edit' ? 'Edit Leave Policy' : 'Add Leave Policy'}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Configure quota, accrual, restrictions, year-end & encashment.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Configure restrictions, year-end processing, carry-forward & encashment rules.</p>
           </div>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded"><FiX className="w-5 h-5" /></button>
         </div>
@@ -593,11 +603,15 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
 
           {/* Section: Holidays & Weekoffs */}
           <Section id="holidays" title="Holidays & Weekoffs" openSections={openSections} onToggle={toggleSection}>
-            <Toggle label="Sandwich Rule Enabled" checked={sandwichRuleEnabled} onChange={setSandwichRuleEnabled}
+            {/* BUG_150/151 FIX: clarify which settings win when both Leave Type and Leave Policy have them */}
+            <div className="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+              <strong>Note:</strong> These settings override the Leave Type's settings when a mapping exists. The Leave Type's settings are the default; this policy's settings take precedence for employees in scope.
+            </div>
+            <Toggle label="Sandwich Rule" checked={sandwichRuleEnabled} onChange={setSandwichRuleEnabled}
               hint="If enabled, holidays/weekends between two leave days are counted as leave." />
             <div className="grid grid-cols-2 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Probation Months</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Probation Restricted (months)</label>
                 <input type="number" min={0} value={probationMonths} onChange={(e) => setProbationMonths(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
@@ -719,7 +733,7 @@ function PolicyDialog({ mode, editItem, branches, departments, leaveTypes, onClo
           </Section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white z-[80] pr-20">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
           <button onClick={handleSave} disabled={saving}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-2">

@@ -31,7 +31,7 @@ interface LeaveType {
 }
 
 const EMPLOYMENT_TYPES = [
-  { value: 'all', label: 'All Types' },
+  { value: 'all', label: 'All employment types' },
   { value: 'full-time', label: 'Full-Time' },
   { value: 'part-time', label: 'Part-Time' },
   { value: 'contract', label: 'Contract' },
@@ -285,6 +285,11 @@ function LeaveTypeDialog({ mode, editItem, onClose, onSaved }: {
     if (!/^[A-Z][A-Z0-9-]{1,9}$/.test(upperCode)) { toast.error('Code must be 2–10 chars: uppercase letters, numbers, hyphens'); return; }
     const dd = Number(quota);
     if (isNaN(dd) || dd < 0 || dd > 366) { toast.error('Quota must be 0–366'); return; }
+    // BUG_141: validate maxCarryForward <= quota when carryForward is on
+    if (carryForward) {
+      const mcf = Number(maxCarryForward) || 0;
+      if (mcf > dd) { toast.error(`Max Carry Forward (${mcf}) cannot exceed annual quota (${dd} days)`); return; }
+    }
 
     setSaving(true);
     try {
@@ -354,10 +359,13 @@ function LeaveTypeDialog({ mode, editItem, onClose, onSaved }: {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Max Carry Forward</label>
-              <input type="number" min={0} value={maxCarryForward} onChange={(e) => setMaxCarryForward(e.target.value)}
+              <label className="block text-xs font-medium text-gray-600 mb-1">Max Carry Forward (days)</label>
+              <input type="number" min={0} max={Number(quota) || 0} value={maxCarryForward} onChange={(e) => setMaxCarryForward(e.target.value)}
                 disabled={!carryForward}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400" />
+              {carryForward && Number(maxCarryForward) > Number(quota) && (
+                <p className="text-[10px] text-red-500 mt-0.5">Cannot exceed annual quota ({quota} days)</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label>
@@ -368,14 +376,14 @@ function LeaveTypeDialog({ mode, editItem, onClose, onSaved }: {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <Toggle label="Paid Leave" checked={isPaid} onChange={setIsPaid} />
-            <Toggle label="Carry Forward" checked={carryForward} onChange={setCarryForward} />
+            <Toggle label="Paid Leave" checked={isPaid} onChange={setIsPaid} hint="Employee is paid during this leave" />
+            <Toggle label="Carry Forward" checked={carryForward} onChange={setCarryForward} hint="Allow unused leave to carry forward to next year" />
             <Toggle label="Sandwich Rule" checked={sandwichRule} onChange={setSandwichRule} hint="Count weekends/holidays between leave days as leave" />
             <Toggle label="Probation Restricted" checked={probationRestricted} onChange={setProbationRestricted} hint="Block during probation period" />
-            <Toggle label="Encashment Allowed" checked={encashmentAllowed} onChange={setEncashmentAllowed} />
+            <Toggle label="Encashment Allowed" checked={encashmentAllowed} onChange={setEncashmentAllowed} hint="Allow encashing unused leave at year-end or on exit" />
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white z-[80] pr-20">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
           <button onClick={handleSave} disabled={saving}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-2">

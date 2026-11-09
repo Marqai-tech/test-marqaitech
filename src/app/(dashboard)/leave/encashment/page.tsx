@@ -150,7 +150,7 @@ export default function LeaveEncashmentPage() {
           {eligibleTypes.length === 0 ? (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
               <FiInfo className="w-4 h-4 inline mr-1" />
-              No leave types are currently eligible for encashment. Ask HR to enable encashment on a leave type in Settings.
+              No leave types are currently eligible for encashment. Ask HR to enable the <strong>Encashment Allowed</strong> toggle in <strong>Leave → Configuration → Leave Policies</strong>, and ensure that policy is mapped to a leave type via the <strong>Type-Policy Mapping</strong> tab.
             </div>
           ) : (
             <>

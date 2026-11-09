@@ -389,12 +389,12 @@ function MappingDialog({ mode, editItem, leaveTypes, policies, onClose, onSaved 
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Priority (conflict resolution)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Priority (higher number wins)</label>
               <select value={priority} onChange={(e) => setPriority(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {PRIORITY_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
-              <p className="text-xs text-gray-500 mt-1">Higher priority wins when multiple mappings match the same employee.</p>
+              <p className="text-xs text-gray-500 mt-1">When multiple mappings match the same employee for this leave type, the one with the <strong>highest priority number</strong> wins. Specific employees (100) &gt; branch+dept (80) &gt; branch (60) &gt; dept (40) &gt; employment-type (20) &gt; all (10).</p>
             </div>
 
             {/* Scope section */}
@@ -477,7 +477,7 @@ function MappingDialog({ mode, editItem, leaveTypes, policies, onClose, onSaved 
           </>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white z-[80] pr-20">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
           <button onClick={handleSave} disabled={saving || leaveTypes.length === 0 || policies.length === 0}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-2">
