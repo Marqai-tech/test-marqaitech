@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     if (hostHeader.endsWith('.vercel.app') && tenantSlug === hostHeader.split('.')[0]) {
       tenantSlug = '';
     }
-    if (isTestPlatformHost(hostHeader) || tenantSlug === 'test') {
+    if (isTestPlatformHost(hostHeader) || isLocalDevHost(hostHeader) || tenantSlug === 'test') {
       // QA uses the isolated copied tenant database rather than the platform
       // database, which only contains platform identities.
       tenantSlug = process.env.TEST_TENANT_SLUG || 'test-marqaitech';
