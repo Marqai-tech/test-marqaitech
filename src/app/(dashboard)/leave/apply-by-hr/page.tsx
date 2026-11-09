@@ -492,7 +492,7 @@ export default function ApplyLeaveByHRPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium truncate">{emp.firstName} {emp.lastName}</p>
-                    <p className="text-xs text-slate-400 truncate">{emp.employeeId} · {emp.department?.name || 'No Dept'} · {emp.designation?.title || 'No Desg'}</p>
+                    <p className="text-xs text-slate-400 truncate">{emp.employeeId} · {emp.email} · {emp.department?.name || 'No Dept'} · {emp.designation?.title || 'No Desg'}</p>
                   </div>
                 </button>
               ))}

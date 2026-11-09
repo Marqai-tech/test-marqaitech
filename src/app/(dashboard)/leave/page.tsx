@@ -711,20 +711,20 @@ function LeavePageContent() {
               <FiUserCheck className="w-5 h-5" />
             </div>
             <div className="ml-3 overflow-hidden">
-              <p className="text-xs font-medium text-slate-500 truncate">{isAdmin ? 'Total Present' : 'Days Present (This Month)'}</p>
+              <p className="text-xs font-medium text-slate-500 truncate">{isAdmin ? 'Total Present' : 'Leaves Taken (This Month)'}</p>
               <h4 className="text-2xl font-bold text-emerald-600">{(() => {
                 const now = new Date();
-                const myApprovedThisMonth = leaveRequests.filter(l =>
-                  l.status === 'approved' && l.employeeId === employee?.id &&
+                const myLeavesThisMonth = leaveRequests.filter(l =>
+                  (l.status === 'approved' || l.status === 'pending') && l.employeeId === employee?.id &&
                   new Date(l.startDate).getMonth() === now.getMonth() &&
                   new Date(l.startDate).getFullYear() === now.getFullYear()
                 ).length;
-                return leaveRequests.length > 0 ? myApprovedThisMonth : 0;
+                return leaveRequests.length > 0 ? myLeavesThisMonth : 0;
               })()}</h4>
             </div>
           </div>
           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">
-            <FiUserCheck className="w-3 h-3" /> Present
+            <FiUserCheck className="w-3 h-3" /> {isAdmin ? 'Present' : 'Leaves'}
           </span>
         </div>
 
@@ -928,8 +928,8 @@ function LeavePageContent() {
               )}
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-                {/* BUG_124 FIX: submit button disabled until mandatory fields (leave type + dates) are filled. */}
-                <button onClick={handleApply} disabled={submitting || !form.leaveTypeId || !form.startDate || !form.endDate} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors">
+                {/* BUG_124 FIX: submit button disabled until mandatory fields (leave type + dates + reason min 3 chars) are filled. */}
+                <button onClick={handleApply} disabled={submitting || !form.leaveTypeId || !form.startDate || !form.endDate || form.reason.trim().length < 3} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors">
                   {submitting ? 'Submitting...' : 'Apply Leave'}
                 </button>
               </div>
