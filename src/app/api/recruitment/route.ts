@@ -128,6 +128,11 @@ export async function GET(request: Request) {
               expectedSalary: true,
               notes: true,
               jobPostingId: true,
+              // Resume data URL — the actual file the candidate uploaded (PDF/DOCX/TXT).
+              // Stored as a base64 data URL so it works on serverless (Vercel) without
+              // external storage. The Resume tab uses this to show a Download button.
+              resume: true,
+              coverLetter: true,
             },
             orderBy: { appliedDate: 'desc' },
           },
