@@ -190,21 +190,19 @@ function LeaveTypesTab() {
   );
 }
 
-/* ── Inline Leave Type Form (no popup) ── */
+/* ── Inline Leave Type Form (no popup) — simplified ── */
 function LeaveTypeForm({ editItem, onClose, onSaved }: { editItem: any | null; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(''); const [code, setCode] = useState(''); const [description, setDescription] = useState('');
-  const [quota, setQuota] = useState('0'); const [isPaid, setIsPaid] = useState(true);
-  const [carryForward, setCarryForward] = useState(false); const [maxCarryForward, setMaxCarryForward] = useState('0');
-  const [employmentType, setEmploymentType] = useState('all'); const [probationRestricted, setProbationRestricted] = useState(false);
-  const [sandwichRule, setSandwichRule] = useState(true); const [saving, setSaving] = useState(false);
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState('active');
+  const [saving, setSaving] = useState(false);
+  const { effectiveCompanyId } = useCompanyContextStore();
 
   useEffect(() => {
     if (editItem) {
-      setName(editItem.name); setCode(editItem.code); setDescription(editItem.description || '');
-      setQuota(String(editItem.defaultDays || '0')); setIsPaid(editItem.isPaid);
-      setCarryForward(editItem.carryForward); setMaxCarryForward(String(editItem.maxCarryForward || '0'));
-      setEmploymentType(editItem.employmentType || 'all'); setProbationRestricted(editItem.probationRestricted);
-      setSandwichRule(editItem.sandwichRuleEnabled);
+      setName(editItem.name); setCode(editItem.code || ''); setDescription(editItem.description || '');
+      setStatus(editItem.status || 'active');
     }
   }, [editItem]);
 
@@ -213,7 +211,13 @@ function LeaveTypeForm({ editItem, onClose, onSaved }: { editItem: any | null; o
     if (!code.trim()) { toast.error('Code required'); return; }
     setSaving(true);
     try {
-      const payload = { name: name.trim(), code: code.toUpperCase(), description: description.trim() || null, defaultDays: Number(quota) || 0, isPaid, carryForward, maxCarryForward: Number(maxCarryForward) || 0, employmentType, probationRestricted, sandwichRuleEnabled: sandwichRule };
+      const payload = {
+        name: name.trim(),
+        code: code.toUpperCase(),
+        description: description.trim() || null,
+        status,
+        companyId: effectiveCompanyId() || undefined,
+      };
       const url = editItem ? `/api/leave-types/${editItem.id}` : '/api/leave-types';
       const method = editItem ? 'PATCH' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
@@ -231,22 +235,16 @@ function LeaveTypeForm({ editItem, onClose, onSaved }: { editItem: any | null; o
       </div>
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Name *</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Code *</label><input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={10} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase font-mono" /></div>
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Name *</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Casual Leave" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Code *</label><input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={10} placeholder="e.g. CL" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase font-mono" /></div>
         </div>
-        <div><label className="block text-xs font-medium text-gray-600 mb-1">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-        <div className="grid grid-cols-3 gap-4">
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Quota (days)</label><input type="number" min={0} max={366} value={quota} onChange={(e) => setQuota(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Max Carry Forward</label><input type="number" min={0} value={maxCarryForward} onChange={(e) => setMaxCarryForward(e.target.value)} disabled={!carryForward} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" /></div>
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label><select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {([['Paid Leave', isPaid, setIsPaid], ['Carry Forward', carryForward, setCarryForward], ['Sandwich Rule', sandwichRule, setSandwichRule], ['Probation Restricted', probationRestricted, setProbationRestricted]] as [string, boolean, (v: boolean) => void][]).map(([label, checked, setter]) => (
-            <label key={label} className="flex items-center gap-2 p-2.5 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <button type="button" onClick={() => setter(!checked)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}><span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`} /></button>
-              <span className="text-xs font-medium text-gray-800">{label}</span>
-            </label>
-          ))}
+        <div><label className="block text-xs font-medium text-gray-600 mb-1">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Optional description" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
       </div>
       <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
