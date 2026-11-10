@@ -389,27 +389,7 @@ function InlineRuleForm({ mode, editItem, policies, leaveTypes, departments, bra
           </div>
         </div>
 
-        {/* Row 2: Leave Type + Leave Policy (direct selection, no mapping) */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Leave Type</label>
-            <select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">All leave types</option>
-              {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.code})</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Leave Policy *</label>
-            <select value={policyRuleId} onChange={(e) => setPolicyRuleId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— Select Policy —</option>
-              {policies.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Row 3: Category + Value */}
+        {/* Row 2: Category + Value */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Rule Category *</label>
