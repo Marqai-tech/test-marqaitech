@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import PolicyRulesTab from './PolicyRulesTab';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'types', label: 'Leave Types', icon: FiLayers },
   { id: 'policies', label: 'Leave Policies', icon: FiClipboard },
   { id: 'mapping', label: 'Type–Policy Mapping', icon: FiLink2 },
+  { id: 'rules', label: 'Policy Rules', icon: FiSettings },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -86,6 +88,7 @@ export default function LeaveConfigurationPage() {
       {activeTab === 'types' && <LeaveTypesTab />}
       {activeTab === 'policies' && <LeavePoliciesTab />}
       {activeTab === 'mapping' && <LeaveMappingTab />}
+      {activeTab === 'rules' && <PolicyRulesTab />}
     </div>
   );
 }
