@@ -24,8 +24,8 @@ const EMPLOYMENT_TYPES = [
 const TABS = [
   { id: 'types', label: 'Leave Types', icon: FiLayers },
   { id: 'policies', label: 'Leave Policies', icon: FiClipboard },
-  { id: 'mapping', label: 'Type–Policy Mapping', icon: FiLink2 },
   { id: 'rules', label: 'Policy Rules', icon: FiSettings },
+  { id: 'mapping', label: 'Type–Policy Mapping', icon: FiLink2 },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -265,12 +265,13 @@ function LeavePoliciesTab() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
-  const { scopeQuery } = useCompanyContextStore();
+  const { scopeQuery, effectiveCompanyId } = useCompanyContextStore();
 
   const fetchPolicies = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/leave-policy-rules', { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/leave-policy-rules${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       setPolicies(data.data || []);
     } catch { toast.error('Failed to load policies'); }
@@ -288,22 +289,27 @@ function LeavePoliciesTab() {
     } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
+  const handleToggleStatus = async (item: any) => {
+    const newStatus = item.status === 'active' ? 'inactive' : 'active';
+    try {
+      const res = await fetch('/api/leave-policy-rules', { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ id: item.id, status: newStatus }) });
+      if (!res.ok) throw new Error('Failed');
+      toast.success(`Policy ${newStatus}`); fetchPolicies();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Tip */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex items-start gap-2">
-        <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <div><strong>Tip:</strong> A Leave Policy defines the entitlement rules (quota, accrual, carry-forward, probation, encashment) for a specific employee group. Create one policy per employee category (e.g. "Full-Time Standard", "Contract Limited").</div>
-      </div>
-
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1" />
         <div className="flex items-center gap-2">
           <button onClick={fetchPolicies} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
-          <button onClick={() => { setEditItem(null); setShowForm(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
-            <FiPlus className="w-4 h-4" /> Add Policy
-          </button>
+          {!showForm && (
+            <button onClick={() => { setEditItem(null); setShowForm(true); }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+              <FiPlus className="w-4 h-4" /> Add Policy
+            </button>
+          )}
         </div>
       </div>
 
@@ -317,10 +323,9 @@ function LeavePoliciesTab() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b"><tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Policy Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Scope</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">CF</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Encash</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Version</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Document</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Effective</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
                 </tr></thead>
@@ -328,11 +333,19 @@ function LeavePoliciesTab() {
                   {policies.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
-                      <td className="px-4 py-3 text-xs text-gray-600">{p.employmentType || 'all'}{p.branchId ? ' · branch' : ''}{p.departmentId ? ' · dept' : ''}</td>
-                      <td className="px-4 py-3 text-xs">{p.carryForwardGlobal ? <span className="text-green-600">Yes</span> : <span className="text-gray-400">No</span>}</td>
-                      <td className="px-4 py-3 text-xs">{p.encashmentAllowed ? <span className="text-green-600">Yes</span> : <span className="text-gray-400">No</span>}</td>
-                      <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">{p.priority}</span></td>
-                      <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{p.status}</span></td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{p.description || '—'}</td>
+                      <td className="px-4 py-3 text-xs">{p.policyId ? <span className="text-blue-600">Attached</span> : <span className="text-gray-400">—</span>}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        {p.effectiveFromDate ? new Date(p.effectiveFromDate).toLocaleDateString('en-GB') : '—'}
+                        {p.effectiveToDate ? ` → ${new Date(p.effectiveToDate).toLocaleDateString('en-GB')}` : ''}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => handleToggleStatus(p)}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${p.status === 'active' ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                          {p.status === 'active' ? 'Active' : 'Inactive'}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => { setEditItem(p); setShowForm(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"><FiEdit2 className="w-4 h-4" /></button>
                         <button onClick={() => handleDelete(p)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded ml-1"><FiTrash2 className="w-4 h-4" /></button>
@@ -349,33 +362,59 @@ function LeavePoliciesTab() {
   );
 }
 
-/* ── Inline Policy Form ── */
+/* ── Simplified Inline Policy Form ── */
 function PolicyForm({ editItem, onClose, onSaved }: { editItem: any | null; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(''); const [employmentType, setEmploymentType] = useState('all');
-  const [carryForward, setCarryForward] = useState(true); const [maxCF, setMaxCF] = useState('5');
-  const [encashment, setEncashment] = useState(false); const [sandwich, setSandwich] = useState(true);
-  const [probation, setProbation] = useState(true); const [probationMonths, setProbationMonths] = useState('6');
-  const [priority, setPriority] = useState('0'); const [saving, setSaving] = useState(false);
+  const [name, setName] = useState('');
+  const [version, setVersion] = useState('1.0');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
+  const [status, setStatus] = useState('active');
+  const [docName, setDocName] = useState('');
+  const [docUrl, setDocUrl] = useState('');
+  const [docMime, setDocMime] = useState('');
+  const [docSize, setDocSize] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { effectiveCompanyId } = useCompanyContextStore();
 
   useEffect(() => {
     if (editItem) {
-      setName(editItem.name); setEmploymentType(editItem.employmentType || 'all');
-      setCarryForward(editItem.carryForwardGlobal ?? true); setMaxCF(String(editItem.maxCarryForwardDays || '5'));
-      setEncashment(editItem.encashmentAllowed ?? false); setSandwich(editItem.sandwichRuleEnabled ?? true);
-      setProbation(editItem.probationRestriction ?? true); setProbationMonths(String(editItem.probationMonths || '6'));
-      setPriority(String(editItem.priority || '0'));
+      setName(editItem.name);
+      setVersion(editItem.description || '1.0');
+      setEffectiveFrom(editItem.effectiveFromDate ? editItem.effectiveFromDate.split('T')[0] : '');
+      setEffectiveTo(editItem.effectiveToDate ? editItem.effectiveToDate.split('T')[0] : '');
+      setStatus(editItem.status || 'active');
     }
   }, [editItem]);
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { toast.error('Max 3 MB'); return; }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDocUrl(reader.result as string); setDocName(file.name); setDocMime(file.type); setDocSize(file.size); setUploading(false);
+      toast.success(`Uploaded ${file.name}`);
+    };
+    reader.onerror = () => { setUploading(false); toast.error('Upload failed'); };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
-    if (!name.trim()) { toast.error('Name required'); return; }
+    if (!name.trim()) { toast.error('Policy name required'); return; }
     setSaving(true);
     try {
-      const payload = { name: name.trim(), employmentType, carryForwardGlobal: carryForward, maxCarryForwardDays: Number(maxCF) || 0, encashmentAllowed: encashment, sandwichRuleEnabled: sandwich, probationRestriction: probation, probationMonths: Number(probationMonths) || 6, priority: Number(priority) || 0 };
-      const url = editItem ? '/api/leave-policy-rules' : '/api/leave-policy-rules';
+      const payload = {
+        name: name.trim(),
+        description: version.trim() || '1.0',
+        status,
+        effectiveFromDate: effectiveFrom || null,
+        effectiveToDate: effectiveTo || null,
+        companyId: effectiveCompanyId() || undefined,
+      };
       const method = editItem ? 'PUT' : 'POST';
       const body = editItem ? JSON.stringify({ id: editItem.id, ...payload }) : JSON.stringify(payload);
-      const res = await fetch(url, { method, headers: getAuthHeaders(), body });
+      const res = await fetch('/api/leave-policy-rules', { method, headers: getAuthHeaders(), body });
       const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed');
       toast.success(editItem ? 'Updated' : 'Created'); onSaved();
     } catch (e: any) { toast.error(e.message || 'Failed'); }
@@ -383,31 +422,58 @@ function PolicyForm({ editItem, onClose, onSaved }: { editItem: any | null; onCl
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-slate-100">
+    <div className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-blue-100 bg-blue-50/50">
         <h3 className="text-sm font-bold text-slate-900">{editItem ? 'Edit Policy' : 'Add Leave Policy'}</h3>
         <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded"><FiX className="w-5 h-5" /></button>
       </div>
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Policy Name *</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Full-Time Standard" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label><select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Policy Name *</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Full-Time Standard" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Version</label>
+            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.0" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+        {/* Document Upload */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Policy Document (PDF/DOCX, max 3 MB)</label>
+          {docUrl ? (
+            <div className="border border-green-200 bg-green-50 rounded-lg p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <FiCheck className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <div className="min-w-0"><p className="text-sm font-medium text-green-800 truncate">{docName}</p><p className="text-xs text-green-600">{(docSize / 1024).toFixed(0)} KB</p></div>
+              </div>
+              <button onClick={() => { setDocUrl(''); setDocName(''); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded"><FiTrash2 className="w-4 h-4" /></button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-50">
+              <span className="text-sm text-gray-600">{uploading ? 'Uploading...' : 'Click to upload'}</span>
+              <input type="file" accept=".pdf,.doc,.docx" onChange={handleFileUpload} className="hidden" disabled={uploading} />
+            </label>
+          )}
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Max Carry Forward</label><input type="number" min={0} value={maxCF} onChange={(e) => setMaxCF(e.target.value)} disabled={!carryForward} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" /></div>
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Probation Months</label><input type="number" min={0} value={probationMonths} onChange={(e) => setProbationMonths(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Priority</label><input type="number" value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {([['Carry Forward', carryForward, setCarryForward], ['Sandwich Rule', sandwich, setSandwich], ['Probation Restriction', probation, setProbation], ['Encashment Allowed', encashment, setEncashment]] as [string, boolean, (v: boolean) => void][]).map(([label, checked, setter]) => (
-            <label key={label} className="flex items-center gap-2 p-2.5 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <button type="button" onClick={() => setter(!checked)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}><span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`} /></button>
-              <span className="text-xs font-medium text-gray-800">{label}</span>
-            </label>
-          ))}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Effective From</label>
+            <input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Effective To</label>
+            <input type="date" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="active">Active</option><option value="inactive">Inactive</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
+      <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
         <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
         <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 inline-flex items-center gap-2">{saving && <FiRefreshCw className="w-4 h-4 animate-spin" />}{editItem ? 'Save Changes' : 'Create Policy'}</button>
       </div>
