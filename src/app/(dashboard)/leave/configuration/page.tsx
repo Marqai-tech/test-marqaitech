@@ -25,7 +25,6 @@ const TABS = [
   { id: 'types', label: 'Leave Types', icon: FiLayers },
   { id: 'policies', label: 'Leave Policies', icon: FiClipboard },
   { id: 'rules', label: 'Policy Rules', icon: FiSettings },
-  { id: 'mapping', label: 'Type–Policy Mapping', icon: FiLink2 },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -87,7 +86,6 @@ export default function LeaveConfigurationPage() {
       {/* Tab content */}
       {activeTab === 'types' && <LeaveTypesTab />}
       {activeTab === 'policies' && <LeavePoliciesTab />}
-      {activeTab === 'mapping' && <LeaveMappingTab />}
       {activeTab === 'rules' && <PolicyRulesTab />}
     </div>
   );

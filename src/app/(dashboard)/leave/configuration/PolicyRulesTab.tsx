@@ -39,12 +39,13 @@ interface PolicyRuleConfig {
   createdAt: string;
 }
 
-interface Mapping { id: string; leaveTypeName: string; policyRuleName: string; leaveTypeId: string; policyRuleId: string; }
+interface PolicyRule { id: string; name: string; }
+interface LeaveType { id: string; name: string; code: string; }
 interface Department { id: string; name: string; }
 interface Branch { id: string; name: string; }
 interface Employee { id: string; firstName: string; lastName: string; employeeId: string; }
 
-// 12 categories as requested
+// 12 categories — expanded with all fields
 const RULE_CATEGORIES = [
   { value: 'annual_leave_limit', label: 'Annual Leave Limit', valueType: 'number', unit: 'days', desc: 'Maximum total leave days per year' },
   { value: 'monthly_accrual', label: 'Monthly Accrual', valueType: 'number', unit: 'days/month', desc: 'How many days accrue each month' },
@@ -69,7 +70,8 @@ const APPLICABILITY_TYPES = [
 
 export default function PolicyRulesTab() {
   const [rules, setRules] = useState<PolicyRuleConfig[]>([]);
-  const [mappings, setMappings] = useState<Mapping[]>([]);
+  const [policies, setPolicies] = useState<PolicyRule[]>([]);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -83,20 +85,20 @@ export default function PolicyRulesTab() {
     setLoading(true);
     try {
       const sq = scopeQuery();
-      const [rRes, mRes, dRes, bRes, eRes] = await Promise.all([
+      const [rRes, pRes, ltRes, dRes, bRes, eRes] = await Promise.all([
         fetch(`/api/policy-rule-configs${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
-        fetch(`/api/leave-type-policy-mappings${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave-policy-rules${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
         fetch(`/api/departments${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
         fetch(`/api/branches${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
         fetch(`/api/employees?limit=500&includePhotos=0`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
       const rData = await rRes.json();
-      const mData = await mRes.json();
+      const pData = await pRes.json();
+      const ltData = await ltRes.json();
       setRules(rData.data || []);
-      setMappings((mData.data || []).map((m: any) => ({
-        id: m.id, leaveTypeName: m.leaveTypeName || 'Unknown', policyRuleName: m.policyRuleName || 'Unknown',
-        leaveTypeId: m.leaveTypeId, policyRuleId: m.policyRuleId,
-      })));
+      setPolicies((pData.data || []).filter((p: any) => p.status === 'active'));
+      setLeaveTypes((ltData.data || []).filter((t: any) => t.status === 'active'));
       if (dRes?.ok) { const d = await dRes.json(); setDepartments(d.data || d || []); }
       if (bRes?.ok) { const b = await bRes.json(); setBranches(b.data || b || []); }
       if (eRes?.ok) { const e = await eRes.json(); setEmployees((e.employees || []).map((emp: any) => ({ id: emp.id, firstName: emp.firstName, lastName: emp.lastName, employeeId: emp.employeeId }))); }
@@ -146,12 +148,13 @@ export default function PolicyRulesTab() {
 
   return (
     <div className="space-y-4">
-      {/* Inline form (not popup) */}
+      {/* Inline form */}
       {showForm && (
         <InlineRuleForm
           mode={editItem ? 'edit' : 'add'}
           editItem={editItem}
-          mappings={mappings}
+          policies={policies}
+          leaveTypes={leaveTypes}
           departments={departments}
           branches={branches}
           employees={employees}
@@ -196,9 +199,11 @@ export default function PolicyRulesTab() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Rule Name</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Mapping</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Leave Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Policy</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Value</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Applies To</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Effective</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
                 </tr>
@@ -211,11 +216,16 @@ export default function PolicyRulesTab() {
                       {r.description && <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{r.description}</div>}
                     </td>
                     <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">{getCategoryLabel(r.category)}</span></td>
-                    <td className="px-4 py-3 text-gray-700 text-xs">{r.leaveTypeName || '—'} → {r.policyRuleName || '—'}</td>
+                    <td className="px-4 py-3 text-gray-700 text-xs">{r.leaveTypeName || '—'}</td>
+                    <td className="px-4 py-3 text-gray-700 text-xs">{r.policyRuleName || '—'}</td>
                     <td className="px-4 py-3 text-gray-700 font-medium">{r.value} {r.unit}</td>
                     <td className="px-4 py-3 text-xs text-gray-600">
                       <span className="px-1.5 py-0.5 bg-gray-100 rounded">{getApplicabilityLabel(r.applicabilityType)}</span>
                       {r.applicabilityType !== 'company' && <span className="ml-1 text-gray-500">{getApplicabilityDetail(r)}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString('en-GB') : '—'}
+                      {r.effectiveTo ? ` → ${new Date(r.effectiveTo).toLocaleDateString('en-GB')}` : ''}
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => handleToggleStatus(r)}
@@ -247,11 +257,12 @@ export default function PolicyRulesTab() {
   );
 }
 
-/* ───────── Inline Form (not popup) ───────── */
-function InlineRuleForm({ mode, editItem, mappings, departments, branches, employees, onClose, onSaved }: {
+/* ───────── Inline Form (expanded with all fields) ───────── */
+function InlineRuleForm({ mode, editItem, policies, leaveTypes, departments, branches, employees, onClose, onSaved }: {
   mode: 'add' | 'edit';
   editItem: PolicyRuleConfig | null;
-  mappings: Mapping[];
+  policies: PolicyRule[];
+  leaveTypes: LeaveType[];
   departments: Department[];
   branches: Branch[];
   employees: Employee[];
@@ -260,7 +271,8 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [mappingId, setMappingId] = useState('');
+  const [leaveTypeId, setLeaveTypeId] = useState('');
+  const [policyRuleId, setPolicyRuleId] = useState('');
   const [category, setCategory] = useState('');
   const [value, setValue] = useState('');
   const [unit, setUnit] = useState('');
@@ -275,7 +287,8 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
 
   useEffect(() => {
     if (mode === 'edit' && editItem) {
-      setName(editItem.name); setDescription(editItem.description || ''); setMappingId(editItem.mappingId || '');
+      setName(editItem.name); setDescription(editItem.description || '');
+      setLeaveTypeId(editItem.leaveTypeId || ''); setPolicyRuleId(editItem.policyRuleId || '');
       setCategory(editItem.category); setValue(editItem.value); setUnit(editItem.unit);
       setApplicabilityType(editItem.applicabilityType || 'company');
       setDepartmentId(editItem.departmentId || ''); setBranchId(editItem.branchId || ''); setEmployeeId(editItem.employeeId || '');
@@ -283,8 +296,9 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
       setEffectiveTo(editItem.effectiveTo ? editItem.effectiveTo.split('T')[0] : '');
       setStatus(editItem.status);
     } else {
-      setName(''); setDescription(''); setMappingId(''); setCategory(''); setValue(''); setUnit('');
-      setApplicabilityType('company'); setDepartmentId(''); setBranchId(''); setEmployeeId('');
+      setName(''); setDescription(''); setLeaveTypeId(''); setPolicyRuleId(''); setCategory('');
+      setValue(''); setUnit(''); setApplicabilityType('company');
+      setDepartmentId(''); setBranchId(''); setEmployeeId('');
       setEffectiveFrom(''); setEffectiveTo(''); setStatus('active');
     }
   }, [mode, editItem]);
@@ -314,7 +328,9 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
     setSaving(true);
     try {
       const payload = {
-        name: name.trim(), description: description.trim() || null, mappingId: mappingId || null,
+        name: name.trim(), description: description.trim() || null,
+        leaveTypeId: leaveTypeId || null,
+        policyRuleId: policyRuleId || null,
         category, value, unit, applicabilityType,
         departmentId: applicabilityType === 'department' ? departmentId : null,
         branchId: applicabilityType === 'branch' ? branchId : null,
@@ -359,6 +375,7 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
         <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"><FiX className="w-4 h-4" /></button>
       </div>
       <div className="p-5 space-y-4">
+        {/* Row 1: Name + Description */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Rule Name *</label>
@@ -366,19 +383,33 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Type-Policy Mapping</label>
-            <select value={mappingId} onChange={(e) => setMappingId(e.target.value)}
+            <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this rule does..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        {/* Row 2: Leave Type + Leave Policy (direct selection, no mapping) */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Leave Type</label>
+            <select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— Select Mapping (optional) —</option>
-              {mappings.map(m => <option key={m.id} value={m.id}>{m.leaveTypeName} → {m.policyRuleName}</option>)}
+              <option value="">All leave types</option>
+              {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.code})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Leave Policy *</label>
+            <select value={policyRuleId} onChange={(e) => setPolicyRuleId(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select Policy —</option>
+              {policies.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="What this rule does..."
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
+
+        {/* Row 3: Category + Value */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Rule Category *</label>
@@ -394,7 +425,8 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
             {renderValueInput()}
           </div>
         </div>
-        {/* Applicability */}
+
+        {/* Row 4: Applicability */}
         <div className="border-t border-gray-100 pt-3">
           <p className="text-xs font-semibold text-gray-700 mb-2">Applicability</p>
           <div className="grid grid-cols-2 gap-4">
@@ -431,6 +463,8 @@ function InlineRuleForm({ mode, editItem, mappings, departments, branches, emplo
             )}
           </div>
         </div>
+
+        {/* Row 5: Effective dates + Status */}
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Effective From</label>
