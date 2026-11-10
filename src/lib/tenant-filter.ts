@@ -60,7 +60,9 @@ export function isTestPlatformHost(host: string): boolean {
     // New Vercel project (team: marshshaik-5449s-projects) — added 2026-11-06
     h === 'test-marqaitech.vercel.app' ||
     h === 'test-marqaitech-marshshaik-5449s-projects.vercel.app' ||
-    h === 'test-marqaitech-git-main-marshshaik-5449s-projects.vercel.app'
+    h === 'test-marqaitech-git-main-marshshaik-5449s-projects.vercel.app' ||
+    h === '3boxes-hrms.vercel.app' ||
+    h === '3boxes-hrms-beta.vercel.app'
   );
 }
 
