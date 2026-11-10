@@ -531,8 +531,11 @@ function LeaveMappingTab() {
 
   // Helper: find rule name for a mapping
   const getRuleName = (m: any) => {
-    const rule = policyRules.find((r: any) => r.policyRuleId === m.policyRuleId && r.leaveTypeId === m.leaveTypeId);
-    return rule ? rule.name : '—';
+    const rule = policyRules.find((r: any) => r.id === m.ruleConfigId);
+    if (rule) return rule.name;
+    // fallback: match by policyRuleId
+    const rule2 = policyRules.find((r: any) => r.policyRuleId === m.policyRuleId);
+    return rule2 ? rule2.name : '—';
   };
 
   return (
@@ -621,11 +624,13 @@ function MappingForm({ editItem, leaveTypes, policies, policyRules, onClose, onS
   const handleSave = async () => {
     if (!leaveTypeId) { toast.error('Select a leave type'); return; }
     if (!policyRuleId) { toast.error('Select a policy'); return; }
+    if (!ruleConfigId) { toast.error('Select a policy rule'); return; }
     setSaving(true);
     try {
       const payload = {
         leaveTypeId,
         policyRuleId,
+        ruleConfigId,
         status,
         companyId: effectiveCompanyId() || undefined,
       };
@@ -669,15 +674,14 @@ function MappingForm({ editItem, leaveTypes, policies, policyRules, onClose, onS
               </div>
             </div>
 
-            {/* Row 2: Policy Rule (filtered by selected type + policy) */}
+            {/* Row 2: Policy Rule */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Policy Rule</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Policy Rule *</label>
               <select value={ruleConfigId} onChange={(e) => setRuleConfigId(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                <option value="">— Select Rule (optional) —</option>
-                {filteredRules.map((r: any) => <option key={r.id} value={r.id}>{r.name} ({r.category})</option>)}
+                <option value="">— Select Rule —</option>
+                {policyRules.map((r: any) => <option key={r.id} value={r.id}>{r.name} ({r.category})</option>)}
               </select>
-              <p className="text-[10px] text-gray-400 mt-1">Shows rules created in the Policy Rules tab that match the selected Leave Type + Policy.</p>
             </div>
 
             {/* Row 3: Status */}
