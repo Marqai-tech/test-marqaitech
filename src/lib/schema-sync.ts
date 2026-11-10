@@ -1144,6 +1144,66 @@ const SYNC_STATEMENTS: string[] = [
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "CalendarEvent_pkey" PRIMARY KEY ("id")
   )`,
+
+  // ─── Onboarding Workflow: Draft Employee fields on PreboardingCandidate ───
+  // These extend the existing PreboardingCandidate with the full draft-employee
+  // details that HR enters during the Convert form. The record stays as a
+  // draft until BGV is approved, at which point these fields are copied to
+  // the real Employee table.
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "employmentType" TEXT DEFAULT 'full-time'`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "workLocation" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "ctc" DOUBLE PRECISION`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP(3)`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "candidatePortalUserId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "onboardingStatus" TEXT DEFAULT 'candidate'`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "bgvNotes" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "provisionalAccess" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "activatedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "convertedById" TEXT`,
+
+  // ─── OnboardingDocument table — candidate document uploads with review workflow ───
+  `CREATE TABLE IF NOT EXISTS "OnboardingDocument" (
+    "id" TEXT NOT NULL,
+    "preboardingCandidateId" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "documentType" TEXT NOT NULL,
+    "documentLabel" TEXT NOT NULL,
+    "fileName" TEXT,
+    "fileData" TEXT,
+    "fileMimeType" TEXT,
+    "fileSize" INTEGER,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "uploadedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+    "reviewedById" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "reviewNotes" TEXT,
+    "rejectionReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OnboardingDocument_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocument_preboardingCandidateId_idx" ON "OnboardingDocument"("preboardingCandidateId")`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocument_candidateEmail_idx" ON "OnboardingDocument"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocument_status_idx" ON "OnboardingDocument"("status")`,
+
+  // ─── OnboardingConfig table — HR-configured required documents ───
+  `CREATE TABLE IF NOT EXISTS "OnboardingConfig" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "companyId" TEXT,
+    "documentType" TEXT NOT NULL,
+    "documentLabel" TEXT NOT NULL,
+    "isRequired" BOOLEAN NOT NULL DEFAULT true,
+    "displayOrder" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OnboardingConfig_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingConfig_tenantId_idx" ON "OnboardingConfig"("tenantId")`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.
