@@ -308,6 +308,172 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "PreboardingCandidate_status_idx" ON "PreboardingCandidate"("status")`,
     `CREATE INDEX IF NOT EXISTS "PreboardingCandidate_candidateEmail_idx" ON "PreboardingCandidate"("candidateEmail")`,
 
+    // ─── Onboarding module: new columns on PreboardingCandidate ───
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "onboardingStatus" TEXT DEFAULT 'pending'`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "employmentType" TEXT DEFAULT 'full-time'`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "ctc" DOUBLE PRECISION`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "workLocation" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP(3)`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "companyEmail" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "candidatePortalUserId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "convertedById" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "activatedAt" TIMESTAMP(3)`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "bgvNotes" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "employeeId" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "PreboardingCandidate_onboardingStatus_idx" ON "PreboardingCandidate"("onboardingStatus")`,
+
+    // ─── OnboardingDocument table ───
+    `CREATE TABLE IF NOT EXISTS "OnboardingDocument" (
+      "id" TEXT NOT NULL,
+      "preboardingCandidateId" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "documentType" TEXT NOT NULL,
+      "documentLabel" TEXT NOT NULL,
+      "fileUrl" TEXT,
+      "fileName" TEXT,
+      "fileSize" INTEGER,
+      "mimeType" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "reviewedById" TEXT,
+      "reviewedAt" TIMESTAMP(3),
+      "reviewNotes" TEXT,
+      "uploadedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "OnboardingDocument_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "OnboardingDocument_preboardingCandidateId_idx" ON "OnboardingDocument"("preboardingCandidateId")`,
+    `CREATE INDEX IF NOT EXISTS "OnboardingDocument_candidateEmail_idx" ON "OnboardingDocument"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "OnboardingDocument_status_idx" ON "OnboardingDocument"("status")`,
+
+    // ─── VendorCompany table ───
+    `CREATE TABLE IF NOT EXISTS "VendorCompany" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "email" TEXT,
+      "phone" TEXT,
+      "website" TEXT,
+      "address" TEXT,
+      "supportedChecks" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'active',
+      "createdById" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "VendorCompany_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "VendorCompany_status_idx" ON "VendorCompany"("status")`,
+
+    // ─── VendorUser table ───
+    `CREATE TABLE IF NOT EXISTS "VendorUser" (
+      "id" TEXT NOT NULL,
+      "vendorCompanyId" TEXT NOT NULL,
+      "email" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "role" TEXT NOT NULL DEFAULT 'vendor_employee',
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "passwordHash" TEXT,
+      "inviteToken" TEXT,
+      "invitedAt" TIMESTAMP(3),
+      "invitedById" TEXT,
+      "passwordSetAt" TIMESTAMP(3),
+      "userId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "VendorUser_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "VendorUser_vendorCompanyId_idx" ON "VendorUser"("vendorCompanyId")`,
+    `CREATE INDEX IF NOT EXISTS "VendorUser_email_idx" ON "VendorUser"("email")`,
+
+    // ─── BgvRequest table ───
+    `CREATE TABLE IF NOT EXISTS "BgvRequest" (
+      "id" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "candidateName" TEXT,
+      "preboardingCandidateId" TEXT,
+      "vendorCompanyId" TEXT NOT NULL,
+      "initiatedByHRId" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'awaiting_assignment',
+      "dueDate" TIMESTAMP(3),
+      "instructions" TEXT,
+      "checks" TEXT,
+      "assignedVendorUserId" TEXT,
+      "assignedById" TEXT,
+      "assignedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_vendorCompanyId_idx" ON "BgvRequest"("vendorCompanyId")`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_candidateEmail_idx" ON "BgvRequest"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_status_idx" ON "BgvRequest"("status")`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_assignedVendorUserId_idx" ON "BgvRequest"("assignedVendorUserId")`,
+
+    // ─── BgvCheck table ───
+    `CREATE TABLE IF NOT EXISTS "BgvCheck" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "checkType" TEXT NOT NULL,
+      "checkLabel" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "result" TEXT,
+      "findings" TEXT,
+      "evidenceUrl" TEXT,
+      "completedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvCheck_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvCheck_bgvRequestId_idx" ON "BgvCheck"("bgvRequestId")`,
+
+    // ─── BgvDocumentShare table ───
+    `CREATE TABLE IF NOT EXISTS "BgvDocumentShare" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "onboardingDocumentId" TEXT,
+      "documentType" TEXT,
+      "documentLabel" TEXT,
+      "fileUrl" TEXT,
+      "sharedById" TEXT NOT NULL,
+      "sharedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvDocumentShare_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvDocumentShare_bgvRequestId_idx" ON "BgvDocumentShare"("bgvRequestId")`,
+
+    // ─── BgvReport table ───
+    `CREATE TABLE IF NOT EXISTS "BgvReport" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "version" INTEGER NOT NULL DEFAULT 1,
+      "submittedById" TEXT NOT NULL,
+      "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "summary" TEXT,
+      "overallResult" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'submitted',
+      "hrDecision" TEXT,
+      "hrDecisionById" TEXT,
+      "hrDecisionAt" TIMESTAMP(3),
+      "hrDecisionReason" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvReport_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvReport_bgvRequestId_idx" ON "BgvReport"("bgvRequestId")`,
+
+    // ─── BgvAssignment table (history) ───
+    `CREATE TABLE IF NOT EXISTS "BgvAssignment" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "vendorUserId" TEXT NOT NULL,
+      "assignedById" TEXT NOT NULL,
+      "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "unassignedAt" TIMESTAMP(3),
+      "unassignedById" TEXT,
+      "reason" TEXT,
+      "CONSTRAINT_BgvAssignment_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvAssignment_bgvRequestId_idx" ON "BgvAssignment"("bgvRequestId")`,
+
     // ExitRequest
     `CREATE TABLE IF NOT EXISTS "ExitRequest" (
       "id" TEXT NOT NULL,
