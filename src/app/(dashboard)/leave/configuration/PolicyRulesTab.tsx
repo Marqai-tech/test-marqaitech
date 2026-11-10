@@ -16,21 +16,34 @@ interface PolicyRuleConfig {
   id: string;
   name: string;
   description: string | null;
-  policyRuleId: string;
+  mappingId: string | null;
+  policyRuleId: string | null;
   policyRuleName?: string;
   leaveTypeId: string | null;
   leaveTypeName?: string;
+  leaveTypeCode?: string;
+  leavePolicyId: string | null;
   category: string;
   value: string;
   unit: string;
+  applicabilityType: string;
+  departmentId: string | null;
+  departmentName?: string;
+  branchId: string | null;
+  branchName?: string;
+  employeeId: string | null;
+  employeeFirstName?: string;
+  employeeLastName?: string;
   effectiveFrom: string | null;
   effectiveTo: string | null;
   status: string;
   createdAt: string;
 }
 
-interface PolicyRule { id: string; name: string; }
-interface LeaveType { id: string; name: string; code: string; }
+interface Mapping { id: string; leaveTypeName: string; policyRuleName: string; leaveTypeId: string; policyRuleId: string; }
+interface Department { id: string; name: string; }
+interface Branch { id: string; name: string; }
+interface Employee { id: string; firstName: string; lastName: string; employeeId: string; }
 
 const RULE_CATEGORIES = [
   { value: 'annual_leave_limit', label: 'Annual Leave Limit', valueType: 'number', unit: 'days', desc: 'Maximum total leave days per year' },
@@ -53,10 +66,19 @@ const RULE_CATEGORIES = [
   { value: 'require_attachment_after', label: 'Require Attachment After N Days', valueType: 'number', unit: 'days', desc: 'Require attachment when leave exceeds N days' },
 ];
 
+const APPLICABILITY_TYPES = [
+  { value: 'company', label: 'Company-wide' },
+  { value: 'department', label: 'Specific Department' },
+  { value: 'branch', label: 'Specific Branch' },
+  { value: 'employee', label: 'Specific Employee' },
+];
+
 export default function PolicyRulesTab() {
   const [rules, setRules] = useState<PolicyRuleConfig[]>([]);
-  const [policies, setPolicies] = useState<PolicyRule[]>([]);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [mappings, setMappings] = useState<Mapping[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -67,17 +89,26 @@ export default function PolicyRulesTab() {
     setLoading(true);
     try {
       const sq = scopeQuery();
-      const [rRes, pRes, ltRes] = await Promise.all([
+      const [rRes, mRes, dRes, bRes, eRes] = await Promise.all([
         fetch(`/api/policy-rule-configs${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
-        fetch(`/api/leave-policy-rules${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
-        fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave-type-policy-mappings${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/departments${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/branches${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/employees?limit=500&includePhotos=0`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
       const rData = await rRes.json();
-      const pData = await pRes.json();
-      const ltData = await ltRes.json();
+      const mData = await mRes.json();
       setRules(rData.data || []);
-      setPolicies((pData.data || []).filter((p: any) => p.status === 'active'));
-      setLeaveTypes((ltData.data || []).filter((t: any) => t.status === 'active'));
+      setMappings((mData.data || []).map((m: any) => ({
+        id: m.id,
+        leaveTypeName: m.leaveTypeName || 'Unknown',
+        policyRuleName: m.policyRuleName || 'Unknown',
+        leaveTypeId: m.leaveTypeId,
+        policyRuleId: m.policyRuleId,
+      })));
+      if (dRes?.ok) { const d = await dRes.json(); setDepartments(d.data || d || []); }
+      if (bRes?.ok) { const b = await bRes.json(); setBranches(b.data || b || []); }
+      if (eRes?.ok) { const e = await eRes.json(); setEmployees((e.employees || []).map((emp: any) => ({ id: emp.id, firstName: emp.firstName, lastName: emp.lastName, employeeId: emp.employeeId }))); }
     } catch {
       toast.error('Failed to load policy rules');
     } finally {
@@ -110,8 +141,7 @@ export default function PolicyRulesTab() {
     const newStatus = item.status === 'active' ? 'inactive' : 'active';
     try {
       const res = await fetch(`/api/policy-rule-configs/${item.id}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
+        method: 'PATCH', headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error('Failed to update');
@@ -123,18 +153,24 @@ export default function PolicyRulesTab() {
   };
 
   const getCategoryLabel = (cat: string) => RULE_CATEGORIES.find(c => c.value === cat)?.label || cat;
+  const getApplicabilityLabel = (type: string) => APPLICABILITY_TYPES.find(a => a.value === type)?.label || type;
+
+  const getApplicabilityDetail = (r: PolicyRuleConfig) => {
+    if (r.applicabilityType === 'department') return r.departmentName || 'Dept';
+    if (r.applicabilityType === 'branch') return r.branchName || 'Branch';
+    if (r.applicabilityType === 'employee') return `${r.employeeFirstName || ''} ${r.employeeLastName || ''}`.trim() || 'Employee';
+    return 'All';
+  };
 
   return (
     <div className="space-y-4">
-      {/* Info banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 flex items-start gap-2">
         <FiSettings className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <div>
-          <strong>Policy Rules:</strong> Configure specific rules (annual limits, advance notice, carry-forward, etc.) for each leave policy. Rules are enforced server-side when employees apply for leave.
+          <strong>Policy Rules:</strong> Configure rules linked to Type-Policy Mappings. Rules support applicability by company, department, branch, or specific employee. Rules are enforced server-side when employees apply for leave.
         </div>
       </div>
 
-      {/* Toolbar */}
       <div className="flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-xs">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -152,7 +188,6 @@ export default function PolicyRulesTab() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-sm text-gray-400">Loading policy rules...</div>
@@ -170,8 +205,9 @@ export default function PolicyRulesTab() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Rule Name</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Policy</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Mapping</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Value</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Applies To</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Effective</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
@@ -187,8 +223,14 @@ export default function PolicyRulesTab() {
                     <td className="px-4 py-3">
                       <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">{getCategoryLabel(r.category)}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{r.policyRuleName || '—'}</td>
+                    <td className="px-4 py-3 text-gray-700 text-xs">
+                      {r.leaveTypeName || '—'} → {r.policyRuleName || '—'}
+                    </td>
                     <td className="px-4 py-3 text-gray-700 font-medium">{r.value} {r.unit}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600">
+                      <span className="px-1.5 py-0.5 bg-gray-100 rounded">{getApplicabilityLabel(r.applicabilityType)}</span>
+                      {r.applicabilityType !== 'company' && <span className="ml-1 text-gray-500">{getApplicabilityDetail(r)}</span>}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString('en-GB') : '—'}
                       {r.effectiveTo ? ` → ${new Date(r.effectiveTo).toLocaleDateString('en-GB')}` : ''}
@@ -224,8 +266,10 @@ export default function PolicyRulesTab() {
         <RuleDialog
           mode={editItem ? 'edit' : 'add'}
           editItem={editItem}
-          policies={policies}
-          leaveTypes={leaveTypes}
+          mappings={mappings}
+          departments={departments}
+          branches={branches}
+          employees={employees}
           existingRules={rules}
           onClose={() => setShowDialog(false)}
           onSaved={() => { setShowDialog(false); fetchAll(); }}
@@ -236,22 +280,27 @@ export default function PolicyRulesTab() {
 }
 
 /* ───────── Add/Edit Dialog ───────── */
-function RuleDialog({ mode, editItem, policies, leaveTypes, existingRules, onClose, onSaved }: {
+function RuleDialog({ mode, editItem, mappings, departments, branches, employees, existingRules, onClose, onSaved }: {
   mode: 'add' | 'edit';
   editItem: PolicyRuleConfig | null;
-  policies: PolicyRule[];
-  leaveTypes: LeaveType[];
+  mappings: Mapping[];
+  departments: Department[];
+  branches: Branch[];
+  employees: Employee[];
   existingRules: PolicyRuleConfig[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [policyRuleId, setPolicyRuleId] = useState('');
-  const [leaveTypeId, setLeaveTypeId] = useState('');
+  const [mappingId, setMappingId] = useState('');
   const [category, setCategory] = useState('');
   const [value, setValue] = useState('');
   const [unit, setUnit] = useState('');
+  const [applicabilityType, setApplicabilityType] = useState('company');
+  const [departmentId, setDepartmentId] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState('');
   const [effectiveTo, setEffectiveTo] = useState('');
   const [status, setStatus] = useState('active');
@@ -261,21 +310,25 @@ function RuleDialog({ mode, editItem, policies, leaveTypes, existingRules, onClo
     if (mode === 'edit' && editItem) {
       setName(editItem.name);
       setDescription(editItem.description || '');
-      setPolicyRuleId(editItem.policyRuleId);
-      setLeaveTypeId(editItem.leaveTypeId || '');
+      setMappingId(editItem.mappingId || '');
       setCategory(editItem.category);
       setValue(editItem.value);
       setUnit(editItem.unit);
+      setApplicabilityType(editItem.applicabilityType || 'company');
+      setDepartmentId(editItem.departmentId || '');
+      setBranchId(editItem.branchId || '');
+      setEmployeeId(editItem.employeeId || '');
       setEffectiveFrom(editItem.effectiveFrom ? editItem.effectiveFrom.split('T')[0] : '');
       setEffectiveTo(editItem.effectiveTo ? editItem.effectiveTo.split('T')[0] : '');
       setStatus(editItem.status);
     } else {
-      setName(''); setDescription(''); setPolicyRuleId(''); setLeaveTypeId(''); setCategory('');
-      setValue(''); setUnit(''); setEffectiveFrom(''); setEffectiveTo(''); setStatus('active');
+      setName(''); setDescription(''); setMappingId(''); setCategory('');
+      setValue(''); setUnit(''); setApplicabilityType('company');
+      setDepartmentId(''); setBranchId(''); setEmployeeId('');
+      setEffectiveFrom(''); setEffectiveTo(''); setStatus('active');
     }
   }, [mode, editItem]);
 
-  // Auto-set unit + value type when category changes
   const selectedCategory = RULE_CATEGORIES.find(c => c.value === category);
   const handleCategoryChange = (cat: string) => {
     setCategory(cat);
@@ -291,34 +344,24 @@ function RuleDialog({ mode, editItem, policies, leaveTypes, existingRules, onClo
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error('Rule name is required'); return; }
-    if (!policyRuleId) { toast.error('Please select a leave policy'); return; }
     if (!category) { toast.error('Please select a rule category'); return; }
     if (!value && value !== '0') { toast.error('Rule value is required'); return; }
-
-    // Duplicate check: same policy + category + leaveType
-    const dup = existingRules.find(r =>
-      r.policyRuleId === policyRuleId &&
-      r.category === category &&
-      (r.leaveTypeId || '') === (leaveTypeId || '') &&
-      r.id !== editItem?.id
-    );
-    if (dup) { toast.error(`A "${selectedCategory?.label}" rule already exists for this policy${leaveTypeId ? ' + leave type' : ''}. Edit the existing one instead.`); return; }
-
-    // Validate effective dates
-    if (effectiveFrom && effectiveTo && effectiveTo < effectiveFrom) {
-      toast.error('Effective To cannot be before Effective From'); return;
-    }
+    if (applicabilityType === 'department' && !departmentId) { toast.error('Please select a department'); return; }
+    if (applicabilityType === 'branch' && !branchId) { toast.error('Please select a branch'); return; }
+    if (applicabilityType === 'employee' && !employeeId) { toast.error('Please select an employee'); return; }
+    if (effectiveFrom && effectiveTo && effectiveTo < effectiveFrom) { toast.error('Effective To cannot be before Effective From'); return; }
 
     setSaving(true);
     try {
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
-        policyRuleId,
-        leaveTypeId: leaveTypeId || null,
-        category,
-        value,
-        unit,
+        mappingId: mappingId || null,
+        category, value, unit,
+        applicabilityType,
+        departmentId: applicabilityType === 'department' ? departmentId : null,
+        branchId: applicabilityType === 'branch' ? branchId : null,
+        employeeId: applicabilityType === 'employee' ? employeeId : null,
         effectiveFrom: effectiveFrom || null,
         effectiveTo: effectiveTo || null,
         status,
@@ -373,7 +416,6 @@ function RuleDialog({ mode, editItem, policies, leaveTypes, existingRules, onClo
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded"><FiX className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
-          {/* Name + Description */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Rule Name *</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Max 3 consecutive days"
@@ -385,24 +427,15 @@ function RuleDialog({ mode, editItem, policies, leaveTypes, existingRules, onClo
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          {/* Policy + Leave Type */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Leave Policy *</label>
-              <select value={policyRuleId} onChange={(e) => setPolicyRuleId(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">— Select Policy —</option>
-                {policies.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Leave Type (optional)</label>
-              <select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">All leave types</option>
-                {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.code})</option>)}
-              </select>
-            </div>
+          {/* Type-Policy Mapping selector */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Type-Policy Mapping (links rule to a Leave Type + Policy)</label>
+            <select value={mappingId} onChange={(e) => setMappingId(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select Mapping (optional) —</option>
+              {mappings.map(m => <option key={m.id} value={m.id}>{m.leaveTypeName} → {m.policyRuleName}</option>)}
+            </select>
+            <p className="text-[10px] text-gray-400 mt-1">Selecting a mapping auto-resolves the Leave Type ID and Policy ID. The rule is enforced when an employee with this mapping applies for leave.</p>
           </div>
 
           {/* Category + Value */}
@@ -419,6 +452,50 @@ function RuleDialog({ mode, editItem, policies, leaveTypes, existingRules, onClo
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Rule Value * {unit && <span className="text-gray-400">({unit})</span>}</label>
               {renderValueInput()}
+            </div>
+          </div>
+
+          {/* Applicability */}
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs font-semibold text-gray-700 mb-2">Applicability (who does this rule apply to?)</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Applies To</label>
+                <select value={applicabilityType} onChange={(e) => { setApplicabilityType(e.target.value); setDepartmentId(''); setBranchId(''); setEmployeeId(''); }}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {APPLICABILITY_TYPES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                </select>
+              </div>
+              {applicabilityType === 'department' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Department *</label>
+                  <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">— Select Department —</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+              )}
+              {applicabilityType === 'branch' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Branch *</label>
+                  <select value={branchId} onChange={(e) => setBranchId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">— Select Branch —</option>
+                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+              )}
+              {applicabilityType === 'employee' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Employee *</label>
+                  <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">— Select Employee —</option>
+                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName} ({emp.employeeId})</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 

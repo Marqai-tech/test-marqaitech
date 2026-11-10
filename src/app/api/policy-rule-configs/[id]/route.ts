@@ -1,5 +1,7 @@
 /**
  * Policy Rule Config detail API — update + delete + patch (status toggle)
+ *
+ * Corrected architecture: rules link to mappingId (Type-Policy Mapping).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
@@ -31,21 +33,48 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await req.json();
-    const { name, description, policyRuleId, leaveTypeId, category, value, unit, effectiveFrom, effectiveTo, status } = body;
+    const {
+      name, description,
+      mappingId, policyRuleId, leaveTypeId, leavePolicyId,
+      category, value, unit,
+      applicabilityType, departmentId, branchId, employeeId,
+      effectiveFrom, effectiveTo, status
+    } = body;
 
-    if (!name || !policyRuleId || !category || value === undefined) {
+    if (!name || !category || value === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: cors() });
+    }
+
+    // If mappingId is provided, resolve leaveTypeId + policyRuleId from the mapping
+    let resolvedLeaveTypeId = leaveTypeId;
+    let resolvedPolicyRuleId = policyRuleId;
+    let resolvedLeavePolicyId = leavePolicyId;
+
+    if (mappingId) {
+      const mappingRows: any[] = await db.$queryRawUnsafe(
+        `SELECT "leaveTypeId", "policyRuleId" FROM "LeaveTypePolicyMapping" WHERE id = $1`,
+        mappingId
+      );
+      if (mappingRows.length > 0) {
+        if (!resolvedLeaveTypeId) resolvedLeaveTypeId = mappingRows[0].leaveTypeId;
+        if (!resolvedPolicyRuleId) resolvedPolicyRuleId = mappingRows[0].policyRuleId;
+      }
     }
 
     await db.$executeRawUnsafe(`
       UPDATE "PolicyRuleConfig"
-      SET "name" = $2, "description" = $3, "policyRuleId" = $4, "leaveTypeId" = $5,
-          "category" = $6, "value" = $7, "unit" = $8,
-          "effectiveFrom" = $9, "effectiveTo" = $10, "status" = $11,
-          "updatedBy" = $12, "updatedAt" = NOW()
+      SET "name" = $2, "description" = $3, "mappingId" = $4, "policyRuleId" = $5,
+          "leaveTypeId" = $6, "leavePolicyId" = $7,
+          "category" = $8, "value" = $9, "unit" = $10,
+          "applicabilityType" = $11, "departmentId" = $12, "branchId" = $13, "employeeId" = $14,
+          "effectiveFrom" = $15, "effectiveTo" = $16, "status" = $17,
+          "updatedBy" = $18, "updatedAt" = NOW()
       WHERE id = $1
     `,
-      id, name, description || null, policyRuleId, leaveTypeId || null, category, String(value), unit || '',
+      id, name, description || null,
+      mappingId || null, resolvedPolicyRuleId || null, resolvedLeaveTypeId || null, resolvedLeavePolicyId || null,
+      category, String(value), unit || '',
+      applicabilityType || 'company', departmentId || null, branchId || null, employeeId || null,
       effectiveFrom ? new Date(effectiveFrom) : null, effectiveTo ? new Date(effectiveTo) : null,
       status || 'active', auth.userId
     );
