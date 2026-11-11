@@ -13,6 +13,7 @@ import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import TeamLeaveSidebar from '@/components/TeamLeaveSidebar';
+import LeaveRequestTracker from '@/components/LeaveRequestTracker';
 import { getLeaveCategory, normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 
 /* ── Types ── */
@@ -27,7 +28,7 @@ interface LeaveRequest {
 }
 interface LeaveBalance { id: string; total: number; used: number; remaining: number; year: number; leaveType: { id: string; name: string; code: string }; }
 interface LeaveType { id: string; name: string; code: string; defaultDays: number; isPaid: boolean; }
-interface Employee { id: string; employeeId: string; firstName: string; lastName: string; employeeStatus?: string; dateOfJoining?: string | null; gender?: string | null; leaveBalances?: LeaveBalance[]; }
+interface Employee { id: string; employeeId: string; firstName: string; lastName: string; employeeStatus?: string; dateOfJoining?: string | null; gender?: string | null; leaveBalances?: LeaveBalance[]; reportingManager?: { id: string; firstName: string; lastName: string } | null; }
 
 function isActiveProbation(emp: Employee | null) {
   if (!emp?.employeeStatus?.toLowerCase().includes('probation') || !emp.dateOfJoining) return false;
@@ -190,6 +191,13 @@ function LeavePageContent() {
       {/* My Leave tab (all roles) */}
       {activeTab === 'my' && (
         <>
+          {/* Leave request tracker — 5-step pipeline for the most-recent pending leave */}
+          <LeaveRequestTracker
+            leaveRequests={leaveRequests}
+            employee={employee ? { id: employee.id, reportingManager: employee.reportingManager || null } : null}
+            onCancelled={fetchData}
+          />
+
           {/* Greeting */}
           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
             <p className="text-sm text-slate-600">
