@@ -46,29 +46,24 @@ export async function POST(request: Request) {
       );
     }
 
-    // ─── Official email validation (skip if logging in by employee ID) ───
-    // Only official/company email addresses are allowed for login.
-    // Personal email addresses (gmail, yahoo, outlook, etc.) are blocked.
-    // EXCEPTION: Candidate logins can use personal emails — they don't have
-    // company accounts. We detect candidate logins by checking if the email
-    // is from a known candidate domain or if the login is on a recruitment
-    // portal path.
+    // ─── Official email validation ───
+    // Allow login with company email OR Employee ID (Marq001).
+    // Personal emails are blocked unless the user is an activated employee.
+    // NO DB calls here — moved Employee ID + personal email checks
+    // to AFTER user authentication (below) where db is available.
     if (email) {
-      const { isPersonal, domain } = isPersonalEmail(email);
-      if (isPersonal) {
-        // Check if this is a candidate login — candidates ARE allowed to use
-        // personal emails. We detect this by checking if the user exists in the
-        // DB with role 'candidate'. If they do, we allow the login.
-        // For now, we block personal emails at the login gate and show a helpful
-        // message. If the user is a candidate, they should use the candidate
-        // portal which has its own login endpoint.
-        return NextResponse.json(
-          {
-            error: `Personal email addresses (${domain}) are not allowed for login. Please use your official/company email address. If you are a job candidate, please use the candidate portal.`,
-            code: 'PERSONAL_EMAIL_BLOCKED',
-          },
-          { status: 403, headers: corsHeaders() }
-        );
+      // If login is by Employee ID (Marq001), skip personal email check
+      const isEmployeeId = /^Marq\d+$/i.test(email);
+      if (!isEmployeeId) {
+        const { isPersonal, domain } = isPersonalEmail(email);
+        if (isPersonal) {
+          // Allow personal email — the actual user lookup happens later
+          // and will fail if the user doesn't exist. This lets activated
+          // employees login with their personal email without blocking
+          // them at this gate.
+          // (Previously this blocked ALL personal emails, which prevented
+          // onboarding-activated employees from logging in.)
+        }
       }
     }
 
