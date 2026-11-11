@@ -32,7 +32,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [tenantInfo, setTenantInfo] = useState<{ name: string; slug: string; logo?: string | null } | null>(null);
-  const [loginMode, setLoginMode] = useState<'user' | 'candidate'>('user');
+  const [loginMode, setLoginMode] = useState<'user' | 'candidate' | 'vendor'>('user');
   // Candidate login state
   const [candidateEmail, setCandidateEmail] = useState('');
   const [candidatePassword, setCandidatePassword] = useState('');
@@ -346,7 +346,7 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Mode Toggle: HR/Admin vs Candidate — HIDDEN on platform site */}
+          {/* Mode Toggle: HR/Admin vs Candidate vs Vendor — HIDDEN on platform site */}
           {!isPlatformSite && (
           <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
             <button
@@ -367,6 +367,16 @@ export default function LoginPage() {
             >
               <span className="flex items-center justify-center gap-1.5">
                 <FiBriefcase className="w-4 h-4" /> Job candidate
+              </span>
+            </button>
+            <button
+              onClick={() => setLoginMode('vendor')}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                loginMode === 'vendor' ? 'bg-white text-[#16254E] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <FiShield className="w-4 h-4" /> Vendor
               </span>
             </button>
           </div>
@@ -1315,6 +1325,55 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
               </a>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Vendor Login Form */}
+      {loginMode === 'vendor' && !isPlatformSite && (
+        <div className="space-y-4">
+          <div className="text-center mb-2">
+            <h2 className="text-xl font-bold text-slate-800">Vendor Portal Login</h2>
+            <p className="text-xs text-slate-500 mt-1">BGV vendors — admin & employee access</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vendor@example.com"
+              className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+          </div>
+          <div className="relative">
+            <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 pr-10"
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
+            >
+              {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+            </button>
+          </div>
+          <button
+            onClick={handleLogin}
+            disabled={isSubmitting}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 disabled:opacity-50"
+          >
+            {isSubmitting ? 'Signing in…' : 'Sign In as Vendor'}
+          </button>
+          <p className="text-[11px] text-center text-slate-400">
+            Vendor access is granted by invitation only. Contact your HR administrator if you need access.
+          </p>
         </div>
       )}
     </div>
