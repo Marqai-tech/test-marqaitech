@@ -38,6 +38,7 @@ import {
   FiList,
   FiUserCheck,
   FiXCircle,
+  FiClock,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
@@ -990,9 +991,25 @@ function KanbanPipelineView({ applications, onMove, isAdmin }: {
                             <p className="text-[10px] text-thb-text-muted">Expected: {app.expectedSalary}</p>
                           )}
                           {isAdmin && (
-                            <p className="text-[9px] text-thb-text-muted/60 mt-1 flex items-center gap-0.5">
-                              <FiMove className="w-2.5 h-2.5" /> drag to move
-                            </p>
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <p className="text-[9px] text-thb-text-muted/60 flex items-center gap-0.5 flex-1">
+                                <FiMove className="w-2.5 h-2.5" /> drag to move
+                              </p>
+                              {app.status === 'interview' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setScheduleAppId(app.id);
+                                    setScheduleAppDept(app.departmentId || app.jobPosting?.departmentId || '');
+                                  }}
+                                  onDragStart={(e) => e.preventDefault()}
+                                  className="text-[9px] font-semibold text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"
+                                  title="Schedule an interview for this candidate"
+                                >
+                                  <FiClock className="w-2.5 h-2.5" /> Schedule
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       );
