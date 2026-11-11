@@ -174,12 +174,7 @@ function LeavePageContent() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Leave Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Good {greeting}, {user?.name?.split(' ')[0] || 'there'} — you have {Number(totalAvailable.toFixed(2))} days of leave available.
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Leave Dashboard</h1>
         <button onClick={() => router.push('/leave/apply')} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-semibold text-sm shadow-sm flex-shrink-0">
           <FiPlus className="w-4 h-4" /> Apply leave
         </button>
@@ -207,20 +202,6 @@ function LeavePageContent() {
       {/* My Leave tab (all roles) */}
       {activeTab === 'my' && (
         <div className="space-y-6">
-
-          {/* Leave balance cards — full width, 5 in a row */}
-          {cardBalances.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {cardBalances.map(lb => (
-                <BalanceCard
-                  key={lb.id}
-                  balance={lb}
-                  blocked={blocked}
-                  pending={pendingDaysFor(lb.leaveType.id)}
-                />
-              ))}
-            </div>
-          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
             {/* Left main column */}
