@@ -25,10 +25,11 @@ interface LeaveRequest {
   employeeId: string; leaveTypeId: string;
   currentApproverId?: string | null; workflowStage?: string | null;
   appliedByHR?: boolean;
+  createdAt?: string | null;
 }
 interface LeaveBalance { id: string; total: number; used: number; remaining: number; year: number; leaveType: { id: string; name: string; code: string }; }
 interface LeaveType { id: string; name: string; code: string; defaultDays: number; isPaid: boolean; }
-interface Employee { id: string; employeeId: string; firstName: string; lastName: string; employeeStatus?: string; dateOfJoining?: string | null; gender?: string | null; leaveBalances?: LeaveBalance[]; reportingManager?: { id: string; firstName: string; lastName: string } | null; }
+interface Employee { id: string; employeeId: string; firstName: string; lastName: string; employeeStatus?: string; dateOfJoining?: string | null; gender?: string | null; leaveBalances?: LeaveBalance[]; reportingManager?: { id: string; firstName: string; lastName: string } | null; leavePolicyId?: string | null; }
 
 function isActiveProbation(emp: Employee | null) {
   if (!emp?.employeeStatus?.toLowerCase().includes('probation') || !emp.dateOfJoining) return false;
@@ -129,21 +130,6 @@ function LeavePageContent() {
   useEffect(() => { if (actionParam === 'apply') router.push('/leave/apply'); }, [actionParam, router]);
 
   const pendingCount = leaveRequests.filter(l => l.status === 'pending').length;
-  const approvedThisMonth = leaveRequests.filter(l => {
-    if (l.status !== 'approved') return false;
-    const d = new Date(l.startDate); const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
-  const rejectedThisMonth = leaveRequests.filter(l => {
-    if (l.status !== 'rejected') return false;
-    const d = new Date(l.startDate); const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
-  const myLeavesThisMonth = leaveRequests.filter(l =>
-    (l.status === 'approved' || l.status === 'pending') && l.employeeId === employee?.id &&
-    new Date(l.startDate).getMonth() === new Date().getMonth() &&
-    new Date(l.startDate).getFullYear() === new Date().getFullYear()
-  ).length;
 
   const filteredLeaves = leaveRequests;
 
@@ -190,65 +176,77 @@ function LeavePageContent() {
 
       {/* My Leave tab (all roles) */}
       {activeTab === 'my' && (
-        <>
-          {/* Leave request tracker — 5-step pipeline for the most-recent pending leave */}
-          <LeaveRequestTracker
-            leaveRequests={leaveRequests}
-            employee={employee ? { id: employee.id, reportingManager: employee.reportingManager || null } : null}
-            onCancelled={fetchData}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Greeting */}
-          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
-            <p className="text-sm text-slate-600">
-              Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, <strong>{user?.name?.split(' ')[0] || 'there'}</strong> — you have <strong className="text-emerald-700">{leaveBalances.reduce((s, b) => s + Math.max(0, (b.total || 0) - (b.used || 0)), 0)}</strong> days of leave available.
-            </p>
-          </div>
+          {/* ───────── Left main column (2/3) ───────── */}
+          <div className="lg:col-span-2 space-y-6">
 
-          {/* Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Leaves Taken (This Month)" value={myLeavesThisMonth} icon={<FiCalendar className="w-5 h-5" />} color="emerald" sub="Leaves" />
-            <StatCard label="Approved Leaves" value={approvedThisMonth} icon={<FiCheck className="w-5 h-5" />} color="pink" sub="Approved" />
-            <StatCard label="Rejected Leaves" value={rejectedThisMonth} icon={<FiUserX className="w-5 h-5" />} color="amber" sub="Rejected" />
-            <StatCard label="Pending Requests" value={pendingCount} icon={<FiClock className="w-5 h-5" />} color="green" sub="Pending" />
-          </div>
-
-          {/* Balance Cards */}
-          {leaveBalances.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {leaveBalances.slice().sort((a, b) => {
-                const order = ['casual leave','sick leave','earned leave','personal leave','loss of pay'];
-                return (order.indexOf(a.leaveType?.name?.toLowerCase()||'')+10) - (order.indexOf(b.leaveType?.name?.toLowerCase()||'')+10);
-              }).map(lb => {
-                const blocked = isActiveProbation(employee);
-                const safeTotal = blocked ? 0 : (lb.total || 0);
-                const safeUsed = blocked ? 0 : (lb.used || 0);
-                const computedRemaining = blocked ? 0 : Math.max(0, safeTotal - safeUsed);
-                const usedPct = safeTotal > 0 ? (safeUsed / safeTotal) * 100 : 0;
-                const barColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
-                return (
-                  <div key={lb.id} className="bg-white rounded-xl border border-slate-200 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-xs font-semibold text-slate-800">{lb.leaveType.name.replace(/\b\w/g, c => c.toUpperCase())}</h4>
-                      <span className="text-[10px] font-mono text-slate-400">{lb.leaveType.code}</span>
-                    </div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="text-center"><p className="text-lg font-bold text-emerald-600">{computedRemaining}</p><p className="text-[9px] text-slate-400">Left</p></div>
-                      <div className="text-center"><p className="text-sm font-semibold text-amber-600">{safeUsed}</p><p className="text-[9px] text-slate-400">Used</p></div>
-                      <div className="text-center"><p className="text-sm text-slate-500">{safeTotal}</p><p className="text-[9px] text-slate-400">Total</p></div>
-                    </div>
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className={`h-full ${barColor} rounded-full transition-all duration-500`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Greeting + Apply Leave */}
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100 flex items-center justify-between gap-3">
+              <p className="text-sm text-slate-600">
+                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, <strong>{user?.name?.split(' ')[0] || 'there'}</strong> — you have <strong className="text-emerald-700">{leaveBalances.reduce((s, b) => s + Math.max(0, (b.total || 0) - (b.used || 0)), 0)}</strong> days of leave available.
+              </p>
+              <button onClick={() => router.push('/leave/apply')} className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm flex-shrink-0">
+                <FiPlus className="w-4 h-4" /> Apply Leave
+              </button>
             </div>
-          )}
 
-          {/* Leave List */}
-          <LeaveListTable requests={filteredLeaves} loading={loading} holidays={holidays} isAdmin={isAdmin} employee={employee} />
-        </>
+            {/* Leave balance cards — 5 in a row (CL, SL, EL, C-Off, ML, …) */}
+            {leaveBalances.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {leaveBalances.slice().sort((a, b) => {
+                  const order = ['casual leave','sick leave','earned leave','personal leave','loss of pay','comp off','maternity leave','paternity leave'];
+                  return (order.indexOf(a.leaveType?.name?.toLowerCase()||'')+10) - (order.indexOf(b.leaveType?.name?.toLowerCase()||'')+10);
+                }).slice(0, 5).map(lb => {
+                  const blocked = isActiveProbation(employee);
+                  const safeTotal = blocked ? 0 : (lb.total || 0);
+                  const safeUsed = blocked ? 0 : (lb.used || 0);
+                  const computedRemaining = blocked ? 0 : Math.max(0, safeTotal - safeUsed);
+                  const usedPct = safeTotal > 0 ? (safeUsed / safeTotal) * 100 : 0;
+                  const barColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
+                  const iconColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
+                  return (
+                    <div key={lb.id} className="bg-white rounded-xl border border-slate-200 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={`w-7 h-7 rounded-full ${iconColor} flex items-center justify-center text-white text-[10px] font-bold`}>
+                          {(lb.leaveType?.code || lb.leaveType?.name || 'L').slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400">{lb.leaveType.code}</span>
+                      </div>
+                      <h4 className="text-[11px] font-semibold text-slate-700 truncate mb-1" title={lb.leaveType.name}>{lb.leaveType.name.replace(/\b\w/g, c => c.toUpperCase())}</h4>
+                      <div className="flex items-baseline gap-1 mb-1.5">
+                        <span className="text-lg font-bold text-emerald-600">{safeUsed}</span>
+                        <span className="text-xs text-slate-400">/ {safeTotal}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full ${barColor} rounded-full transition-all duration-500`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">{computedRemaining} day{computedRemaining === 1 ? '' : 's'} left</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Leave request tracker — 5-step pipeline for the most-recent pending leave */}
+            <LeaveRequestTracker
+              leaveRequests={leaveRequests}
+              employee={employee ? { id: employee.id, reportingManager: employee.reportingManager || null } : null}
+              onCancelled={fetchData}
+            />
+
+            {/* Leave status table — with Reason column */}
+            <LeaveListTable requests={filteredLeaves} loading={loading} holidays={holidays} isAdmin={isAdmin} employee={employee} />
+          </div>
+
+          {/* ───────── Right column — My leave summary (1/3) ───────── */}
+          <div className="space-y-6">
+            <MyLeaveSummaryPanel
+              leaveRequests={leaveRequests}
+              employee={employee}
+            />
+          </div>
+        </div>
       )}
 
       {/* Team tab (manager) */}
@@ -282,9 +280,20 @@ function StatCard({ label, value, icon, color, sub }: { label: string; value: nu
 }
 
 /* ── Leave List Table ── */
-function LeaveListTable({ requests, loading, holidays, isAdmin, employee }: { requests: LeaveRequest[]; loading: boolean; holidays: any[]; isAdmin: boolean; employee: Employee | null }) {
+function LeaveListTable({ requests, loading, holidays }: { requests: LeaveRequest[]; loading: boolean; holidays: any[]; isAdmin?: boolean; employee?: Employee | null }) {
   const [filterStatus, setFilterStatus] = useState('');
-  const filtered = filterStatus ? requests.filter(r => r.status === filterStatus) : requests;
+  const filtered = (filterStatus ? requests.filter(r => r.status === filterStatus) : requests)
+    .slice().sort((a, b) => new Date(b.createdAt || b.startDate).getTime() - new Date(a.createdAt || a.startDate).getTime());
+
+  // Ticket code helper (LR-YYMM-NNN)
+  const ticketCode = (id: string, createdAt?: string | null) => {
+    const d = createdAt ? new Date(createdAt) : new Date();
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const tail = (id || '').replace(/[^a-z0-9]/gi, '').slice(-3).toUpperCase().padStart(3, '0');
+    return `LR-${yy}${mm}-${tail}`;
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-3">
@@ -299,32 +308,34 @@ function LeaveListTable({ requests, loading, holidays, isAdmin, employee }: { re
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-slate-100">
             <tr>
-              {isAdmin && <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase"><input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300" /></th>}
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Employee</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Leave Type</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">From</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">To</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Request</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Type</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Dates</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Days</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Reason</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading ? Array.from({length:3}).map((_,i) => <tr key={i} className="border-b border-slate-50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td></tr>) :
-            filtered.length === 0 ? <tr><td colSpan={7} className="px-4 py-12 text-center"><FiCalendar className="w-10 h-10 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">No leave requests found</p><p className="text-xs text-slate-400 mt-1">Apply for leave using the "Apply Leave" button</p></td></tr> :
+            {loading ? Array.from({length:3}).map((_,i) => <tr key={i} className="border-b border-slate-50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-32 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td></tr>) :
+            filtered.length === 0 ? <tr><td colSpan={6} className="px-4 py-12 text-center"><FiCalendar className="w-10 h-10 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">No leave requests found</p><p className="text-xs text-slate-400 mt-1">Apply for leave using the "Apply Leave" button</p></td></tr> :
             filtered.map(lr => {
-              const fullName = lr.employee ? `${lr.employee.firstName} ${lr.employee.lastName}`.trim() : 'Unknown';
-              const empId = lr.employee?.employeeId || ''; const dept = lr.employee?.department?.name || '';
-              const subLine = [empId, dept].filter(Boolean).join(' · ') || '—';
               const badge = getStatusBadge(lr.status);
-              const days = (() => { const hs = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0])); const wd = getDaysBetween(lr.startDate, lr.endDate, hs); const d = lr.halfDay ? 0.5 : wd; return `${d} Day${d !== 1 ? 's' : ''}${lr.halfDay ? ' (Half)' : ''}`; })();
+              const hs = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
+              const wd = getDaysBetween(lr.startDate, lr.endDate, hs);
+              const d = lr.halfDay ? 0.5 : wd;
+              const daysStr = `${d} Day${d !== 1 ? 's' : ''}${lr.halfDay ? ' (Half)' : ''}`;
+              const dateStr = lr.startDate === lr.endDate
+                ? formatDate(lr.startDate)
+                : `${formatDate(lr.startDate)} – ${formatDate(lr.endDate)}`;
+              const reason = (lr.reason || '').trim() || '—';
               return (
                 <tr key={lr.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  {isAdmin && <td className="px-4 py-3"><input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300" /></td>}
-                  <td className="px-4 py-3"><div className="flex items-center gap-3"><div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(fullName)} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>{fullName.charAt(0).toUpperCase()}</div><div><p className="text-sm font-medium text-slate-800">{fullName}</p><p className="text-xs text-slate-400">{subLine}</p></div></div></td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-1.5"><span className="text-sm font-medium text-slate-700">{lr.leaveType?.name || 'Leave'}</span>{lr.appliedByHR && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">HR</span>}{lr.halfDay && <span className="text-[10px] text-slate-400">(Half)</span>}</div></td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{formatDate(lr.startDate)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{formatDate(lr.endDate)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700 font-medium">{days}</td>
+                  <td className="px-4 py-3 text-xs font-mono text-slate-600">{ticketCode(lr.id, lr.createdAt || undefined)}</td>
+                  <td className="px-4 py-3"><div className="flex items-center gap-1.5"><span className="text-sm font-medium text-slate-700">{lr.leaveType?.name || 'Leave'}</span>{lr.appliedByHR && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">HR</span>}</div></td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{dateStr}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700 font-medium">{daysStr}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600 max-w-xs truncate" title={reason}>{reason}</td>
                   <td className="px-4 py-3"><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg} ${badge.text}`}>{badge.label}</span></td>
                 </tr>
               );
@@ -332,6 +343,139 @@ function LeaveListTable({ requests, loading, holidays, isAdmin, employee }: { re
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* ── My Leave Summary Panel (right column) ── */
+function MyLeaveSummaryPanel({ leaveRequests, employee }: { leaveRequests: LeaveRequest[]; employee: Employee | null }) {
+  // Stats: Days taken / Pending / LOP days (current year)
+  const year = new Date().getFullYear();
+  let taken = 0, pending = 0, lop = 0;
+  for (const l of leaveRequests) {
+    if (new Date(l.startDate).getFullYear() !== year) continue;
+    const hs = new Set(); // holidays not needed for stats
+    const days = (l.halfDay ? 0.5 : getDaysBetween(l.startDate, l.endDate, hs));
+    if (l.status === 'approved') {
+      taken += days;
+      const code = (l.leaveType?.code || '').toLowerCase();
+      if (code.includes('lop') || code.includes('unpaid')) lop += days;
+    } else if (l.status === 'pending') {
+      pending += days;
+    }
+  }
+
+  // Team on leave this week (Mon-Sun) — derived from the leaveRequests in scope.
+  // For employees (view=self), this shows only their own approved leaves this week.
+  // For managers/admins, this shows team members on leave this week.
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((dow + 6) % 7)); weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6); weekEnd.setHours(23, 59, 59, 999);
+  const teamOnLeaveThisWeek = leaveRequests
+    .filter(l => {
+      if (l.status !== 'approved') return false;
+      const s = new Date(l.startDate); const e = new Date(l.endDate);
+      // overlap with this week?
+      return s <= weekEnd && e >= weekStart;
+    })
+    .map(l => ({
+      id: l.id,
+      name: l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.trim() : 'Unknown',
+      leaveType: l.leaveType?.name || 'Leave',
+      startDate: l.startDate,
+      endDate: l.endDate,
+    }));
+
+  const managerName = employee?.reportingManager
+    ? `${employee.reportingManager.firstName} ${employee.reportingManager.lastName}`.trim()
+    : null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
+      <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-violet-50/60 to-transparent">
+        <h2 className="text-base font-bold text-thb-text-primary">My leave summary</h2>
+        <p className="text-xs text-thb-text-secondary mt-0.5">Year {year}</p>
+      </div>
+
+      {/* Stats */}
+      <div className="p-5 space-y-3">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/60 border border-emerald-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+              <FiCheck className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-thb-text-primary">Days taken</span>
+          </div>
+          <span className="text-lg font-bold text-emerald-700">{taken}</span>
+        </div>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50/60 border border-amber-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white">
+              <FiClock className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-thb-text-primary">Pending</span>
+          </div>
+          <span className="text-lg font-bold text-amber-700">{pending}</span>
+        </div>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-red-50/60 border border-red-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white">
+              <FiAlertCircle className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-thb-text-primary">LOP days</span>
+          </div>
+          <span className="text-lg font-bold text-red-700">{lop}</span>
+        </div>
+      </div>
+
+      {/* Policy details */}
+      <div className="p-5 border-t border-slate-100 space-y-3">
+        <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-1">Policy details</p>
+        <div className="space-y-2.5">
+          <SummaryRow icon={<FiFileText className="w-3.5 h-3.5" />} label="Policy" value={employee?.leavePolicyId ? 'Custom policy' : 'Standard Policy'} />
+          <SummaryRow icon={<FiUsers className="w-3.5 h-3.5" />} label="Approver" value={managerName || 'Not assigned'} />
+          <SummaryRow icon={<FiCalendar className="w-3.5 h-3.5" />} label="Joining date" value={employee?.dateOfJoining ? formatDate(employee.dateOfJoining) : '—'} />
+          <SummaryRow icon={<FiUserCheck className="w-3.5 h-3.5" />} label="Status" value={employee?.employeeStatus ? (employee.employeeStatus.charAt(0).toUpperCase() + employee.employeeStatus.slice(1)) : '—'} />
+        </div>
+      </div>
+
+      {/* Team on leave this week */}
+      <div className="p-5 border-t border-slate-100">
+        <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-2">Team on leave this week</p>
+        {teamOnLeaveThisWeek.length === 0 ? (
+          <p className="text-xs text-thb-text-muted py-2">No team members on leave this week.</p>
+        ) : (
+          <ul className="space-y-2">
+            {teamOnLeaveThisWeek.slice(0, 5).map(t => (
+              <li key={t.id} className="flex items-center gap-2.5">
+                <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0`}>
+                  {t.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-thb-text-primary truncate">{t.name}</p>
+                  <p className="text-[10px] text-thb-text-muted">{t.leaveType} · {formatDate(t.startDate)}{t.startDate !== t.endDate ? ` – ${formatDate(t.endDate)}` : ''}</p>
+                </div>
+              </li>
+            ))}
+            {teamOnLeaveThisWeek.length > 5 && (
+              <li className="text-[10px] text-thb-text-muted text-center pt-1">+{teamOnLeaveThisWeek.length - 5} more</li>
+            )}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Summary Row (right panel) ── */
+function SummaryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex items-center gap-1.5 text-xs text-thb-text-muted">
+        {icon} {label}
+      </span>
+      <span className="text-xs font-semibold text-thb-text-primary text-right">{value}</span>
     </div>
   );
 }
