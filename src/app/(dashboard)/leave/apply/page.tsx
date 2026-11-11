@@ -109,6 +109,7 @@ function ApplyLeaveContent() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [ownLeaves, setOwnLeaves] = useState<any[]>([]);
+  const [teamConflicts, setTeamConflicts] = useState<any[]>([]);
   const [form, setForm] = useState<FormState>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -183,6 +184,23 @@ function ApplyLeaveContent() {
   const isHalfDay = form.session !== 'Full day';
   const selectedType = leaveTypes.find(t => t.id === form.leaveTypeId);
   const selectedBalance = leaveBalances.find(b => b.leaveType.id === form.leaveTypeId);
+
+  /* ── Fetch team leave conflicts when dates change ── */
+  useEffect(() => {
+    if (!form.startDate || !form.endDate) { setTeamConflicts([]); return; }
+    const sq = scopeQuery();
+    const headers = getAuthHeaders();
+    // Fetch all leave requests overlapping the selected date range (excluding own rejected/cancelled)
+    fetch(`/api/leave?limit=100&fromDate=${form.startDate}&toDate=${form.endDate}${sq ? `&${sq}` : ''}`, { headers })
+      .then(r => r.ok ? r.json() : { leaveRequests: [] })
+      .then(d => {
+        const conflicts = (d.leaveRequests || [])
+          .filter((l: any) => l.status === 'approved' || l.status === 'pending')
+          .filter((l: any) => l.employeeId !== employee?.id && l.employee?.userId !== user?.id);
+        setTeamConflicts(conflicts);
+      })
+      .catch(() => setTeamConflicts([]));
+  }, [form.startDate, form.endDate, employee?.id, user?.id, scopeQuery]);
 
   /* ── Calculate days and balance preview ── */
   const calc = (() => {
@@ -534,6 +552,19 @@ function ApplyLeaveContent() {
                 })}
               </ol>
             </div>
+
+            {/* ── Mini calendar showing selected date range ── */}
+            {form.startDate && (
+              <MiniCalendar
+                startDate={form.startDate}
+                endDate={form.endDate}
+                holidays={holidays}
+                teamConflicts={teamConflicts}
+              />
+            )}
+
+            {/* ── Team conflict section ── */}
+            <TeamConflictPanel conflicts={teamConflicts} />
           </div>
         </div>
 
@@ -572,5 +603,165 @@ export default function ApplyLeavePage() {
     <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full" /></div>}>
       <ApplyLeaveContent />
     </Suspense>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   MiniCalendar — shows the current month with selected date range
+   highlighted, holidays in amber, and team-conflict days with a dot.
+   ════════════════════════════════════════════════════════════════════ */
+function MiniCalendar({
+  startDate, endDate, holidays, teamConflicts,
+}: {
+  startDate: string;
+  endDate: string;
+  holidays: Holiday[];
+  teamConflicts: any[];
+}) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  // Show the month of the start date
+  const viewYear = start.getFullYear();
+  const viewMonth = start.getMonth();
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const lastDay = new Date(viewYear, viewMonth + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  // Day-of-week of the first day (0=Sun → we want Mon=0)
+  const firstDow = (firstDay.getDay() + 6) % 7;
+
+  const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
+  // Team conflict dates: any date within a conflict leave's range
+  const conflictDates = new Set<string>();
+  for (const c of teamConflicts) {
+    const cs = new Date(`${c.startDate}T00:00:00`);
+    const ce = new Date(`${c.endDate}T00:00:00`);
+    for (let d = new Date(cs); d <= ce; d.setDate(d.getDate() + 1)) {
+      conflictDates.add(d.toISOString().split('T')[0]);
+    }
+  }
+
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dowNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  const cells: Array<{ day: number | null; dateStr?: string }> = [];
+  for (let i = 0; i < firstDow; i++) cells.push({ day: null });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    cells.push({ day: d, dateStr });
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-xs font-bold text-slate-700 tracking-wide">{monthNames[viewMonth]} {viewYear}</h3>
+        <span className="text-[10px] font-semibold text-slate-400">{holidays.filter(h => h.date.startsWith(`${viewYear}-${String(viewMonth+1).padStart(2,'0')}`)).length} holidays</span>
+      </div>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {dowNames.map((d, i) => (
+          <div key={i} className={`text-center text-[10px] font-bold ${i >= 5 ? 'text-slate-300' : 'text-slate-400'}`}>{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell, i) => {
+          if (cell.day === null) return <div key={i} />;
+          const date = new Date(`${cell.dateStr}T00:00:00`);
+          const iso = cell.dateStr!;
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          const isHoliday = holidaySet.has(iso);
+          const isSelected = date >= start && date <= end;
+          const isToday = iso === new Date().toISOString().split('T')[0];
+          const hasConflict = conflictDates.has(iso);
+          return (
+            <div
+              key={i}
+              className={`relative h-8 rounded-lg flex items-center justify-center text-[11px] font-semibold transition-colors cursor-default ${
+                isSelected
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : isHoliday
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                    : isWeekend
+                      ? 'bg-slate-50 text-slate-300'
+                      : 'text-slate-600 hover:bg-slate-50'
+              } ${isToday && !isSelected ? 'ring-1 ring-emerald-400' : ''}`}
+              title={isHoliday ? holidays.find(h => h.date === iso)?.name : hasConflict ? 'Team member on leave' : ''}
+            >
+              {cell.day}
+              {hasConflict && !isSelected && (
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-500" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Legend */}
+      <div className="flex items-center gap-3 mt-2.5 text-[10px] text-slate-500 flex-wrap">
+        <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500" /> Selected</span>
+        <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-50 border border-amber-200" /> Holiday</span>
+        <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-50" /> Weekend</span>
+        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Team on leave</span>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   TeamConflictPanel — shows team members who have leave overlapping
+   with the selected date range, with their profile pics/avatars.
+   ════════════════════════════════════════════════════════════════════ */
+function TeamConflictPanel({ conflicts }: { conflicts: any[] }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-xs font-bold text-slate-700 tracking-wide">Team conflicts</h3>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${conflicts.length > 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          {conflicts.length} on leave
+        </span>
+      </div>
+      {conflicts.length === 0 ? (
+        <div className="text-center py-4">
+          <div className="w-8 h-8 mx-auto rounded-full bg-emerald-50 flex items-center justify-center mb-1.5">
+            <FiCheck className="w-4 h-4 text-emerald-600" strokeWidth={2.5} />
+          </div>
+          <p className="text-[11.5px] text-slate-500">No team members on leave during these dates.</p>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {conflicts.slice(0, 6).map((c, i) => {
+            const name = c.employee ? `${c.employee.firstName} ${c.employee.lastName}`.trim() : 'Unknown';
+            const empId = c.employee?.employeeId || '';
+            const avatar = c.employee?.avatar;
+            const initials = name.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase();
+            const dateStr = c.startDate === c.endDate
+              ? new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : `${new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+            const isApproved = c.status === 'approved';
+            return (
+              <li key={c.id || i} className="flex items-center gap-2.5 py-1">
+                {avatar ? (
+                  <img src={avatar} alt={name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+                    {initials}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-semibold text-slate-700 truncate">{name}</p>
+                  <p className="text-[10.5px] text-slate-400">{dateStr} · {c.leaveType?.name || 'Leave'}</p>
+                </div>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold flex-shrink-0 ${
+                  isApproved ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                }`}>
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {isApproved ? 'Approved' : 'Pending'}
+                </span>
+              </li>
+            );
+          })}
+          {conflicts.length > 6 && (
+            <li className="text-[10px] text-slate-400 text-center pt-1">+{conflicts.length - 6} more</li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }

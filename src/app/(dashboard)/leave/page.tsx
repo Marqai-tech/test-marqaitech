@@ -337,7 +337,7 @@ function LeavePageContent() {
       {activeTab === 'my' && (
         <EmployeeView
           loading={loading}
-          leaveRequests={leaveRequests}
+          leaveRequests={isAdmin ? leaveRequests.filter(l => l.employeeId === employee?.id || l.employee?.userId === user?.id) : leaveRequests}
           cardBalances={cardBalances}
           leaveTypes={leaveTypes}
           employee={employee}

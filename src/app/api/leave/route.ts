@@ -201,7 +201,12 @@ export async function GET(request: Request) {
       // Admin with a specific company selected via CompanySwitcher
       where.employee = { companyId: scope.companyId };
     }
-    if (effectiveScope === 'all' && !scope.companyId && !where.employee && !where.OR && !where.employeeId) { try { const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } }); if (fc) where.employee = { companyId: fc.id }; } catch {} }
+    // ─── tenant_admin / admin with scope='all' and no companyId ───
+    // Previously this block fell back to filtering by the FIRST active company,
+    // which hid leave requests from all other companies in the tenant.
+    // For tenant-level admins, the tenant DB isolation already guarantees only
+    // the current tenant's data is visible — so we simply don't add any company
+    // filter and let the query return all leaves in the tenant.
 
     // Apply additional filters on top of company scope
     if (status) where.status = status;
