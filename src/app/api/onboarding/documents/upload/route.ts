@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Document uploaded. Status: Submitted.', documentId, status: 'submitted' }, { headers: CORS });
   } catch (error) {
     console.error('Document upload error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Internal server error', debug: errMsg }, { status: 500, headers: CORS });
   }
 }
