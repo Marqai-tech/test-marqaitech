@@ -144,7 +144,6 @@ export default function LeaveRequestTracker({
   const progressSteps: ProgressStep[] = useMemo(() => {
     if (!inProgressLeave) return [];
     const submittedAt = inProgressLeave.createdAt || inProgressLeave.startDate;
-    const ruleCheckAt = submittedAt;
     const firstApprovedStep = approvalSteps.find(s => s.action === 'approved');
     const currentStep = approvalSteps.find(s => s.action === 'pending' || (!s.actionAt && s.action !== 'approved' && s.action !== 'rejected'));
 
@@ -163,14 +162,14 @@ export default function LeaveRequestTracker({
     return [
       {
         key: 'submitted',
-        title: 'Submitted',
+        title: 'Applied',
         subtitle: formatDateCompact(submittedAt),
         state: 'done' as StepState,
       },
       {
         key: 'rule_check',
-        title: 'Rule check passed',
-        subtitle: ruleCheckAt ? formatDateCompact(ruleCheckAt) : '—',
+        title: 'Rule checks passed',
+        subtitle: '11 / 11',
         state: 'done' as StepState,
       },
       {
@@ -181,14 +180,14 @@ export default function LeaveRequestTracker({
       },
       {
         key: 'balance_deduction',
-        title: 'Balance deduction',
-        subtitle: isApproved ? 'Completed' : 'After approval',
+        title: 'Balance deducted',
+        subtitle: isApproved ? 'Completed' : 'On approval',
         state: (isApproved ? 'done' : 'pending') as StepState,
       },
       {
         key: 'sync_attendance_payroll',
-        title: 'Send to attendance & payroll',
-        subtitle: isApproved ? 'Auto-synced' : 'Automatic, after approval',
+        title: 'Sent to Attendance & Payroll',
+        subtitle: isApproved ? 'Completed' : 'Auto',
         state: (isApproved ? 'done' : 'pending') as StepState,
       },
     ];
@@ -295,21 +294,21 @@ export default function LeaveRequestTracker({
                 ? <FiLoader className="w-5 h-5 text-blue-600 animate-spin" />
                 : step.state === 'failed'
                   ? <FiXCircle className="w-5 h-5 text-red-500" />
-                  : <FiClock className="w-5 h-5 text-slate-300" />;
+                  : <span className="text-xs font-bold text-slate-400">{idx + 1}</span>;
             return (
               <React.Fragment key={step.key}>
                 <div className="flex flex-col items-center text-center flex-shrink-0" style={{ width: '120px' }}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white border-2 ${
-                    step.state === 'done' ? 'border-emerald-500 bg-emerald-50'
-                    : step.state === 'current' ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-100'
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                    step.state === 'done' ? 'border-emerald-500 bg-emerald-500 text-white'
+                    : step.state === 'current' ? 'border-amber-500 bg-amber-500 text-white ring-4 ring-amber-100'
                     : step.state === 'failed' ? 'border-red-500 bg-red-50'
-                    : 'border-slate-200 bg-slate-50'
+                    : 'border-slate-200 bg-white text-slate-400'
                   }`}>
                     {icon}
                   </div>
                   <p className={`mt-2 text-xs font-semibold ${
                     step.state === 'done' ? 'text-emerald-700'
-                    : step.state === 'current' ? 'text-blue-700'
+                    : step.state === 'current' ? 'text-amber-700'
                     : step.state === 'failed' ? 'text-red-600'
                     : 'text-slate-400'
                   }`}>
@@ -318,9 +317,9 @@ export default function LeaveRequestTracker({
                   <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{step.subtitle}</p>
                 </div>
                 {!isLast && (
-                  <div className="flex-1 h-0.5 mx-1 -mt-7 bg-slate-200 relative min-w-[20px]">
+                  <div className="flex-1 h-1 mx-1 -mt-7 bg-slate-200 relative min-w-[20px] rounded-full">
                     <div
-                      className={`absolute inset-y-0 left-0 ${
+                      className={`absolute inset-y-0 left-0 rounded-full ${
                         step.state === 'done' ? 'bg-emerald-500 w-full' : 'bg-slate-200 w-0'
                       } transition-all duration-500`}
                     />

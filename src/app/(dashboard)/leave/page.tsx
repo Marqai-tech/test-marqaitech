@@ -203,25 +203,65 @@ function LeavePageContent() {
                   const safeUsed = blocked ? 0 : (lb.used || 0);
                   const computedRemaining = blocked ? 0 : Math.max(0, safeTotal - safeUsed);
                   const usedPct = safeTotal > 0 ? (safeUsed / safeTotal) * 100 : 0;
-                  const barColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
-                  const iconColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
+
+                  // Leave-type-specific color theme (matches the screenshot's per-type coloring)
+                  const code = (lb.leaveType?.code || '').toLowerCase();
+                  const name = (lb.leaveType?.name || '').toLowerCase();
+                  let theme: { border: string; badge: string; bar: string; dot: string; text: string };
+                  if (code.includes('cl') || name.includes('casual')) {
+                    theme = { border: 'border-t-emerald-500', badge: 'bg-emerald-500', bar: 'bg-emerald-500', dot: 'bg-emerald-500', text: 'text-emerald-700' };
+                  } else if (code.includes('sl') || name.includes('sick')) {
+                    theme = { border: 'border-t-blue-500', badge: 'bg-blue-500', bar: 'bg-blue-500', dot: 'bg-blue-500', text: 'text-blue-700' };
+                  } else if (code.includes('el') || name.includes('earned')) {
+                    theme = { border: 'border-t-amber-500', badge: 'bg-amber-500', bar: 'bg-amber-500', dot: 'bg-amber-500', text: 'text-amber-700' };
+                  } else if (code.includes('c-off') || code.includes('comp') || name.includes('compensatory')) {
+                    theme = { border: 'border-t-teal-500', badge: 'bg-teal-500', bar: 'bg-teal-500', dot: 'bg-teal-500', text: 'text-teal-700' };
+                  } else if (code.includes('ml') || name.includes('maternity')) {
+                    theme = { border: 'border-t-pink-500', badge: 'bg-pink-500', bar: 'bg-pink-500', dot: 'bg-pink-500', text: 'text-pink-700' };
+                  } else if (code.includes('pl') || name.includes('paternity')) {
+                    theme = { border: 'border-t-indigo-500', badge: 'bg-indigo-500', bar: 'bg-indigo-500', dot: 'bg-indigo-500', text: 'text-indigo-700' };
+                  } else if (code.includes('lop') || name.includes('loss of pay')) {
+                    theme = { border: 'border-t-red-500', badge: 'bg-red-500', bar: 'bg-red-500', dot: 'bg-red-500', text: 'text-red-700' };
+                  } else {
+                    theme = { border: 'border-t-slate-500', badge: 'bg-slate-500', bar: 'bg-slate-500', dot: 'bg-slate-500', text: 'text-slate-700' };
+                  }
+
+                  // Pending count for this leave type (current-year pending leaves)
+                  const pendingForType = leaveRequests
+                    .filter(l => l.status === 'pending' && l.leaveTypeId === lb.leaveType.id && new Date(l.startDate).getFullYear() === new Date().getFullYear())
+                    .reduce((s, l) => s + (l.halfDay ? 0.5 : getDaysBetween(l.startDate, l.endDate, new Set())), 0);
+
+                  // Policy footnote per leave type
+                  const footnote: string = (() => {
+                    if (code.includes('cl') || name.includes('casual')) return safeTotal > 0 ? `${(safeTotal / 12).toFixed(3)} credited monthly` : 'Casual leave';
+                    if (code.includes('sl') || name.includes('sick')) return 'Medical cert. if > 3 days';
+                    if (code.includes('el') || name.includes('earned')) return safeTotal > 0 ? `${(safeTotal / 12).toFixed(2)} per month` : 'Earned leave';
+                    if (code.includes('c-off') || code.includes('comp') || name.includes('compensatory')) return 'Expires 31-Dec-' + new Date().getFullYear();
+                    if (code.includes('ml') || name.includes('maternity')) return '26 weeks · eligible';
+                    if (code.includes('pl') || name.includes('paternity')) return 'Eligible';
+                    return '';
+                  })();
+
                   return (
-                    <div key={lb.id} className="bg-white rounded-xl border border-slate-200 p-3">
+                    <div key={lb.id} className={`bg-white rounded-xl border border-slate-200 border-t-4 ${theme.border} p-3`}>
                       <div className="flex items-center justify-between mb-2">
-                        <div className={`w-7 h-7 rounded-full ${iconColor} flex items-center justify-center text-white text-[10px] font-bold`}>
+                        <div className={`w-7 h-7 rounded-full ${theme.badge} flex items-center justify-center text-white text-[10px] font-bold`}>
                           {(lb.leaveType?.code || lb.leaveType?.name || 'L').slice(0, 2).toUpperCase()}
                         </div>
-                        <span className="text-[10px] font-mono text-slate-400">{lb.leaveType.code}</span>
                       </div>
                       <h4 className="text-[11px] font-semibold text-slate-700 truncate mb-1" title={lb.leaveType.name}>{lb.leaveType.name.replace(/\b\w/g, c => c.toUpperCase())}</h4>
                       <div className="flex items-baseline gap-1 mb-1.5">
-                        <span className="text-lg font-bold text-emerald-600">{safeUsed}</span>
-                        <span className="text-xs text-slate-400">/ {safeTotal}</span>
+                        <span className={`text-lg font-bold ${theme.text}`}>{safeUsed}</span>
+                        <span className="text-xs text-slate-400">/ {safeTotal} days</span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full ${barColor} rounded-full transition-all duration-500`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
+                        <div className={`h-full ${theme.bar} rounded-full transition-all duration-500`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-1">{computedRemaining} day{computedRemaining === 1 ? '' : 's'} left</p>
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500">
+                        <span className="flex items-center gap-0.5"><span className={`inline-block w-1.5 h-1.5 rounded-full ${theme.dot}`} /> Used {safeUsed}</span>
+                        <span className="flex items-center gap-0.5"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" /> Pending {pendingForType}</span>
+                      </div>
+                      {footnote && <p className="text-[9px] text-slate-400 mt-1 truncate" title={footnote}>{footnote}</p>}
                     </div>
                   );
                 })}
@@ -281,8 +321,10 @@ function StatCard({ label, value, icon, color, sub }: { label: string; value: nu
 
 /* ── Leave List Table ── */
 function LeaveListTable({ requests, loading, holidays }: { requests: LeaveRequest[]; loading: boolean; holidays: any[]; isAdmin?: boolean; employee?: Employee | null }) {
-  const [filterStatus, setFilterStatus] = useState('');
-  const filtered = (filterStatus ? requests.filter(r => r.status === filterStatus) : requests)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'cancelled'>('all');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const filtered = (filterStatus === 'all' ? requests : requests.filter(r => r.status === filterStatus))
     .slice().sort((a, b) => new Date(b.createdAt || b.startDate).getTime() - new Date(a.createdAt || a.startDate).getTime());
 
   // Ticket code helper (LR-YYMM-NNN)
@@ -294,14 +336,98 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
     return `LR-${yy}${mm}-${tail}`;
   };
 
+  // "Applied X Nov" subtext
+  const appliedSubtext = (createdAt?: string | null) => {
+    if (!createdAt) return '';
+    const d = new Date(createdAt);
+    return `Applied ${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })}`;
+  };
+
+  // Leave-type badge color (matches the balance cards)
+  const leaveTypeBadgeClass = (code?: string, name?: string) => {
+    const c = (code || '').toLowerCase();
+    const n = (name || '').toLowerCase();
+    if (c.includes('cl') || n.includes('casual')) return 'bg-emerald-100 text-emerald-700';
+    if (c.includes('sl') || n.includes('sick')) return 'bg-blue-100 text-blue-700';
+    if (c.includes('el') || n.includes('earned')) return 'bg-amber-100 text-amber-700';
+    if (c.includes('c-off') || c.includes('comp') || n.includes('compensatory')) return 'bg-teal-100 text-teal-700';
+    if (c.includes('ml') || n.includes('maternity')) return 'bg-pink-100 text-pink-700';
+    if (c.includes('pl') || n.includes('paternity')) return 'bg-indigo-100 text-indigo-700';
+    if (c.includes('lop') || n.includes('loss of pay')) return 'bg-red-100 text-red-700';
+    return 'bg-slate-100 text-slate-700';
+  };
+
+  // Cancel a pending leave
+  const handleCancel = async (id: string) => {
+    if (!confirm('Cancel this leave request? This cannot be undone.')) return;
+    try {
+      setCancellingId(id);
+      const res = await fetch(`/api/leave/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to cancel');
+      }
+      toast.success('Leave request cancelled');
+      // Force a reload of the page data via a soft reload — the parent fetchData will fire on next render
+      window.location.reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to cancel leave');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  // Status counts for filter pills
+  const counts = {
+    all: requests.length,
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    rejected: requests.filter(r => r.status === 'rejected').length,
+    cancelled: requests.filter(r => r.status === 'cancelled').length,
+  };
+
+  const statusPills: Array<{ key: typeof filterStatus; label: string }> = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'cancelled', label: 'Cancelled' },
+  ];
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-3">
-        <h5 className="text-sm font-semibold text-slate-800">Leave Status</h5>
-        <div className="flex items-center gap-2">
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600">
-            <option value="">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
-          </select>
+      <div className="p-4 border-b border-slate-200">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h5 className="text-sm font-semibold text-slate-800">Leave status</h5>
+            <p className="text-[10px] text-slate-400 mt-0.5">Your requests this year</p>
+          </div>
+        </div>
+        {/* Filter pills */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {statusPills.map(p => {
+            const active = filterStatus === p.key;
+            return (
+              <button
+                key={p.key}
+                onClick={() => setFilterStatus(p.key)}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                  active
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {p.label}
+                <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold ${
+                  active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>{counts[p.key]}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -314,11 +440,12 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Days</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Reason</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading ? Array.from({length:3}).map((_,i) => <tr key={i} className="border-b border-slate-50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-32 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td></tr>) :
-            filtered.length === 0 ? <tr><td colSpan={6} className="px-4 py-12 text-center"><FiCalendar className="w-10 h-10 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">No leave requests found</p><p className="text-xs text-slate-400 mt-1">Apply for leave using the "Apply Leave" button</p></td></tr> :
+            {loading ? Array.from({length:3}).map((_,i) => <tr key={i} className="border-b border-slate-50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-32 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td><td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td></tr>) :
+            filtered.length === 0 ? <tr><td colSpan={7} className="px-4 py-12 text-center"><FiCalendar className="w-10 h-10 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">No leave requests found</p><p className="text-xs text-slate-400 mt-1">Apply for leave using the "Apply Leave" button</p></td></tr> :
             filtered.map(lr => {
               const badge = getStatusBadge(lr.status);
               const hs = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
@@ -329,14 +456,55 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
                 ? formatDate(lr.startDate)
                 : `${formatDate(lr.startDate)} – ${formatDate(lr.endDate)}`;
               const reason = (lr.reason || '').trim() || '—';
+              const sub = appliedSubtext(lr.createdAt || undefined);
+              const code = lr.leaveType?.code || '';
+              const isBackDated = new Date(lr.startDate) < new Date(Date.now() - 30 * 86_400_000);
+              const isPending = lr.status === 'pending';
               return (
                 <tr key={lr.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  <td className="px-4 py-3 text-xs font-mono text-slate-600">{ticketCode(lr.id, lr.createdAt || undefined)}</td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-1.5"><span className="text-sm font-medium text-slate-700">{lr.leaveType?.name || 'Leave'}</span>{lr.appliedByHR && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">HR</span>}</div></td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{dateStr}</td>
+                  <td className="px-4 py-3">
+                    <p className="text-xs font-mono font-semibold text-slate-700">{ticketCode(lr.id, lr.createdAt || undefined)}</p>
+                    {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${leaveTypeBadgeClass(code, lr.leaveType?.name)}`}>
+                        {(code || lr.leaveType?.name || 'L').slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="text-sm font-medium text-slate-700">{lr.leaveType?.name || 'Leave'}</span>
+                      {lr.appliedByHR && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">HR</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-600">
+                    {dateStr}
+                    {isBackDated && <span className="ml-1 inline-block text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">Back-dated</span>}
+                  </td>
                   <td className="px-4 py-3 text-sm text-slate-700 font-medium">{daysStr}</td>
                   <td className="px-4 py-3 text-sm text-slate-600 max-w-xs truncate" title={reason}>{reason}</td>
-                  <td className="px-4 py-3"><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg} ${badge.text}`}>{badge.label}</span></td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg} ${badge.text}`}>
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                        lr.status === 'approved' ? 'bg-emerald-500'
+                        : lr.status === 'pending' ? 'bg-amber-500'
+                        : lr.status === 'rejected' ? 'bg-red-500'
+                        : 'bg-slate-400'
+                      }`} />
+                      {badge.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isPending ? (
+                      <button
+                        onClick={() => handleCancel(lr.id)}
+                        disabled={cancellingId === lr.id}
+                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-50"
+                      >
+                        {cancellingId === lr.id ? 'Cancelling…' : 'Cancel'}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -366,8 +534,6 @@ function MyLeaveSummaryPanel({ leaveRequests, employee }: { leaveRequests: Leave
   }
 
   // Team on leave this week (Mon-Sun) — derived from the leaveRequests in scope.
-  // For employees (view=self), this shows only their own approved leaves this week.
-  // For managers/admins, this shows team members on leave this week.
   const now = new Date();
   const dow = now.getDay(); // 0=Sun
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((dow + 6) % 7)); weekStart.setHours(0, 0, 0, 0);
@@ -376,13 +542,13 @@ function MyLeaveSummaryPanel({ leaveRequests, employee }: { leaveRequests: Leave
     .filter(l => {
       if (l.status !== 'approved') return false;
       const s = new Date(l.startDate); const e = new Date(l.endDate);
-      // overlap with this week?
       return s <= weekEnd && e >= weekStart;
     })
     .map(l => ({
       id: l.id,
       name: l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.trim() : 'Unknown',
-      leaveType: l.leaveType?.name || 'Leave',
+      leaveTypeName: l.leaveType?.name || 'Leave',
+      leaveTypeCode: l.leaveType?.code || '',
       startDate: l.startDate,
       endDate: l.endDate,
     }));
@@ -391,81 +557,104 @@ function MyLeaveSummaryPanel({ leaveRequests, employee }: { leaveRequests: Leave
     ? `${employee.reportingManager.firstName} ${employee.reportingManager.lastName}`.trim()
     : null;
 
+  // Month-range subtitle (Jan – Nov 2026 style — shows Jan to current month)
+  const monthShort = (d: Date) => d.toLocaleDateString('en-US', { month: 'short' });
+  const subtitleRange = `${monthShort(new Date(year, 0, 1))} – ${monthShort(now)} ${year}`;
+
+  // Week-range subtitle (9 – 15 Nov style)
+  const weekRangeSubtitle = `${weekStart.getDate()} – ${weekEnd.getDate()} ${monthShort(weekEnd)}`;
+
+  // Leave-type color for the badge in team list
+  const leaveTypeBadgeClass = (code: string) => {
+    const c = (code || '').toLowerCase();
+    if (c.includes('cl')) return 'bg-emerald-100 text-emerald-700';
+    if (c.includes('sl')) return 'bg-blue-100 text-blue-700';
+    if (c.includes('el')) return 'bg-amber-100 text-amber-700';
+    if (c.includes('c-off') || c.includes('comp')) return 'bg-teal-100 text-teal-700';
+    if (c.includes('ml')) return 'bg-pink-100 text-pink-700';
+    if (c.includes('pl')) return 'bg-indigo-100 text-indigo-700';
+    if (c.includes('lop')) return 'bg-red-100 text-red-700';
+    return 'bg-slate-100 text-slate-700';
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
-      <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-violet-50/60 to-transparent">
-        <h2 className="text-base font-bold text-thb-text-primary">My leave summary</h2>
-        <p className="text-xs text-thb-text-secondary mt-0.5">Year {year}</p>
-      </div>
+    <div className="space-y-6">
+      {/* ── My leave summary card ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h2 className="text-base font-bold text-thb-text-primary">My leave summary</h2>
+          <p className="text-xs text-thb-text-secondary mt-0.5">{subtitleRange}</p>
+        </div>
 
-      {/* Stats */}
-      <div className="p-5 space-y-3">
-        <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/60 border border-emerald-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">
-              <FiCheck className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-medium text-thb-text-primary">Days taken</span>
+        {/* Stats — 3 light-gray stat boxes in a row */}
+        <div className="p-5 grid grid-cols-3 gap-2">
+          <div className="text-center p-3 rounded-lg bg-slate-50 border border-slate-100">
+            <p className="text-2xl font-bold text-thb-text-primary">{taken}</p>
+            <p className="text-[10px] text-thb-text-muted uppercase tracking-wider mt-0.5">Days taken</p>
           </div>
-          <span className="text-lg font-bold text-emerald-700">{taken}</span>
-        </div>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50/60 border border-amber-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white">
-              <FiClock className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-medium text-thb-text-primary">Pending</span>
+          <div className="text-center p-3 rounded-lg bg-slate-50 border border-slate-100">
+            <p className="text-2xl font-bold text-amber-600">{pending}</p>
+            <p className="text-[10px] text-thb-text-muted uppercase tracking-wider mt-0.5">Pending</p>
           </div>
-          <span className="text-lg font-bold text-amber-700">{pending}</span>
-        </div>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-red-50/60 border border-red-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white">
-              <FiAlertCircle className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-medium text-thb-text-primary">LOP days</span>
+          <div className="text-center p-3 rounded-lg bg-slate-50 border border-slate-100">
+            <p className="text-2xl font-bold text-red-600">{lop}</p>
+            <p className="text-[10px] text-thb-text-muted uppercase tracking-wider mt-0.5">LOP days</p>
           </div>
-          <span className="text-lg font-bold text-red-700">{lop}</span>
         </div>
-      </div>
 
-      {/* Policy details */}
-      <div className="p-5 border-t border-slate-100 space-y-3">
-        <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-1">Policy details</p>
-        <div className="space-y-2.5">
-          <SummaryRow icon={<FiFileText className="w-3.5 h-3.5" />} label="Policy" value={employee?.leavePolicyId ? 'Custom policy' : 'Standard Policy'} />
+        {/* Policy details */}
+        <div className="px-5 pb-5 space-y-2.5">
+          <SummaryRow icon={<FiFileText className="w-3.5 h-3.5" />} label="Policy" value={employee?.leavePolicyId ? 'Custom policy' : 'Staff Policy ' + year} />
+          <SummaryRow icon={<FiUserCheck className="w-3.5 h-3.5" />} label="Category" value={employee?.employeeType ? formatCategory(employee.employeeType) : '—'} />
           <SummaryRow icon={<FiUsers className="w-3.5 h-3.5" />} label="Approver" value={managerName || 'Not assigned'} />
-          <SummaryRow icon={<FiCalendar className="w-3.5 h-3.5" />} label="Joining date" value={employee?.dateOfJoining ? formatDate(employee.dateOfJoining) : '—'} />
-          <SummaryRow icon={<FiUserCheck className="w-3.5 h-3.5" />} label="Status" value={employee?.employeeStatus ? (employee.employeeStatus.charAt(0).toUpperCase() + employee.employeeStatus.slice(1)) : '—'} />
+          <SummaryRow icon={<FiCalendar className="w-3.5 h-3.5" />} label="DOJ · DOC" value={employee?.dateOfJoining ? formatDate(employee.dateOfJoining) : '—'} />
         </div>
       </div>
 
-      {/* Team on leave this week */}
-      <div className="p-5 border-t border-slate-100">
-        <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-2">Team on leave this week</p>
-        {teamOnLeaveThisWeek.length === 0 ? (
-          <p className="text-xs text-thb-text-muted py-2">No team members on leave this week.</p>
-        ) : (
-          <ul className="space-y-2">
-            {teamOnLeaveThisWeek.slice(0, 5).map(t => (
-              <li key={t.id} className="flex items-center gap-2.5">
-                <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0`}>
-                  {t.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-thb-text-primary truncate">{t.name}</p>
-                  <p className="text-[10px] text-thb-text-muted">{t.leaveType} · {formatDate(t.startDate)}{t.startDate !== t.endDate ? ` – ${formatDate(t.endDate)}` : ''}</p>
-                </div>
-              </li>
-            ))}
-            {teamOnLeaveThisWeek.length > 5 && (
-              <li className="text-[10px] text-thb-text-muted text-center pt-1">+{teamOnLeaveThisWeek.length - 5} more</li>
-            )}
-          </ul>
-        )}
+      {/* ── Team out this week card ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h2 className="text-base font-bold text-thb-text-primary">Team out this week</h2>
+          <p className="text-xs text-thb-text-secondary mt-0.5">{weekRangeSubtitle}</p>
+        </div>
+        <div className="p-5">
+          {teamOnLeaveThisWeek.length === 0 ? (
+            <p className="text-xs text-thb-text-muted py-2 text-center">No team members on leave this week.</p>
+          ) : (
+            <ul className="space-y-3">
+              {teamOnLeaveThisWeek.slice(0, 5).map(t => (
+                <li key={t.id} className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0`}>
+                    {t.name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-thb-text-primary truncate">{t.name}</p>
+                    <p className="text-[10px] text-thb-text-muted">
+                      {new Date(t.startDate).getDate()}{t.startDate !== t.endDate ? `–${new Date(t.endDate).getDate()}` : ''} {new Date(t.endDate).toLocaleDateString('en-US', { month: 'short' })}
+                    </p>
+                  </div>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${leaveTypeBadgeClass(t.leaveTypeCode)}`}>
+                    {(t.leaveTypeCode || t.leaveTypeName).slice(0, 4).toUpperCase()}
+                  </span>
+                </li>
+              ))}
+              {teamOnLeaveThisWeek.length > 5 && (
+                <li className="text-[10px] text-thb-text-muted text-center pt-1">+{teamOnLeaveThisWeek.length - 5} more</li>
+              )}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
+}
+
+/* helper: format employment type as category */
+function formatCategory(employmentType: string) {
+  return employmentType
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join('-');
 }
 
 /* ── Summary Row (right panel) ── */
