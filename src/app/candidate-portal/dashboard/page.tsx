@@ -7,7 +7,7 @@ import {
   FiBriefcase, FiCheckCircle, FiClock, FiXCircle, FiAward, FiTrendingUp,
   FiCalendar, FiTarget, FiZap, FiBookOpen, FiAlertCircle, FiActivity,
   FiArrowRight, FiStar, FiMapPin, FiRefreshCw, FiLogOut, FiBarChart2,
-  FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch, FiGlobe,
+  FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch, FiGlobe, FiShield,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -411,6 +411,13 @@ export default function CandidateDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/candidate-portal/onboarding"
+              className="hidden md:inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
+              title="Onboarding & Document Upload"
+            >
+              <FiShield className="w-3.5 h-3.5" /> Onboarding
+            </Link>
             <Link
               href="/candidate-portal/resume-builder"
               className="hidden md:inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors"

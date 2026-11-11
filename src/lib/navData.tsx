@@ -453,6 +453,11 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Onboarding Dashboard', href: '/onboarding', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
 
+      // ── Candidate Onboarding ──
+      { label: 'Candidate Onboarding', href: '#candidate-onboarding-divider', icon: <FiUserPlus className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'Onboarding Review', href: '/onboarding-review', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'BGV Dashboard', href: '/bgv-dashboard', icon: <FiShield className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
       // ── Tasks ──
       { label: 'Tasks', href: '#tasks-divider', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
       { label: 'Onboarding Tasks', href: '/onboarding/tasks', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
