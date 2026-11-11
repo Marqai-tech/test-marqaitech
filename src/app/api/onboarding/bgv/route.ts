@@ -30,59 +30,140 @@ export async function PATCH(req: NextRequest) {
     if (bgvStatus === 'approved') {
       if (pb.onboardingStatus === 'active_employee') return NextResponse.json({ error: 'Already activated' }, { status: 409, headers: CORS });
 
-      const existingEmp = await db.employee.findFirst({ where: { email: pb.companyEmail || pb.candidateEmail }, select: { id: true } }).catch(() => null);
-      if (existingEmp) return NextResponse.json({ error: 'Employee with this email already exists' }, { status: 409, headers: CORS });
-
+      // ─── Generate sequential MarqNNN employee code ───
       let empCode = 'Marq001';
       try {
-        const existingCodes = await db.$queryRawUnsafe(`SELECT "employeeId" FROM "Employee" WHERE "employeeId" ILIKE 'Marq%' ORDER BY "employeeId" DESC LIMIT 1`) as any[];
+        // Only consider Marq-prefixed codes (ignore PROV- placeholders). Sort by numeric suffix DESC.
+        const existingCodes = await db.$queryRawUnsafe(
+          `SELECT "employeeId" FROM "Employee"
+           WHERE "employeeId" ~ '^Marq[0-9]+$'
+           ORDER BY CAST(SUBSTRING("employeeId" FROM 'Marq([0-9]+)') AS INTEGER) DESC
+           LIMIT 1`
+        ) as any[];
         if (existingCodes.length > 0 && existingCodes[0]?.employeeId) {
           const match = existingCodes[0].employeeId.match(/^Marq(\d+)$/i);
           if (match) { const next = parseInt(match[1],10)+1; empCode = `Marq${next<1000?String(next).padStart(3,'0'):String(next)}`; }
         }
-      } catch {}
+      } catch (e:any) { console.warn('[BGV approve] Could not query latest Marq code:', e.message); }
 
       let deptId = pb.departmentId;
-      if (!deptId) { const d = await db.department.findFirst({ select: { id: true } }).catch(() => null); deptId = d?.id || null; }
+      if (!deptId) { const d = await db.$queryRawUnsafe(`SELECT id FROM "Department" ORDER BY "createdAt" ASC LIMIT 1`).catch(() => []) as any[]; deptId = d[0]?.id || null; }
       let desigId = pb.designationId;
-      if (!desigId) { const d = await db.designation.findFirst({ select: { id: true } }).catch(() => null); desigId = d?.id || null; }
+      if (!desigId) { const d = await db.$queryRawUnsafe(`SELECT id FROM "Designation" ORDER BY "createdAt" ASC LIMIT 1`).catch(() => []) as any[]; desigId = d[0]?.id || null; }
 
       const firstName = (pb.candidateName||'New').split(' ')[0];
       const lastName = (pb.candidateName||'Employee').split(' ').slice(1).join(' ') || 'Employee';
-      const empData: Record<string, unknown> = { employeeId: empCode, firstName, lastName, email: pb.companyEmail || pb.candidateEmail, phone: pb.candidatePhone || null, dateOfJoining: pb.joiningDate || new Date(), employeeStatus: 'active', status: 'active' };
-      if (deptId) empData.departmentId = deptId;
-      if (desigId) empData.designationId = desigId;
-      if (pb.reportingManagerId) empData.reportingManagerId = pb.reportingManagerId;
+      const userEmail = (pb.companyEmail || pb.candidateEmail || '').toLowerCase();
 
-      const employee = await db.employee.create({ data: empData as any }).catch((e:any) => { throw new Error(`Employee create failed: ${e.message}`); });
-
-      let user = await db.user.findUnique({ where: { email: pb.companyEmail || pb.candidateEmail }, select: { id: true, role: true, status: true } }).catch(() => null);
+      // ─── Ensure User row exists (created at convert-to-draft time) ───
+      let user = await db.user.findUnique({ where: { email: userEmail }, select: { id: true, role: true, status: true } }).catch(() => null);
       if (!user) {
         const hashed = await hashPassword('Welcome@123');
-        user = await db.user.create({ data: { email: pb.companyEmail || pb.candidateEmail, password: hashed, name: pb.candidateName, role: 'employee', status: 'active', tenantId: auth.tenantId || null } });
+        user = await db.user.create({ data: { email: userEmail, password: hashed, name: pb.candidateName, role: 'employee', status: 'active', tenantId: auth.tenantId || null } }).catch((e:any) => { throw new Error(`User create failed: ${e.message}`); }) as any;
       } else {
-        if (user.role !== 'employee' || !user.role) { await db.user.update({ where: { id: user.id }, data: { role: 'employee', status: 'active' } }); }
+        if (user.role !== 'employee' || user.status !== 'active') {
+          await db.user.update({ where: { id: user.id }, data: { role: 'employee', status: 'active' } }).catch(() => null);
+        }
       }
-      if (user) { await db.employee.update({ where: { id: employee.id }, data: { userId: user.id } }).catch(() => null); }
 
-      await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "onboardingStatus"='active_employee',"status"='joined',"employeeId"=$1,"activatedAt"=NOW(),"backgroundCheckStatus"='cleared',"updatedAt"=NOW() WHERE "id"=$2`, employee.id, preboardingCandidateId).catch(() => 0);
+      // ─── Determine if there's already a provisional Employee to upgrade ───
+      const existingEmpRows = await db.$queryRawUnsafe(
+        `SELECT id, "employeeId" FROM "Employee" WHERE "id" = $1 OR "email" = $2 LIMIT 1`,
+        pb.employeeId || '__none__', userEmail,
+      ).catch(() => []) as any[];
 
+      let employeeId: string;
+      let isUpgrade = false;
+
+      if (existingEmpRows.length > 0) {
+        // UPDATE existing provisional Employee — assign Marq code + activate
+        const existingEmp = existingEmpRows[0];
+        employeeId = existingEmp.id;
+        isUpgrade = true;
+        await db.$executeRawUnsafe(
+          `UPDATE "Employee" SET "employeeId" = $1, "status" = 'active', "employeeStatus" = 'probation',
+                                  "userId" = COALESCE("userId", $2),
+                                  "departmentId" = $3, "designationId" = $4,
+                                  "reportingManagerId" = $5,
+                                  "dateOfJoining" = $6,
+                                  "firstName" = $7, "lastName" = $8,
+                                  "phone" = COALESCE("phone", $9),
+                                  "credentialsStatus" = 'active',
+                                  "updatedAt" = NOW()
+           WHERE "id" = $10`,
+          empCode, user.id, deptId, desigId, pb.reportingManagerId||null,
+          pb.joiningDate ? new Date(pb.joiningDate) : new Date(),
+          firstName, lastName, pb.candidatePhone||null,
+          employeeId,
+        ).catch((e:any) => { throw new Error(`Employee upgrade failed: ${e.message}`); });
+      } else {
+        // CREATE a new Employee (fallback for legacy flow without mark-joined)
+        const empData: Record<string, unknown> = {
+          employeeId: empCode, firstName, lastName, email: userEmail,
+          phone: pb.candidatePhone || null,
+          userId: user.id,
+          departmentId: deptId, designationId: desigId,
+          reportingManagerId: pb.reportingManagerId || null,
+          dateOfJoining: pb.joiningDate ? new Date(pb.joiningDate) : new Date(),
+          employeeStatus: 'probation', employeeType: 'full_time',
+          status: 'active', credentialsStatus: 'active',
+        };
+        const employee = await db.employee.create({ data: empData as any }).catch((e:any) => { throw new Error(`Employee create failed: ${e.message}`); });
+        employeeId = employee.id;
+      }
+
+      await db.$executeRawUnsafe(
+        `UPDATE "PreboardingCandidate" SET "onboardingStatus"='active_employee',"status"='joined',"employeeId"=$1,"activatedAt"=NOW(),"backgroundCheckStatus"='cleared',"updatedAt"=NOW() WHERE "id"=$2`,
+        employeeId, preboardingCandidateId,
+      ).catch(() => 0);
+
+      // ─── Send activation email to personal email ───
       try {
         const { sendEmail } = await import('@/lib/email');
-        await sendEmail({ to: pb.candidateEmail, subject: 'Welcome to the team! Your employee account is now active',
-          html: `<h2>Welcome aboard, ${firstName}!</h2><p>BGV approved. Account active.</p><table><tr><td>Employee ID:</td><td>${empCode}</td></tr><tr><td>Company Email:</td><td>${pb.companyEmail||pb.candidateEmail}</td></tr><tr><td>Password:</td><td>Welcome@123</td></tr><tr><td>Login URL:</td><td>https://3boxes-hrms-beta.vercel.app/login</td></tr></table>` }).catch(() => null);
-      } catch {}
+        await sendEmail({
+          to: pb.candidateEmail,
+          subject: 'Welcome to the team! Your employee account is now active',
+          html: `<h2>Welcome aboard, ${firstName}!</h2>
+                 <p>Your background verification has been approved. Your employee account is now active.</p>
+                 <table style="border-collapse:collapse;font-family:Arial;">
+                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Employee ID:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><b style="color:#0F766E;font-size:16px;">${empCode}</b></td></tr>
+                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Company Email:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${pb.companyEmail || pb.candidateEmail}</td></tr>
+                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Password:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">Welcome@123</td></tr>
+                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Login URL:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><a href="https://3boxes-hrms-beta.vercel.app/login">https://3boxes-hrms-beta.vercel.app/login</a></td></tr>
+                 </table>
+                 <p style="margin-top:16px;font-size:13px;color:#475569;">You can now log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Your password is <code>Welcome@123</code> — please change it after your first login.</p>`,
+        }).catch(() => null);
+      } catch (e:any) { console.warn('[BGV approve] Email send failed:', e.message); }
 
-      if (user) { try { await db.notification.create({ data: { userId: user.id, title: 'Welcome to the team!', message: `Account active. Employee ID: ${empCode}`, type: 'info', category: 'onboarding', isRead: false } }).catch(() => null); } catch {} }
+      // ─── In-app notification ───
+      if (user) {
+        try {
+          await db.notification.create({ data: {
+            userId: user.id, tenantId: auth.tenantId,
+            title: 'Welcome to the team!',
+            message: `Account active. Employee ID: ${empCode}. Log in with Marq ID + Welcome@123.`,
+            type: 'success', category: 'onboarding', isRead: false, isEmailSent: false,
+          } }).catch(() => null);
+        } catch {}
+      }
 
-      await db.auditLog.create({ data: { userId: auth.userId, action: 'BGV_APPROVED_EMPLOYEE_ACTIVATED', module: 'onboarding', details: `BGV approved for ${pb.candidateName}. Employee ID: ${empCode}` } }).catch(() => null);
-      return NextResponse.json({ message: `BGV Approved! Employee ID: ${empCode}.`, bgvStatus: 'approved', onboardingStatus: 'active_employee', employeeId: employee.id, employeeCode: empCode }, { headers: CORS });
+      await db.auditLog.create({ data: { userId: auth.userId, action: 'BGV_APPROVED_EMPLOYEE_ACTIVATED', module: 'onboarding', details: `BGV approved for ${pb.candidateName}. Employee ID: ${empCode} (upgrade=${isUpgrade})` } }).catch(() => null);
+
+      return NextResponse.json({
+        message: `BGV Approved! Employee ID: ${empCode}.`,
+        bgvStatus: 'approved',
+        onboardingStatus: 'active_employee',
+        employeeId,
+        employeeCode: empCode,
+        loginEmail: pb.companyEmail || pb.candidateEmail,
+        isUpgrade,
+      }, { headers: CORS });
 
     } else if (bgvStatus === 'failed') {
       await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "onboardingStatus"='bgv_failed',"updatedAt"=NOW() WHERE "id"=$1`, preboardingCandidateId).catch(() => 0);
       await db.$executeRawUnsafe(`INSERT INTO "CandidateMessage" ("id","candidateEmail","senderRole","message","createdAt","updatedAt") VALUES ($1,$2,'system',$3,NOW(),NOW())`, `msg-${Date.now()}`, pb.candidateEmail, `Your background verification has not been cleared. Please contact HR.`).catch(() => 0);
       await db.auditLog.create({ data: { userId: auth.userId, action: 'BGV_FAILED', module: 'onboarding', details: `BGV failed for ${pb.candidateName}` } }).catch(() => null);
-      return NextResponse.json({ message: 'BGV Failed.', bgvStatus: 'failed', onboardingStatus: 'bgv_failed' }, { headers: CORS });
+      return NextResponse.json({ message: 'BGV Failed. Employee NOT terminated.', bgvStatus: 'failed', onboardingStatus: 'bgv_failed' }, { headers: CORS });
 
     } else {
       await db.auditLog.create({ data: { userId: auth.userId, action: `BGV_STATUS_${bgvStatus.toUpperCase()}`, module: 'onboarding', details: `BGV status → ${bgvStatus}` } }).catch(() => null);

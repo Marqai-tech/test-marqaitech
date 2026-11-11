@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   FiCheckCircle, FiClock, FiXCircle, FiUpload, FiFileText, FiAlertCircle,
   FiRefreshCw, FiArrowLeft, FiShield, FiUser, FiAward, FiLoader, FiEye,
+  FiCalendar, FiBriefcase,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -27,6 +28,26 @@ interface OnboardingDocument {
   uploadedAt?: string | null;
 }
 
+interface AttendanceRow {
+  date: string | null;
+  status: string | null;
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  workHours: number | null;
+  lateMinutes: number | null;
+}
+
+interface LeaveBalance {
+  id: string;
+  leaveTypeName: string;
+  leaveTypeCode: string | null;
+  year: number;
+  total: number;
+  used: number;
+  remaining: number;
+  carryForward: number;
+}
+
 interface OnboardingData {
   preboardingCandidateId: string;
   candidateName: string;
@@ -43,7 +64,11 @@ interface OnboardingData {
   bgvStatus: string;
   bgvNotes?: string;
   employeeId?: string;
+  activatedAt?: string;
   documents: OnboardingDocument[];
+  attendanceSummary?: { last30Days: Record<string, number>; totalRecords: number } | null;
+  recentAttendance?: AttendanceRow[];
+  leaveBalances?: LeaveBalance[] | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -144,6 +169,17 @@ export default function CandidateOnboardingPage() {
   const totalDocs = data.documents.length;
   const progressPct = totalDocs > 0 ? Math.round((approvedDocs / totalDocs) * 100) : 0;
 
+  const showAttendanceLeave = data.onboardingStatus === 'provisional_employee' || data.onboardingStatus === 'active_employee';
+
+  // Attendance helpers
+  const att = data.attendanceSummary?.last30Days || {};
+  const presentDays = att['present'] || 0;
+  const lateDays = att['late'] || 0;
+  const absentDays = att['absent'] || 0;
+  const halfDays = att['half_day'] || att['half-day'] || 0;
+  const onLeaveDays = att['on_leave'] || att['leave'] || 0;
+  const weekendDays = att['weekend'] || 0;
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
@@ -179,7 +215,7 @@ export default function CandidateOnboardingPage() {
             <Detail label="Work Location" value={data.workLocation || '—'} />
             <Detail label="Joining Date" value={data.joiningDate ? new Date(data.joiningDate).toLocaleDateString('en-IN') : '—'} />
             <Detail label="Company Email" value={data.companyEmail || 'Will be assigned'} />
-            <Detail label="Employee ID" value={data.employeeId || 'Will be assigned after BGV'} />
+            <Detail label="Employee ID" value={data.employeeId && !data.employeeId.startsWith('PROV-') ? data.employeeId : 'Will be assigned after BGV'} />
           </div>
         </div>
 
@@ -191,6 +227,98 @@ export default function CandidateOnboardingPage() {
             {data.bgvNotes && <div className="text-sm text-slate-600 mt-2 p-3 bg-slate-50 rounded-lg"><strong>Notes:</strong> {data.bgvNotes}</div>}
           </div>
         </div>
+
+        {/* Attendance + Leave (only when provisional or active) */}
+        {showAttendanceLeave && (
+          <>
+            {/* Attendance Summary */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="font-bold text-slate-800 flex items-center gap-2"><FiCalendar className="h-5 w-5 text-emerald-600" /> Attendance — Last 30 Days</h2>
+                <span className="text-xs text-slate-500">{data.attendanceSummary?.totalRecords || 0} records</span>
+              </div>
+              <div className="px-6 py-4">
+                {data.attendanceSummary && data.attendanceSummary.totalRecords > 0 ? (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
+                      <StatCard label="Present" value={presentDays} color="text-emerald-600 bg-emerald-50" />
+                      <StatCard label="Late" value={lateDays} color="text-amber-600 bg-amber-50" />
+                      <StatCard label="Half Day" value={halfDays} color="text-yellow-600 bg-yellow-50" />
+                      <StatCard label="Absent" value={absentDays} color="text-red-600 bg-red-50" />
+                      <StatCard label="On Leave" value={onLeaveDays} color="text-blue-600 bg-blue-50" />
+                    </div>
+                    {data.recentAttendance && data.recentAttendance.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-700 mb-2">Recent Records</h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-slate-100 text-slate-600">
+                                <th className="px-3 py-2 text-left">Date</th>
+                                <th className="px-3 py-2 text-left">Status</th>
+                                <th className="px-3 py-2 text-left">Check In</th>
+                                <th className="px-3 py-2 text-left">Check Out</th>
+                                <th className="px-3 py-2 text-left">Work Hours</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {data.recentAttendance.slice(0, 10).map((row, i) => (
+                                <tr key={i} className="border-b border-slate-100">
+                                  <td className="px-3 py-2 text-slate-700">{row.date ? new Date(row.date).toLocaleDateString('en-IN') : '—'}</td>
+                                  <td className="px-3 py-2 capitalize">{row.status || '—'}</td>
+                                  <td className="px-3 py-2">{row.checkInTime || '—'}</td>
+                                  <td className="px-3 py-2">{row.checkOutTime || '—'}</td>
+                                  <td className="px-3 py-2">{row.workHours ? `${row.workHours}h` : '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-slate-500 text-center py-4">
+                    No attendance records yet. Your attendance will appear here once HR sets up your roster.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Leave Balances */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200"><h2 className="font-bold text-slate-800 flex items-center gap-2"><FiBriefcase className="h-5 w-5 text-emerald-600" /> Leave Balances — {new Date().getFullYear()}</h2></div>
+              <div className="px-6 py-4">
+                {data.leaveBalances && data.leaveBalances.length > 0 ? (
+                  <div className="space-y-3">
+                    {data.leaveBalances.map((lb) => {
+                      const usedPct = lb.total > 0 ? Math.round((lb.used / lb.total) * 100) : 0;
+                      return (
+                        <div key={lb.id} className="border border-slate-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="font-medium text-slate-800 text-sm">{lb.leaveTypeName}</div>
+                            <div className="text-xs text-slate-500">{lb.remaining} / {lb.total} days left</div>
+                          </div>
+                          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500" style={{ width: `${100 - usedPct}%` }} />
+                          </div>
+                          <div className="flex justify-between mt-1 text-xs text-slate-500">
+                            <span>Used: {lb.used}</span>
+                            <span>Carry Forward: {lb.carryForward}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500 text-center py-4">
+                    No leave balances allocated yet. They will be assigned when HR completes your profile.
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Document Upload */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -233,4 +361,13 @@ export default function CandidateOnboardingPage() {
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (<div><div className="text-xs text-slate-500 uppercase tracking-wider">{label}</div><div className="font-medium text-slate-800 mt-0.5">{value}</div></div>);
+}
+
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className={`rounded-lg p-3 ${color}`}>
+      <div className="text-xs font-medium opacity-80">{label}</div>
+      <div className="text-xl font-bold">{value}</div>
+    </div>
+  );
 }
