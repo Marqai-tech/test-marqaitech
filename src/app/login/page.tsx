@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -47,14 +47,13 @@ export default function LoginPage() {
   // FIX: isPlatformSite was a useState that got set in useEffect, but Turbopack's
   // minifier extracted JSX referencing it into a chunk that lost the closure →
   // "ReferenceError: isPlatformSite is not defined" when clicking the Vendor tab.
-  // Replacing it with a direct computed const eliminates the closure issue entirely.
-  // The value never changes after first render (hostname is constant), so a const
-  // is semantically equivalent and avoids the minification bug.
-  const isPlatformSite = (() => {
-    if (typeof window === 'undefined') return false; // SSR safety
+  // Using a useMemo with a stable dependency to keep the value in the component's
+  // render scope and prevent Turbopack from extracting it into a shared chunk.
+  const isPlatformSite = useMemo(() => {
+    if (typeof window === 'undefined') return false;
     const h = window.location.hostname;
     return h === '3boxeshrms.com' || h === 'www.3boxeshrms.com';
-  })();
+  }, []);
   const [demoCredentials, setDemoCredentials] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
 
