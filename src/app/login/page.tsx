@@ -128,6 +128,51 @@ export default function LoginPage() {
     }
   };
 
+  // ─── Vendor login handler ───
+  // Posts to /api/vendor/auth/login which looks up the VendorUser row,
+  // verifies the password, and issues a JWT with role=vendor_admin|vendor_employee.
+  // On success we persist the token the same way the HR login does and push
+  // to /vendor-portal/dashboard.
+  const handleVendorLogin = async () => {
+    setError('');
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required.');
+      toast.error('Email and password are required.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/vendor/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || 'Vendor login failed.';
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      // Persist token + user the same way useAuthStore.login does, so
+      // authenticated fetches across the app carry the Bearer header.
+      if (data.token) {
+        localStorage.setItem('tb_token', data.token);
+        localStorage.setItem('tb_user', JSON.stringify(data.user));
+      }
+      toast.success('Welcome to the Vendor Portal!');
+      router.push('/vendor-portal/dashboard');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network error during vendor login.';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -1343,7 +1388,7 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="vendor@example.com"
               className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              onKeyDown={(e) => e.key === 'Enter' && handleVendorLogin()}
             />
           </div>
           <div className="relative">
@@ -1354,7 +1399,7 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 pr-10"
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              onKeyDown={(e) => e.key === 'Enter' && handleVendorLogin()}
             />
             <button
               type="button"
@@ -1365,7 +1410,7 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
             </button>
           </div>
           <button
-            onClick={handleLogin}
+            onClick={handleVendorLogin}
             disabled={isSubmitting}
             className="w-full py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 disabled:opacity-50"
           >
