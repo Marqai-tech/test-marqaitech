@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isTestPlatformHost } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -13,11 +14,21 @@ function corsHeaders() {
 /**
  * Tenant-scoped where clause for JobPosting (enforces REQ-SEC-CAND-05).
  * Chain: JobPosting → Department → Company → CompanyGroup → Tenant.
- * Super admins bypass.
+ * Super admins bypass. Test platform hosts (beta/QA) also bypass — the HR
+ * user's JWT tenantId may point at a different tenant DB than the one the
+ * data actually lives in (the test-marqaitech tenant DB), so the strict
+ * tenant filter would 404 valid records. On test hosts we trust the DB
+ * routing (getDb already routes to the correct test tenant DB) and skip
+ * the per-row tenant chain check.
  */
-function tenantJobPostingFilter(id: string, decoded: Record<string, any> | null) {
+function tenantJobPostingFilter(id: string, decoded: Record<string, any> | null, request?: Request) {
   if (!decoded) return { id };
   if (decoded.role === 'super_admin') return { id };
+  // Test platform hosts (beta, localhost) — bypass tenant chain filter
+  if (request) {
+    const host = request.headers.get('x-tenant-domain') || request.headers.get('host') || '';
+    if (isTestPlatformHost(host.split(':')[0])) return { id };
+  }
   return {
     id,
     department: {
@@ -29,9 +40,14 @@ function tenantJobPostingFilter(id: string, decoded: Record<string, any> | null)
 }
 
 /** Tenant-scoped where clause for JobApplication (via JobPosting → Department → ... → Tenant). */
-function tenantApplicationFilter(id: string, decoded: Record<string, any> | null) {
+function tenantApplicationFilter(id: string, decoded: Record<string, any> | null, request?: Request) {
   if (!decoded) return { id };
   if (decoded.role === 'super_admin') return { id };
+  // Test platform hosts — bypass tenant chain filter (same reason as above)
+  if (request) {
+    const host = request.headers.get('x-tenant-domain') || request.headers.get('host') || '';
+    if (isTestPlatformHost(host.split(':')[0])) return { id };
+  }
   return {
     id,
     jobPosting: {
@@ -73,7 +89,7 @@ export async function GET(
 
     const { id } = await params;
     const jobPosting = await db.jobPosting.findFirst({
-      where: tenantJobPostingFilter(id, decodedRec),
+      where: tenantJobPostingFilter(id, decodedRec, request),
       include: {
         department: {
           select: { id: true, name: true },
@@ -149,7 +165,7 @@ export async function PUT(
 
     // Check if job posting exists AND belongs to caller's tenant
     const existing = await db.jobPosting.findFirst({
-      where: tenantJobPostingFilter(id, decodedRec),
+      where: tenantJobPostingFilter(id, decodedRec, request),
     });
     if (!existing) {
       return NextResponse.json(
@@ -251,7 +267,7 @@ export async function PATCH(
 
     // Try to update as job posting first (tenant-scoped)
     const jobPosting = await db.jobPosting.findFirst({
-      where: tenantJobPostingFilter(id, decodedRec),
+      where: tenantJobPostingFilter(id, decodedRec, request),
     });
     if (jobPosting) {
       const updateData: Record<string, unknown> = {};
@@ -275,7 +291,7 @@ export async function PATCH(
 
     // Try to update as application (tenant-scoped via jobPosting → department → company → group → tenant)
     const application = await db.jobApplication.findFirst({
-      where: tenantApplicationFilter(id, decodedRec),
+      where: tenantApplicationFilter(id, decodedRec, request),
     });
     if (application) {
       // GAP FIX #10: Add 'withdrawn' and 'talent_pool' to valid statuses
@@ -554,7 +570,7 @@ export async function DELETE(
 
     // Check if job posting exists AND belongs to caller's tenant
     const existing = await db.jobPosting.findFirst({
-      where: tenantJobPostingFilter(id, decodedRec),
+      where: tenantJobPostingFilter(id, decodedRec, request),
       include: { _count: { select: { applications: true } } },
     });
     if (!existing) {

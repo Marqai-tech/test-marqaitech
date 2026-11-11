@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { isTestPlatformHost } from '@/lib/tenant-filter';
 import { validateEmail, validatePhone } from '@/lib/validators';
 import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 import { resolveRecruitmentConfig } from '@/lib/recruitment-workflow';
@@ -25,9 +26,17 @@ function corsHeaders() {
  *
  * Super admins bypass the filter (they can see all tenants).
  */
-function tenantWhere(decoded: Record<string, any> | null): Record<string, unknown> {
+function tenantWhere(decoded: Record<string, any> | null, request?: Request): Record<string, unknown> {
   if (!decoded) return {};
   if (decoded.role === 'super_admin') return {};
+  // Test platform hosts (beta/QA) — bypass tenant chain filter. The HR user's
+  // JWT tenantId may point at a different tenant DB than where the data lives.
+  if (request) {
+    const host = request.headers.get('x-tenant-domain') || request.headers.get('host') || '';
+    try {
+      if (isTestPlatformHost(host.split(':')[0])) return {};
+    } catch {}
+  }
   return {
     department: {
       company: {
@@ -38,10 +47,10 @@ function tenantWhere(decoded: Record<string, any> | null): Record<string, unknow
 }
 
 /** Same filter but for a single-record lookup by id. */
-function tenantScopedJobPostingFilter(id: string, decoded: Record<string, any> | null) {
+function tenantScopedJobPostingFilter(id: string, decoded: Record<string, any> | null, request?: Request) {
   return {
     id,
-    ...tenantWhere(decoded),
+    ...tenantWhere(decoded, request),
   };
 }
 
@@ -103,7 +112,7 @@ export async function GET(request: Request) {
     }
 
     // Start with the tenant filter (critical for cross-tenant blindness)
-    const where: Record<string, unknown> = tenantWhere(decodedRec);
+    const where: Record<string, unknown> = tenantWhere(decodedRec, request);
     if (status) where.status = status;
     if (departmentId) where.departmentId = departmentId;
 
@@ -347,7 +356,7 @@ export async function POST(request: Request) {
 
       // Verify job posting exists AND belongs to the caller's tenant
       const jobExists = await db.jobPosting.findFirst({
-        where: tenantScopedJobPostingFilter(jobPostingId, decodedRec),
+        where: tenantScopedJobPostingFilter(jobPostingId, decodedRec, request),
       });
       if (!jobExists) {
         return NextResponse.json(

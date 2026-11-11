@@ -203,7 +203,14 @@ export async function PATCH(
     if (offeredSalary !== undefined) updateData.offeredSalary = offeredSalary;
     if (offeredCurrency !== undefined) updateData.offeredCurrency = offeredCurrency;
     if (joiningDate !== undefined) updateData.joiningDate = joiningDate ? new Date(joiningDate) : null;
-    if (probationPeriod !== undefined) updateData.probationPeriod = probationPeriod;
+    if (probationPeriod !== undefined) {
+      // Coerce to integer — accept "6 months", 90, "90 days", etc.
+      if (typeof probationPeriod === 'number') updateData.probationPeriod = probationPeriod;
+      else {
+        const m = String(probationPeriod).match(/(\d+)/);
+        updateData.probationPeriod = m ? parseInt(m[1], 10) : 90;
+      }
+    }
 
     // C-21: HR-uploaded offer-letter softcopy (PDF). Persist via RAW SQL so the
     // column doesn't need to exist in the Prisma schema — we ADD COLUMN IF NOT

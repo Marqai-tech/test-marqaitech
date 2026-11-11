@@ -176,7 +176,14 @@ export async function POST(request: Request) {
         offeredCTC,
         salaryBreakdown,
         joiningDate: new Date(joiningDate),
-        probationPeriod: probationPeriod ?? 90,
+        probationPeriod: (() => {
+          // Accept either an integer (90) or a string ("6 months", "90 days").
+          // Extract the leading number and use it; default to 90 if unparseable.
+          if (probationPeriod === undefined || probationPeriod === null) return 90;
+          if (typeof probationPeriod === 'number') return probationPeriod;
+          const m = String(probationPeriod).match(/(\d+)/);
+          return m ? parseInt(m[1], 10) : 90;
+        })(),
         reportingTo,
         status: 'draft',
       },
