@@ -431,16 +431,7 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm table-fixed">
-          <colgroup>
-            <col className="w-[14%]" />
-            <col className="w-[22%]" />
-            <col className="w-[22%]" />
-            <col className="w-[8%]" />
-            <col className="w-[16%]" />
-            <col className="w-[12%]" />
-            <col className="w-[6%]" />
-          </colgroup>
+        <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-slate-100">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Request</th>
