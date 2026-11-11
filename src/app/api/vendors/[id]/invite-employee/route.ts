@@ -26,8 +26,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const { id: vendorCompanyId } = await params;
     const body = await req.json();
-    const { email, name, password } = body || {};
+    const { email, name, password, role: requestedRole } = body || {};
     if (!email || !name) return NextResponse.json({ error: 'email and name required' }, { status: 400, headers: CORS });
+    // HR can create either a vendor_employee (default) or a vendor_admin
+    const targetRole = requestedRole === 'vendor_admin' ? 'vendor_admin' : 'vendor_employee';
 
     // If caller is a vendor_admin, ensure they belong to THIS vendor company
     if (auth.role === 'vendor_admin') {
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (existing.length > 0) {
       // If exists, just set the password + activate (idempotent)
       const hashed = await hashPassword(password || 'Welcome@123');
-      await db.$executeRawUnsafe(`UPDATE "VendorUser" SET "name"=$1,"passwordHash"=$2,"passwordSetAt"=NOW(),"status"='active',"role"='vendor_employee',"updatedAt"=NOW() WHERE "id"=$3`, name, hashed, existing[0].id).catch(() => 0);
+      await db.$executeRawUnsafe(`UPDATE "VendorUser" SET "name"=$1,"passwordHash"=$2,"passwordSetAt"=NOW(),"status"='active',"role"=$3,"updatedAt"=NOW() WHERE "id"=$4`, name, hashed, targetRole, existing[0].id).catch(() => 0);
       return NextResponse.json({ message: 'Vendor employee updated + activated', vendorUserId: existing[0].id, email }, { headers: CORS });
     }
 
@@ -54,8 +56,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const hashed = await hashPassword(password || 'Welcome@123');
     await db.$executeRawUnsafe(
       `INSERT INTO "VendorUser" ("id","vendorCompanyId","email","name","role","status","passwordHash","passwordSetAt","createdAt","updatedAt")
-       VALUES ($1,$2,$3,$4,'vendor_employee','active',$5,NOW(),NOW(),NOW())`,
-      vuId, vendorCompanyId, email.toLowerCase(), name, hashed,
+       VALUES ($1,$2,$3,$4,$5,'active',$6,NOW(),NOW(),NOW())`,
+      vuId, vendorCompanyId, email.toLowerCase(), name, targetRole, hashed,
     );
 
     await db.auditLog.create({ data: { userId: auth.userId, action: 'VENDOR_EMPLOYEE_CREATED', module: 'vendor', details: `Created vendor employee ${email} under ${vcRows[0].name}` } }).catch(() => null);
