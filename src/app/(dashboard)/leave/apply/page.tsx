@@ -250,7 +250,7 @@ function ApplyLeaveContent() {
 
             {/* Attachment */}
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Attachment <span className="text-[10px] text-slate-400">(NM - required if > 3 days for Sick Leave)</span></label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Attachment <span className="text-[10px] text-slate-400">(NM - required if {'>'} 3 days for Sick Leave)</span></label>
               <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
             </div>
 
