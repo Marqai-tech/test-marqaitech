@@ -21,6 +21,7 @@ import { isClientLiveMode } from '@/lib/site-mode';
 import { NATIVE_APP_RELEASE, SHELL_APP_RELEASE } from '@/lib/app-version';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 import { homeHrefForRole } from '@/lib/roleAccess';
+import VendorLoginForm from './VendorLoginForm';
 
 // FIX: isPlatformSite must be a MODULE-LEVEL constant (outside the component)
 // so Turbopack cannot extract it into a shared chunk that loses the closure.
@@ -137,50 +138,9 @@ export default function LoginPage() {
     }
   };
 
-  // ─── Vendor login handler ───
-  // Posts to /api/vendor/auth/login which looks up the VendorUser row,
-  // verifies the password, and issues a JWT with role=vendor_admin|vendor_employee.
-  // On success we persist the token the same way the HR login does and push
-  // to /vendor-portal/dashboard.
-  const handleVendorLogin = async () => {
-    setError('');
-    if (!email.trim() || !password.trim()) {
-      setError('Email and password are required.');
-      toast.error('Email and password are required.');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const res = await fetch('/api/vendor/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-        cache: 'no-store',
-        credentials: 'include',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data?.error || 'Vendor login failed.';
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
-      // Persist token + user the same way useAuthStore.login does, so
-      // authenticated fetches across the app carry the Bearer header.
-      if (data.token) {
-        localStorage.setItem('tb_token', data.token);
-        localStorage.setItem('tb_user', JSON.stringify(data.user));
-      }
-      toast.success('Welcome to the Vendor Portal!');
-      router.push('/vendor-portal/dashboard');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Network error during vendor login.';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // handleVendorLogin has been moved to the extracted VendorLoginForm component
+  // (src/app/login/VendorLoginForm.tsx) to prevent Turbopack's chunk extraction
+  // from losing the closure of component-local variables.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1384,51 +1344,7 @@ function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
 
       {/* Vendor Login Form */}
       {loginMode === 'vendor' && !isPlatformSite && (
-        <div className="space-y-4">
-          <div className="text-center mb-2">
-            <h2 className="text-xl font-bold text-slate-800">Vendor Portal Login</h2>
-            <p className="text-xs text-slate-500 mt-1">BGV vendors — admin & employee access</p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="vendor@example.com"
-              className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              onKeyDown={(e) => e.key === 'Enter' && handleVendorLogin()}
-            />
-          </div>
-          <div className="relative">
-            <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 pr-10"
-              onKeyDown={(e) => e.key === 'Enter' && handleVendorLogin()}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
-            >
-              {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
-            </button>
-          </div>
-          <button
-            onClick={handleVendorLogin}
-            disabled={isSubmitting}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 disabled:opacity-50"
-          >
-            {isSubmitting ? 'Signing in…' : 'Sign In as Vendor'}
-          </button>
-          <p className="text-[11px] text-center text-slate-400">
-            Vendor access is granted by invitation only. Contact your HR administrator if you need access.
-          </p>
-        </div>
+        <VendorLoginForm />
       )}
     </div>
   );
