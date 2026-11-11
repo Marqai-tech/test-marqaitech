@@ -44,7 +44,17 @@ export default function LoginPage() {
   const [candidateDevOtp, setCandidateDevOtp] = useState<string | null>(null);
   const [showDemoLogins, setShowDemoLogins] = useState(false);
   const [isDemoSite, setIsDemoSite] = useState(false);
-  const [isPlatformSite, setIsPlatformSite] = useState(false);
+  // FIX: isPlatformSite was a useState that got set in useEffect, but Turbopack's
+  // minifier extracted JSX referencing it into a chunk that lost the closure →
+  // "ReferenceError: isPlatformSite is not defined" when clicking the Vendor tab.
+  // Replacing it with a direct computed const eliminates the closure issue entirely.
+  // The value never changes after first render (hostname is constant), so a const
+  // is semantically equivalent and avoids the minification bug.
+  const isPlatformSite = (() => {
+    if (typeof window === 'undefined') return false; // SSR safety
+    const h = window.location.hostname;
+    return h === '3boxeshrms.com' || h === 'www.3boxeshrms.com';
+  })();
   const [demoCredentials, setDemoCredentials] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
 
@@ -104,11 +114,7 @@ export default function LoginPage() {
       hostname === '3boxes-hrms-mu.vercel.app' ||
       hostname === 'test.3boxeshrms.com'
     );
-    setIsPlatformSite(
-      hostname === '3boxeshrms.com' ||
-      hostname === 'www.3boxeshrms.com' ||
-      false
-    );
+    // isPlatformSite is now a computed const (see above) — no setState needed.
   }, []);
 
   // Fetch demo credentials from API
