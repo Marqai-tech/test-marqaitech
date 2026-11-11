@@ -22,6 +22,18 @@ import { NATIVE_APP_RELEASE, SHELL_APP_RELEASE } from '@/lib/app-version';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 import { homeHrefForRole } from '@/lib/roleAccess';
 
+// FIX: isPlatformSite must be a MODULE-LEVEL constant (outside the component)
+// so Turbopack cannot extract it into a shared chunk that loses the closure.
+// Previously it was a useState/useMemo inside the component, and Turbopack's
+// minifier extracted JSX referencing it into a separate chunk →
+// "ReferenceError: isPlatformSite is not defined" when clicking the Vendor tab.
+// At module level, the binding is always in scope for all chunks.
+const isPlatformSite = (() => {
+  if (typeof window === 'undefined') return false; // SSR safety
+  const h = window.location.hostname;
+  return h === '3boxeshrms.com' || h === 'www.3boxeshrms.com';
+})();
+
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuthStore();
@@ -44,16 +56,8 @@ export default function LoginPage() {
   const [candidateDevOtp, setCandidateDevOtp] = useState<string | null>(null);
   const [showDemoLogins, setShowDemoLogins] = useState(false);
   const [isDemoSite, setIsDemoSite] = useState(false);
-  // FIX: isPlatformSite was a useState that got set in useEffect, but Turbopack's
-  // minifier extracted JSX referencing it into a chunk that lost the closure →
-  // "ReferenceError: isPlatformSite is not defined" when clicking the Vendor tab.
-  // Using a useMemo with a stable dependency to keep the value in the component's
-  // render scope and prevent Turbopack from extracting it into a shared chunk.
-  const isPlatformSite = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    const h = window.location.hostname;
-    return h === '3boxeshrms.com' || h === 'www.3boxeshrms.com';
-  }, []);
+  // isPlatformSite is now a module-level constant (see above) — fixes the
+  // Turbopack chunk extraction bug that broke the Vendor tab.
   const [demoCredentials, setDemoCredentials] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
 
