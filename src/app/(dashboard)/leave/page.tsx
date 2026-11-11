@@ -431,16 +431,25 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col className="w-[130px]" />
+            <col className="w-[180px]" />
+            <col className="w-[180px]" />
+            <col className="w-[90px]" />
+            <col />
+            <col className="w-[120px]" />
+            <col className="w-[80px]" />
+          </colgroup>
           <thead className="bg-gray-50 border-b border-slate-100">
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Request</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Type</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Dates</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Days</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Request</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Type</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Dates</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Days</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Reason</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Action</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Status</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -462,27 +471,27 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
               const isPending = lr.status === 'pending';
               return (
                 <tr key={lr.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <p className="text-xs font-mono font-semibold text-slate-700">{ticketCode(lr.id, lr.createdAt || undefined)}</p>
                     {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${leaveTypeBadgeClass(code, lr.leaveType?.name)}`}>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold flex-shrink-0 ${leaveTypeBadgeClass(code, lr.leaveType?.name)}`}>
                         {(code || lr.leaveType?.name || 'L').slice(0, 2).toUpperCase()}
                       </span>
-                      <span className="text-sm font-medium text-slate-700">{lr.leaveType?.name || 'Leave'}</span>
-                      {lr.appliedByHR && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">HR</span>}
+                      <span className="text-sm font-medium text-slate-700 truncate">{lr.leaveType?.name || 'Leave'}</span>
+                      {lr.appliedByHR && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold flex-shrink-0">HR</span>}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
+                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                     {dateStr}
                     {isBackDated && <span className="ml-1 inline-block text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">Back-dated</span>}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700 font-medium">{daysStr}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 max-w-xs truncate" title={reason}>{reason}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700 font-medium whitespace-nowrap">{daysStr}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600 truncate" title={reason}>{reason}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg} ${badge.text}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${badge.bg} ${badge.text}`}>
                       <span className={`inline-block w-1.5 h-1.5 rounded-full ${
                         lr.status === 'approved' ? 'bg-emerald-500'
                         : lr.status === 'pending' ? 'bg-amber-500'
@@ -492,7 +501,7 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
                       {badge.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
                     {isPending ? (
                       <button
                         onClick={() => handleCancel(lr.id)}
