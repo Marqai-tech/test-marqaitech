@@ -433,13 +433,13 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
       <div className="overflow-x-auto">
         <table className="w-full text-sm table-fixed">
           <colgroup>
-            <col className="w-[130px]" />
-            <col className="w-[180px]" />
-            <col className="w-[180px]" />
-            <col className="w-[90px]" />
-            <col />
-            <col className="w-[120px]" />
-            <col className="w-[80px]" />
+            <col className="w-[14%]" />
+            <col className="w-[22%]" />
+            <col className="w-[22%]" />
+            <col className="w-[8%]" />
+            <col className="w-[16%]" />
+            <col className="w-[12%]" />
+            <col className="w-[6%]" />
           </colgroup>
           <thead className="bg-gray-50 border-b border-slate-100">
             <tr>
