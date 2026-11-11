@@ -16,8 +16,11 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { applicationId, offerId, candidateEmail, candidateName, candidatePhone,
-      joiningDate, departmentId, designationId, reportingManagerId,
-      employmentType, ctc, workLocation, startDate, jobTitle, companyEmail } = body || {};
+      joiningDate, employmentType, ctc, workLocation, startDate, jobTitle, companyEmail } = body || {};
+    // `let` — the FK hardening below may normalize these to valid ids or null.
+    let departmentId = body?.departmentId || null;
+    let designationId = body?.designationId || null;
+    let reportingManagerId = body?.reportingManagerId || null;
 
     if (!candidateEmail && !applicationId && !offerId)
       return NextResponse.json({ error: 'Provide applicationId, offerId, or candidateEmail' }, { status: 400, headers: CORS });
