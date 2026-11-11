@@ -470,7 +470,7 @@ async function main() {
       "unassignedAt" TIMESTAMP(3),
       "unassignedById" TEXT,
       "reason" TEXT,
-      "CONSTRAINT_BgvAssignment_pkey" PRIMARY KEY ("id")
+      CONSTRAINT "BgvAssignment_pkey" PRIMARY KEY ("id")
     )`,
     `CREATE INDEX IF NOT EXISTS "BgvAssignment_bgvRequestId_idx" ON "BgvAssignment"("bgvRequestId")`,
 
