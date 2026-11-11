@@ -399,7 +399,7 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-visible">
       <div className="p-4 border-b border-slate-200">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
@@ -431,7 +431,16 @@ function LeaveListTable({ requests, loading, holidays }: { requests: LeaveReques
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col className="w-[13%]" />
+            <col className="w-[19%]" />
+            <col className="w-[21%]" />
+            <col className="w-[7%]" />
+            <col className="w-[20%]" />
+            <col className="w-[12%]" />
+            <col className="w-[8%]" />
+          </colgroup>
           <thead className="bg-gray-50 border-b border-slate-100">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Request</th>
