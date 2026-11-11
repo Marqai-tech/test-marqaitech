@@ -37,6 +37,26 @@ export async function POST(req: Request) {
     }
     if (!resolvedEmail) return NextResponse.json({ error: 'Could not determine candidate email' }, { status: 400, headers: CORS });
 
+    // ─── Harden FK targets: departmentId / designationId / reportingManagerId ───
+    // API consumers may pass a User id for reportingManagerId (the UI sends an
+    // Employee id). Resolve User→Employee so mark-joined's FK insert cannot fail.
+    if (reportingManagerId) {
+      const empOk = await db.$queryRawUnsafe(`SELECT id FROM "Employee" WHERE id = $1 LIMIT 1`, reportingManagerId).catch(() => []) as any[];
+      if (!empOk[0]) {
+        const viaUser = await db.$queryRawUnsafe(`SELECT e."id" FROM "Employee" e JOIN "User" u ON u.id = e."userId" WHERE u.id = $1 LIMIT 1`, reportingManagerId).catch(() => []) as any[];
+        if (viaUser[0]) reportingManagerId = viaUser[0].id;
+        else reportingManagerId = null;
+      }
+    }
+    if (departmentId) {
+      const deptOk = await db.$queryRawUnsafe(`SELECT id FROM "Department" WHERE id = $1 LIMIT 1`, departmentId).catch(() => []) as any[];
+      if (!deptOk[0]) departmentId = null;
+    }
+    if (designationId) {
+      const desgOk = await db.$queryRawUnsafe(`SELECT id FROM "Designation" WHERE id = $1 LIMIT 1`, designationId).catch(() => []) as any[];
+      if (!desgOk[0]) designationId = null;
+    }
+
     const existing = await db.$queryRawUnsafe(`SELECT id, "onboardingStatus" FROM "PreboardingCandidate" WHERE "candidateEmail" = $1 AND "onboardingStatus" IN ('bgv_pending','provisional_employee','active_employee') LIMIT 1`, resolvedEmail.toLowerCase()).catch(() => []) as any[];
     if (existing.length > 0) return NextResponse.json({ error: `Already in onboarding (status: ${existing[0].onboardingStatus})` }, { status: 409, headers: CORS });
 

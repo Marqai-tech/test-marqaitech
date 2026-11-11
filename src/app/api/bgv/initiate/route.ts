@@ -49,13 +49,43 @@ export async function POST(req: NextRequest) {
     }
 
     // Share documents with vendor
+    // Accepts either full document objects or plain document IDs (strings).
+    // fileUrl is ALWAYS resolved server-side from OnboardingDocument so the
+    // client never needs to pass (or can tamper with) the underlying file data.
     if (documents && Array.isArray(documents)) {
       for (const doc of documents) {
         const shareId = `sh-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
-        await db.$executeRawUnsafe(
-          `INSERT INTO "BgvDocumentShare" ("id","bgvRequestId","onboardingDocumentId","documentType","documentLabel","fileUrl","sharedById") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          shareId, reqId, doc.id||null, doc.documentType||null, doc.documentLabel||null, doc.fileUrl||null, auth.userId,
-        ).catch(() => 0);
+        let docId: string | null = null;
+        let docType: string | null = null;
+        let docLabel: string | null = null;
+        if (typeof doc === 'string') {
+          docId = doc;
+        } else if (doc && typeof doc === 'object') {
+          docId = (doc as any).id || null;
+          docType = (doc as any).documentType || null;
+          docLabel = (doc as any).documentLabel || null;
+        }
+        if (docId) {
+          // Resolve + enforce ownership: the document must belong to the
+          // preboarding candidate being verified (when provided).
+          const docRows = await db.$queryRawUnsafe(
+            `SELECT "documentType", "documentLabel", "fileUrl" FROM "OnboardingDocument" WHERE "id" = $1 ${preboardingCandidateId ? `AND "preboardingCandidateId" = $2` : ''} LIMIT 1`,
+            ...(preboardingCandidateId ? [docId, preboardingCandidateId] : [docId]),
+          ).catch(() => []) as any[];
+          if (docRows[0]) {
+            docType = docRows[0].documentType || docType;
+            docLabel = docRows[0].documentLabel || docLabel;
+            await db.$executeRawUnsafe(
+              `INSERT INTO "BgvDocumentShare" ("id","bgvRequestId","onboardingDocumentId","documentType","documentLabel","fileUrl","sharedById") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+              shareId, reqId, docId, docType, docLabel, docRows[0].fileUrl || null, auth.userId,
+            ).catch(() => 0);
+          }
+        } else if (docType || docLabel) {
+          await db.$executeRawUnsafe(
+            `INSERT INTO "BgvDocumentShare" ("id","bgvRequestId","onboardingDocumentId","documentType","documentLabel","fileUrl","sharedById") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            shareId, reqId, null, docType, docLabel, null, auth.userId,
+          ).catch(() => 0);
+        }
       }
     }
 

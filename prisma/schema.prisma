@@ -822,10 +822,50 @@ model Interview {
   aiScore    Int?
   aiFeedback String?
 
+  // ─── Multi-round scheduling (used by /api/interviews raw SQL) ───
+  round               Int?      // auto-computed per job application (1, 2, 3…)
+  mode                String?   // online, onsite, phone
+  confirmationDeadline DateTime?
+  feedbackDeadline    DateTime?
+  instructions        String?
+  evaluationAreas     String?   // JSON-encoded string array
+  panelLeadId         String?
+  scheduledById       String?
+  cancelReason        String?
+  cancelledById       String?
+  cancelledAt         DateTime?
+  candidateAttendance String?   // present, absent, reschedule_requested
+  panelAttendance     String?
+  hrDecision             String?  // strong_hire, hire, hold, next_round, shortlist, reject, offer, schedule_another
+  hrDecisionReason       String?
+  hrDecisionById         String?
+  hrDecisionAt           DateTime?
+  panelLeadRecommendation String?
+  panelLeadNotes         String?
+
+  panelMembers InterviewPanelMember[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([jobApplicationId])
+}
+
+// ─── Interview panel members (multi-interviewer scheduling) ───
+model InterviewPanelMember {
+  id          String @id @default(cuid())
+  interviewId String
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  userId      String
+  status      String  @default("pending") // pending, confirmed, declined, tentative
+  reason      String?
+  respondedAt DateTime?
+  attendance  String? // present, absent
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([interviewId])
+  @@index([userId])
 }
 
 // ============ ONBOARDING ============

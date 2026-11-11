@@ -29,6 +29,14 @@ interface BgvRequest {
   checks?: Array<{ id: string; checkType: string; checkLabel?: string; status: string; result?: string }>;
 }
 
+interface VendorStaff {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+}
+
 const STATUS_LABELS: Record<string, string> = {
   awaiting_assignment: 'Awaiting Assignment',
   assigned: 'Assigned',
@@ -58,6 +66,8 @@ export default function VendorDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [vendorInfo, setVendorInfo] = useState<{ vendorCompanyId: string; role: string } | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [staff, setStaff] = useState<VendorStaff[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<Record<string, string>>({});
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -75,9 +85,20 @@ export default function VendorDashboardPage() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
+  // Load vendor staff list (for the assignment dropdown) once we know the vendor company
+  useEffect(() => {
+    if (!vendorInfo?.vendorCompanyId) return;
+    fetch(`/api/vendors/${vendorInfo.vendorCompanyId}/users`, { headers: getAuthHeaders() })
+      .then(r => (r.ok ? r.json() : { users: [] }))
+      .then(d => setStaff(d.users || []))
+      .catch(() => setStaff([]));
+  }, [vendorInfo?.vendorCompanyId]);
+
+  const activeStaff = staff.filter(s => s.status === 'active' && s.role === 'vendor_employee');
+
   const handleAssign = async (reqId: string) => {
-    const vendorUserId = prompt('Enter vendor employee ID to assign:');
-    if (!vendorUserId?.trim()) { toast.error('Vendor employee ID required'); return; }
+    const vendorUserId = selectedStaffId[reqId];
+    if (!vendorUserId) { toast.error('Select a team member to assign'); return; }
     setAssigningId(reqId);
     try {
       const res = await fetch(`/api/vendor/requests/${reqId}/assign`, {
@@ -127,15 +148,34 @@ export default function VendorDashboardPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-600 mb-3">Awaiting Assignment ({unassigned.length})</h2>
             <div className="space-y-2">
               {unassigned.map(req => (
-                <div key={req.id} className="bg-white border rounded-lg p-4 flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{req.candidateName || req.candidateEmail}</div>
-                    <div className="text-xs text-slate-500">{req.candidateEmail} · {new Date(req.createdAt).toLocaleDateString('en-IN')}</div>
+                <div key={req.id} className="bg-white border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{req.candidateName || req.candidateEmail}</div>
+                      <div className="text-xs text-slate-500">{req.candidateEmail} · {new Date(req.createdAt).toLocaleDateString('en-IN')}</div>
+                    </div>
+                    {vendorInfo?.role === 'vendor_admin' && activeStaff.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedStaffId[req.id] || ''}
+                          onChange={(e) => setSelectedStaffId(prev => ({ ...prev, [req.id]: e.target.value }))}
+                          className="text-xs border rounded-md px-2 py-1.5 bg-white max-w-[220px]"
+                        >
+                          <option value="">Assign to team member…</option>
+                          {activeStaff.map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+                          ))}
+                        </select>
+                        <button onClick={() => handleAssign(req.id)} disabled={assigningId === req.id || !selectedStaffId[req.id]} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                          {assigningId === req.id ? <FiLoader className="h-3.5 w-3.5 animate-spin" /> : <FiUserPlus className="h-3.5 w-3.5" />} Assign
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {vendorInfo?.role === 'vendor_admin' && (
-                    <button onClick={() => handleAssign(req.id)} disabled={assigningId === req.id} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-1.5">
-                      {assigningId === req.id ? <FiLoader className="h-3.5 w-3.5 animate-spin" /> : <FiUserPlus className="h-3.5 w-3.5" />} Assign
-                    </button>
+                  {vendorInfo?.role === 'vendor_admin' && activeStaff.length === 0 && (
+                    <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2 mt-2">
+                      No active vendor employees yet. Add team members from the Vendors page (or ask HR to invite them).
+                    </div>
                   )}
                 </div>
               ))}

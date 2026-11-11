@@ -238,6 +238,11 @@ export async function sendEmail(
   // to external domains).
   const recipientStr = Array.isArray(to) ? to[0] : to;
   const useSmtp = isInternalEmail(recipientStr);
+  // Track whether the SMTP attempt actually happened and failed, so the
+  // placeholder-Resend branch below can report honestly without referencing
+  // the block-scoped `smtp` variable (which does not exist on the external
+  // recipient path — previously caused `ReferenceError: smtp is not defined`).
+  let smtpFailed = false;
 
   if (useSmtp) {
     // ─── SMTP for internal domains ───
@@ -257,6 +262,7 @@ export async function sendEmail(
         const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
         console.error(`[EmailService] SMTP send failed (host: ${process.env.SMTP_HOST}): ${msg}`);
         console.warn('[EmailService] Falling back to Resend...');
+        smtpFailed = true;
         // fall through to Resend
       }
     }
@@ -268,7 +274,7 @@ export async function sendEmail(
   // ─── 2) Resend (fallback) ───
   const resendKey = process.env.RESEND_API_KEY;
   if (isPlaceholderResendKey(resendKey)) {
-    if (smtp) {
+    if (smtpFailed) {
       // SMTP was configured but failed AND Resend is a placeholder — report failure honestly.
       return { success: false, error: 'SMTP send failed and no working Resend key is configured', usedFallbackFrom: false };
     }
