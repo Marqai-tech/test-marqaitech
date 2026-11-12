@@ -107,12 +107,15 @@ export default function BgvPanel({
   candidateName,
   candidateEmail,
   documents,
+  bgvStatus,
   onCaseChanged,
 }: {
   candidateId: string;
   candidateName: string;
   candidateEmail: string;
   documents: BgvPanelDoc[];
+  /** Candidate-level BGV outcome from earlier cycles (cleared / failed / …). */
+  bgvStatus?: string | null;
   onCaseChanged?: () => void;
 }) {
   const [cases, setCases] = useState<CaseSummary[]>([]);
@@ -139,6 +142,10 @@ export default function BgvPanel({
 
   const approvedDocs = useMemo(() => documents.filter((d) => d.status === 'approved'), [documents]);
   const activeCase = cases.find((c) => !['approved_by_hr', 'rejected_by_hr', 'cancelled'].includes(c.status));
+  // A terminal BGV outcome (cleared/failed) from an earlier cycle blocks a new
+  // case — the server enforces this; show a notice instead of the form.
+  const bgvSettled = ['cleared', 'failed'].includes(String(bgvStatus || '').toLowerCase());
+  const latestTerminalCase = cases.length > 0 ? cases[0] : null;
   const latestSubmitted = detail?.reports?.length ? detail.reports[detail.reports.length - 1] : null;
 
   const loadCases = useCallback(async () => {
@@ -502,6 +509,15 @@ export default function BgvPanel({
               <FiLoader className="animate-spin text-teal-600" /> Loading case {activeCase.caseNumber || ''}…
             </div>
           )
+        ) : bgvSettled ? (
+          /* ── BGV already settled in an earlier cycle — server rejects re-initiation ── */
+          <div className={`border rounded-lg px-3.5 py-3 text-sm flex items-start gap-2 ${String(bgvStatus).toLowerCase() === 'failed' ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+            {String(bgvStatus).toLowerCase() === 'failed' ? <FiXCircle className="mt-0.5 shrink-0" /> : <FiCheckCircle className="mt-0.5 shrink-0" />}
+            <div>
+              <p className="font-medium">Background verification is already {String(bgvStatus).toLowerCase() === 'failed' ? 'marked failed' : 'cleared'} for this candidate.</p>
+              <p className="text-xs mt-0.5 opacity-80">A new BGV case can only be opened after HR explicitly resets the candidate&apos;s BGV status in the candidate record. {latestTerminalCase ? `Most recent case: ${latestTerminalCase.caseNumber || latestTerminalCase.id}.` : ''}</p>
+            </div>
+          </div>
         ) : (
           /* ── NO CASE → initiation form (screen 07) ── */
           <div className="space-y-4">

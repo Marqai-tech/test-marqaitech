@@ -923,6 +923,7 @@ function CandidateWorkspace({
         candidateName={candidate.candidateName || 'Unknown candidate'}
         candidateEmail={candidate.candidateEmail || ''}
         documents={docs.map((d) => ({ id: d.id, documentLabel: d.documentLabel || null, documentType: d.documentType || null, status: d.status }))}
+        bgvStatus={candidate.bgvStatus}
         onCaseChanged={loadActivity}
       />
     </div>
