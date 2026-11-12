@@ -95,7 +95,9 @@ export async function POST(req: Request) {
       await db.$executeRawUnsafe(`INSERT INTO "OnboardingDocument" ("id","preboardingCandidateId","candidateEmail","documentType","documentLabel","status","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,'pending',NOW(),NOW())`, docId, pbId, resolvedEmail.toLowerCase(), doc.type, doc.label).catch(() => 0);
     }
 
-    await db.$executeRawUnsafe(`INSERT INTO "CandidateMessage" ("id","candidateEmail","senderRole","message","createdAt","updatedAt") VALUES ($1,$2,'system',$3,NOW(),NOW())`, `msg-${Date.now()}`, resolvedEmail.toLowerCase(), `Welcome to onboarding! Status: BGV Pending. Please upload your documents.`).catch(() => 0);
+    // CandidateMessage requires NOT NULL senderName + body in the DB — omitting
+    // them made this insert fail silently, so candidates never saw the welcome note.
+    await db.$executeRawUnsafe(`INSERT INTO "CandidateMessage" ("id","candidateEmail","senderName","senderRole","message","body","createdAt","updatedAt") VALUES ($1,$2,'HR System','system',$3,$3,NOW(),NOW())`, `msg-${Date.now()}`, resolvedEmail.toLowerCase(), `Welcome to onboarding! Status: BGV Pending. Please upload your documents.`).catch((e) => console.warn('[convert] portal message insert failed:', e?.message));
     await db.auditLog.create({ data: { userId: auth.userId, action: 'CANDIDATE_CONVERTED_TO_DRAFT', module: 'onboarding', details: `Converted ${resolvedName} (${resolvedEmail}) to draft. Company email: ${finalCompanyEmail}` } }).catch(() => null);
 
     return NextResponse.json({ message: 'Candidate converted to draft. Status: BGV Pending.', preboardingCandidateId: pbId, candidateEmail: resolvedEmail, companyEmail: finalCompanyEmail, onboardingStatus: 'bgv_pending', documentsSeeded: defaultDocs.length }, { status: 201, headers: CORS });
