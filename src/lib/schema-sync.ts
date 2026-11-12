@@ -1187,11 +1187,18 @@ const SYNC_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS "OnboardingDocument_preboardingCandidateId_idx" ON "OnboardingDocument"("preboardingCandidateId")`,
   `CREATE INDEX IF NOT EXISTS "OnboardingDocument_candidateEmail_idx" ON "OnboardingDocument"("candidateEmail")`,
   `CREATE INDEX IF NOT EXISTS "OnboardingDocument_status_idx" ON "OnboardingDocument"("status")`,
-  // Upload APIs write fileUrl/mimeType columns — guarantee they exist even on
-  // tenants created from older CREATE TABLE versions (fileData/fileMimeType).
+  // Upload APIs write fileUrl/mimeType columns; the file-streaming route reads
+  // fileData/fileMimeType/fileSize. Guarantee ALL of them exist even on tenants
+  // created from older CREATE TABLE versions — a single missing column would make
+  // the SELECT in /api/preboarding/brd/documents/[id]/file fail (HR sees "Document
+  // not found" instead of the file).
   `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileUrl" TEXT`,
   `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "mimeType" TEXT`,
   `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "rejectionReason" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileName" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileData" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileMimeType" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileSize" INTEGER`,
 
   // ─── OnboardingConfig table — HR-configured required documents ───
   `CREATE TABLE IF NOT EXISTS "OnboardingConfig" (

@@ -35,6 +35,23 @@ function safeFileName(name: string | null | undefined, fallback: string): string
   return cleaned || fallback;
 }
 
+interface DocFileRow {
+  id: string;
+  candidateEmail: string | null;
+  fileName: string | null;
+  fileUrl: string | null;
+  fileData: string | null;
+  mimeType: string | null;
+  fileMimeType: string | null;
+  fileSize: number | null;
+}
+
+interface TokenClaims {
+  role?: string;
+  kind?: string;
+  email?: string;
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -54,17 +71,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!headers.get('authorization')) headers.set('authorization', `Bearer ${token}`);
     const db = await getDb(new NextRequest(req.url, { method: 'GET', headers }));
 
-    const rows = await db.$queryRawUnsafe(
+    const rows = await db.$queryRawUnsafe<DocFileRow[]>(
       `SELECT "id", "candidateEmail", "fileName", "fileUrl", "fileData", "mimeType", "fileMimeType", "fileSize"
        FROM "OnboardingDocument" WHERE "id" = $1 LIMIT 1`,
       id,
-    ).catch(() => []) as any[];
+    ).catch(() => [] as DocFileRow[]);
     if (!rows.length) return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: CORS });
     const doc = rows[0];
 
-    const role = String((decoded as any).role || '');
+    const claims = (decoded || {}) as TokenClaims;
+    const role = String(claims.role || '');
     const isHR = HR_ROLES.includes(role);
-    const isOwner = (decoded as any).kind === 'candidate' && String((decoded as any).email || '').toLowerCase() === String(doc.candidateEmail || '').toLowerCase();
+    const isOwner = claims.kind === 'candidate' && String(claims.email || '').toLowerCase() === String(doc.candidateEmail || '').toLowerCase();
     if (!isHR && !isOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
     }
@@ -77,7 +95,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     let mime: string | null = null;
     let base64: string = raw;
-    const dataUrlMatch = /^data:([^;,]+)?(;charset=[^;,]+)?;base64,(.*)$/s.exec(raw);
+    const dataUrlMatch = /^data:([^;,]+)?(;charset=[^;,]+)?;base64,([\s\S]*)$/.exec(raw);
     if (dataUrlMatch) {
       mime = dataUrlMatch[1] || null;
       base64 = dataUrlMatch[3];
