@@ -28,6 +28,7 @@ import {
   FiClock,
   FiCornerUpLeft,
   FiCreditCard,
+  FiDownload,
   FiExternalLink,
   FiFileText,
   FiInfo,
@@ -890,9 +891,9 @@ export default function PreboardingCandidateDetailsPage() {
                     </span>
                   ) : (
                     <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
-                      {doc.fileUrl ? (
+                      {doc.status !== 'pending' ? (
                         <a
-                          href={doc.fileUrl}
+                          href={`/api/preboarding/brd/documents/${doc.id}/file`}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-medium px-2.5 py-1.5 rounded-lg"
@@ -905,6 +906,15 @@ export default function PreboardingCandidateDetailsPage() {
                           <FiInfo className="w-3.5 h-3.5" /> No file
                         </span>
                       )}
+                      {doc.status !== 'pending' ? (
+                        <a
+                          href={`/api/preboarding/brd/documents/${doc.id}/file?download=1`}
+                          className="inline-flex items-center gap-1 border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                          title="Download file"
+                        >
+                          <FiDownload className="w-3.5 h-3.5" /> Download
+                        </a>
+                      ) : null}
                       <button
                         onClick={() => setActionModal({ kind: 'doc-approve', docId: doc.id, label: doc.documentLabel })}
                         className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg"

@@ -1,10 +1,13 @@
 /**
  * /api/preboarding/brd/documents — BRD 5.8 Document Management & 5.9 Verification.
  *
- * GET   ?candidateId=<id>   documents of one candidate (with fileUrl)
+ * GET   ?candidateId=<id>   documents of one candidate
  *       ?status=<status>    across candidates: pending|submitted|approved|rejected|resubmission
  *       ?tab=pending|approved|rejected|awaiting_resubmission|all   (BRD 5.9 tabs)
  *       Returns documents joined with candidate meta (name, email, preboardingId, jobTitle).
+ *       NOTE: heavy base64 byte columns (fileUrl/fileData) are stripped from the
+ *       response — the file is served via /api/preboarding/brd/documents/<id>/file.
+ *       Each row carries hasFile, viewUrl and downloadUrl instead.
  *
  * PATCH { documentId, action: 'approve'|'reject'|'request_resubmission', remarks }
  *       BRD 5.8 F: rejection remarks are MANDATORY; approved docs are locked;
@@ -56,13 +59,27 @@ export async function GET(req: NextRequest) {
       ...params,
     ).catch(() => []) as any[];
 
-    let documents = rows;
+    // Strip multi-MB base64 columns; expose stable view/download URLs instead.
+    // (Browsers block top-level navigation to data: URLs — the old fileUrl
+    // payload could never be viewed. /documents/<id>/file streams real bytes.)
+    const lightRows = rows.map((d: any) => {
+      const { fileUrl, fileData, ...rest } = d;
+      const hasFile = Boolean(fileUrl || fileData);
+      return {
+        ...rest,
+        hasFile,
+        viewUrl: hasFile ? `/api/preboarding/brd/documents/${d.id}/file` : null,
+        downloadUrl: hasFile ? `/api/preboarding/brd/documents/${d.id}/file?download=1` : null,
+      };
+    });
+
+    let documents = lightRows;
     switch (tab) {
-      case 'pending': documents = rows.filter((d: any) => d.status === 'pending'); break;
-      case 'submitted': documents = rows.filter((d: any) => d.status === 'submitted'); break;
-      case 'approved': documents = rows.filter((d: any) => d.status === 'approved'); break;
-      case 'rejected': documents = rows.filter((d: any) => d.status === 'rejected'); break;
-      case 'awaiting_resubmission': documents = rows.filter((d: any) => d.status === 'resubmission_requested' || d.status === 'rejected'); break;
+      case 'pending': documents = lightRows.filter((d: any) => d.status === 'pending'); break;
+      case 'submitted': documents = lightRows.filter((d: any) => d.status === 'submitted'); break;
+      case 'approved': documents = lightRows.filter((d: any) => d.status === 'approved'); break;
+      case 'rejected': documents = lightRows.filter((d: any) => d.status === 'rejected'); break;
+      case 'awaiting_resubmission': documents = lightRows.filter((d: any) => d.status === 'resubmission_requested' || d.status === 'rejected'); break;
       default: break;
     }
 

@@ -588,7 +588,7 @@ export default function PreboardingDashboardPage() {
               <FiEye className="text-violet-600 w-4 h-4" /> Verification Queue
             </h3>
             <button
-              onClick={() => router.push('/preboarding/verification')}
+              onClick={() => router.push('/preboarding/documents')}
               className="text-xs font-medium text-teal-600 hover:text-teal-700 inline-flex items-center gap-1"
             >
               View All <FiChevronRight className="w-3.5 h-3.5" />
@@ -763,7 +763,7 @@ export default function PreboardingDashboardPage() {
             <FiList className="w-4 h-4" /> View Candidates
           </button>
           <button
-            onClick={() => router.push('/preboarding/verification')}
+            onClick={() => router.push('/preboarding/documents')}
             className="border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-medium px-3.5 py-2 rounded-lg inline-flex items-center gap-2 bg-white"
           >
             <FiEye className="w-4 h-4" /> Verify Documents

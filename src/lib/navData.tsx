@@ -489,8 +489,7 @@ export const navSections: NavSection[] = [
       // BRD Section 4 — Preboarding sidebar structure (9 recommended screens)
       { label: 'Preboarding Dashboard', href: '/preboarding', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
       { label: 'Preboarding Candidates', href: '/preboarding/candidates', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
-      { label: 'Document Management', href: '/preboarding/documents', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
-      { label: 'Verification & Approvals', href: '/preboarding/verification', icon: <FiShield className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Documents', href: '/preboarding/documents', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
       { label: 'Joining Readiness', href: '/preboarding/readiness', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
       { label: 'Joining Formalities', href: '/preboarding/joining-formalities', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
       { label: 'Activity & History', href: '/preboarding/activity', icon: <FiClock className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
