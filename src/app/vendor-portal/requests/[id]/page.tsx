@@ -25,6 +25,7 @@ import {
   FiRefreshCw, FiAlertTriangle, FiSave, FiList, FiUser, FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import VendorPortalBell from '../../VendorPortalBell';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -130,7 +131,10 @@ export default function VendorRequestDetailPage() {
     <div className="min-h-screen bg-slate-50">
       <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
         <div className="max-w-5xl mx-auto px-6 py-5">
-          <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white mb-2 text-sm"><FiArrowLeft /> My Cases</button>
+          <div className="flex items-center justify-between mb-2">
+            <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white text-sm"><FiArrowLeft /> My Cases</button>
+            <VendorPortalBell />
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-sm font-semibold">{(data.candidateName || data.candidateEmail || '?').slice(0, 2).toUpperCase()}</span>
             <div className="min-w-0">

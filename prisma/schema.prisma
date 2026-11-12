@@ -5729,6 +5729,14 @@ model VendorUser {
   invitedAt       DateTime?
   invitedById     String?
   passwordSetAt   DateTime?
+  // self-service password recovery: RAW token is emailed as
+  // /vendor/reset-password?token=... ; the DB stores ONLY a SHA-256 hash
+  // (passwordResetHash) with a 60-minute expiry, single-use consumption.
+  passwordResetHash       String?
+  passwordResetExpiresAt  DateTime?
+  // vendor portal Notification Center: last time this user viewed their
+  // in-app notification list (drives the unread badge).
+  notificationsSeenAt     DateTime?
   userId          String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

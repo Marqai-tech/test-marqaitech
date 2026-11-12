@@ -17,6 +17,7 @@ import {
   FiRotateCcw, FiSend, FiSlash, FiCheckCircle, FiInfo, FiArrowLeft, FiLock,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import VendorPortalBell from '../VendorPortalBell';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -126,7 +127,10 @@ export default function VendorTeamPage() {
     <div className="min-h-screen bg-slate-50">
       <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
         <div className="max-w-5xl mx-auto px-6 py-5">
-          <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white mb-2 text-sm"><FiArrowLeft /> Dashboard</button>
+          <div className="flex items-center justify-between mb-2">
+            <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white text-sm"><FiArrowLeft /> Dashboard</button>
+            <VendorPortalBell />
+          </div>
           <h1 className="text-xl font-bold flex items-center gap-2"><FiUsers className="h-5 w-5" /> Team{vendorName ? ` — ${vendorName}` : ''}</h1>
           <p className="text-slate-300 text-sm mt-0.5">Manage your vendor team and their access to BGV cases. Each member signs in with their own work email.</p>
         </div>

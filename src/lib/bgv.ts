@@ -46,6 +46,8 @@ export type CheckResult = typeof CHECK_RESULTS[number];
 export const RESULTS_REQUIRING_REASON: CheckResult[] = ['Discrepancy Found', 'Unable to Verify'];
 
 export const INVITE_TTL_DAYS = 7;
+/** Password recovery links are single-use and expire after 60 minutes. */
+export const PASSWORD_RESET_TTL_MINUTES = 60;
 export const EVIDENCE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 export const VENDOR_PDF_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 export const ALLOWED_EVIDENCE_TYPES: Record<string, string> = {

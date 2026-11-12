@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FiShield, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 /**
  * VendorLoginForm — extracted into its own component file to prevent
@@ -100,6 +101,11 @@ export default function VendorLoginForm() {
         </button>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex justify-end -mt-1">
+        <Link href="/vendor/forgot-password" className="text-xs font-medium text-slate-600 hover:text-teal-700 hover:underline">
+          Forgot password?
+        </Link>
+      </div>
       <button
         onClick={handleVendorLogin}
         disabled={isSubmitting}

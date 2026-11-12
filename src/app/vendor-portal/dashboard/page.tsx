@@ -22,6 +22,7 @@ import {
   FiCheckCircle, FiFileText, FiUsers, FiSearch, FiChevronRight, FiX, FiInfo, FiSettings,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import VendorPortalBell from '../VendorPortalBell';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -169,6 +170,7 @@ export default function VendorDashboardPage() {
             <button onClick={fetchRequests} disabled={loading} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2">
               <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
+            <VendorPortalBell />
           </nav>
         </div>
       </div>
