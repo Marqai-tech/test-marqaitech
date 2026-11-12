@@ -20,7 +20,7 @@
  *     Rework / Reject with mandatory reason).
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import {
   FiShield, FiRefreshCw, FiLoader, FiAlertCircle, FiCheckCircle, FiXCircle,
@@ -55,7 +55,7 @@ const CASE_STATUS_META: Record<string, { label: string; chip: string }> = {
   cancelled: { label: 'Cancelled', chip: 'bg-slate-100 text-slate-600' },
 };
 
-const RESULT_META: Record<string, { chip: string; icon: JSX.Element }> = {
+const RESULT_META: Record<string, { chip: string; icon: ReactNode }> = {
   Clear: { chip: 'bg-emerald-100 text-emerald-700', icon: <FiCheckCircle className="w-3 h-3" /> },
   'Discrepancy Found': { chip: 'bg-red-100 text-red-700', icon: <FiXCircle className="w-3 h-3" /> },
   'Unable to Verify': { chip: 'bg-slate-200 text-slate-700', icon: <FiInfo className="w-3 h-3" /> },
@@ -195,7 +195,7 @@ export default function BgvPanel({
   const initiate = async () => {
     if (!vendorId) { toast.error('Select the vendor company'); return; }
     if (selChecks.length === 0) { toast.error('Select at least one verification check'); return; }
-    if (selDocsFinal.length === 0) { toast.error('Select at least one approved document to share'); return; }
+    if (selectedDocIds.length === 0) { toast.error('Select at least one approved document to share'); return; }
     setInitiating(true);
     try {
       const res = await fetch('/api/bgv/initiate', {
@@ -204,7 +204,7 @@ export default function BgvPanel({
           preboardingCandidateId: candidateId,
           vendorCompanyId: vendorId,
           checks: selChecks.map((t) => ({ type: t, label: STANDARD_CHECKS.find((s) => s.type === t)?.label || t })),
-          documents: selDocsFinal,
+          documents: selectedDocIds,
           dueDate: dueDate || undefined,
           instructions: instructions || undefined,
         }),
@@ -582,7 +582,7 @@ export default function BgvPanel({
                 </div>
                 <button
                   onClick={() => setConfirmOpen(true)}
-                  disabled={!vendorId || selChecks.length === 0 || selDocs.length === 0}
+                  disabled={!vendorId || selChecks.length === 0 || selectedDocIds.length === 0}
                   className="w-full inline-flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-40">
                   <FiShield /> Initiate BGV
                 </button>

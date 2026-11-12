@@ -258,7 +258,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       throw txError;
     });
 
-    const report = createdReport as { id: string; version: number; pdfStatus: string };
+    const report = createdReport as { id: string; version: number; pdfStatus: string } | null;
+    if (!report || !report.id) {
+      // defensive: transaction succeeded but did not produce a report row
+      throw new Error('Report transaction completed without creating a report');
+    }
 
       // HR notification goes to the responsible HR reviewer (fix #8 — resolved, not hardcoded).
       const hrIds = [...new Set([bgvReq.initiatedByHRId].filter(Boolean))] as string[];

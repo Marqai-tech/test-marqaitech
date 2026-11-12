@@ -87,6 +87,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               await db.user.update({ where: { id: user.id }, data: { role: 'employee', status: 'active' } }).catch(() => null);
             }
           }
+          if (!user) {
+            // create failed or missing — abort the activation cleanly instead of writing orphan rows
+            return NextResponse.json({ error: 'Unable to resolve or create the candidate user account for activation' }, { status: 500, headers: CORS });
+          }
 
           // ─── Determine if there's already a provisional Employee to upgrade ───
           const existingEmpRows = await db.$queryRawUnsafe(
@@ -150,7 +154,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                      <p style="margin-top:16px;font-size:13px;color:#475569;">Log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Your password is <code>Welcome@123</code>.</p>` }).catch(() => null);
           } catch {}
 
-          if (user) { try { await db.notification.create({ data: { userId: user.id, tenantId: auth.tenantId, title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: false } }).catch(() => null); } catch {} }
+          if (user && auth.tenantId) { try { await db.notification.create({ data: { userId: user.id, tenantId: auth.tenantId, title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: false } }).catch(() => null); } catch {} }
 
           await db.auditLog.create({ data: { userId: auth.userId, action: 'BGV_APPROVED_EMPLOYEE_ACTIVATED', module: 'bgv', details: `BGV approved for ${pb.candidateName}. Employee ID: ${empCode} (upgrade=${isUpgrade})` } }).catch(() => null);
           return NextResponse.json({ message: `BGV Approved! Employee ID: ${empCode}. Activation email sent.`, employeeCode: empCode, status: 'approved_by_hr', isUpgrade }, { headers: CORS });

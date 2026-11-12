@@ -202,10 +202,10 @@ export async function notifyBgvEvent(args: NotifyArgs): Promise<void> {
 export async function nextCaseNumber(db: any): Promise<string> {
   const year = new Date().getFullYear();
   try {
-    const rows = await db.$queryRawUnsafe<{ n: number }[]>(
+    const rows = await db.$queryRawUnsafe(
       `SELECT COUNT(*)::int AS n FROM "BgvRequest" WHERE "caseNumber" LIKE $1`,
       `BGV-${year}-%`,
-    );
+    ) as { n: number }[];
     const next = (rows?.[0]?.n || 0) + 1;
     return `BGV-${year}-${String(next).padStart(4, '0')}`;
   } catch {

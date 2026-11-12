@@ -400,9 +400,6 @@ function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
                     className="inline-flex items-center gap-1.5 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-2 rounded-lg disabled:opacity-40">
                     {savingId === c.id ? <FiLoader className="animate-spin" /> : <FiCheckCircle />} Mark Completed
                   </button>
-                  {(c.status === 'completed' || c.status === 'in_progress') && (
-                    <button onClick={() => save(c, false) && void 0} hidden />
-                  )}
                 </div>
               )}
             </div>
@@ -423,6 +420,7 @@ function ReportTab({ data, canWork, isAssignedEmployee, allCompleted, reworkBloc
   const [submitting, setSubmitting] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const completedCount = data.checks.filter((c) => c.status === 'completed').length;
 
   const pickPdf = async (file: File) => {
     if (file.type !== 'application/pdf') { toast.error('The vendor report must be a PDF.'); return; }
@@ -590,7 +588,7 @@ function HistoryTab({ data }: { data: CaseData }) {
         <div className="bg-white border rounded-xl p-4">
           <h3 className="text-sm font-semibold text-slate-800 mb-2">Assignment trail</h3>
           <div className="space-y-1.5">
-            {data.assignments.map((a, i) => (
+            {(data.assignments || []).map((a, i) => (
               <p key={i} className="text-xs text-slate-600 flex items-center gap-2">
                 <FiUser className="text-slate-400" />
                 {a.assigneeName || 'Unknown'} — assigned {a.assignedAt ? new Date(a.assignedAt).toLocaleString('en-GB') : '—'}

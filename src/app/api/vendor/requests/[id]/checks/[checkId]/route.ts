@@ -77,10 +77,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const check = checkRows[0];
 
     // Validate enums.
-    if (status !== undefined && !CHECK_STATUSES.includes(String(status))) {
+    if (status !== undefined && !(CHECK_STATUSES as readonly string[]).includes(String(status))) {
       return NextResponse.json({ error: `status must be one of: ${CHECK_STATUSES.join(', ')}` }, { status: 400, headers: CORS });
     }
-    if (result !== undefined && result !== null && !CHECK_RESULTS.includes(String(result))) {
+    if (result !== undefined && result !== null && !(CHECK_RESULTS as readonly string[]).includes(String(result))) {
       return NextResponse.json({ error: `result must be one of: ${CHECK_RESULTS.join(', ')}` }, { status: 400, headers: CORS });
     }
 
