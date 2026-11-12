@@ -22,6 +22,7 @@ import {
   FiUserX,
   FiUserCheck,
   FiInfo,
+  FiSend,
 } from 'react-icons/fi';
 
 /* ── Auth helper ── */
@@ -77,6 +78,14 @@ interface FormalitiesData {
 type SectionKey = keyof Pick<FormalitiesData, 'reportingToday' | 'reportingThisWeek' | 'overdue' | 'awaitingFormalities' | 'joined' | 'didNotJoin'>;
 
 type ModalAction = 'confirm' | 'dnj' | 'postpone' | 'cancel';
+
+/* UI action → API action (server contract: confirm-joined | did-not-join | postpone | cancel | send-confirmation) */
+const API_ACTION: Record<ModalAction, string> = {
+  confirm: 'confirm-joined',
+  dnj: 'did-not-join',
+  postpone: 'postpone',
+  cancel: 'cancel',
+};
 
 interface ModalState {
   action: ModalAction;
@@ -150,6 +159,7 @@ export default function JoiningFormalitiesPage() {
   const [modal, setModal] = useState<ModalState | null>(null);
   const [confirmSuccess, setConfirmSuccess] = useState<ConfirmSuccess | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingConfirmId, setSendingConfirmId] = useState<string | null>(null);
   const [formError, setFormError] = useState('');
 
   /* confirm-joined fields */
@@ -236,7 +246,7 @@ export default function JoiningFormalitiesPage() {
     setSubmitting(true);
     setFormError('');
     try {
-      const body: Record<string, unknown> = { candidateId: row.id, action };
+      const body: Record<string, unknown> = { candidateId: row.id, action: API_ACTION[action] };
       if (action === 'confirm') {
         body.actualJoiningDate = fActualDate;
         if (fReportingTime.trim()) body.reportingTime = fReportingTime.trim();
@@ -265,6 +275,26 @@ export default function JoiningFormalitiesPage() {
       setFormError(e instanceof Error ? e.message : 'Action failed');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  /* ── BRD 5.11 — Send Joining Confirmation (no modal, direct action) ── */
+  const sendJoiningConfirmation = async (row: FormalityRow) => {
+    setSendingConfirmId(row.id);
+    try {
+      const res = await fetch('/api/preboarding/brd/joining-formalities', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ candidateId: row.id, action: 'send-confirmation' }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not send joining confirmation');
+      toast.success(json.message || 'Joining confirmation sent to the candidate.');
+      await load(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send joining confirmation');
+    } finally {
+      setSendingConfirmId(null);
     }
   };
 
@@ -362,6 +392,14 @@ export default function JoiningFormalitiesPage() {
                               className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
                             >
                               <FiXCircle className="h-3.5 w-3.5" /> Cancel
+                            </button>
+                            <button
+                              onClick={() => void sendJoiningConfirmation(row)}
+                              disabled={sendingConfirmId === row.id}
+                              className="border border-teal-300 text-teal-700 hover:bg-teal-50 px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-60"
+                              title="Send the candidate a joining confirmation message (BRD 5.11)"
+                            >
+                              <FiSend className="h-3.5 w-3.5" /> {sendingConfirmId === row.id ? 'Sending…' : 'Send Confirmation'}
                             </button>
                           </div>
                         ) : (

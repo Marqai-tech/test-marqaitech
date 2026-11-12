@@ -34,6 +34,18 @@ export async function POST(req: NextRequest) {
     }
     debugSteps.push('5_owner_ok');
 
+    // ── BRD 5.8 upload rules ──
+    // 1. Approved documents are locked against unauthorized changes (server-side)
+    if (doc.status === 'approved' && !isAdmin) {
+      return NextResponse.json({ error: 'This document has been approved by HR and is locked. Please contact HR if it needs to change.', code: 'APPROVED_LOCKED' }, { status: 409, headers: CORS });
+    }
+    // 2. File type whitelist — PDF/JPG/JPEG/PNG only (BRD 5.8.C)
+    const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (mimeType && !ALLOWED_MIME.includes(String(mimeType))) {
+      return NextResponse.json({ error: 'Only PDF, JPG or PNG files are allowed' }, { status: 400, headers: CORS });
+    }
+    debugSteps.push('5b_rules_ok');
+
     // Update document — using Prisma's tagged template approach (cleaner type handling)
     try {
       const result = await db.$executeRaw`

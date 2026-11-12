@@ -39,6 +39,36 @@ async function loadCandidate(db: any, id: string) {
   return rows[0] || null;
 }
 
+/**
+ * BRD 5.7 — "Sensitive values must be masked in the UI" and bank/statutory
+ * data must be protected. Masking is applied SERVER-SIDE (API level) so it
+ * cannot be bypassed by calling the API directly. Full values live only in
+ * the DB and in the uploaded bank-proof document used for verification.
+ */
+function maskSensitivePortalDetails(details: Record<string, any>): Record<string, any> {
+  if (!details || typeof details !== 'object') return details;
+  const clone: Record<string, any> = JSON.parse(JSON.stringify(details));
+  const maskTail = (v: unknown, keep = 4) => {
+    const s = String(v ?? '');
+    if (!s) return '';
+    return s.length <= keep ? '•'.repeat(s.length) : `${'•'.repeat(Math.max(4, s.length - keep))}${s.slice(-keep)}`;
+  };
+  const maskPan = (v: unknown) => {
+    const s = String(v ?? '');
+    return s.length >= 10 ? `${s.slice(0, 3)}••••${s.slice(-1)}` : s ? '•••••' : '';
+  };
+  const bank = clone.bank;
+  if (bank && typeof bank === 'object') {
+    if (bank.accountNumber) bank.accountNumber = maskTail(bank.accountNumber);
+    if (bank.confirmAccountNumber) bank.confirmAccountNumber = maskTail(bank.confirmAccountNumber);
+    if (bank.panNumber) bank.panNumber = maskPan(bank.panNumber);
+    if (bank.uanNumber) bank.uanNumber = maskTail(bank.uanNumber, 2);
+    if (bank.pfNumber) bank.pfNumber = maskTail(bank.pfNumber, 2);
+    if (bank.esiNumber) bank.esiNumber = maskTail(bank.esiNumber, 2);
+  }
+  return clone;
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const db = await getDb(req);
   try {
@@ -76,7 +106,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         stageLabel: STAGE_LABELS[stage] || stage,
         department: departmentName,
         designation: designationName,
-        portalDetails: parsePortalDetails(pb.portalDetails),
+        portalDetails: maskSensitivePortalDetails(parsePortalDetails(pb.portalDetails)),
       },
       documents: docs,
       readiness,

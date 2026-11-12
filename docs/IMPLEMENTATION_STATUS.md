@@ -70,7 +70,8 @@ New pages under `src/app/(dashboard)/preboarding/`:
 - Vendor portal (external users) remains the separate `/vendor-portal/*` surface.
 
 ### 3.3 Candidate portal
-- New preboarding view for candidates (`/candidate-portal/preboarding`) + onboarding submit flow (`/api/candidate-portal/onboarding/submit`) and portal details API (`/api/onboarding/portal-details`).
+- **Candidate preboarding wizard (BRD 5.4) shipped** — `/candidate-portal/preboarding`: 9-step stepper (Welcome → Personal → Address → Family & Emergency → Education & Experience → Bank & Statutory → Document Upload → Review & Declaration → Submit to HR), per-step statuses, save-and-resume (PUT per section), declaration + submit, read-only after submit, correction-reopen flow, mobile responsive. Wired to `GET/PUT /api/candidate-portal/onboarding`, `POST /api/candidate-portal/onboarding/submit`, `POST /api/onboarding/documents/upload`.
+- Full compliance matrix: **`docs/PREBOARDING_BRD_COMPLIANCE.md`**.
 - All manual-listed candidate screens verified working (table above).
 
 ### 3.4 Earlier fixes already in `main` (deployed pending — see §4)
@@ -81,25 +82,9 @@ New pages under `src/app/(dashboard)/preboarding/`:
 
 ---
 
-## 4. Deployment blocker — action required
+## 4. Deployment status
 
-**The Vercel account is BLOCKED.** Evidence (GitHub commit statuses, repo `Marqai-tech/test-marqaitech`):
-
-```
-d1f5be4  Vercel | failure | Account is blocked.
-3525277  Vercel | failure | Account is blocked.
-f0dffb3  Vercel | failure | Account is blocked.
-b75d655  Vercel | failure | Account is blocked.
-41942bc  Vercel | failure | Account is blocked.
-e54a68a  Vercel | failure | Account is blocked.
-```
-
-Consequences:
-- The live site runs an **older build** (predating `f0dffb3`, ~11 Nov). Verified symptoms: `/bgv-dashboard` shows 2 of 4 decision buttons; `POST /api/bgv/requests/[id]/review` returns the 404 page; `/vendors` crashes (`v.type.replace` on undefined) because it still reads the old vendor shape.
-- All fixes/features in `main` (§3) go live automatically **as soon as the account is unblocked and the next deploy runs** — no code action needed.
-- **What you need to do:** log into vercel.com and resolve the account block (billing/verification per https://vercel.com/knowledge/why-is-my-account-deployment-blocked), then trigger a redeploy of `main`.
-
----
+**RESOLVED (12 Nov 2026).** The earlier "Account is blocked" webhook failures are gone — commit `bedc90e` built READY via the Vercel API and is aliased to `3boxes-hrms-beta.vercel.app`. Git auto-deploy proved unreliable (commit `a3f9fa4` sat on GitHub with no build triggered), so deployments are now triggered via `POST /v13/deployments` (gitSource: `Marqai-tech/test-marqaitech` @ `main`) using the scoped `vcp_` API token. This commit deploys the same way.
 
 ## 5. Verification accounts & data used
 

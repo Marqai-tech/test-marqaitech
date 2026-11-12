@@ -18,7 +18,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
-import { HR_ROLES, notifyCandidate, audit, ensurePreboardingId } from '@/lib/preboarding';
+import { HR_ROLES, notifyCandidate, audit, ensurePreboardingId, sendEmailBestEffort } from '@/lib/preboarding';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -155,6 +155,23 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: 'Joining postponed and candidate notified.' }, { headers: CORS });
       }
 
+      case 'send-confirmation': {
+        // BRD 5.11 — Send Joining Confirmation (candidate message + email + audit)
+        if (pb.preboardingStage === 'did_not_join' || pb.preboardingStage === 'cancelled') {
+          return NextResponse.json({ error: 'Cannot send joining confirmation for a closed record' }, { status: 409, headers: CORS });
+        }
+        const jd = pb.joiningDate ? new Date(pb.joiningDate) : null;
+        if (!jd) return NextResponse.json({ error: 'No expected joining date recorded — set the joining date first' }, { status: 400, headers: CORS });
+        const customNote = String(body.message || '').trim();
+        const msg = customNote
+          ? `Joining confirmation: ${pb.candidateName}, your joining on ${jd.toISOString().slice(0, 10)} is confirmed. ${customNote}`
+          : `Joining confirmation: ${pb.candidateName}, you are expected to report on ${jd.toISOString().slice(0, 10)}${pb.reportingTime ? ` at ${pb.reportingTime}` : ''}${pb.reportingLocation ? `, ${pb.reportingLocation}` : ''}. Please carry your original documents. Welcome aboard!`;
+        await notifyCandidate(db, pb.candidateEmail, msg);
+        await sendEmailBestEffort(pb.candidateEmail, 'Joining Confirmation — Welcome Aboard!', `<p>${msg}</p>`).catch(() => 0);
+        await audit(db, (decoded as any).userId, 'JOINING_CONFIRMATION_SENT', 'preboarding', `${preboardingId} ${pb.candidateName}: joining confirmation sent for ${jd.toISOString().slice(0, 10)} by ${who}`);
+        return NextResponse.json({ message: 'Joining confirmation sent to the candidate.' }, { headers: CORS });
+      }
+
       case 'cancel': {
         const reason = String(body.reason || '').trim();
         if (!reason) return NextResponse.json({ error: 'A cancellation reason is mandatory' }, { status: 400, headers: CORS });
@@ -168,7 +185,7 @@ export async function POST(req: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ error: `Unknown action '${action}'. Valid: confirm-joined, did-not-join, postpone, cancel` }, { status: 400, headers: CORS });
+        return NextResponse.json({ error: `Unknown action '${action}'. Valid: confirm-joined, did-not-join, postpone, cancel, send-confirmation` }, { status: 400, headers: CORS });
     }
   } catch (error) {
     console.error('[preboarding/brd/joining-formalities] POST failed:', error);

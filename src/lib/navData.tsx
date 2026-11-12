@@ -486,8 +486,15 @@ export const navSections: NavSection[] = [
       { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
     ],
     items: [
+      // BRD Section 4 — Preboarding sidebar structure (9 recommended screens)
       { label: 'Preboarding Dashboard', href: '/preboarding', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
-      { label: 'Preboarding Tasks', href: '/preboarding/tasks', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Preboarding Candidates', href: '/preboarding/candidates', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Document Management', href: '/preboarding/documents', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Verification & Approvals', href: '/preboarding/verification', icon: <FiShield className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Joining Readiness', href: '/preboarding/readiness', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Joining Formalities', href: '/preboarding/joining-formalities', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Activity & History', href: '/preboarding/activity', icon: <FiClock className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Employee Creation', href: '/preboarding/employee-creation', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },

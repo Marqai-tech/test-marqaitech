@@ -74,6 +74,7 @@ type DocModal =
   | { kind: 'approve'; docId: string; label: string }
   | { kind: 'reject'; docId: string; label: string; remarks: string }
   | { kind: 'resubmit'; docId: string; label: string; remarks: string }
+  | { kind: 'return_correction'; candidateId: string; candidateName: string; note: string }
   | null;
 
 /* ── Tokens / helpers ── */
@@ -253,6 +254,31 @@ export default function VerificationApprovalsPage() {
     [load],
   );
 
+  /* ── BRD 5.9 — Return for Correction (reopens the candidate portal wizard) ── */
+  const returnForCorrection = useCallback(
+    async (candidateId: string, note: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/preboarding/brd/candidate/${candidateId}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ action: 'return-for-correction', note }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(body.error || 'Could not return the details for correction.');
+          return false;
+        }
+        toast.success('Details returned to the candidate for correction.');
+        setRefreshTick((t) => t + 1);
+        return true;
+      } catch {
+        toast.error('Network error — could not return the details for correction.');
+        return false;
+      }
+    },
+    [],
+  );
+
   const handleModalConfirm = useCallback(async () => {
     const m = modal;
     if (!m) return;
@@ -264,14 +290,19 @@ export default function VerificationApprovalsPage() {
       toast.error('Please describe what the candidate must correct.');
       return;
     }
+    if (m.kind === 'return_correction' && !m.note.trim()) {
+      toast.error('A correction note is mandatory — tell the candidate what to fix.');
+      return;
+    }
     setBusy(true);
     let ok = false;
     if (m.kind === 'approve') ok = await docAction(m.docId, 'approve', '');
     else if (m.kind === 'reject') ok = await docAction(m.docId, 'reject', m.remarks.trim());
+    else if (m.kind === 'return_correction') ok = await returnForCorrection(m.candidateId, m.note.trim());
     else ok = await docAction(m.docId, 'request_resubmission', m.remarks.trim());
     setBusy(false);
     if (ok) setModal(null);
-  }, [modal, docAction]);
+  }, [modal, docAction, returnForCorrection]);
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -345,12 +376,21 @@ export default function VerificationApprovalsPage() {
                           {c.jobTitle ? ` · ${c.jobTitle}` : ''}
                         </p>
                       </div>
-                      <Link
-                        href={`/preboarding/candidates/${c.id}`}
-                        className="inline-flex items-center gap-1 border border-violet-300 text-violet-700 hover:bg-violet-50 text-xs font-medium px-2.5 py-1.5 rounded-lg shrink-0"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Link
+                          href={`/preboarding/candidates/${c.id}`}
+                          className="inline-flex items-center gap-1 border border-violet-300 text-violet-700 hover:bg-violet-50 text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                        >
+                          View
+                        </Link>
+                        <button
+                          onClick={() => setModal({ kind: 'return_correction', candidateId: c.id, candidateName: c.candidateName || 'candidate', note: '' })}
+                          className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                          title="Return the submitted details to the candidate for correction (reopens their portal wizard)"
+                        >
+                          <FiCornerUpLeft className="w-3.5 h-3.5" /> Return for Correction
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -547,6 +587,30 @@ export default function VerificationApprovalsPage() {
             value={modal.remarks}
             onChange={(e) => setModal({ ...modal, remarks: e.target.value })}
             placeholder="State the reason for rejection"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full"
+          />
+        </ConfirmModal>
+      ) : null}
+
+      {modal?.kind === 'return_correction' ? (
+        <ConfirmModal
+          title="Return for Correction"
+          tone="primary"
+          confirmLabel="Return to Candidate"
+          busy={busy}
+          onClose={() => setModal(null)}
+          onConfirm={() => void handleModalConfirm()}
+        >
+          <p className="text-sm text-slate-500 mt-1">
+            Return the submitted details of <span className="font-medium text-slate-700">{modal.candidateName}</span> for correction. The candidate portal wizard will be reopened and they will be notified.
+          </p>
+          <label className="block text-xs font-medium text-slate-500 mb-1 mt-3" htmlFor="v-rc-note">Correction note (sent to candidate) *</label>
+          <textarea
+            id="v-rc-note"
+            rows={3}
+            value={modal.note}
+            onChange={(e) => setModal({ ...modal, note: e.target.value })}
+            placeholder="e.g. Please correct your permanent address PIN code and re-check your bank account number"
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full"
           />
         </ConfirmModal>

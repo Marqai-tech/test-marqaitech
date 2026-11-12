@@ -26,6 +26,17 @@ export async function POST(req: NextRequest) {
     const doc = docs[0];
     if (!isAdmin && doc.candidateEmail !== userEmail) return NextResponse.json({ error: 'You do not own this document' }, { status: 403, headers: CORS });
 
+    // ── BRD 5.8 upload rules ──
+    // 1. Approved documents are locked against unauthorized changes (server-side)
+    if (doc.status === 'approved' && !isAdmin) {
+      return NextResponse.json({ error: 'This document has been approved by HR and is locked. Please contact HR if it needs to change.', code: 'APPROVED_LOCKED' }, { status: 409, headers: CORS });
+    }
+    // 2. File type whitelist — PDF/JPG/JPEG/PNG only (BRD 5.8.C)
+    const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (mimeType && !ALLOWED_MIME.includes(String(mimeType))) {
+      return NextResponse.json({ error: 'Only PDF, JPG or PNG files are allowed' }, { status: 400, headers: CORS });
+    }
+
     await db.$executeRawUnsafe(
       `UPDATE "OnboardingDocument" SET "fileUrl"=$1,"fileName"=$2,"fileSize"=$3,"mimeType"=$4,"status"='submitted',"uploadedAt"=NOW(),"updatedAt"=NOW() WHERE "id"=$5`,
       fileDataUrl, fileName||null, fileSize||null, mimeType||null, documentId,

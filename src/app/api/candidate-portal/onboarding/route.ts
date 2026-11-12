@@ -51,6 +51,26 @@ export async function GET(request: Request) {
     if (pb.departmentId) { try { const r = await db.$queryRawUnsafe(`SELECT name FROM "Department" WHERE id=$1 LIMIT 1`, pb.departmentId) as any[]; departmentName = r[0]?.name||null; } catch {} }
     if (pb.designationId) { try { const r = await db.$queryRawUnsafe(`SELECT title FROM "Designation" WHERE id=$1 LIMIT 1`, pb.designationId) as any[]; designationName = r[0]?.title||null; } catch {} }
 
+    // ─── BRD 5.4 header/dashboard: company name + HR contact ───
+    let companyName: string | null = null;
+    try {
+      const cRows = await db.$queryRawUnsafe(
+        `SELECT name FROM "Company" ORDER BY "createdAt" ASC LIMIT 1`,
+      ).catch(() => []) as any[];
+      companyName = cRows[0]?.name || null;
+    } catch { companyName = null; }
+
+    let hrContact: { name?: string | null; email?: string | null; phone?: string | null } | null = null;
+    try {
+      const hrRows = await db.$queryRawUnsafe(
+        `SELECT name, email, phone FROM "User"
+         WHERE role IN ('super_admin','tenant_admin','hr_admin','company_hr_admin','admin','ceo')
+           AND "isActive" = TRUE
+         ORDER BY "createdAt" ASC LIMIT 1`,
+      ).catch(() => []) as any[];
+      if (hrRows.length > 0) hrContact = { name: hrRows[0].name, email: hrRows[0].email, phone: hrRows[0].phone || null };
+    } catch { hrContact = null; }
+
     let employeeCode = null;
     let attendanceSummary: any = null;
     let leaveBalances: any = null;
@@ -158,6 +178,8 @@ export async function GET(request: Request) {
         fileUrl: d.fileUrl, fileName: d.fileName, fileSize: d.fileSize, mimeType: d.mimeType,
         status: d.status, reviewedAt: d.reviewedAt, reviewNotes: d.reviewNotes, uploadedAt: d.uploadedAt,
       })),
+      hrContact,
+      companyName,
       attendanceSummary,
       recentAttendance,
       leaveBalances,
