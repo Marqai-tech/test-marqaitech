@@ -231,8 +231,8 @@ export default function CandidatePreboardingWizardPage() {
     setDeclarationAccepted(!!d.declarationAcceptedAt);
   }, []);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setLoadError(null);
     try {
       const res = await fetch('/api/candidate-portal/onboarding', { headers: getPortalHeaders() });
@@ -247,7 +247,7 @@ export default function CandidatePreboardingWizardPage() {
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load preboarding data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [hydrateForms]);
 
@@ -402,7 +402,7 @@ export default function CandidatePreboardingWizardPage() {
     setErrors(e);
     if (Object.keys(e).length > 0) { toast.error('Please fix the highlighted fields before continuing'); return; }
     const ok = await saveSection(section, payload || {});
-    if (ok) { setErrors({}); setActiveStep(s => Math.min(s + 1, STEPS.length - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    if (ok) { setErrors({}); setActiveStep(s => Math.min(s + 1, STEPS.length - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); await fetchData(true); }
   }
 
   // ─────────────── Documents ───────────────
@@ -421,7 +421,7 @@ export default function CandidatePreboardingWizardPage() {
         const result = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(result.error || 'Upload failed');
         toast.success('Document uploaded — submitted for HR review');
-        await fetchData();
+        await fetchData(true);
       };
       reader.onerror = () => toast.error('Could not read file');
       reader.readAsDataURL(file);
@@ -453,7 +453,7 @@ export default function CandidatePreboardingWizardPage() {
       }
       toast.success('Submitted to HR successfully!');
       setActiveStep(8);
-      await fetchData();
+      await fetchData(true);
     } finally { setSubmitting(false); }
   }
 
