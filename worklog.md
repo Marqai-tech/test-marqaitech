@@ -5964,3 +5964,36 @@ Stage Summary:
 - "User not found" error on profile photo remove is FIXED. Both employees (Manoj) and admins (Madhuri) can remove their profile photo via the red cross button.
 - Photo removal is now a direct action (no approval workflow needed) — only NEW photo uploads go through the avatarPending approval flow for employees.
 - All Prisma calls in the profile route that could fail on schema drift now have RAW SQL fallbacks: user.update, user.findUnique, employee.findUnique, and the GET handler's user lookup.
+
+---
+Task ID: 163
+Agent: main agent (Z.ai CLI)
+Task: User request — preboarding Documents rework per mock screens (candidate-centric workspace, universal file viewer, download option, merge Verification into Documents) + confirm understanding
+
+Work Log:
+- CONTEXT: User reported the Documents tab still showed ONE cross-candidate queue (all candidates' documents mixed: pending/approved/rejected/awaiting) and that HR could not VIEW any document (image/PDF/Word). Commit 11777e4 (pushed earlier the same day) already contained the rework; its Vercel production build was still BUILDING at the time of the user's message — that is why the live site still showed the old UI.
+- REPO SYNC: Cloned Marqai-tech/test-marqaitech @ 11777e4, audited every file of the rework:
+  - src/app/(dashboard)/preboarding/documents/page.tsx — two-level flow: Level 1 candidates list (search + filters + per-candidate summary "4 pending review · 2 resubmit" + BGV chip), Level 2 candidate workspace (breadcrumb, candidate header with submitted date + Initiate BGV gated on all-approved, 4 summary cards Required/Approved/Pending review/Resubmission requested, documents table Document|Submitted|Status|Action, right preview panel, activity timeline).
+  - src/components/preboarding/DocumentPreview.tsx — universal viewer: image → <img> from blob URL, PDF → <iframe> blob (native viewer), .docx → mammoth HTML render, legacy .doc/unknown → graceful card; Download + Open full preview on every document; error state with "Download instead".
+  - src/app/api/preboarding/brd/documents/[id]/file/route.ts — streams REAL file bytes (decodes base64 data-URLs stored in OnboardingDocument.fileUrl/fileData), sniffs MIME, inline + ?download=1 attachment modes, auth via Authorization header OR ?token= for img/iframe, normalizes header before getDb() for tenant resolution.
+  - /preboarding/verification → redirect to /preboarding/documents; sidebar merged to a single "Documents" entry; dashboard "Verify Documents" card → /preboarding/documents.
+  - GET /api/preboarding/brd/documents strips multi-MB base64 columns (hasFile/viewUrl/downloadUrl instead) — fast payloads.
+- FIXES SHIPPED (commit 19cdc5d):
+  1. src/lib/schema-sync.ts — ADD COLUMN IF NOT EXISTS for fileName/fileData/fileMimeType/fileSize on OnboardingDocument. The file-streaming SELECT references those columns; a single missing column on an older tenant DB would make the query throw, get swallowed by .catch(), and HR would see "Document not found" for every document.
+  2. file/route.ts — replaced ES2018-only regex s-flag with [\s\S] (repo tsconfig target ES2017, TS1501), typed the raw query rows (DocFileRow) and token claims (TokenClaims) — file route now passes ESLint (was 4 no-explicit-any errors).
+- LIVE E2E VERIFICATION (agent-browser on https://3boxes-hrms-beta.vercel.app, logged in as madhuri@marqaitech.com / Tenant Admin, tenant test-marqaitech):
+  - /preboarding/documents Level 1: 5 candidates listed with per-candidate summaries (e.g. Manoj Thummala PRE-2026-0001 "4 pending review · 2 resubmit", others "6 approved"/"6 not submitted"), BGV chips, filters (All candidates / Action needed / Pending review / All approved / Resubmission requested). Sidebar shows single merged "Documents" entry, no separate Verification item. ✅
+  - Level 2 (Manoj Thummala): breadcrumb Documents > Manoj Thummala; candidate header (avatar, Senior Software Engineer (E2E Recruitment Test) · PRE-2026-0001, Submitted 12 Nov 2026, BGV chip, Back); 4 summary cards (6 Required / 0 Approved / 4 Pending review / 2 Resubmission requested); documents table with 6 real rows; Activity timeline with real events. ✅ (screenshot verify-1-workspace.png)
+  - IMAGE preview (Educational Certificate — Arin Anime Character Design Sheet.png): <img> rendered, naturalWidth=1122, no error text. ✅
+  - WORD preview (Aadhaar Card — Employee_Resignation_Workflow_Spec.docx): mammoth HTML render, 8,799 chars of real content ("Employee Resignation — Notification & Email Workflow…"), toolbar "Word document · 15.0 KB". ✅ (verify-3-word-preview.png)
+  - PDF preview (PAN Card — test.pdf): <iframe src="blob:…"> with native PDF viewer. ✅ (verify-4-pdf-preview.png)
+  - ACTIONS: Status chip + Approve (green) / Reject (red outline) / Resubmit (amber) buttons; "Request a replacement document" form with Reason* (mock placeholder "The certificate is blurry. Please upload a clear, complete copy."), Due date (optional) date input, "Notify candidate by email and in-app notification" checkbox (default on), "Send resubmission request" button; footer note "Only this document will be reopened…". Form opened + screenshot, then cancelled — NO data mutation. ✅ (verify-5-resubmit-form.png)
+  - DOWNLOAD: GET /api/preboarding/brd/documents/<id>/file?download=1 → 200, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document, Content-Disposition attachment; filename="Employee_Resignation_Workflow_Spec.docx", 15,356 bytes. ✅
+  - MERGE: /preboarding/verification redirects to /preboarding/documents. ✅
+- DEPLOYMENT: 11777e4 production build went READY and was verified live. Hardening commit 19cdc5d did not auto-trigger a build (webhook miss), so a production deployment was created via the Vercel API gitSource (ref 19cdc5d) — 3boxes-hrms-mwonmi62m…vercel.app; monitored to completion.
+
+Stage Summary:
+- The preboarding Documents module is now the mock-screen two-level flow (candidates list → candidate workspace) with a universal viewer that ACTUALLY renders images, PDFs and Word files in-app, plus a Download button on every document and Open full preview.
+- Verification & Approvals is merged into Documents (sidebar + redirect) — no more duplicate queue; the old "all candidates' documents at once" screen is gone.
+- Live-verified end-to-end on 3boxes-hrms-beta.vercel.app with real tenant data for every file type; screenshots saved in agent context (verify-1…verify-5).
+- Hardening: tenant-DB schema drift can no longer break document viewing (all byte columns guaranteed by schema-sync), and the file route is lint/TS clean.
