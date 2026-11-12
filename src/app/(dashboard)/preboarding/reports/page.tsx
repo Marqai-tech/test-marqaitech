@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   FiUserPlus, FiBarChart2, FiFileText, FiCalendar,
-  FiClock, FiCheckCircle, FiAlertCircle, FiShield, FiMonitor,
+  FiClock, FiCheckCircle, FiAlertCircle, FiMonitor, FiCircle,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 
@@ -40,13 +40,13 @@ export default function PreboardingReportsPage() {
     }
   };
 
-  useEffect(() => { fetchReport(activeReport); }, [activeReport]);
+  useEffect(() => { queueMicrotask(() => fetchReport(activeReport)); }, [activeReport]);
 
   const activeLabel = reportTypes.find(r => r.key === activeReport)?.label || '';
 
   const renderSummary = () => {
     if (!reportData) return null;
-    const { total, byStatus, completionRate, avgOnboardingDays, bgvByStatus, hrVerifiedCount, accountProvisionedCount } = reportData;
+    const { total, byStatus, completionRate, avgOnboardingDays, bgvByStatus, hrVerifiedCount } = reportData;
 
     return (
       <div className="space-y-4">

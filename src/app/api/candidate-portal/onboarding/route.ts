@@ -2,7 +2,26 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
-const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
+const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, PUT, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
+
+// Wizard sections (BRD 5.4 portal stepper — steps 2–6 collect form data)
+const PORTAL_SECTIONS = ['personal', 'address', 'family', 'education', 'bank'] as const;
+type PortalSection = typeof PORTAL_SECTIONS[number];
+
+function parsePortalDetails(raw: unknown): Record<string, any> {
+  if (!raw) return {};
+  if (typeof raw === 'string') { try { const v = JSON.parse(raw); return v && typeof v === 'object' ? v : {}; } catch { return {}; } }
+  return raw as Record<string, any>;
+}
+
+// Minimum required fields per section for Submit-to-HR validation (BRD 5.5–5.7)
+const SECTION_REQUIRED: Record<PortalSection, string[]> = {
+  personal: ['firstName', 'lastName', 'dateOfBirth', 'gender', 'mobileNumber'],
+  address: ['permanentAddressLine1', 'permanentCity', 'permanentState', 'permanentPincode'],
+  family: ['emergencyContactName', 'emergencyContactRelation', 'emergencyContactMobile'],
+  education: [],            // education records list — validated separately (at least one record OR fresher flag)
+  bank: ['accountHolderName', 'bankName', 'accountNumber', 'ifscCode'],
+};
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
 
 /** GET /api/candidate-portal/onboarding — candidate's onboarding data (incl. attendance + leave when Employee exists) */
@@ -113,6 +132,7 @@ export async function GET(request: Request) {
       preboardingCandidateId: pb.id,
       candidateName: pb.candidateName,
       candidateEmail: pb.candidateEmail,
+      candidatePhone: pb.candidatePhone || null,
       jobTitle: pb.jobTitle || null,
       department: departmentName,
       designation: designationName,
@@ -126,6 +146,13 @@ export async function GET(request: Request) {
       bgvNotes: pb.bgvNotes || null,
       employeeId: employeeCode,
       activatedAt: pb.activatedAt || null,
+      // ─── BRD Preboarding Portal Wizard state ───
+      portalDetails: parsePortalDetails(pb.portalDetails),
+      portalSubmittedAt: pb.portalSubmittedAt || null,
+      declarationAcceptedAt: pb.declarationAcceptedAt || null,
+      declarationName: pb.declarationName || null,
+      correctionNote: pb.correctionNote || null,
+      correctionSetAt: pb.correctionSetAt || null,
       documents: docs.map((d:any) => ({
         id: d.id, documentType: d.documentType, documentLabel: d.documentLabel,
         fileUrl: d.fileUrl, fileName: d.fileName, fileSize: d.fileSize, mimeType: d.mimeType,
@@ -137,6 +164,58 @@ export async function GET(request: Request) {
     }, { headers: CORS });
   } catch (error) {
     console.error('Candidate onboarding GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
+  }
+}
+
+/**
+ * PUT /api/candidate-portal/onboarding — save one wizard section (save-and-resume).
+ * body: { section: 'personal'|'address'|'family'|'education'|'bank', data: {...} }
+ *
+ * Merges the section into PreboardingCandidate.portalDetails (JSON). After the
+ * candidate has submitted to HR, saving is blocked unless HR returned the
+ * details for correction (correctionNote set / portalSubmittedAt cleared).
+ */
+export async function PUT(request: Request) {
+  const db = await getDb(request);
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: CORS });
+    const decoded = await verifyToken(token);
+    if (!decoded || (decoded as any).kind !== 'candidate')
+      return NextResponse.json({ error: 'Invalid candidate token' }, { status: 401, headers: CORS });
+    const candidateEmail = ((decoded as any).email as string).toLowerCase();
+
+    const body = await request.json().catch(() => ({}));
+    const section = String(body.section || '');
+    const data = body.data;
+    if (!PORTAL_SECTIONS.includes(section as PortalSection))
+      return NextResponse.json({ error: `section must be one of: ${PORTAL_SECTIONS.join(', ')}` }, { status: 400, headers: CORS });
+    if (!data || typeof data !== 'object')
+      return NextResponse.json({ error: 'data object required' }, { status: 400, headers: CORS });
+
+    const pbRows = await db.$queryRawUnsafe(
+      `SELECT id, "portalDetails", "portalSubmittedAt" FROM "PreboardingCandidate" WHERE "candidateEmail" = $1 ORDER BY "createdAt" DESC LIMIT 1`, candidateEmail,
+    ).catch(() => []) as any[];
+    if (pbRows.length === 0)
+      return NextResponse.json({ error: 'Not in onboarding pipeline', code: 'NOT_IN_ONBOARDING' }, { status: 404, headers: CORS });
+    const pb = pbRows[0];
+
+    if (pb.portalSubmittedAt) {
+      return NextResponse.json({ error: 'Details already submitted to HR. Please contact HR if you need to make changes.', code: 'ALREADY_SUBMITTED' }, { status: 409, headers: CORS });
+    }
+
+    const details = parsePortalDetails(pb.portalDetails);
+    details[section] = { ...(details[section] || {}), ...data, savedAt: new Date().toISOString() };
+
+    await db.$executeRawUnsafe(
+      `UPDATE "PreboardingCandidate" SET "portalDetails" = $1::jsonb, "correctionNote" = NULL, "updatedAt" = NOW() WHERE "id" = $2`,
+      JSON.stringify(details), pb.id,
+    );
+
+    return NextResponse.json({ message: `${section} saved`, section }, { headers: CORS });
+  } catch (error) {
+    console.error('Candidate onboarding PUT error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
   }
 }

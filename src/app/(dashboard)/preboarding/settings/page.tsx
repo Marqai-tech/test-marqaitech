@@ -61,7 +61,7 @@ export default function PreboardingSettingsPage() {
     }
   };
 
-  useEffect(() => { fetchSettings(); }, []);
+  useEffect(() => { queueMicrotask(() => fetchSettings()); }, []);
 
   const toggleComm = (idx: number) => {
     if (!settings) return;

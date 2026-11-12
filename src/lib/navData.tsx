@@ -499,6 +499,25 @@ export const navSections: NavSection[] = [
     ],
   },
 
+  // ─── 9b. VENDOR MANAGEMENT MODULE (BGV vendors — separate module per BRD) ───
+  // HR-side management of background-verification vendor companies,
+  // their portal users (invites/passwords) and BGV request tracking.
+  {
+    key: 'vendor-management',
+    label: 'Vendor Management',
+    sectionIcon: FiShield,
+    sectionColor: C.onboarding,
+    description: 'BGV vendor partners, portal users & verification tracking',
+    items: [
+      { label: 'Vendor Management Dashboard', href: '/vendor-management', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
+      // ── Vendors ──
+      { label: 'Vendors', href: '#vm-vendors-divider', icon: <FiShield className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'BGV Vendors', href: '/vendor-management/vendors', icon: <FiShield className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'BGV Requests', href: '/vendor-management/requests', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+    ],
+  },
+
   // ─── 10. APPRAISAL / PERFORMANCE MODULE ───
   // Reports / Settings → dashboardTabs
   {
@@ -763,7 +782,7 @@ export const navSections: NavSection[] = [
 
       // ── Vendors ──
       { label: 'Vendors', href: '#vendors-divider', icon: <FiTruck className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
-      { label: 'Vendors', href: '/vendors', icon: <FiTruck className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'BGV Vendors', href: '/vendor-management/vendors', icon: <FiShield className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Vendor Compliance', href: '/vendors/compliance', icon: <FiShield className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Purchase Orders', href: '/purchase-orders', icon: <FiCreditCard className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Vendor Invoices', href: '/vendor-invoices', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'company', isNew: true },
@@ -967,9 +986,9 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   },
   {
     groupLabel: 'Talent',
-    groupDescription: 'Recruitment, onboarding, preboarding & learning',
+    groupDescription: 'Recruitment, onboarding, preboarding, vendor mgmt & learning',
     groupIcon: FiUserPlus,
-    sections: navSections.filter(s => ['recruitment', 'onboarding', 'preboarding', 'learning'].includes(s.key)),
+    sections: navSections.filter(s => ['recruitment', 'onboarding', 'preboarding', 'vendor-management', 'learning'].includes(s.key)),
   },
   {
     groupLabel: 'Operations',

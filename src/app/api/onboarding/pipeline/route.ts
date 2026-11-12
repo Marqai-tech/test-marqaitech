@@ -43,6 +43,8 @@ export async function GET(req: NextRequest) {
               pbc."backgroundCheckStatus", pbc."bgvNotes", pbc."companyEmail",
               pbc."ctc", pbc."employmentType", pbc."workLocation",
               pbc."joiningDate", pbc."startDate", pbc."employeeId", pbc."activatedAt",
+              pbc."portalDetails", pbc."portalSubmittedAt", pbc."declarationName",
+              pbc."declarationAcceptedAt", pbc."correctionNote", pbc."correctionSetAt",
               pbc."createdAt"
        FROM "PreboardingCandidate" pbc
        ORDER BY pbc."createdAt" DESC

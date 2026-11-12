@@ -3016,6 +3016,46 @@ model PreboardingCandidate {
   // Welcome series tracking
   welcomeSeriesInitiated Boolean @default(false)
 
+  // ─── BRD Preboarding Portal Wizard (9-step candidate journey) ───
+  // portalDetails: JSON of section data — personal, address, family,
+  // education/experience, bank/statutory. Each section: { ...fields, savedAt }.
+  portalDetails          Json?
+  // Set when candidate completes Review & Declaration + Submit to HR (step 8-9)
+  portalSubmittedAt      DateTime?
+  declarationAcceptedAt  DateTime?
+  declarationName        String?
+  // When HR returns details for correction: note shown to the candidate,
+  // portal reopens for editing (portalSubmittedAt cleared).
+  correctionNote         String?
+  correctionSetAt        DateTime?
+
+  // ─── BRD Preboarding Module (screens, stages, readiness, formalities) ───
+  // Human-friendly preboarding identifier, e.g. PRE-2026-0001
+  preboardingId          String?
+  // BRD stage: initiated | details_pending | verification | ready_to_join | joined | did_not_join | cancelled
+  preboardingStage       String?
+  // Joining readiness checklist: map requirement → { status, updatedBy, updatedAt }
+  readinessChecklist     Json?
+  readyToJoinAt          DateTime?
+  // Joining confirmation & formalities (BRD 5.11)
+  joiningConfirmed       Boolean  @default(false)
+  joiningConfirmedAt     DateTime?
+  actualJoiningDate      DateTime?
+  reportingTime          String?
+  reportingLocation      String?
+  noShowReason           String?
+  didNotJoinAt           DateTime?
+  postponedJoiningDate   DateTime?
+  postponementReason     String?
+  cancelledAt            DateTime?
+  cancellationReason     String?
+  // Handover + logistics
+  hrAssignedTo           String?
+  recruiterName          String?
+  workMode               String?
+  branch                 String?
+  reminderSentAt         DateTime?
+
   // Background checks (REQ-ONB-03)
   backgroundChecks   BackgroundCheck[]
   // Welcome series emails (REQ-ONB-04)
@@ -5641,6 +5681,130 @@ model CandidateMessage {
   @@index([candidateEmail])
   @@index([parentMessageId])
   @@index([senderUserId])
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// BGV VENDOR MODELS (Vendor Management module)
+// These tables pre-exist in production tenant DBs (created via raw SQL);
+// declared here so scripts/tenant-schema-sync.js can create them in any
+// tenant DB that lacks them, and so Prisma Client is schema-consistent.
+// All access in code is via raw SQL ($queryRawUnsafe) — these declarations
+// must match the live table shapes EXACTLY (names, types, nullability).
+// ══════════════════════════════════════════════════════════════════════
+
+// BGV vendor company — the verification partner HR initiates BGV with.
+model VendorCompany {
+  id              String   @id @default(cuid())
+  name            String
+  email           String?
+  phone           String?
+  website         String?
+  address         String?
+  // JSON array of check types this vendor supports (identity, address, education, employment, criminal, ...)
+  supportedChecks String?
+  status          String   @default("active") // active | inactive
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+}
+
+// BGV vendor portal user — vendor_admin or vendor_employee.
+model VendorUser {
+  id              String   @id @default(cuid())
+  vendorCompanyId String
+  email           String
+  name            String
+  role            String   @default("vendor_employee") // vendor_admin | vendor_employee
+  status          String   @default("pending") // pending (invite out) | active | inactive
+  passwordHash    String?
+  // invite flow: token emailed to the user; /vendor/set-password?token=...
+  inviteToken     String?
+  invitedAt       DateTime?
+  invitedById     String?
+  passwordSetAt   DateTime?
+  userId          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([email])
+  @@index([vendorCompanyId])
+}
+
+// One BGV request per candidate per initiation (HR → vendor).
+model BgvRequest {
+  id                     String   @id @default(cuid())
+  candidateEmail         String
+  candidateName          String?
+  preboardingCandidateId String?
+  vendorCompanyId        String
+  initiatedByHRId        String
+  // awaiting_assignment → assigned → in_progress → submitted_for_hr_review → (approved_by_hr | rejected_by_hr) / cancelled
+  status                 String   @default("awaiting_assignment")
+  dueDate                DateTime?
+  instructions           String?
+  // JSON array of requested checks [{type,label}]
+  checks                 String?
+  assignedVendorUserId   String?
+  assignedById           String?
+  assignedAt             DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([candidateEmail])
+  @@index([vendorCompanyId])
+  @@index([status])
+}
+
+// Individual verification check inside a BGV request.
+model BgvCheck {
+  id            String   @id @default(cuid())
+  bgvRequestId  String
+  checkType     String
+  checkLabel    String?
+  status        String   @default("pending") // pending | in_progress | completed
+  result        String?  // Clear | Discrepancy Found
+  findings      String?
+  evidenceUrl   String?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([bgvRequestId])
+}
+
+// Vendor-submitted verification report (versioned).
+model BgvReport {
+  id                String   @id @default(cuid())
+  bgvRequestId      String
+  version           Int      @default(1)
+  submittedById     String
+  submittedAt       DateTime @default(now())
+  summary           String?
+  overallResult     String?  // Clear | Discrepancy Found
+  status            String   @default("submitted") // submitted | approved | rejected
+  hrDecision        String?  // approved | rejected
+  hrDecisionById    String?
+  hrDecisionAt      DateTime?
+  hrDecisionReason  String?
+  createdAt         DateTime @default(now())
+
+  @@index([bgvRequestId])
+}
+
+// Documents shared with the vendor for a BGV request.
+model BgvDocumentShare {
+  id                   String   @id @default(cuid())
+  bgvRequestId         String
+  onboardingDocumentId String?
+  documentType         String?
+  documentLabel        String?
+  fileUrl              String?
+  sharedById           String
+  sharedAt             DateTime @default(now())
+
+  @@index([bgvRequestId])
 }
 
 // ─── REQ-AI-INT-02: Candidate sentiment & engagement scoring ───

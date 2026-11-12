@@ -18,11 +18,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
     const { action, notes } = body || {};
     if (!['approve','reject'].includes(action)) return NextResponse.json({ error: 'action must be approve or reject' }, { status: 400, headers: CORS });
+    // BRD 5.8 F: rejected documents must have mandatory rejection remarks
+    if (action === 'reject' && !(notes || '').trim()) return NextResponse.json({ error: 'Rejection remarks are mandatory (BRD 5.8 F)' }, { status: 400, headers: CORS });
 
     const docs = await db.$queryRawUnsafe(`SELECT * FROM "OnboardingDocument" WHERE "id" = $1 LIMIT 1`, documentId).catch(() => []) as any[];
     if (docs.length === 0) return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: CORS });
     const doc = docs[0];
     if (doc.status !== 'submitted') return NextResponse.json({ error: `Document must be 'submitted'. Current: ${doc.status}` }, { status: 400, headers: CORS });
+    // BRD 5.8 F: HR cannot approve an empty or unreadable document
+    if (action === 'approve' && !doc.fileUrl) return NextResponse.json({ error: 'Cannot approve an empty or unreadable document (BRD 5.8 F)' }, { status: 400, headers: CORS });
 
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
     await db.$executeRawUnsafe(
@@ -30,11 +34,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       newStatus, auth.userId, notes||null, documentId,
     );
 
-    // Notify candidate
+    // Notify candidate (senderName + body are NOT NULL in the DB — omitting them made this insert fail silently)
+    const msgText = action === 'approve' ? `Your document "${doc.documentLabel}" has been approved.` : `Your document "${doc.documentLabel}" has been rejected. ${notes||'Please re-upload.'}`;
     await db.$executeRawUnsafe(
-      `INSERT INTO "CandidateMessage" ("id","candidateEmail","senderRole","message","createdAt","updatedAt") VALUES ($1,$2,'system',$3,NOW(),NOW())`,
-      `msg-${Date.now()}`, doc.candidateEmail,
-      action === 'approve' ? `Your document "${doc.documentLabel}" has been approved.` : `Your document "${doc.documentLabel}" has been rejected. ${notes||'Please re-upload.'}`,
+      `INSERT INTO "CandidateMessage" ("id","candidateEmail","senderName","senderRole","message","body","createdAt","updatedAt") VALUES ($1,$2,'HR System','system',$3,$3,NOW(),NOW())`,
+      `msg-${Date.now()}`, doc.candidateEmail, msgText,
     ).catch(() => 0);
 
     await db.auditLog.create({ data: { userId: auth.userId, action: `DOCUMENT_${action.toUpperCase()}D`, module: 'onboarding', details: `${action==='approve'?'Approved':'Rejected'} document "${doc.documentLabel}" for ${doc.candidateEmail}` } }).catch(() => null);
