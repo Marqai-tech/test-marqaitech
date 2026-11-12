@@ -97,6 +97,39 @@ async function main() {
     // ─── Company: new SRS column (REQ-TA-02 / REQ-GL-01) ───
     `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "language" TEXT NOT NULL DEFAULT 'en'`,
 
+    // ─── BGV: one active case per candidate (partial unique index; NOT expressible in Prisma) ───
+    `CREATE UNIQUE INDEX IF NOT EXISTS "BgvRequest_active_candidateEmail_key"
+       ON "BgvRequest" ("candidateEmail")
+       WHERE "status" NOT IN ('approved_by_hr','rejected_by_hr','cancelled')`,
+
+    // ─── VendorUser: secure invite columns (hash + expiry + status) ───
+    `ALTER TABLE "VendorUser" ADD COLUMN IF NOT EXISTS "inviteTokenHash" TEXT`,
+    `ALTER TABLE "VendorUser" ADD COLUMN IF NOT EXISTS "inviteExpiresAt" TIMESTAMP(3)`,
+    `ALTER TABLE "VendorUser" ADD COLUMN IF NOT EXISTS "inviteStatus" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "VendorUser_inviteTokenHash_idx" ON "VendorUser"("inviteTokenHash")`,
+
+    // ─── BgvRequest: caseNumber + rework + optimistic version ───
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "caseNumber" TEXT`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "reworkReason" TEXT`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "reworkChecks" TEXT`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "reworkDueDate" TIMESTAMP(3)`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "version" INTEGER NOT NULL DEFAULT 0`,
+
+    // ─── BgvCheck: verification date (standard form) ───
+    `ALTER TABLE "BgvCheck" ADD COLUMN IF NOT EXISTS "verificationDate" TIMESTAMP(3)`,
+
+    // ─── BgvReport: snapshot + generated/vendor PDFs + HR notes ───
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "snapshot" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "standardPdfName" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "standardPdfMime" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "standardPdfData" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "pdfStatus" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "pdfError" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "vendorPdfName" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "vendorPdfMime" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "vendorPdfData" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "hrDecisionNotes" TEXT`,
+
     // ─── Employee: backfill ALL missing columns (the 0_init migration is older
     //     than the current schema.prisma — many fields were added later but
     //     CREATE TABLE IF NOT EXISTS won't add them to the existing table).

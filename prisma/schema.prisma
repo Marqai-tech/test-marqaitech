@@ -5717,10 +5717,15 @@ model VendorUser {
   email           String
   name            String
   role            String   @default("vendor_employee") // vendor_admin | vendor_employee
-  status          String   @default("pending") // pending (invite out) | active | inactive
+  status          String   @default("pending") // pending (invite out) | active | inactive (disabled)
   passwordHash    String?
-  // invite flow: token emailed to the user; /vendor/set-password?token=...
+  // invite flow: RAW token is emailed as /vendor/set-password?token=...;
+  // the DB stores ONLY a SHA-256 hash (inviteTokenHash) with an expiry.
+  // inviteToken (legacy plaintext) is kept for backward compatibility only.
   inviteToken     String?
+  inviteTokenHash String?
+  inviteExpiresAt DateTime?
+  inviteStatus    String?  // sent | used | revoked
   invitedAt       DateTime?
   invitedById     String?
   passwordSetAt   DateTime?
@@ -5730,6 +5735,7 @@ model VendorUser {
 
   @@unique([email])
   @@index([vendorCompanyId])
+  @@index([inviteTokenHash])
 }
 
 // One BGV request per candidate per initiation (HR → vendor).
@@ -5742,6 +5748,8 @@ model BgvRequest {
   initiatedByHRId        String
   // awaiting_assignment → assigned → in_progress → submitted_for_hr_review → (approved_by_hr | rejected_by_hr) / cancelled
   status                 String   @default("awaiting_assignment")
+  // Human-readable case reference shown in the UI, e.g. BGV-2026-0042.
+  caseNumber             String?
   dueDate                DateTime?
   instructions           String?
   // JSON array of requested checks [{type,label}]
@@ -5749,46 +5757,119 @@ model BgvRequest {
   assignedVendorUserId   String?
   assignedById           String?
   assignedAt             DateTime?
+  // Optimistic-concurrency guard for assignment/reassignment conflicts.
+  version                Int      @default(0)
+  // HR rework request (set by /api/bgv/requests/[id]/review with action=rework_required)
+  reworkReason           String?
+  reworkChecks           String?   // JSON array of check ids the vendor must correct (null = all)
+  reworkDueDate          DateTime?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
   @@index([candidateEmail])
   @@index([vendorCompanyId])
   @@index([status])
+  @@index([assignedVendorUserId])
 }
 
 // Individual verification check inside a BGV request.
 model BgvCheck {
-  id            String   @id @default(cuid())
-  bgvRequestId  String
-  checkType     String
-  checkLabel    String?
-  status        String   @default("pending") // pending | in_progress | completed
-  result        String?  // Clear | Discrepancy Found
-  findings      String?
-  evidenceUrl   String?
-  completedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  bgvRequestId     String
+  checkType        String
+  checkLabel       String?
+  status           String   @default("pending") // pending | in_progress | completed
+  result           String?  // Clear | Discrepancy Found | Unable to Verify
+  findings         String?
+  verificationDate DateTime?
+  evidenceUrl      String?
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([bgvRequestId])
 }
 
-// Vendor-submitted verification report (versioned).
+// Evidence file attached to a single check (stored base64 in tenant DB,
+// streamed via /api/bgv/evidence/[id]/file with role-checked access).
+model BgvEvidence {
+  id            String   @id @default(cuid())
+  bgvCheckId    String
+  bgvRequestId  String
+  fileName      String
+  mimeType      String
+  fileSize      Int      @default(0)
+  fileData      String?  // base64 payload (data URL prefix optional)
+  uploadedById  String?
+  uploadedAt    DateTime @default(now())
+
+  @@index([bgvCheckId])
+  @@index([bgvRequestId])
+}
+
+// Notification delivery log for every BGV/invite event (email/in-app), so
+// failures are recorded and retried instead of silently swallowed.
+model BgvNotification {
+  id                String   @id @default(cuid())
+  event             String   // invite_admin | invite_employee | bgv_initiated | assigned | reassigned | report_submitted | rework | approved | rejected | ...
+  channel           String   @default("email") // email | in_app
+  recipient         String
+  bgvRequestId      String?
+  vendorCompanyId   String?
+  vendorUserId      String?
+  status            String   @default("queued") // queued | sent | failed
+  providerMessageId String?
+  error             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([bgvRequestId])
+  @@index([event])
+}
+
+// Vendor-submitted verification report (versioned, immutable snapshot).
 model BgvReport {
   id                String   @id @default(cuid())
   bgvRequestId      String
   version           Int      @default(1)
   submittedById     String
   submittedAt       DateTime @default(now())
-  summary           String?
-  overallResult     String?  // Clear | Discrepancy Found
+  summary           String?  // overall findings text
+  overallResult     String?  // Clear | Discrepancy Found | Unable to Verify (overall)
+  // Immutable JSON snapshot of every check (result/findings/date/evidence ids)
+  // + submission metadata. HR reads THIS, never the live draft check rows.
+  snapshot          String?
+  // Generated Marqaitech standard PDF (immutable submitted snapshot).
+  standardPdfName   String?
+  standardPdfMime   String?
+  standardPdfData   String?  // base64
+  pdfStatus         String?  // ready | failed
+  pdfError          String?
+  // Optional vendor-company PDF report (clearly separated from the standard one).
+  vendorPdfName     String?
+  vendorPdfMime     String?
+  vendorPdfData     String?  // base64
   status            String   @default("submitted") // submitted | approved | rejected
-  hrDecision        String?  // approved | rejected
+  hrDecision        String?  // approved | rejected | rework_required | awaiting_information
   hrDecisionById    String?
   hrDecisionAt      DateTime?
   hrDecisionReason  String?
+  hrDecisionNotes   String?
   createdAt         DateTime @default(now())
+
+  @@index([bgvRequestId])
+}
+
+// Assignment history (who had the case, when it moved, why).
+model BgvAssignment {
+  id             String    @id @default(cuid())
+  bgvRequestId   String
+  vendorUserId   String
+  assignedById   String
+  assignedAt     DateTime  @default(now())
+  unassignedAt   DateTime?
+  unassignedById String?
+  reason         String?
 
   @@index([bgvRequestId])
 }

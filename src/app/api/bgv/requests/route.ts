@@ -1,30 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
+import { HR_ROLES } from '@/lib/bgv';
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
 
-/** GET /api/bgv/requests — HR views all BGV requests */
+/**
+ * GET /api/bgv/requests — HR case list.
+ *
+ *  ?preboardingCandidateId=<id>  → only that candidate's cases (used by the
+ *                                  preboarding Documents workspace BGV card).
+ *
+ * DRAFT PRIVACY: live BgvCheck rows are reduced to progress counts only —
+ * HR never receives draft findings/results/evidence from this endpoint.
+ * Submitted content flows exclusively through report snapshots
+ * (see GET /api/bgv/requests/[id]).
+ */
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin'].includes(auth.role);
-    if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
+    if (!HR_ROLES.includes(auth.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
 
-    const requests = await db.$queryRawUnsafe(
-      `SELECT r.*, vc."name" AS "vendorName" FROM "BgvRequest" r LEFT JOIN "VendorCompany" vc ON vc.id=r."vendorCompanyId" ORDER BY r."createdAt" DESC`,
-    ).catch(() => []) as any[];
-
-    for (const req of requests) {
-      req.checks = await db.$queryRawUnsafe(`SELECT * FROM "BgvCheck" WHERE "bgvRequestId"=$1`, req.id).catch(() => []) as any[];
-      req.reports = await db.$queryRawUnsafe(`SELECT * FROM "BgvReport" WHERE "bgvRequestId"=$1 ORDER BY version DESC`, req.id).catch(() => []) as any[];
+    const candidateId = new URL(req.url).searchParams.get('preboardingCandidateId');
+    let rows: any[];
+    if (candidateId) {
+      rows = await db.$queryRawUnsafe(
+        `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
+                "vendorCompanyId","dueDate","createdAt","updatedAt","version",
+                vc."name" AS "vendorName",
+                vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
+                (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",
+                (SELECT COUNT(*)::int FROM "BgvReport" rp WHERE rp."bgvRequestId" = r."id") AS "reportCount"
+           FROM "BgvRequest" r
+           LEFT JOIN "VendorCompany" vc ON vc."id" = r."vendorCompanyId"
+           LEFT JOIN "VendorUser" vu ON vu."id" = r."assignedVendorUserId"
+          WHERE r."preboardingCandidateId"=$1
+          ORDER BY r."createdAt" DESC LIMIT 5`,
+        candidateId,
+      ).catch(() => []) as any[];
+    } else {
+      rows = await db.$queryRawUnsafe(
+        `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
+                "vendorCompanyId","dueDate","createdAt","updatedAt","version",
+                vc."name" AS "vendorName",
+                vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
+                (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",
+                (SELECT COUNT(*)::int FROM "BgvReport" rp WHERE rp."bgvRequestId" = r."id") AS "reportCount"
+           FROM "BgvRequest" r
+           LEFT JOIN "VendorCompany" vc ON vc."id" = r."vendorCompanyId"
+           LEFT JOIN "VendorUser" vu ON vu."id" = r."assignedVendorUserId"
+          ORDER BY r."createdAt" DESC LIMIT 200`,
+      ).catch(() => []) as any[];
     }
 
-    return NextResponse.json({ requests }, { headers: CORS });
+    return NextResponse.json({ requests: rows }, { headers: CORS });
   } catch (error) {
+    console.error('BGV requests list error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
   }
 }

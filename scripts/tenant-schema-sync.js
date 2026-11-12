@@ -211,7 +211,7 @@ async function syncOneDatabase(label, connectionString, models, log) {
     (await sql`SELECT indexname FROM pg_indexes WHERE schemaname = 'public'`).map(r => r.indexname),
   );
 
-  let created = 0, added = 0, idxAdded = 0;
+  let created = 0, added = 0, idxAdded = 0, extraAdded = 0;
 
   for (const model of models) {
     if (!dbTables.has(model.tableName)) {
@@ -276,9 +276,31 @@ async function syncOneDatabase(label, connectionString, models, log) {
     }
   }
 
-  log(`  ✓ ${label}: tables created ${created}, columns added ${added}, indexes added ${idxAdded}`);
+  // ─── Manual, not-Prisma-expressible statements (idempotent) ───
+  // Business rule: a candidate may only have ONE active BGV case at a time.
+  // Enforced by a partial unique index so even a concurrent/transactional
+  // INSERT cannot create duplicates.
+  for (const stmt of EXTRA_STATEMENTS) {
+    try {
+      await sql.query(stmt);
+      extraAdded++;
+    } catch (e) {
+      log(`  WARN extra statement: ${e.message}`.substring(0, 160));
+    }
+  }
+
+  log(`  ✓ ${label}: tables created ${created}, columns added ${added}, indexes added ${idxAdded}${extraAdded ? `, extra ${extraAdded}` : ''}`);
   return { created, added, idxAdded };
 }
+
+// Additive, idempotent statements that cannot be expressed in the Prisma
+// schema language (partial indexes etc.). Applied to every tenant DB.
+const EXTRA_STATEMENTS = [
+  // One active BGV case per candidate (terminal statuses excluded).
+  `CREATE UNIQUE INDEX IF NOT EXISTS "BgvRequest_active_candidateEmail_key"
+     ON "BgvRequest" ("candidateEmail")
+     WHERE "status" NOT IN ('approved_by_hr','rejected_by_hr','cancelled')`,
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main

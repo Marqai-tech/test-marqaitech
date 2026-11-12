@@ -15,14 +15,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden — HR/Admin only' }, { status: 403, headers: CORS });
 
     const { id: requestId } = await params;
+    const body = await req.json().catch(() => ({}));
+    const reason = String(body?.reason || '').slice(0, 1000);
     const reqRows = await db.$queryRawUnsafe(`SELECT * FROM "BgvRequest" WHERE "id"=$1 LIMIT 1`, requestId).catch(() => []) as any[];
     if (reqRows.length === 0) return NextResponse.json({ error: 'Request not found' }, { status: 404, headers: CORS });
     const bgvReq = reqRows[0];
     if (bgvReq.status === 'approved_by_hr') return NextResponse.json({ error: 'Already approved' }, { status: 409, headers: CORS });
+    if (['rejected_by_hr', 'cancelled'].includes(bgvReq.status)) {
+      return NextResponse.json({ error: `Case is ${bgvReq.status} — it cannot be approved.` }, { status: 409, headers: CORS });
+    }
 
-    // Update report + request status
-    await db.$executeRawUnsafe(`UPDATE "BgvReport" SET "hrDecision"='approved',"hrDecisionById"=$1,"hrDecisionAt"=NOW() WHERE "bgvRequestId"=$2 AND "status"='submitted'`, auth.userId, requestId).catch(() => 0);
+    // Update the LATEST submitted report version + request status.
+    await db.$executeRawUnsafe(`UPDATE "BgvReport" SET "hrDecision"='approved',"hrDecisionById"=$1,"hrDecisionAt"=NOW(),"hrDecisionReason"=$2 WHERE "bgvRequestId"=$3 AND "version" = (SELECT MAX("version") FROM "BgvReport" WHERE "bgvRequestId"=$3)`, auth.userId, reason || null, requestId).catch(() => 0);
     await db.$executeRawUnsafe(`UPDATE "BgvRequest" SET "status"='approved_by_hr',"updatedAt"=NOW() WHERE "id"=$1`, requestId);
+
+    // Notify vendor admin(s) + investigator of the final approval.
+    try {
+      const { notifyBgvEvent } = await import('@/lib/bgv');
+      const recipients = await db.$queryRawUnsafe(
+        `SELECT "email","id" FROM "VendorUser" WHERE "vendorCompanyId"=$1 AND "status"='active' AND ("role"='vendor_admin' OR "id"=$2) LIMIT 5`,
+        bgvReq.vendorCompanyId, bgvReq.assignedVendorUserId || '__none__',
+      ).catch(() => []) as any[];
+      for (const r of recipients) {
+        await notifyBgvEvent({
+          db, event: 'approved', recipient: r.email, bgvRequestId: requestId,
+          vendorCompanyId: bgvReq.vendorCompanyId, vendorUserId: r.id,
+          subject: `BGV decision: approved — case ${bgvReq.caseNumber || requestId}`,
+          html: `<p>HR approved BGV case <b>${bgvReq.caseNumber || requestId}</b> (${bgvReq.candidateName || bgvReq.candidateEmail}).</p><p>The vendor report v-latest was accepted; the case is closed. Candidate onboarding is handled by HR.</p>`,
+        });
+      }
+    } catch { /* notification must never fail the API */ }
 
     // If there's a linked PreboardingCandidate, trigger activation
     if (bgvReq.preboardingCandidateId) {

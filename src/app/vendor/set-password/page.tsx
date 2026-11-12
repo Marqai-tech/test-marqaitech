@@ -1,76 +1,158 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+/**
+ * Vendor account activation — /vendor/set-password?token=...
+ * (mock screen 03)
+ *
+ * Shows the intended company, role and read-only work email BEFORE the user
+ * picks a password. Handles expired / used / revoked / disabled invitations
+ * with distinct, helpful screens and never displays the raw token.
+ */
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { FiKey, FiInfo, FiCheckCircle, FiAlertTriangle, FiLoader } from 'react-icons/fi';
+
+interface InviteInfo {
+  valid: boolean;
+  email?: string;
+  name?: string;
+  role?: string;
+  companyName?: string;
+  error?: string;
+  code?: string;
+}
+
+const ERROR_TITLES: Record<string, string> = {
+  INVALID_TOKEN: 'This invitation link is not valid',
+  USED_TOKEN: 'Invitation already used',
+  EXPIRED_TOKEN: 'Invitation expired',
+  REVOKED_TOKEN: 'Invitation revoked',
+  ACCOUNT_DISABLED: 'Account disabled',
+};
 
 export default function VendorSetPasswordPage() {
   const router = useRouter();
   const sp = useSearchParams();
   const token = sp.get('token') || '';
+  const [info, setInfo] = useState<InviteInfo | null>(null);
+  const [infoLoading, setInfoLoading] = useState(true);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!token) setErr('Missing invite token in the URL.');
+  const loadInfo = useCallback(async () => {
+    if (!token) { setInfo({ valid: false, error: 'Missing invite token in the URL.', code: 'INVALID_TOKEN' }); setInfoLoading(false); return; }
+    setInfoLoading(true);
+    try {
+      const res = await fetch(`/api/vendor/auth/invite-info?token=${encodeURIComponent(token)}`);
+      const d = await res.json().catch(() => ({ valid: false, error: 'Could not validate this invitation.' }));
+      setInfo(d);
+    } catch {
+      setInfo({ valid: false, error: 'Network error while validating the invitation. Please try again.' });
+    } finally { setInfoLoading(false); }
   }, [token]);
+
+  useEffect(() => { queueMicrotask(() => void loadInfo()); }, [loadInfo]);
+
+  const policyOk = password.length >= 8 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
 
   const submit = async () => {
     setErr(''); setMsg('');
-    if (!token) { setErr('Missing invite token.'); return; }
-    if (password.length < 6) { setErr('Password must be at least 6 characters.'); return; }
+    if (!policyOk) { setErr('Password must be at least 8 characters and include letters and numbers.'); return; }
     if (password !== confirm) { setErr('Passwords do not match.'); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/vendor/auth/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(data?.error || 'Failed to set password.'); return; }
-      setMsg('Password set successfully! Redirecting to login…');
-      setTimeout(() => router.push('/login'), 1500);
+      setMsg('Account activated! Redirecting you to the Vendor login…');
+      setTimeout(() => router.push('/login'), 1800);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Network error.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
-    <div style={{ maxWidth: 420, margin: '80px auto', padding: 24, fontFamily: 'Arial, sans-serif' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Vendor Portal — Set Password</h2>
-      <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-        Choose a password to activate your vendor account.
-      </p>
-      {err && <div style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{err}</div>}
-      {msg && <div style={{ color: '#059669', fontSize: 13, marginBottom: 12 }}>{msg}</div>}
-      <label style={{ fontSize: 12, color: '#475569', display: 'block', marginBottom: 4 }}>New Password</label>
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 12, fontSize: 14 }}
-        placeholder="••••••••"
-      />
-      <label style={{ fontSize: 12, color: '#475569', display: 'block', marginBottom: 4 }}>Confirm Password</label>
-      <input
-        type="password"
-        value={confirm}
-        onChange={(e) => setConfirm(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && submit()}
-        style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 16, fontSize: 14 }}
-        placeholder="••••••••"
-      />
-      <button
-        onClick={submit}
-        disabled={loading || !token}
-        style={{ width: '100%', padding: '12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 14, cursor: loading ? 'wait' : 'pointer', opacity: loading || !token ? 0.6 : 1 }}
-      >
-        {loading ? 'Setting…' : 'Set Password & Activate'}
-      </button>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm w-full max-w-md p-7">
+        <div className="flex items-center gap-3 mb-1.5">
+          <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center"><FiKey className="w-5 h-5" /></span>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Activate Account</h1>
+            <p className="text-xs text-slate-500">Set a password to activate your vendor account.</p>
+          </div>
+        </div>
+
+        {infoLoading ? (
+          <div className="py-12 flex flex-col items-center gap-2 text-slate-500">
+            <FiLoader className="h-6 w-6 animate-spin text-teal-600" />
+            <p className="text-sm">Validating your invitation…</p>
+          </div>
+        ) : !info?.valid ? (
+          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+            <FiAlertTriangle className="h-7 w-7 text-amber-500 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-800">{ERROR_TITLES[info?.code || ''] || 'Invitation problem'}</p>
+            <p className="text-xs text-slate-600 mt-1">{info?.error || 'This link cannot be used.'}</p>
+            <button onClick={() => router.push('/login')} className="mt-4 text-xs font-medium text-teal-700 hover:text-teal-800 underline">Go to login</button>
+            <p className="text-[11px] text-slate-400 mt-3">Need a new invitation? Contact your vendor admin or the HR team that invited you.</p>
+          </div>
+        ) : (
+          <>
+            <div className="mt-5 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-sm">
+              <div className="flex justify-between gap-3"><span className="text-slate-500">Company</span><span className="font-medium text-slate-800 text-right">{info.companyName}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-500">Role</span><span className="font-medium text-slate-800">{info.role === 'vendor_admin' ? 'Vendor Admin' : 'Vendor Employee'}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-500">Work email</span><span className="font-medium text-slate-800">{info.email}</span></div>
+            </div>
+            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs text-blue-800 flex items-start gap-2">
+              <FiInfo className="mt-0.5 shrink-0" /> Secure single-use invitation — this link works once and only for the email above.
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Create password *</label>
+                <div className="relative">
+                  <input type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 pr-10" placeholder="••••••••" autoComplete="new-password" />
+                  <button type="button" onClick={() => setShowPw(!showPw)} aria-label="Toggle password visibility"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600">{showPw ? 'Hide' : 'Show'}</button>
+                </div>
+                <div className="mt-1.5 space-y-0.5">
+                  <Policy ok={password.length >= 8} label="At least 8 characters" />
+                  <Policy ok={/[A-Za-z]/.test(password) && /[0-9]/.test(password)} label="Includes letters and numbers" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Confirm password *</label>
+                <input type={showPw ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && submit()}
+                  className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5" placeholder="••••••••" autoComplete="new-password" />
+              </div>
+            </div>
+
+            {err && <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">{err}</div>}
+            {msg && <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-700 flex items-center gap-2"><FiCheckCircle /> {msg}</div>}
+
+            <button onClick={submit} disabled={loading || !policyOk || password !== confirm}
+              className="mt-5 w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2">
+              {loading ? <><FiLoader className="animate-spin" /> Activating…</> : <><FiCheckCircle /> Activate Account</>}
+            </button>
+          </>
+        )}
+      </div>
     </div>
+  );
+}
+
+function Policy({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <p className={`text-[11px] flex items-center gap-1.5 ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-emerald-500' : 'bg-slate-300'}`} /> {label}
+    </p>
   );
 }

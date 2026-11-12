@@ -47,6 +47,7 @@ import {
   FiXCircle,
 } from 'react-icons/fi';
 import DocumentPreview from '@/components/preboarding/DocumentPreview';
+import BgvPanel from '@/components/preboarding/BgvPanel';
 
 /* ── Auth helper ── */
 function getAuthHeaders() {
@@ -229,7 +230,13 @@ export default function PreboardingDocumentsPage() {
             key={selectedCandidate.id}
             candidate={selectedCandidate}
             onBack={() => { setView('list'); setSelectedCandidate(null); }}
-            onInitiateBgv={() => router.push('/onboarding-review')}
+            onInitiateBgv={() => {
+              // Per the vendor-access brief: BGV lives on the SAME candidate
+              // workspace — scroll to the inline BGV panel.
+              window.setTimeout(() => {
+                document.querySelector('[data-testid="bgv-panel"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 100);
+            }}
           />
         </>
       )}
@@ -609,12 +616,9 @@ function CandidateWorkspace({
             ) : (
               <div className="text-right">
                 <button
-                  onClick={() => { if (allApproved) onInitiateBgv(); }}
-                  disabled={!allApproved}
-                  className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-colors ${
-                    allApproved ? 'bg-teal-600 border-teal-600 text-white hover:bg-teal-700' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                  title={allApproved ? 'Initiate background verification' : 'All document approvals are required before BGV can be initiated'}
+                  onClick={onInitiateBgv}
+                  className="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border bg-teal-600 border-teal-600 text-white hover:bg-teal-700"
+                  title="Initiate background verification — BGV section below"
                 >
                   <FiShield className="w-4 h-4" /> Initiate BGV
                 </button>
@@ -912,6 +916,15 @@ function CandidateWorkspace({
           )}
         </div>
       </div>
+
+      {/* ── BGV section (full width below the table+preview split) ── */}
+      <BgvPanel
+        candidateId={candidate.id}
+        candidateName={candidate.candidateName || 'Unknown candidate'}
+        candidateEmail={candidate.candidateEmail || ''}
+        documents={docs.map((d) => ({ id: d.id, documentLabel: d.documentLabel || null, documentType: d.documentType || null, status: d.status }))}
+        onCaseChanged={loadActivity}
+      />
     </div>
   );
 }

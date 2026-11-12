@@ -23,8 +23,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (reqRows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: CORS });
     if (reqRows[0].status === 'rejected_by_hr') return NextResponse.json({ error: 'Already rejected' }, { status: 409, headers: CORS });
 
-    await db.$executeRawUnsafe(`UPDATE "BgvReport" SET "hrDecision"='rejected',"hrDecisionById"=$1,"hrDecisionAt"=NOW(),"hrDecisionReason"=$2 WHERE "bgvRequestId"=$3 AND "status"='submitted'`, auth.userId, reason, requestId).catch(() => 0);
+    await db.$executeRawUnsafe(`UPDATE "BgvReport" SET "hrDecision"='rejected',"hrDecisionById"=$1,"hrDecisionAt"=NOW(),"hrDecisionReason"=$2 WHERE "bgvRequestId"=$3 AND "version" = (SELECT MAX("version") FROM "BgvReport" WHERE "bgvRequestId"=$3)`, auth.userId, reason, requestId).catch(() => 0);
     await db.$executeRawUnsafe(`UPDATE "BgvRequest" SET "status"='rejected_by_hr',"updatedAt"=NOW() WHERE "id"=$1`, requestId);
+
+    // Notify vendor admin(s) + investigator of the final decision (mock 12 rule:
+    // vendor submits findings, HR makes the final decision). Candidate
+    // communication happens only through existing HR policy below.
+    try {
+      const { notifyBgvEvent } = await import('@/lib/bgv');
+      const recipients = await db.$queryRawUnsafe(
+        `SELECT "email","id" FROM "VendorUser" WHERE "vendorCompanyId"=$1 AND "status"='active' AND ("role"='vendor_admin' OR "id"=$2) LIMIT 5`,
+        reqRows[0].vendorCompanyId, reqRows[0].assignedVendorUserId || '__none__',
+      ).catch(() => []) as any[];
+      for (const r of recipients) {
+        await notifyBgvEvent({
+          db, event: 'rejected', recipient: r.email, bgvRequestId: requestId,
+          vendorCompanyId: reqRows[0].vendorCompanyId, vendorUserId: r.id,
+          subject: `BGV decision: rejected — case ${reqRows[0].caseNumber || requestId}`,
+          html: `<p>HR made the final decision on BGV case <b>${reqRows[0].caseNumber || requestId}</b> (${reqRows[0].candidateName || reqRows[0].candidateEmail}): <b style="color:#dc2626;">Rejected</b>.</p>${reason ? `<p>Reason: ${String(reason).slice(0, 600)}</p>` : ''}<p>The case is now closed. No further edits are possible.</p>`,
+        });
+      }
+    } catch { /* notification must never fail the API */ }
 
     // If linked to PreboardingCandidate, update status (do NOT terminate or delete)
     if (reqRows[0].preboardingCandidateId) {
