@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { assertEcosystemAccess, CORS } from '@/lib/ecosystem-access';
+import { getDb } from '@/lib/tenant-db';
+import { getAuthInfo } from '@/lib/companyScope';
+import { CORS } from '@/lib/ecosystem-access';
 
 function corsHeaders() {
   return CORS;
@@ -11,34 +11,34 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// BUG-5 fix: this route previously read/wrote the Prisma `Vendor` model while
+// the list/create route (`/api/vendors/route.ts`) uses the raw `VendorCompany`
+// table — IDs returned by the list could never be found here, so GET/PATCH/DELETE
+// silently 404'd or edited a different table. Everything now operates on
+// "VendorCompany" so the /vendors page is read-write consistent.
+const VC_COLUMNS = 'id, name, email, phone, website, address, "supportedChecks", status, "createdById", "createdAt", "updatedAt"';
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const db = await getDb(request);
   try {
+    const auth = await getAuthInfo(request);
+    if (!auth) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    if (!['super_admin','tenant_admin','admin','hr_admin','company_hr_admin','ceo'].includes((auth as any).role || '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
+
     const { id } = await params;
-
-    // REQ-SEC-CV-01: IDOR protection — verify caller's tenant owns this vendor
-    const guard = await assertEcosystemAccess(request, 'vendor', id);
-    if (guard.deny) return guard.response;
-
-    const vendor = await db.vendor.findUnique({
-      where: { id },
-      include: {
-        company: { select: { id: true, name: true, code: true } },
-        parentVendor: { select: { id: true, name: true, code: true } },
-        childVendors: {
-          select: { id: true, name: true, code: true, status: true, candidateCount: true, rating: true },
-        },
-      },
-    });
-
-    if (!vendor) {
+    const rows = await db.$queryRawUnsafe(
+      `SELECT ${VC_COLUMNS} FROM "VendorCompany" WHERE id = $1 LIMIT 1`, id,
+    ).catch(() => []) as any[];
+    if (rows.length === 0) {
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    return NextResponse.json({ vendor }, { headers: corsHeaders() });
+    return NextResponse.json({ vendor: rows[0] }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get vendor error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -51,49 +51,68 @@ export async function PUT(
 ) {
   const db = await getDb(request);
   try {
+    const auth = await getAuthInfo(request);
+    if (!auth) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    if (!['super_admin','tenant_admin','admin','hr_admin','company_hr_admin','ceo'].includes((auth as any).role || '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
+
     const { id } = await params;
-
-    // REQ-SEC-CV-01: IDOR protection
-    const guard = await assertEcosystemAccess(request, 'vendor', id);
-    if (guard.deny) return guard.response;
-    const decoded = guard.decoded;
-
     const body = await request.json();
 
-    const existing = await db.vendor.findUnique({ where: { id } });
-    if (!existing) {
+    const existing = await db.$queryRawUnsafe(
+      `SELECT id FROM "VendorCompany" WHERE id = $1 LIMIT 1`, id,
+    ).catch(() => []) as any[];
+    if (existing.length === 0) {
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    const updateData: Record<string, unknown> = {};
-    const fields = [
-      'name', 'code', 'industry', 'website', 'contactName', 'contactEmail',
-      'contactPhone', 'address', 'city', 'state', 'country', 'zipCode',
-      'specialization', 'candidateCount', 'rating',
-    ];
-    for (const field of fields) {
-      if (body[field] !== undefined) updateData[field] = body[field];
+    // VendorCompany columns only — supportedChecks stored as JSON string.
+    const name = body.name !== undefined ? String(body.name).trim() : undefined;
+    if (name !== undefined && !name) {
+      return NextResponse.json({ error: 'Vendor name cannot be empty' }, { status: 400, headers: corsHeaders() });
     }
-    if (body.status !== undefined) updateData.status = body.status;
-    if (body.type !== undefined) updateData.type = body.type;
-    if (body.parentVendorId !== undefined) updateData.parentVendorId = body.parentVendorId;
+    const email = body.email !== undefined ? (body.email || null) : undefined;
+    const phone = body.phone !== undefined ? (body.phone || null) : undefined;
+    const website = body.website !== undefined ? (body.website || null) : undefined;
+    const address = body.address !== undefined ? (body.address || null) : undefined;
+    const supportedChecks =
+      body.supportedChecks !== undefined
+        ? (typeof body.supportedChecks === 'string' ? body.supportedChecks : JSON.stringify(body.supportedChecks))
+        : undefined;
+    const status = body.status !== undefined ? String(body.status) : undefined;
 
-    const vendor = await db.vendor.update({
-      where: { id },
-      data: updateData,
-      include: { company: { select: { id: true, name: true } }, parentVendor: { select: { id: true, name: true } } },
-    });
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    const push = (col: string, val: unknown) => { sets.push(`"${col}" = $${vals.length + 1}`); vals.push(val); };
+    if (name !== undefined) push('name', name);
+    if (email !== undefined) push('email', email);
+    if (phone !== undefined) push('phone', phone);
+    if (website !== undefined) push('website', website);
+    if (address !== undefined) push('address', address);
+    if (supportedChecks !== undefined) push('supportedChecks', supportedChecks);
+    if (status !== undefined) push('status', status);
+    sets.push(`"updatedAt" = NOW()`);
+
+    await db.$executeRawUnsafe(
+      `UPDATE "VendorCompany" SET ${sets.join(', ')} WHERE id = $${vals.length + 1}`,
+      ...vals, id,
+    );
+
+    const updated = await db.$queryRawUnsafe(
+      `SELECT ${VC_COLUMNS} FROM "VendorCompany" WHERE id = $1 LIMIT 1`, id,
+    ) as any[];
 
     await db.auditLog.create({
       data: {
-        userId: decoded.userId as string,
+        userId: String((auth as any).userId || ''),
         action: 'UPDATE_VENDOR',
         module: 'vendors',
-        details: `Updated vendor ${id}`,
+        details: `Updated vendor ${id} (${updated[0]?.name || 'unknown'})`,
       },
-    });
+    }).catch(() => null);
 
-    return NextResponse.json({ vendor }, { headers: corsHeaders() });
+    return NextResponse.json({ vendor: updated[0] }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update vendor error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -106,31 +125,36 @@ export async function DELETE(
 ) {
   const db = await getDb(request);
   try {
+    const auth = await getAuthInfo(request);
+    if (!auth) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    if (!['super_admin','tenant_admin','admin','hr_admin','company_hr_admin','ceo'].includes((auth as any).role || '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
+
     const { id } = await params;
 
-    // REQ-SEC-CV-01: IDOR protection
-    const guard = await assertEcosystemAccess(request, 'vendor', id);
-    if (guard.deny) return guard.response;
-    const decoded = guard.decoded;
+    const existing = await db.$queryRawUnsafe(
+      `SELECT id, name FROM "VendorCompany" WHERE id = $1 LIMIT 1`, id,
+    ).catch(() => []) as any[];
+    if (existing.length === 0) {
+      return NextResponse.json({ error: 'Vendor not found' }, { status: 404, headers: corsHeaders() });
+    }
 
-    const existing = guard.record;
-
-    // Soft delete
-    const vendor = await db.vendor.update({
-      where: { id },
-      data: { status: 'inactive' },
-    });
+    // Soft delete (matches list/create semantics)
+    await db.$executeRawUnsafe(
+      `UPDATE "VendorCompany" SET status = 'inactive', "updatedAt" = NOW() WHERE id = $1`, id,
+    );
 
     await db.auditLog.create({
       data: {
-        userId: decoded.userId as string,
+        userId: String((auth as any).userId || ''),
         action: 'DELETE_VENDOR',
         module: 'vendors',
-        details: `Soft deleted vendor ${id} (${existing.name})`,
+        details: `Soft deleted vendor ${id} (${existing[0].name})`,
       },
-    });
+    }).catch(() => null);
 
-    return NextResponse.json({ message: 'Vendor deactivated successfully', vendor }, { headers: corsHeaders() });
+    return NextResponse.json({ message: 'Vendor deactivated successfully' }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Delete vendor error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

@@ -46,21 +46,12 @@ export async function GET(req: NextRequest) {
     const candidateEmail = (decoded as Record<string, unknown>).email as string | undefined;
     if (!candidateEmail) return NextResponse.json({ offers: [] }, { headers: corsHeaders() });
 
-    // Sweep all tenant DBs to find offers for this candidate email.
-    const tenantDbs = await platformDb.tenantDatabase.findMany({
-      where: { isActive: true },
-      select: { connectionString: true, tenant: { select: { slug: true, id: true, name: true } } },
-    });
-
-    const allOffers: Array<Record<string, unknown>> = [];
-    let companyName: string | null = null;
-    for (const td of tenantDbs) {
-      if (!td.connectionString || !td.tenant?.slug) continue;
-      try {
-        const { getDbForTenant } = await import('@/lib/tenant-db');
-        const db = await getDbForTenant(td.tenant.slug);
-        const offers = await db.$queryRawUnsafe(
-          `SELECT o."id", o."candidateName", o."candidateEmail", o."position", o."department",
+    // BUG-7 fix: the sweep only iterated TenantDatabase rows (isolated-mode
+    // tenants). Offers living in the PLATFORM/SHARED database — the default
+    // for single-DB deployments and every locally-provisioned tenant — were
+    // never queried, so candidates correctly logged into the portal saw an
+    // empty offers list. Sweep the shared DB first, then any isolated DBs.
+    const OFFERS_SQL = () => `SELECT o."id", o."candidateName", o."candidateEmail", o."position", o."department",
                   o."offeredSalary", o."offeredCurrency", o."offeredCTC", o."joiningDate",
                   o."probationPeriod", o."reportingTo", o."status", o."generatedPdfUrl",
                   o."offerLetterUrl",
@@ -68,9 +59,42 @@ export async function GET(req: NextRequest) {
                   o."responseNotes", o."signedPdfUrl", o."sentAt", o."createdAt"
              FROM "Offer" o
             WHERE LOWER(o."candidateEmail") = LOWER($1)
-              AND o."status" IN ('sent', 'accepted', 'rejected')
-            ORDER BY o."createdAt" DESC`,
-          candidateEmail,
+              AND o."status" IN ('sent', 'approved', 'accepted', 'rejected')
+            ORDER BY o."createdAt" DESC`;
+
+    const allOffers: Array<Record<string, unknown>> = [];
+    let companyName: string | null = null;
+
+    // 1) Shared/platform database (default for non-isolated tenants)
+    try {
+      const { getDb } = await import('@/lib/tenant-db');
+      const sharedDb = await getDb(req);
+      // The offerLetterUrl column is added at runtime by some routes
+      // (ALTER TABLE IF NOT EXISTS) and may be missing on databases that were
+      // provisioned before it existed — without this guard the SELECT below
+      // fails with 42703 and the whole sweep silently returns nothing.
+      await sharedDb.$executeRawUnsafe(`ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "offerLetterUrl" TEXT`).catch(() => 0);
+      const sharedOffers = await sharedDb.$queryRawUnsafe(
+        OFFERS_SQL(), candidateEmail,
+      ).catch(() => []) as Array<Record<string, unknown>>;
+      for (const o of sharedOffers) {
+        allOffers.push({ ...o, tenantName: null, tenantSlug: null, companyName: null });
+      }
+    } catch { /* shared DB not reachable — continue to isolated sweep */ }
+
+    // 2) Isolated tenant databases
+    const tenantDbs = await platformDb.tenantDatabase.findMany({
+      where: { isActive: true },
+      select: { connectionString: true, tenant: { select: { slug: true, id: true, name: true } } },
+    });
+
+    for (const td of tenantDbs) {
+      if (!td.connectionString || !td.tenant?.slug) continue;
+      try {
+        const { getDbForTenant } = await import('@/lib/tenant-db');
+        const db = await getDbForTenant(td.tenant.slug);
+        const offers = await db.$queryRawUnsafe(
+          OFFERS_SQL(), candidateEmail,
         ).catch(() => []) as Array<Record<string, unknown>>;
         if (offers.length > 0) {
           // Pull the company name from the tenant for branding.
@@ -94,7 +118,16 @@ export async function GET(req: NextRequest) {
       } catch { /* try next tenant */ }
     }
 
-    return NextResponse.json({ offers: allOffers, companyName }, { headers: corsHeaders() });
+    // Dedupe (shared DB and an isolated DB can physically be the same database)
+    const seen = new Set<string>();
+    const deduped = allOffers.filter((o) => {
+      const key = String(o.id || '');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return NextResponse.json({ offers: deduped, companyName }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[CandidateOffers GET] error:', error);
     return NextResponse.json({ offers: [] }, { headers: corsHeaders() });

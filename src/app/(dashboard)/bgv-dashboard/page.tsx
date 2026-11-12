@@ -92,6 +92,23 @@ export default function BgvDashboardPage() {
     finally { setActionLoading(null); }
   };
 
+  // BUG-4 fix: HR interim review actions — the "Awaiting Info" / "Rework
+  // Required" statuses were previously dead (never set by any API).
+  const handleInterimReview = async (reqId: string, action: 'awaiting_information' | 'rework_required') => {
+    const notes = prompt(action === 'awaiting_information' ? 'What information is needed from the vendor? (sent to vendor admin)' : 'What needs to be reworked? (sent to vendor admin)');
+    if (notes === null) return;
+    if (!notes.trim()) { toast.error('Notes required so the vendor knows what to do'); return; }
+    setActionLoading(`${reqId}-${action}`);
+    try {
+      const res = await fetch(`/api/bgv/requests/${reqId}/review`, { method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ action, notes }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(data.message || 'Updated');
+      fetchRequests();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed'); }
+    finally { setActionLoading(null); }
+  };
+
   if (loading) return (<div className="flex items-center justify-center py-12 text-muted-foreground"><FiLoader className="h-5 w-5 animate-spin mr-2" /> Loading BGV requests…</div>);
   if (error) return (<div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex items-start gap-2"><FiAlertCircle className="h-5 w-5 shrink-0 mt-0.5" /><div>{error}</div></div>);
 
@@ -129,6 +146,8 @@ export default function BgvDashboardPage() {
                 {req.status === 'submitted_for_hr_review' && (
                   <div className="flex gap-2 shrink-0">
                     <button onClick={() => handleApprove(req.id)} disabled={actionLoading === `${req.id}-approve`} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-md hover:bg-emerald-700 flex items-center gap-1.5"><FiCheckCircle className="h-3.5 w-3.5" /> Approve</button>
+                    <button onClick={() => handleInterimReview(req.id, 'awaiting_information')} disabled={actionLoading === `${req.id}-awaiting_information`} className="px-3 py-1.5 text-xs border rounded-md hover:bg-accent flex items-center gap-1.5" title="Vendor must supply more information before HR decides"><FiClock className="h-3.5 w-3.5" /> Awaiting Info</button>
+                    <button onClick={() => handleInterimReview(req.id, 'rework_required')} disabled={actionLoading === `${req.id}-rework_required`} className="px-3 py-1.5 text-xs border rounded-md hover:bg-accent flex items-center gap-1.5" title="Send the report back to the vendor for rework"><FiAlertCircle className="h-3.5 w-3.5" /> Rework</button>
                     <button onClick={() => handleReject(req.id)} disabled={actionLoading === `${req.id}-reject`} className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center gap-1.5"><FiXCircle className="h-3.5 w-3.5" /> Reject</button>
                   </div>
                 )}

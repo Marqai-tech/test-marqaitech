@@ -166,14 +166,25 @@ export async function POST(
       ? JSON.stringify(customFields.map((f: { name: string; value: string }) => ({ name: String(f.name || '').slice(0, 200), value: String(f.value || '').slice(0, 2000) })))
       : null;
 
+    // BUG-8 fix: legacy InterviewFeedback deployments carry NOT NULL columns
+    // ("interviewerName", "sentiment", "body") that the structured feedback
+    // INSERT never supplied — every submission failed with 23502. Fill them
+    // with sensible values; schema-sync also relaxes the constraints for
+    // fresh/local databases, but existing production tables keep them.
+    const interviewerName = decoded.name || decoded.email || 'Interviewer';
+    const legacyBody = comments || (recommendation ? `Recommendation: ${recommendation}` : 'Structured interview feedback submitted');
+    const legacySentiment = recommendation === 'strong_hire' || recommendation === 'hire' ? 'positive'
+      : recommendation === 'no_hire' || recommendation === 'reject' ? 'negative'
+      : 'neutral';
+
     // Use INSERT ... ON CONFLICT to handle both insert and update in one query.
     // This avoids issues with old table schemas from previous deploys.
     try {
       await db.$executeRawUnsafe(
         `INSERT INTO "InterviewFeedback"
          ("id", "interviewId", "userId", "technicalSkills", "communication", "experience", "problemSolving",
-          "roleSuitability", "culturalFit", "strengths", "concerns", "rating", "recommendation", "comments", "isFinal", "customFields", "submittedAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+          "roleSuitability", "culturalFit", "strengths", "concerns", "rating", "recommendation", "comments", "isFinal", "customFields", "interviewerName", "sentiment", "body", "submittedAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), NOW())
          ON CONFLICT ("interviewId", "userId") DO UPDATE SET
            "technicalSkills" = EXCLUDED."technicalSkills",
            "communication" = EXCLUDED."communication",
@@ -190,10 +201,10 @@ export async function POST(
            "customFields" = EXCLUDED."customFields",
            "updatedAt" = NOW()`,
         feedbackId, id, userId,
-        technicalSkills || null, communication || null, experience || null, problemSolving || null,
-        roleSuitability || null, culturalFit || null, strengths || null, concerns || null,
-        rating ? Number(rating) : null, finalRecommendation, comments || null,
-        isFinalFlag, customFieldsJson,
+        technicalSkills ?? null, communication ?? null, experience ?? null, problemSolving ?? null,
+        roleSuitability ?? null, culturalFit ?? null, strengths ?? null, concerns ?? null,
+        rating !== undefined && rating !== null && rating !== '' ? Number(rating) : null, finalRecommendation, comments ?? null,
+        isFinalFlag, customFieldsJson, interviewerName, legacySentiment, legacyBody,
       );
     } catch (upsertErr) {
       // If ON CONFLICT fails (no unique constraint), try plain UPDATE then INSERT

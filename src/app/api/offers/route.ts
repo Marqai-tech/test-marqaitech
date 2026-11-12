@@ -177,12 +177,18 @@ export async function POST(request: Request) {
         salaryBreakdown,
         joiningDate: new Date(joiningDate),
         probationPeriod: (() => {
-          // Accept either an integer (90) or a string ("6 months", "90 days").
-          // Extract the leading number and use it; default to 90 if unparseable.
+          // Probation is stored in DAYS (default 90). Strings carry units:
+          // "6 months" → 180, "90 days" → 90, bare 6 → 6 days.
+          // Previously the unit was silently stripped, so "6 months" rendered
+          // as "6 days" on the candidate offer page.
           if (probationPeriod === undefined || probationPeriod === null) return 90;
           if (typeof probationPeriod === 'number') return probationPeriod;
-          const m = String(probationPeriod).match(/(\d+)/);
-          return m ? parseInt(m[1], 10) : 90;
+          const s = String(probationPeriod).toLowerCase();
+          const m = s.match(/(\d+)/);
+          if (!m) return 90;
+          const n = parseInt(m[1], 10);
+          if (/month/.test(s)) return n * 30;
+          return n;
         })(),
         reportingTo,
         status: 'draft',

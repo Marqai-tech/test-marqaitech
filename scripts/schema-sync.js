@@ -2459,6 +2459,26 @@ async function main() {
     )`,
     `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewId_idx" ON "InterviewFeedback"("interviewId")`,
     `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewerId_idx" ON "InterviewFeedback"("interviewerId")`,
+    // BUG-8 fix: legacy NOT NULL constraints ("interviewerName", "sentiment", "body")
+    // predate the structured feedback writer, which never supplied them — every
+    // structured feedback INSERT failed with 23502. The API now fills them, but
+    // dropping the constraints is still safer for mixed old/new clients. DROP NOT NULL is
+    // additive-safe (cannot lose data) and idempotent.
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='InterviewFeedback' AND column_name='interviewerName' AND is_nullable='NO') THEN
+         ALTER TABLE "InterviewFeedback" ALTER COLUMN "interviewerName" DROP NOT NULL;
+       END IF;
+     END $$`,
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='InterviewFeedback' AND column_name='sentiment' AND is_nullable='NO') THEN
+         ALTER TABLE "InterviewFeedback" ALTER COLUMN "sentiment" DROP NOT NULL;
+       END IF;
+     END $$`,
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='InterviewFeedback' AND column_name='body' AND is_nullable='NO') THEN
+         ALTER TABLE "InterviewFeedback" ALTER COLUMN "body" DROP NOT NULL;
+       END IF;
+     END $$`,
 
     // ─── REQ-SRC-01/02/03: Job board multi-posting + auto-close on hire (added 2026-07-21, WAVE2-E)
     `CREATE TABLE IF NOT EXISTS "JobBoardPosting" (
