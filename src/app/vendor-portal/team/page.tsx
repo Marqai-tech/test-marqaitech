@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiUsers, FiRefreshCw, FiLoader, FiAlertCircle, FiUserPlus, FiX,
-  FiRotateCcw, FiSend, FiBan, FiCheckCircle, FiInfo, FiArrowLeft, FiLock,
+  FiRotateCcw, FiSend, FiSlash, FiCheckCircle, FiInfo, FiArrowLeft, FiLock,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -174,7 +174,7 @@ export default function VendorTeamPage() {
                       )}
                       {u.status === 'active' && (
                         <button onClick={() => action(u, 'disable')} disabled={busyId === u.id} title="Disable account"
-                          className="inline-flex items-center gap-1 text-xs text-red-600 border border-red-200 hover:bg-red-50 px-2.5 py-1.5 rounded-lg"><FiBan className="w-3 h-3" /> Disable</button>
+                          className="inline-flex items-center gap-1 text-xs text-red-600 border border-red-200 hover:bg-red-50 px-2.5 py-1.5 rounded-lg"><FiSlash className="w-3 h-3" /> Disable</button>
                       )}
                       {u.status === 'inactive' && (
                         <button onClick={() => action(u, 'reactivate')} disabled={busyId === u.id} title="Reactivate account"
