@@ -63,12 +63,12 @@ export async function GET(request: Request) {
     let hrContact: { name?: string | null; email?: string | null; phone?: string | null } | null = null;
     try {
       const hrRows = await db.$queryRawUnsafe(
-        `SELECT name, email, phone FROM "User"
-         WHERE role IN ('super_admin','tenant_admin','hr_admin','company_hr_admin','admin','ceo')
-           AND "isActive" = TRUE
+        `SELECT name, email FROM "User"
+         WHERE role IN ('super_admin','tenant_admin','hr_admin','company_hr_admin','admin','ceo','hr_manager')
+           AND status = 'active'
          ORDER BY "createdAt" ASC LIMIT 1`,
       ).catch(() => []) as any[];
-      if (hrRows.length > 0) hrContact = { name: hrRows[0].name, email: hrRows[0].email, phone: hrRows[0].phone || null };
+      if (hrRows.length > 0) hrContact = { name: hrRows[0].name, email: hrRows[0].email, phone: null };
     } catch { hrContact = null; }
 
     let employeeCode = null;
