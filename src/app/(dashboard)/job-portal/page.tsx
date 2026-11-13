@@ -445,14 +445,24 @@ function CreateJobPostingForm() {
   };
 
   return (
-    <div className="thb-card border-l-4 border-l-violet-500">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
+    <div className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
+      <div className="bg-gradient-to-r from-violet-700 via-indigo-600 to-sky-600 px-5 py-5 text-white sm:px-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-thb-text-primary">Create Job Posting from Requisition</h2>
-            <p className="text-xs text-thb-text-muted mt-0.5">Requisition details are pre-filled. Add public-facing details and publish.</p>
+            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-100"><FiBriefcase className="h-4 w-4" /> Approved requisition</div>
+            <h2 className="text-xl font-bold">Create Job Posting</h2>
+            <p className="mt-1 text-sm text-violet-100">Review the prefilled role details, add candidate-facing information, and publish.</p>
           </div>
+          <span className="w-fit rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold ring-1 ring-white/25">{requisitionId || 'New posting'}</span>
         </div>
+      </div>
+      <div className="p-6">
+        <div className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Role</p><p className="mt-1 text-sm font-semibold text-slate-800">{form.title || 'Position title'}</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Department</p><p className="mt-1 text-sm font-semibold text-slate-800">{form.departmentId || 'Department'}</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Requisition status</p><p className="mt-1 text-sm font-semibold text-emerald-700">Approved · Ready to publish</p></div>
+        </div>
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">1</span> Role details</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title <span className="text-red-500">*</span></label>
@@ -492,6 +502,7 @@ function CreateJobPostingForm() {
             <input type="date" value={form.closingDate} onChange={(e) => setForm({ ...form, closingDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
+            <div className="mb-3 mt-2 flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">2</span> Candidate-facing content</div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Description <span className="text-red-500">*</span></label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} placeholder="Describe the role, responsibilities, and what the candidate will do..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
           </div>
@@ -500,10 +511,13 @@ function CreateJobPostingForm() {
             <textarea value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} rows={3} placeholder="List required skills, qualifications, certifications..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+        <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500">Required fields are marked with <span className="font-bold text-red-500">*</span>. You can save a draft before publishing.</p>
+          <div className="flex items-center justify-end gap-3">
           <a href="/job-portal" className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</a>
           <button onClick={() => handlePublish('draft')} disabled={saving} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 disabled:opacity-50 transition-colors">{saving ? 'Saving...' : 'Save as Draft'}</button>
           <button onClick={() => handlePublish('open')} disabled={saving} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">{saving ? 'Publishing...' : 'Preview & Publish'}</button>
+          </div>
         </div>
       </div>
     </div>
