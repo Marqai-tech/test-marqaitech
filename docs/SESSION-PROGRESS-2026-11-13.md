@@ -73,11 +73,11 @@
 | `6dc75f3` | (prior session BGV fix) | dpl_3hz8RnwU… | READY/QUEUED |
 | `b9c83f6` | 3 (states 01–03) | dpl_J79RDiTp… | QUEUED→READY |
 | `799cacc`+`f96af13` | 4 (states 04–08) | dpl_2TVZjewx… | **READY** |
-| `d9b3253` | 5 (BRD 6.2) | dpl_7PGCmhPz… | BUILDING→queued (serial) |
-| `a0c1172` | Gap 6 (§2.1 gate) | dpl_24kdpJBW… | QUEUED (serial) |
-| `8be2383` (HEAD) | merge + vendor My-Cases fix | dpl_5i3EX9wW… | QUEUED (serial) |
+| `d9b3253` | 5 (BRD 6.2) | dpl_7PGCmhPz… | **READY** |
+| `a0c1172` | Gap 6 (§2.1 gate) | dpl_24kdpJBW… | **READY** |
+| `8be2383` (HEAD) | merge + vendor My-Cases fix | dpl_5i3EX9wW… | **READY** |
 
-**Note:** Vercel serializes production builds one at a time; `799cacc` (same code patterns, all new files) built READY, so the remaining three commits are expected to go READY in order. If a new session finds any of them stuck in QUEUED, re-trigger with the command above (ref `main`).
+**Live post-deploy verification (production beta):** `GET /api/candidate-portal/portal-state` returns HTTP 200 with real state-driven data — `preboarding: { PRE-2026-0001, stage: initiated, status: joined, submittedAt: 2026-11-12 }`, `awaitingHR: []`, `unreadNotifications: 13`. The Preboarding tab will therefore render for this candidate, and the journey-overview view (mock 04) is their default Preboarding screen.
 
 Deploy command used (works from any session):
 ```
