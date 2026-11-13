@@ -1856,6 +1856,12 @@ async function main() {
   // must be added explicitly. Nullable TEXT, idempotent, additive-only.
   statements.push(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT`);
 
+  // ─── Requisition.interviewPlan (bda0fa0 plan source moves to requisition) ───
+  // Same coverage gap as JobPosting (not in 0_init, CREATE IF NOT EXISTS is a
+  // no-op). Required at build time: requisition create INSERT writes the column
+  // explicitly and the generated Prisma client selects it on every read.
+  statements.push(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT`);
+
   statements.push(timestampFixSql);
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
