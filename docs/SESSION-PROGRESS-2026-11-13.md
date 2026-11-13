@@ -42,13 +42,11 @@
 
 ---
 
-## ⏳ REMAINING (not started this session — for the next session)
+## ⏳ REMAINING
 
-1. **Gap 2: Dedicated Initiation screen (BRD 5.3)** — screen with Offer Details / HR Details / Checklist / Communication sections, Save-as-Draft, Send Invitation, Cancel Initiation. NOTE: Part 5's EmployeeCreationRequest table + state machine can be reused as the persistence model for initiation drafts; convert-to-draft already creates the preboarding record + seeds documents + welcome message.
-2. **Gap 3: Dashboard widgets** — Recruiter-wise Handover + Joining Trends widgets on `/preboarding` dashboard; Company/Branch/Employment-type filters (data for branch/workMode/employmentType already on PreboardingCandidate).
-3. **Gap 4: Document hardening** — version history (OnboardingDocument re-upload currently overwrites in place), issue/expiry dates + expired flag, duplicate detection, doc-number fields.
-4. **Gap 5: Day 7/30/60/90 onboarding milestones** — task-template offsets currently −3…+14 only; reminders cron exists (`/api/cron/daily-tasks`, daily 09:00) but milestone templates need adding.
-5. **Part 10: Full E2E live verification** of the complete journey (fresh candidate → offer → accept → HR initiate → wizard → documents → rework → submit → joining confirm → BGV → activation) + screenshots of the 3 portal states + final delivery report.
+Gaps 2-5 are DONE (deployed + verified): Gap 2 initiation screen (dpl_DMY→DiCR8Yp READY), Gap 3 widgets/filters (READY, pipeline API returns employmentType/company), Gap 4 doc hardening (live: 54 docs carry documentNumber/expiryDate/expired/fileHash), Gap 5 milestones (wired into onboarding-reminders sweep; runs on schedule — live trigger requires CRON_SECRET by design). For the next session:
+
+**Part 10: Full E2E live verification** of the complete journey (fresh candidate → offer → accept → HR initiate → wizard → documents → rework → submit → joining confirm → BGV → activation) + screenshots of the 3 portal states + final delivery report.
 
 ## E2E verification done this session (live, beta)
 | # | Test | Result |
@@ -78,6 +76,8 @@
 | `8be2383` | merge + vendor My-Cases fix | dpl_5i3EX9wW… | **READY** |
 | `1c20c71` | Gap 2 (BRD 5.3 Initiation screen) | dpl_DMYRpMRsRduN→superseded | READY |
 | `7a4edeb` (HEAD) | Gap 3 (BRD 5.1 widgets + filters) | dpl_DiCR8Yp3a2fXg | **READY** |
+| `8305f2b` | Gap 4 (BRD 5.8 doc hardening: version history, expiry, duplicates) | dpl_7WPtGbG5fuLct | **READY** |
+| `c49c846`+`68fc87d` | Gap 5 (Day 7/30/60/90 milestones) + ledger docs | dpl_7WPtGbG5fuLct | **READY** |
 
 **Live post-deploy verification (production beta):** `GET /api/candidate-portal/portal-state` returns HTTP 200 with real state-driven data — `preboarding: { PRE-2026-0001, stage: initiated, status: joined, submittedAt: 2026-11-12 }`, `awaitingHR: []`, `unreadNotifications: 13`. The Preboarding tab will therefore render for this candidate, and the journey-overview view (mock 04) is their default Preboarding screen.
 
