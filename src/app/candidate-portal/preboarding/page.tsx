@@ -566,6 +566,9 @@ export default function CandidatePreboardingWizardPage() {
               <div className="text-sm text-emerald-800">
                 <strong>Submitted to HR.</strong> Your details are now read-only while HR verifies them.
                 {data.portalSubmittedAt && <> Submitted on {new Date(data.portalSubmittedAt).toLocaleString('en-IN')}.</>}
+                {data.documents.some((d: any) => d.status === 'rejected' || d.status === 'resubmission_requested') && (
+                  <> <strong className="text-red-700">Action required:</strong> HR has returned one or more documents — open the <strong>Document Upload</strong> step to re-upload them.</>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1207,9 +1210,16 @@ function DocumentsStep({ docs, uploadingDocId, savingDocId, nowMs, onUpload, onS
       )}
       {docs.map(doc => {
         const cfg = DOC_STATUS[doc.status] || DOC_STATUS.pending;
-        const canUpload = !locked && (doc.status === 'pending' || doc.status === 'rejected' || doc.status === 'resubmission_requested');
-        const canEditDetails = !locked && doc.status !== 'approved' && doc.status !== 'pending';
+        // BRD 5.8/5.9: a rejected / resubmission-requested / expired document
+        // must stay re-uploadable even after the wizard was submitted to HR —
+        // HR's rejection reopens exactly that document (the whole-wizard lock
+        // only protects the profile sections and approved documents).
         const isExpired = Boolean(doc.expiryDate && ref > 0 && new Date(doc.expiryDate).getTime() < ref);
+        const needsFix = doc.status === 'rejected' || doc.status === 'resubmission_requested' || (isExpired && doc.status !== 'approved' && !!doc.fileUrl);
+        const canUpload = doc.status !== 'approved' && (!locked ? (doc.status === 'pending' || needsFix) : needsFix);
+        const canEditDetails = !locked
+          ? (doc.status !== 'approved' && doc.status !== 'pending')
+          : needsFix;
         const base = metaOf(doc);
         return (
           <div key={doc.id} className={`p-3 rounded-lg border ${doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'border-amber-300 bg-amber-50/40 border-l-4 border-l-amber-400' : 'border-slate-200'}`}>

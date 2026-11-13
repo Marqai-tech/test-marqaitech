@@ -18,6 +18,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { findJoiningBlockers } from '@/lib/onboarding-documents';
 import { HR_ROLES, notifyCandidate, audit, ensurePreboardingId, sendEmailBestEffort } from '@/lib/preboarding';
 
 const CORS = {
@@ -113,6 +114,15 @@ export async function POST(req: NextRequest) {
       case 'confirm-joined': {
         const actual = body.actualJoiningDate ? new Date(body.actualJoiningDate) : null;
         if (!actual) return NextResponse.json({ error: 'Actual Joining Date cannot be blank when confirming joined (BRD 5.11)' }, { status: 400, headers: CORS });
+        // BRD 5.9/5.10 — joining cannot be confirmed while any required
+        // document is rejected / pending resubmission / not uploaded.
+        const blockers = await findJoiningBlockers(db, candidateId);
+        if (blockers.length) {
+          return NextResponse.json({
+            error: `Cannot confirm joining — ${blockers.length} required document${blockers.length > 1 ? 's are' : ' is'} not approved: ${blockers.map((b) => `${b.documentLabel} (${b.status})`).join(', ')}. Resolve document verification first (BRD 5.9).`,
+            code: 'DOCUMENTS_NOT_APPROVED', blockers,
+          }, { status: 409, headers: CORS });
+        }
         const reportingTime = String(body.reportingTime || '').trim() || null;
         const reportingLocation = String(body.reportingLocation || '').trim() || null;
         const remarks = String(body.hrRemarks || '').trim() || null;

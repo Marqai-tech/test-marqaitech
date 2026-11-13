@@ -110,26 +110,30 @@ export default function CandidatePortalNav({
             <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center font-extrabold text-[13px] text-white shadow-sm">3B</span>
             <span className="font-bold text-[15px] tracking-tight">3Boxes <span className="font-light">HRMS</span></span>
           </Link>
-          <span className="w-px h-7 bg-white/20 hidden sm:block" aria-hidden />
-          <span className="text-[13px] font-semibold text-slate-300 hidden sm:block">Candidate Portal</span>
+          <span className="w-px h-7 bg-white/20 hidden lg:block" aria-hidden />
+          <span className="text-[13px] font-semibold text-slate-300 hidden lg:block">Candidate Portal</span>
 
-          {/* Tabs */}
-          <nav className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar justify-center min-w-0" aria-label="Candidate portal">
+          {/* Tabs — scroll-safe: never justify-center with overflow (centered
+              overflow clips the left edge and becomes unreachable); tabs stay
+              left-aligned, icons-only below lg so the row always fits. */}
+          <nav className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0" aria-label="Candidate portal">
             {tabs.filter((t) => t.show).map((t) => {
               const isActive = active === t.key || (t.key === 'applications' && pathname === '/candidate-portal/dashboard');
               return (
                 <Link
                   key={t.key}
                   href={t.href}
-                  className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                  title={t.label}
+                  className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-2.5 lg:px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                     isActive
                       ? 'bg-emerald-500 text-white shadow-sm'
                       : 'text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                   aria-current={isActive ? 'page' : undefined}
+                  aria-label={t.label}
                 >
                   {t.icon}
-                  <span className="hidden md:inline">{t.label}</span>
+                  <span className="hidden lg:inline">{t.label}</span>
                 </Link>
               );
             })}
@@ -181,7 +185,7 @@ export default function CandidatePortalNav({
             </div>
             <button
               onClick={() => portalLogout(router)}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
             >
               <FiLogOut className="w-4 h-4" /> Logout
             </button>

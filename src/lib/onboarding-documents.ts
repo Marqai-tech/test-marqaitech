@@ -104,3 +104,30 @@ export async function findDuplicates(
   }
   return hits;
 }
+
+export interface JoiningBlocker {
+  documentLabel: string;
+  status: string;
+  required: boolean;
+}
+
+/**
+ * BRD 5.9/5.10/5.11 gate — a candidate may only be marked joined / confirmed
+ * joined / activated as an employee when every REQUIRED document is approved.
+ * Rejected, resubmission-requested, pending or never-uploaded required
+ * documents block joining; optional documents never do.
+ */
+export async function findJoiningBlockers(db: Tx, preboardingCandidateId: string): Promise<JoiningBlocker[]> {
+  const rows = await db.$queryRawUnsafe(
+    `SELECT "documentLabel", "status", "required" FROM "OnboardingDocument"
+     WHERE "preboardingCandidateId" = $1 AND ("required" IS NULL OR "required" = TRUE)
+       AND "status" IS DISTINCT FROM 'approved'
+     ORDER BY "createdAt" ASC`,
+    preboardingCandidateId,
+  ).catch(() => []) as any[];
+  return rows.map((r: any) => ({
+    documentLabel: r.documentLabel || 'Document',
+    status: r.status || 'pending',
+    required: r.required !== false,
+  }));
+}

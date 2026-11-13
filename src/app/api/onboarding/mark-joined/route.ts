@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
+import { findJoiningBlockers } from '@/lib/onboarding-documents';
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
@@ -41,6 +42,16 @@ export async function POST(req: NextRequest) {
     const pb = rows[0];
     if (pb.onboardingStatus === 'active_employee') return NextResponse.json({ error: 'Already activated' }, { status: 409, headers: CORS });
     if (pb.onboardingStatus === 'bgv_failed') return NextResponse.json({ error: 'BGV failed' }, { status: 400, headers: CORS });
+
+    // BRD 5.9/5.10 — provisional joining also requires all required documents
+    // approved; a rejected/pending required document blocks it.
+    const blockers = await findJoiningBlockers(db, preboardingCandidateId);
+    if (blockers.length) {
+      return NextResponse.json({
+        error: `Cannot mark joined — ${blockers.length} required document${blockers.length > 1 ? 's are' : ' is'} not approved: ${blockers.map((b) => `${b.documentLabel} (${b.status})`).join(', ')}. Resolve document verification first (BRD 5.9).`,
+        code: 'DOCUMENTS_NOT_APPROVED', blockers,
+      }, { status: 409, headers: CORS });
+    }
 
     // ─── Resolve department + designation (required by Employee model) ───
     let deptId = pb.departmentId;
