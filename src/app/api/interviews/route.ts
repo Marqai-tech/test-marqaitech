@@ -221,6 +221,38 @@ export async function POST(req: NextRequest) {
       computedRound = 1;
     }
 
+    // Sequential interview policy: a candidate may advance only after the
+    // previous round is completed.  This is deliberately enforced server-side
+    // so scheduling cannot skip a round through another client or API call.
+    try {
+      const previousRows = await db.$queryRawUnsafe(
+        `SELECT "round", "type", "status"
+         FROM "Interview"
+         WHERE "jobApplicationId" = $1
+           AND "status" NOT IN ('cancelled', 'no_show')
+         ORDER BY "round" DESC NULLS LAST, "createdAt" DESC
+         LIMIT 1`,
+        jobApplicationId,
+      ) as any[];
+      const previous = previousRows[0];
+      if (previous && previous.status !== 'completed') {
+        return NextResponse.json({
+          error: `Round ${Number(previous.round || 1)} must be completed before scheduling the next interview.`,
+          code: 'PREVIOUS_INTERVIEW_NOT_COMPLETED',
+          previousRound: Number(previous.round || 1),
+          previousStatus: previous.status,
+        }, { status: 409, headers: corsHeaders() });
+      }
+      if (computedRound === 2 && type && type !== 'technical') {
+        return NextResponse.json({ error: 'Technical Round 2 must use the Technical Interview type.' }, { status: 400, headers: corsHeaders() });
+      }
+      if (computedRound >= 3 && type && type !== 'hr') {
+        return NextResponse.json({ error: 'The final HR round must use the HR Interview type.' }, { status: 400, headers: corsHeaders() });
+      }
+    } catch (e) {
+      console.warn('[Interviews POST] sequential-round check failed:', e instanceof Error ? e.message : e);
+    }
+
     // Validate interview type
     const validTypes = ['ai', 'technical', 'hr', 'offline_panel'];
     const interviewType = validTypes.includes(type) ? type : 'technical';
