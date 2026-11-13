@@ -286,6 +286,7 @@ const initialJobForm = {
   requirements: '',
   vacancies: '1',
   closingDate: '',
+  status: 'open',
   interviewPlan: '[{"name":"Technical Interview Round 1","type":"technical"},{"name":"Technical Interview Round 2","type":"technical"},{"name":"HR Interview Round 3","type":"hr"}]',
 };
 
@@ -1492,6 +1493,7 @@ export default function RecruitmentPage() {
       requirements: job.requirements || '',
       vacancies: String(job.vacancies),
       closingDate: job.closingDate ? job.closingDate.split('T')[0] : '',
+      status: job.status || 'open',
       interviewPlan: job.interviewPlan || initialJobForm.interviewPlan,
     });
     setShowJobForm(true);
@@ -1937,6 +1939,15 @@ export default function RecruitmentPage() {
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Closing Date</label>
                   <input type="date" value={jobForm.closingDate} onChange={e => setJobForm(p => ({ ...p, closingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Status</label>
+                  <select value={jobForm.status} onChange={e => setJobForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
+                    <option value="open">Open</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="closed">Closed</option>
+                    <option value="filled">Filled</option>
+                  </select>
                 </div>
               </div>
               <div>
