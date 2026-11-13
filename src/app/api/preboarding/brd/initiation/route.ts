@@ -297,8 +297,9 @@ export async function POST(req: NextRequest) {
     }
 
     const applicationId = draft?.applicationId || await findApplicationId(db, offer);
-    const companyEmail = String(hrDetails.companyEmail || '').toLowerCase()
-      || `${String(offer.candidateName || 'joiner').split(' ')[0].toLowerCase()}@marqaitech.com`;
+    // Preboarding must reuse the candidate portal account. Do not create or
+    // assign a company email until the employee-conversion step is completed.
+    const companyEmail = null;
 
     // Portal user (candidate's SAME account is preserved — find or create).
     let portalUserId: string | null = null;
@@ -316,24 +317,6 @@ export async function POST(req: NextRequest) {
         cpuId, candidateEmail, offer.candidateName, hashed,
       ).catch(() => []) as any[];
       portalUserId = created[0]?.id || cpuId;
-    }
-
-    // HRMS User account for the company email (same as convert-to-draft;
-    // mark-joined later links the Employee to this User via companyEmail).
-    let userIdLinked: string | null = null;
-    const existingUser = await db.$queryRawUnsafe(
-      `SELECT id FROM "User" WHERE email=$1 LIMIT 1`, companyEmail,
-    ).catch(() => []) as any[];
-    if (existingUser[0]) {
-      userIdLinked = existingUser[0].id;
-    } else {
-      const hashedPwd = await hashPassword('Welcome@123');
-      const createdUser = await db.$queryRawUnsafe(
-        `INSERT INTO "User" ("id","email","password","name","role","status","tenantId","createdAt","updatedAt")
-         VALUES ($1,$2,$3,$4,'employee','active',$5,NOW(),NOW()) RETURNING id`,
-        `usr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, companyEmail, hashedPwd, offer.candidateName, tenantId,
-      ).catch(() => []) as any[];
-      userIdLinked = createdUser[0]?.id || null;
     }
 
     const pbId = `pb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -436,12 +419,18 @@ export async function POST(req: NextRequest) {
     if (communication.sendEmail !== false) {
       try {
         const { sendEmail } = await import('@/lib/email');
+        const requiredDocumentList = documents
+          .filter((doc: any) => doc.required !== false)
+          .map((doc: any) => `<li>${doc.label || doc.type}</li>`)
+          .join('');
         const res = await sendEmail({
           to: candidateEmail,
           subject: `Preboarding initiated — ${offer.position || 'your application'} (joining ${joinDateStr})`,
           html: `<p>Hi ${offer.candidateName},</p>
-<p>Your preboarding has been initiated for <strong>${offer.position || 'your application'}</strong>. Expected joining date: <strong>${joinDateStr}</strong>.</p>
-<p>Please log in to your candidate portal and open <strong>Preboarding</strong> to complete your joining information and upload the required documents.</p>${remarks ? `<p><em>Note from HR: ${remarks}</em></p>` : ''}`,
+<p>Your preboarding has started for <strong>${offer.position || 'your application'}</strong>. Expected joining date: <strong>${joinDateStr}</strong>.</p>
+<p>Use your existing candidate-portal login and open <strong>Preboarding</strong>. Complete your personal, address, bank, tax, emergency-contact and joining details, then upload the required documents.</p>
+<p><strong>Required documents:</strong></p><ul>${requiredDocumentList || '<li>See the checklist in your portal</li>'}</ul>
+<p>Upload clear files in the allowed format and size. If HR rejects a document, open the rejected item, read the remarks, correct it and upload it again. Your employee ID and company email will be created only after BGV and employee conversion are completed.</p>${remarks ? `<p><em>Note from HR: ${remarks}</em></p>` : ''}`,
         });
         emailSent = Boolean(res?.success);
       } catch { /* honest reporting below */ }
@@ -451,7 +440,7 @@ export async function POST(req: NextRequest) {
       `INSERT INTO "AuditLog" ("id","userId","action","module","details","createdAt")
        VALUES ($1,$2,'PREBOARDING_INITIATED','preboarding',$3,NOW())`,
       `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, userId,
-      `Initiated preboarding for ${offer.candidateName} (${candidateEmail}) from offer ${offerId}. Preboarding: ${preboardingId}. HRMS user: ${userIdLinked || 'existing'}. Email sent: ${emailSent}.`,
+      `Initiated preboarding for ${offer.candidateName} (${candidateEmail}) from offer ${offerId}. Preboarding: ${preboardingId}. Candidate portal account reused; company account deferred until employee conversion. Email sent: ${emailSent}.`,
     ).catch(() => 0);
 
     return NextResponse.json({
