@@ -566,12 +566,9 @@ export default function CandidatePreboardingWizardPage() {
               <div className="text-sm text-emerald-800">
                 <strong>Submitted to HR.</strong> Your details are now read-only while HR verifies them.
                 {data.portalSubmittedAt && <> Submitted on {new Date(data.portalSubmittedAt).toLocaleString('en-IN')}.</>}
-<<<<<<< HEAD
                 {data.documents.some((d: any) => d.status === 'rejected' || d.status === 'resubmission_requested') && (
                   <> <strong className="text-red-700">Action required:</strong> HR has returned one or more documents — open the <strong>Document Upload</strong> step to re-upload them.</>
                 )}
-=======
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -627,15 +624,9 @@ export default function CandidatePreboardingWizardPage() {
                     : 'bg-amber-100 text-amber-800'
                   }`}>
                     {data.documents.length === 0 ? 'No documents assigned'
-<<<<<<< HEAD
                       : data.documents.every((d: any) => d.status === 'approved') ? 'All approved'
                       : data.documents.some((d: any) => d.status === 'rejected' || d.status === 'resubmission_requested') ? 'Correction requested'
                       : `${data.documents.filter((d: any) => d.status !== 'pending').length} of ${data.documents.length} submitted`}
-=======
-                      : data.documents.every((d: any) => d.status === 'approved') ? `All ${data.documents.length} approved`
-                      : data.documents.some((d: any) => d.status === 'rejected' || d.status === 'resubmission_requested') ? `${data.documents.filter((d: any) => d.status === 'approved').length} of ${data.documents.length} approved · Correction requested`
-                      : `${data.documents.filter((d: any) => d.status === 'approved').length} of ${data.documents.length} approved`}
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
                   </span>
                 </div>
               </div>
@@ -1219,7 +1210,6 @@ function DocumentsStep({ docs, uploadingDocId, savingDocId, nowMs, onUpload, onS
       )}
       {docs.map(doc => {
         const cfg = DOC_STATUS[doc.status] || DOC_STATUS.pending;
-<<<<<<< HEAD
         // BRD 5.8/5.9: a rejected / resubmission-requested / expired document
         // must stay re-uploadable even after the wizard was submitted to HR —
         // HR's rejection reopens exactly that document (the whole-wizard lock
@@ -1230,11 +1220,6 @@ function DocumentsStep({ docs, uploadingDocId, savingDocId, nowMs, onUpload, onS
         const canEditDetails = !locked
           ? (doc.status !== 'approved' && doc.status !== 'pending')
           : needsFix;
-=======
-        const canUpload = !locked && (doc.status === 'pending' || doc.status === 'rejected' || doc.status === 'resubmission_requested');
-        const canEditDetails = !locked && doc.status !== 'approved' && doc.status !== 'pending';
-        const isExpired = Boolean(doc.expiryDate && ref > 0 && new Date(doc.expiryDate).getTime() < ref);
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
         const base = metaOf(doc);
         return (
           <div key={doc.id} className={`p-3 rounded-lg border ${doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'border-amber-300 bg-amber-50/40 border-l-4 border-l-amber-400' : 'border-slate-200'}`}>

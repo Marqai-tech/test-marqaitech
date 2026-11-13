@@ -158,10 +158,7 @@ async function main() {
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-<<<<<<< HEAD
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "workMode" TEXT`,
-=======
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,

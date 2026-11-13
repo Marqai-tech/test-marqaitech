@@ -241,11 +241,7 @@ export async function POST(request: Request) {
         module: 'offers',
         details: `Created offer for ${candidateName} - ${position}`,
       },
-<<<<<<< HEAD
     }).catch(() => null); // non-fatal — an audit failure must not 500 the creation (offer row already exists)
-=======
-    });
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 
     return NextResponse.json({ offer }, { status: 201, headers: corsHeaders() });
   } catch (error) {

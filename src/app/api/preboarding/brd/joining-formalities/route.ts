@@ -18,10 +18,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
-<<<<<<< HEAD
 import { findJoiningBlockers } from '@/lib/onboarding-documents';
-=======
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 import { HR_ROLES, notifyCandidate, audit, ensurePreboardingId, sendEmailBestEffort } from '@/lib/preboarding';
 
 const CORS = {
@@ -117,7 +114,6 @@ export async function POST(req: NextRequest) {
       case 'confirm-joined': {
         const actual = body.actualJoiningDate ? new Date(body.actualJoiningDate) : null;
         if (!actual) return NextResponse.json({ error: 'Actual Joining Date cannot be blank when confirming joined (BRD 5.11)' }, { status: 400, headers: CORS });
-<<<<<<< HEAD
         // BRD 5.9/5.10 — joining cannot be confirmed while any required
         // document is rejected / pending resubmission / not uploaded.
         const blockers = await findJoiningBlockers(db, candidateId);
@@ -127,8 +123,6 @@ export async function POST(req: NextRequest) {
             code: 'DOCUMENTS_NOT_APPROVED', blockers,
           }, { status: 409, headers: CORS });
         }
-=======
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
         const reportingTime = String(body.reportingTime || '').trim() || null;
         const reportingLocation = String(body.reportingLocation || '').trim() || null;
         const remarks = String(body.hrRemarks || '').trim() || null;

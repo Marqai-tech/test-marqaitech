@@ -6,10 +6,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-<<<<<<< HEAD
 import ConvertCandidateButton from '@/components/hrms/ConvertCandidateButton';
-=======
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -524,7 +521,6 @@ export default function OffersPage() {
                               </button>
                             )}
                             {o.status === 'accepted' && (
-<<<<<<< HEAD
                               <>
                                 <ConvertCandidateButton
                                   offerId={o.id}
@@ -541,15 +537,6 @@ export default function OffersPage() {
                                   <FiExternalLink className="w-3 h-3" /> Initiate
                                 </button>
                               </>
-=======
-                              <button
-                                onClick={() => { window.location.href = `/preboarding/initiation?offerId=${o.id}`; }}
-                                className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 rounded-lg hover:bg-teal-700 inline-flex items-center gap-1.5 shadow-sm shadow-teal-600/20"
-                                title="Open the guided preboarding initiation flow"
-                              >
-                                <FiExternalLink className="w-3.5 h-3.5" /> Start preboarding
-                              </button>
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
                             )}
                           </div>
                         </td>

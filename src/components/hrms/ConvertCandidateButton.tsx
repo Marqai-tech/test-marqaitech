@@ -16,10 +16,7 @@
  * - NO credentials email sent yet
  */
 import { useState, useEffect } from 'react';
-<<<<<<< HEAD
-=======
 import { useRouter } from 'next/navigation';
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 import { FiUserPlus, FiX, FiLoader } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -42,10 +39,7 @@ export default function ConvertCandidateButton({
   label?: string;
   className?: string;
 }) {
-<<<<<<< HEAD
-=======
   const router = useRouter();
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
   const [open, setOpen] = useState(false);
   const [converting, setConverting] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
@@ -149,19 +143,11 @@ export default function ConvertCandidateButton({
     <>
       <button
         type="button"
-<<<<<<< HEAD
-        onClick={() => setOpen(true)}
-        title="Convert to Draft Employee (start onboarding)"
-        className={className || 'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700'}
-      >
-        <FiUserPlus className="w-3.5 h-3.5" /> {label || 'Convert to Employee'}
-=======
         onClick={() => offerId ? router.push(`/preboarding/initiation?offerId=${encodeURIComponent(offerId)}`) : setOpen(true)}
         title={offerId ? 'Start the canonical preboarding workflow' : 'Convert to Draft Employee (start onboarding)'}
         className={className || 'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700'}
       >
         <FiUserPlus className="w-3.5 h-3.5" /> {offerId ? 'Start preboarding' : (label || 'Convert to Employee')}
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !converting && setOpen(false)}>

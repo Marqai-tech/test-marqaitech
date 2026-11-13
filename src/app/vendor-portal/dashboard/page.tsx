@@ -184,13 +184,8 @@ export default function VendorDashboardPage() {
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
         {/* Stats */}
-<<<<<<< HEAD
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Unassigned" value={requests.filter(r => r.status === 'awaiting_assignment').length} color="text-amber-600" icon={<FiClock className="h-5 w-5" />} />
-=======
         <div className={`grid grid-cols-2 ${isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
           {isAdmin && <StatCard label="Unassigned" value={requests.filter(r => r.status === 'awaiting_assignment').length} color="text-amber-600" icon={<FiClock className="h-5 w-5" />} />}
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
           <StatCard label="In Progress" value={requests.filter(r => ['assigned', 'in_progress', 'rework_required'].includes(r.status)).length} color="text-blue-600" icon={<FiUsers className="h-5 w-5" />} />
           <StatCard label="Submitted" value={requests.filter(r => ['submitted_for_hr_review', 'awaiting_information'].includes(r.status)).length} color="text-violet-600" icon={<FiFileText className="h-5 w-5" />} />
           <StatCard label="Completed" value={requests.filter(r => ['approved_by_hr', 'rejected_by_hr'].includes(r.status)).length} color="text-emerald-600" icon={<FiCheckCircle className="h-5 w-5" />} />
@@ -296,11 +291,7 @@ export default function VendorDashboardPage() {
           </div>
         )}
 
-<<<<<<< HEAD
-        <p className="text-xs text-slate-400 flex items-center gap-1.5"><FiInfo /> An unassigned case is visible to admins only — ordinary employees never see it until it is assigned to them.</p>
-=======
         {isAdmin && <p className="text-xs text-slate-400 flex items-center gap-1.5"><FiInfo /> An unassigned case is visible to admins only — ordinary employees never see it until it is assigned to them.</p>}
->>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
       </div>
     </div>
   );
