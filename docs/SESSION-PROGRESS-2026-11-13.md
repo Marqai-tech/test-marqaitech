@@ -249,3 +249,13 @@ Three user commits deployed together (user asked for 01a9b65; the other two sat 
 **Post-deploy smoke (12/12 PASS + endpoints):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 98bc696; `/api/job-portal` 200, `/api/recruitment` 200, `/api/interviews` 200 (planTotal query healthy).
 
 **Production = GitHub main (`98bc696`).**
+
+## EVENING 12 — Preboarding login reuse deployed (`606f0ea`)
+
+`606f0ea` "Reuse candidate login during preboarding" — preboarding initiation no longer creates a company-email HRMS User at initiation (removes the last hardcoded `Welcome@123` path); companyEmail = null until employee conversion. Candidate email now instructs reuse of the existing candidate-portal login, includes the required-documents list, the reject→re-upload flow, and notes employee ID/company email arrive only after BGV + conversion. Audit message updated. No schema changes. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_4yvup1CctujYXtcoE35XMC3AqN46` **READY in 5m50s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 606f0ea.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8 — changed route healthy); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 606f0ea.
+
+**Production = GitHub main (`606f0ea`).**
