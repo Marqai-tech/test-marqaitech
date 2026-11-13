@@ -85,6 +85,13 @@ export default function VendorDashboardPage() {
   const [tab, setTab] = useState('unassigned');
   const [search, setSearch] = useState('');
 
+  // Employees have no Unassigned queue (their first tab is Assigned) — the
+  // 'unassigned' default filtered every assigned case out and rendered
+  // My Cases permanently empty (found in the live E2E walkthrough).
+  useEffect(() => {
+    if (vendorInfo && vendorInfo.role !== 'vendor_admin' && tab === 'unassigned') setTab('assigned');
+  }, [vendorInfo, tab]);
+
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
