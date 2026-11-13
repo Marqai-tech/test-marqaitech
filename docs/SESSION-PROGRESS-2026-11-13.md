@@ -153,3 +153,7 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (live):** /login 200; HR login 200 + token; initiation 200 (eligible 4 / invited 8); pipeline 200 (17 candidates); `/api/preboarding/brd/documents` 200 — **98 docs, 100% with Gap-4 fields** (documentNumber/expiryDate/fileHash/expired); offers 200; cron without secret → 401 (guard intact). All green.
 
 **Production now matches GitHub main (`e091c0f`).**
+
+## EVENING 2 — Requisition approval fix deployed (`3b411ad`)
+
+`3b411ad` "Fix requisition approval action" (requisitions page: removed `window.prompt` for approval comments — native prompts are blocked in embedded browsers and could prevent the approval PATCH from being sent; approval comments now optional/no-op). Pre-flight: conflict-marker scan clean, esbuild syntax pass. Deploy `dpl_6Yp5xzGJVG5iHCVumNKjsGFt7Djj` **READY in 6m04s**. Smoke: site 200, HR login OK, initiation/pipeline/offers/requisitions APIs all 200. Production = GitHub main.
