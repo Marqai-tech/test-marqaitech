@@ -224,7 +224,7 @@ Live E2E against production beta with two FRESH candidates (no pre-existing stat
 | Candidate onboarded despite rejected docs | None of the 3 employee-creation paths (`mark-joined`, `bgv approved`, joining-formalities `confirm-joined`) checked documents | Shared `findJoiningBlockers()` gate — all REQUIRED docs must be approved; 409 `DOCUMENTS_NOT_APPROVED` listing blockers (`0f6ee99`) | Steps 41-44: all three paths blocked with rejected PAN (409); steps 48-53: after approval, confirm-joined + provisional + BGV → active employee Marq022 |
 | Consent (review step) suspected broken | Working as designed; the visible symptom came from the candidate onboarding response dropping doc metadata (`6d1a84d` fixed earlier today) | — | 4 application consents 201 + readable; submit without declaration → 400 `DECLARATION_REQUIRED`; 2-char signature → 400 `SIGNATURE_REQUIRED`; valid submit 201 + lock 409 |
 
-Additional defects found by the E2E and fixed in `483eb97`:
+Additional defects found by the E2E and fixed in `483eb97` (both re-verified live after deployment: offers create/approve now 201/200; sweep backfilled 20 milestone tasks, Marq022 in progress dashboard):
 1. **Milestone backfill chicken-and-egg** — `backfillMilestoneTasks` only considered employees that already had an OnboardingTask row, but it is the only creator of those rows; brand-new joiners never got Day 7/30/60/90 tasks (progress dashboard empty, `tasksConsidered=0`). Fixed with a joining-window filter (joined ≤30d ago / joining ≤14d ahead).
 2. **Offers API 500-after-write** — `POST /api/offers` and `PATCH /api/offers/{id}` (approve) returned 500 AFTER the offer row was committed because the trailing `auditLog.create` had no `.catch`. Now best-effort, matching convention.
 
