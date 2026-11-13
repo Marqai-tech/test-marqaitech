@@ -157,3 +157,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 ## EVENING 2 — Requisition approval fix deployed (`3b411ad`)
 
 `3b411ad` "Fix requisition approval action" (requisitions page: removed `window.prompt` for approval comments — native prompts are blocked in embedded browsers and could prevent the approval PATCH from being sent; approval comments now optional/no-op). Pre-flight: conflict-marker scan clean, esbuild syntax pass. Deploy `dpl_6Yp5xzGJVG5iHCVumNKjsGFt7Djj` **READY in 6m04s**. Smoke: site 200, HR login OK, initiation/pipeline/offers/requisitions APIs all 200. Production = GitHub main.
+
+## EVENING 3 — Requisition approval screen layout deployed (`28fed11`)
+
+`28fed11` "Improve requisition approval screen layout" — requisitions page only (+38/−1): approval-pipeline banner (HR review → Finance review → Job posting) with Pending/Approved legend, and a mobile card layout (`md:hidden`) so approval status and actions are visible without horizontal scrolling; desktop table now hidden on mobile. All referenced helpers (`getApprovalBadge/Label`, `getPriorityBadge`, `getStatusBadge`, `getApprovalButtons`, `handleView/Edit`) already existed from `3b411ad`.
+
+**Pre-flight:** conflict-marker scan clean (rg exit 1), esbuild transform pass on the changed file. **Deploy:** `dpl_4GoyFNMmwezs4tYbA4hRapoh6HZ5` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`.
+
+**Post-deploy smoke (8/8 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); `/api/documents` 200 (2 employee docs) + `/api/preboarding/brd/documents` 200 (80 docs — was 98; 18 belonged to the deleted manoj test data), Gap-4 fields intact on all sampled docs; offers 200; cron without secret → 401. Smoke script fixed in passing: documents URL corrected to real endpoints, commit check now queries latest production READY deployment instead of a hardcoded dpl id.
+
+**Production = GitHub main (`28fed11`).**
