@@ -663,7 +663,17 @@ export default function RequisitionsPage() {
       )}
 
       {/* Table */}
-      <div className="thb-card overflow-hidden">
+      <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-violet-50 px-4 py-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Approval pipeline</p>
+          <p className="mt-0.5 text-sm font-medium text-slate-700">HR review <span className="mx-1 text-slate-300">→</span> Finance review <span className="mx-1 text-slate-300">→</span> Job posting</p>
+        </div>
+        <div className="hidden items-center gap-2 text-[11px] font-semibold sm:flex">
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-700">Pending</span>
+          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">Approved</span>
+        </div>
+      </div>
+      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -740,6 +750,33 @@ export default function RequisitionsPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Compact mobile layout: keeps approval status and actions visible without horizontal scrolling. */}
+      <div className="space-y-3 md:hidden">
+        {loading ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-xl bg-slate-100" />) : requisitions.map((r) => (
+          <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-mono text-[11px] font-semibold text-slate-500">{r.requisitionId || '—'}</p>
+                <h3 className="mt-1 truncate text-sm font-semibold text-slate-800">{r.designation?.title || r.positionTitle || 'Position not specified'}</h3>
+                <p className="mt-0.5 truncate text-xs text-slate-500">{r.department?.name || 'Department not specified'} · {r.numberOfOpenings} opening{r.numberOfOpenings === 1 ? '' : 's'}</p>
+              </div>
+              <span className={getPriorityBadge(r.priority)}>{r.priority}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span>
+              <span className={getStatusBadge(r.status)}>{r.status}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1">{getApprovalButtons(r)}</div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => handleView(r.id)} className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600" title="View"><FiEye className="h-4 w-4" /></button>
+                {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button onClick={() => handleEdit(r)} className="rounded-lg p-2 text-slate-500 hover:bg-green-50 hover:text-green-600" title="Edit"><FiEdit2 className="h-4 w-4" /></button>}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
