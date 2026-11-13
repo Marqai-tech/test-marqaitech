@@ -132,8 +132,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: jobApplicationId, date' }, { status: 400, headers: corsHeaders() });
     }
 
-    // A screening candidate is not yet interview-ready. HR must first move
-    // the application to Shortlisted (Round 1) or Interview (later rounds).
+    // Only candidates already moved to the Interview stage may be scheduled.
+    // Screening and Shortlisted candidates must remain unschedulable until HR
+    // explicitly advances them into Interview.
     // Keep this rule in the API so the scheduling modal cannot bypass the
     // recruitment pipeline.
     try {
@@ -142,9 +143,9 @@ export async function POST(req: NextRequest) {
         jobApplicationId,
       ) as any[];
       const applicationStatus = String(appRows[0]?.status || '').toLowerCase();
-      if (!['shortlisted', 'interview'].includes(applicationStatus)) {
+      if (applicationStatus !== 'interview') {
         return NextResponse.json({
-          error: `This candidate is in ${appRows[0]?.status || 'an ineligible'} status. Move the candidate to Shortlisted before scheduling an interview.`,
+          error: `This candidate is in ${appRows[0]?.status || 'an ineligible'} status. Move the candidate to Interview before scheduling.`,
           code: 'APPLICATION_NOT_INTERVIEW_READY',
           applicationStatus: applicationStatus || null,
         }, { status: 409, headers: corsHeaders() });
