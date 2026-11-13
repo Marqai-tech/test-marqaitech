@@ -330,7 +330,10 @@ export default function RequisitionsPage() {
       comments = window.prompt('Reason for returning (required):') || '';
       if (!comments.trim()) { toast.error('Reason is required'); return; }
     } else if (action === 'hr_approve' || action === 'finance_approve') {
-      comments = window.prompt('Comments (optional):') || '';
+      // Approval comments are optional. Do not use window.prompt here:
+      // native prompts are blocked/undiscoverable in the embedded browser
+      // and can prevent the approval PATCH from ever being sent.
+      comments = '';
     }
     try {
       const res = await fetch(`/api/requisitions/${id}`, {
