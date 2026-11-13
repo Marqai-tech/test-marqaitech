@@ -496,6 +496,7 @@ model Employee {
   // employeeType: The employment type
   //   full_time, part_time, contract, temporary, consultant
   employeeType   String? @default("full_time") // full_time, part_time, contract, temporary, consultant
+  workMode       String?  // office, hybrid, remote (BRD 6.2 employee creation)
 
   // ─── Management designation (Task 76) ───
   // Explicit flag set by HR/admin from the employee add/edit form

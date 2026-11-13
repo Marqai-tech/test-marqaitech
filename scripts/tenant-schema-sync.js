@@ -333,6 +333,7 @@ const EXTRA_STATEMENTS = [
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedApplicationId" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedOfferId" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "workMode" TEXT`,
   `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
 
   // ─── BRD 5.3 Preboarding Initiation (tenant DBs) ───
