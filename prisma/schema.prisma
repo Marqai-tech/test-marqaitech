@@ -2714,6 +2714,7 @@ model Requisition {
   clientId          String?
   priority          String @default("medium") // low, medium, high, critical
   expectedJoiningDate DateTime?
+  interviewPlan      String?
 
   approvalStatus    String @default("pending") // pending, manager_approved, hr_approved, budget_approved, rejected
   approvedBy        String?

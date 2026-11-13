@@ -17,7 +17,7 @@ function getAuthHeaders() {
 }
 
 interface Requisition {
-  id: string; requisitionId: string; positionType: string; numberOfOpenings: number; employmentType: string; priority: string; approvalStatus: string; status: string; skillsRequired: string | null; experienceRequired: string | null; qualification: string | null; salaryBudget: string | null; expectedJoiningDate: string | null; companyId?: string; hiringManagerId?: string; positionTitle?: string;
+  id: string; requisitionId: string; positionType: string; numberOfOpenings: number; employmentType: string; priority: string; approvalStatus: string; status: string; skillsRequired: string | null; experienceRequired: string | null; qualification: string | null; salaryBudget: string | null; expectedJoiningDate: string | null; interviewPlan?: string | null; companyId?: string; hiringManagerId?: string; positionTitle?: string;
   department?: { id?: string; name: string } | null; designation?: { id?: string; title: string } | null;
 }
 
@@ -46,7 +46,7 @@ const requisitionsWorkflowSteps = [
 ];
 
 const initialForm = {
-  departmentId: '', designationId: '', positionTitle: '', positionType: 'new', numberOfOpenings: 1, employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '', reason: '',
+  departmentId: '', designationId: '', positionTitle: '', positionType: 'new', numberOfOpenings: 1, employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '', reason: '', interviewPlan: JSON.stringify([{ sequence: 1, name: 'Technical Round 1', type: 'technical' }, { sequence: 2, name: 'HR Round', type: 'hr' }], null, 2),
 };
 
 // Task 164: user-facing status labels
@@ -262,6 +262,7 @@ export default function RequisitionsPage() {
       priority: item.priority || 'medium',
       expectedJoiningDate: item.expectedJoiningDate ? new Date(item.expectedJoiningDate).toISOString().split('T')[0] : '',
       reason: '',
+      interviewPlan: item.interviewPlan || initialForm.interviewPlan,
     });
     setEditingId(item.id);
     setShowForm(true);
@@ -650,6 +651,11 @@ export default function RequisitionsPage() {
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Hiring <span className="text-red-500 font-bold">*</span> <span className="text-thb-text-muted">(required to submit)</span></label>
                 <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="e.g. Need additional developer for the new product launch in Q1 2027" rows={2} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                <label className="block text-xs font-semibold text-indigo-900 mb-1">Interview plan for this role</label>
+                <p className="text-[11px] text-indigo-700 mb-2">This ordered plan is copied to the Job Posting and controls candidate progression.</p>
+                <textarea value={form.interviewPlan} onChange={(e) => setForm({ ...form, interviewPlan: e.target.value })} rows={5} className="w-full px-3 py-2.5 rounded-lg border border-indigo-200 bg-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" aria-label="Interview plan JSON" />
               </div>
             </div>
             {/* Task 164: Save as Draft + Submit for Approval */}

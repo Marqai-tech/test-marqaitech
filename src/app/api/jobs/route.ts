@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const {
       title, description, requirements, departmentId, location,
       type, experience, salary, closingDate, vacancies, status,
-      requisitionId, // Task 165: link to approved requisition
+      requisitionId, interviewPlan, // Task 165: link to approved requisition
     } = body;
 
     if (!title || !description || !departmentId) {
@@ -134,6 +134,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let copiedInterviewPlan = interviewPlan || null;
+    if (requisitionId && !copiedInterviewPlan) {
+      try {
+        const planRows = await db.$queryRawUnsafe(`SELECT "interviewPlan" FROM "Requisition" WHERE "id" = $1 LIMIT 1`, requisitionId) as any[];
+        copiedInterviewPlan = planRows[0]?.interviewPlan || null;
+      } catch { /* additive column may not exist on an old tenant yet */ }
+    }
+    try { await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT`); } catch { /* already exists */ }
+
     // Task 165: ensure requisitionId column exists on JobPosting
     try {
       await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "requisitionId" TEXT`);
@@ -154,6 +163,7 @@ export async function POST(req: NextRequest) {
         postedDate: (status || 'open') === 'open' ? new Date() : null,
         closingDate: closingDate ? new Date(closingDate) : null,
         vacancies: vacancies || 1,
+        interviewPlan: copiedInterviewPlan,
       },
       include: { department: { select: { id: true, name: true, companyId: true } } },
     }).catch(async (err) => {
@@ -163,12 +173,12 @@ export async function POST(req: NextRequest) {
       await db.$executeRawUnsafe(
         `INSERT INTO "JobPosting" ("id", "title", "description", "requirements", "departmentId", "position",
           "location", "type", "experience", "salary", "status", "postedDate", "closingDate", "vacancies",
-          "requisitionId", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())`,
+          "requisitionId", "interviewPlan", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())`,
         id, title, description, requirements || null, resolvedDeptId, body.position || title,
         location || null, type || 'full-time', experience || null, salary || null,
         status || 'open', (status || 'open') === 'open' ? new Date() : null,
-        closingDate ? new Date(closingDate) : null, vacancies || 1, requisitionId || null
+        closingDate ? new Date(closingDate) : null, vacancies || 1, requisitionId || null, copiedInterviewPlan
       );
       return { id, ...body, department: { name: '' } };
     });

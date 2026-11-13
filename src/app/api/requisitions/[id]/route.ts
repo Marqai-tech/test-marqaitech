@@ -196,7 +196,7 @@ export async function PATCH(
     const body = await request.json();
     const { action, comments, departmentId, designationId, positionType, numberOfOpenings,
             employmentType, skillsRequired, experienceRequired, qualification,
-            salaryBudget, priority, expectedJoiningDate, reason } = body;
+            salaryBudget, priority, expectedJoiningDate, reason, interviewPlan } = body;
 
     // Task 164: fetch existing via RAW SQL fallback
     const existing = await db.requisition.findUnique({ where: { id } }).catch(async () => {
@@ -265,6 +265,7 @@ export async function PATCH(
     if (salaryBudget !== undefined) updateData.salaryBudget = salaryBudget || null;
     if (priority !== undefined) updateData.priority = priority;
     if (expectedJoiningDate !== undefined) updateData.expectedJoiningDate = expectedJoiningDate ? new Date(expectedJoiningDate) : null;
+    if (interviewPlan !== undefined) updateData.interviewPlan = typeof interviewPlan === 'string' ? interviewPlan : JSON.stringify(interviewPlan);
 
     // Phase 3 fix: Persist positionTitle and reason in PATCH (were destructured but never stored)
     if (body.positionTitle !== undefined) (updateData as any).positionTitle = body.positionTitle || null;

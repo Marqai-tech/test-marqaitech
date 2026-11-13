@@ -109,6 +109,7 @@ export async function POST(request: Request) {
       positionType, replacementEmployeeId, numberOfOpenings, employmentType,
       skillsRequired, experienceRequired, qualification, salaryBudget,
       projectId, clientId, priority, expectedJoiningDate,
+      interviewPlan,
       reason, // Task 164: reason/justification for hiring
       action, // Task 164: 'draft' | 'submit' (default: 'submit')
       positionTitle, // Task 167: raw position name (e.g. "Data Engineer 2")
@@ -164,6 +165,19 @@ export async function POST(request: Request) {
 
     if (!resolvedCompanyId) {
       return NextResponse.json({ error: 'Could not resolve company. Please contact admin.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    let normalizedInterviewPlan: string | null = null;
+    if (interviewPlan !== undefined && interviewPlan !== null && String(interviewPlan).trim()) {
+      try {
+        const parsed = typeof interviewPlan === 'string' ? JSON.parse(interviewPlan) : interviewPlan;
+        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any) => !r?.name || !['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type))) {
+          return NextResponse.json({ error: 'Interview plan must contain at least one round with a name and valid type.' }, { status: 400, headers: corsHeaders() });
+        }
+        normalizedInterviewPlan = JSON.stringify(parsed.map((r: any, i: number) => ({ sequence: i + 1, name: String(r.name).trim(), type: r.type })));
+      } catch {
+        return NextResponse.json({ error: 'Interview plan must be valid JSON.' }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     // Resolve departmentId: if it's a name (not a CUID), look it up or create it
@@ -254,6 +268,7 @@ export async function POST(request: Request) {
         // Phase 3 fix: persist positionTitle and reason (were only in SQL fallback)
         positionTitle: positionTitle || null,
         reason: reason || null,
+        interviewPlan: normalizedInterviewPlan,
       } as any, // cast to any to allow optional fields not in the Prisma schema yet
       include: {
         department: { select: { id: true, name: true } },
@@ -267,14 +282,14 @@ export async function POST(request: Request) {
         `INSERT INTO "Requisition" ("id", "requisitionId", "companyId", "branchId", "departmentId", "designationId",
           "hiringManagerId", "positionType", "replacementEmployeeId", "numberOfOpenings", "employmentType",
           "skillsRequired", "experienceRequired", "qualification", "salaryBudget", "projectId", "clientId",
-          "priority", "expectedJoiningDate", "approvalStatus", "status", "positionTitle", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW(), NOW())`,
+          "priority", "expectedJoiningDate", "approvalStatus", "status", "positionTitle", "interviewPlan", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW(), NOW())`,
         id, requisitionId, resolvedCompanyId, branchId || null, resolvedDepartmentId, resolvedDesignationId || null,
         decoded.userId, positionType || 'new', replacementEmployeeId || null, numberOfOpenings ?? 1, employmentType || 'full-time',
         skillsRequired || null, experienceRequired || null, qualification || null, salaryBudget || null,
         projectId || null, clientId || null, priority || 'medium',
         expectedJoiningDate ? new Date(expectedJoiningDate) : null,
-        approvalStatus, isDraft ? 'draft' : 'open', positionTitle || null
+        approvalStatus, isDraft ? 'draft' : 'open', positionTitle || null, normalizedInterviewPlan
       );
       return { id, requisitionId, ...body, positionTitle, department: { name: departmentId }, designation: { title: positionTitle || designationId || '' } };
     });
