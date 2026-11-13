@@ -167,3 +167,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (8/8 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); `/api/documents` 200 (2 employee docs) + `/api/preboarding/brd/documents` 200 (80 docs — was 98; 18 belonged to the deleted manoj test data), Gap-4 fields intact on all sampled docs; offers 200; cron without secret → 401. Smoke script fixed in passing: documents URL corrected to real endpoints, commit check now queries latest production READY deployment instead of a hardcoded dpl id.
 
 **Production = GitHub main (`28fed11`).**
+
+## EVENING 4 — Job posting creation UI deployed (`672343e`)
+
+`672343e` "Improve job posting creation UI" — job-portal page only (+20/−6): gradient header card with "Approved requisition" badge and requisition-id pill, prefilled role/department/requisition-status summary strip, numbered sections (1 Role details, 2 Candidate-facing content), footer hint + flex-wrap responsive action row (Cancel / Save as Draft / Preview & Publish). Identifiers verified present: `FiBriefcase` import, `requisitionId` state, `handlePublish`, `form.title/departmentId`.
+
+**Pre-flight:** conflict-marker scan clean, esbuild transform pass. **Deploy:** `dpl_DAcPkuKmwgmELMwpRB4PTLXwfafd` **READY in 5m38s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 672343e.
+
+**Post-deploy smoke (8/8 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); documents 200 (2); offers 200; cron without secret → 401; latest production READY commit = 672343e.
+
+**Production = GitHub main (`672343e`).**
