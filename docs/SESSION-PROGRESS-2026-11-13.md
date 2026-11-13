@@ -209,3 +209,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live (stranger 404 / candidate devOtp); prod commit = ff373b9.
 
 **Production = GitHub main (`ff373b9`).**
+
+## EVENING 8 — Interview date input persistence fix deployed (`8bae6cb`)
+
+`8bae6cb` "Persist interview date input reliably" — interview date inputs on both `/interviews` and the recruitment scheduling modal now use the functional state updater (`setInterviewForm(prev => ...)`), eliminating stale-closure races on rapid edits, plus an `onInput` handler alongside `onChange` for embedded browsers that can miss change events. 2 files, +3/−2. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_GSXTvnW2JgTXrfaLG4W1QjeqA7wU` **READY in 5m30s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 8bae6cb.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live; prod commit = 8bae6cb.
+
+**Production = GitHub main (`8bae6cb`).**
