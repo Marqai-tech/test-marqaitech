@@ -1850,6 +1850,12 @@ async function main() {
   )`);
   statements.push(`CREATE INDEX IF NOT EXISTS "OfferWorkflowConfig_tenantId_idx" ON "OfferWorkflowConfig"("tenantId")`);
 
+  // ─── JobPosting.interviewPlan (dc0eb46 dynamic interview plans) ───
+  // JobPosting predates 0_init-fixes coverage (created via _generated-tables
+  // CREATE IF NOT EXISTS — a no-op on the existing table), so the new column
+  // must be added explicitly. Nullable TEXT, idempotent, additive-only.
+  statements.push(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT`);
+
   statements.push(timestampFixSql);
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
