@@ -25,38 +25,51 @@ export async function GET(req: NextRequest) {
     if (!HR_ROLES.includes(auth.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
 
     const candidateId = new URL(req.url).searchParams.get('preboardingCandidateId');
+    const corsDbg = { ...CORS } as Record<string, string>;
     let rows: any[];
-    if (candidateId) {
+    try {
+      if (candidateId) {
+        rows = await db.$queryRawUnsafe(
+          `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
+                  "vendorCompanyId","dueDate","createdAt","updatedAt","version",
+                  vc."name" AS "vendorName",
+                  vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
+                  (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",
+                  (SELECT COUNT(*)::int FROM "BgvReport" rp WHERE rp."bgvRequestId" = r."id") AS "reportCount"
+             FROM "BgvRequest" r
+             LEFT JOIN "VendorCompany" vc ON vc."id" = r."vendorCompanyId"
+             LEFT JOIN "VendorUser" vu ON vu."id" = r."assignedVendorUserId"
+            WHERE r."preboardingCandidateId"=$1
+            ORDER BY r."createdAt" DESC LIMIT 5`,
+          candidateId,
+        ) as any[];
+      } else {
+        rows = await db.$queryRawUnsafe(
+          `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
+                  "vendorCompanyId","dueDate","createdAt","updatedAt","version",
+                  vc."name" AS "vendorName",
+                  vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
+                  (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",
+                  (SELECT COUNT(*)::int FROM "BgvReport" rp WHERE rp."bgvRequestId" = r."id") AS "reportCount"
+             FROM "BgvRequest" r
+             LEFT JOIN "VendorCompany" vc ON vc."id" = r."vendorCompanyId"
+             LEFT JOIN "VendorUser" vu ON vu."id" = r."assignedVendorUserId"
+            ORDER BY r."createdAt" DESC LIMIT 200`,
+        ) as any[];
+      }
+    } catch (qErr) {
+      // Never swallow the failure silently: log it, surface a short diagnostic
+      // header, and fall back to a resilient r.* query so HR still sees cases.
+      console.error('[bgv-list] enriched query failed:', qErr instanceof Error ? qErr.message : qErr);
+      corsDbg['x-bgv-list-debug'] = (qErr instanceof Error ? qErr.message : String(qErr)).slice(0, 180);
       rows = await db.$queryRawUnsafe(
-        `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
-                "vendorCompanyId","dueDate","createdAt","updatedAt","version",
-                vc."name" AS "vendorName",
-                vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
-                (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",
-                (SELECT COUNT(*)::int FROM "BgvReport" rp WHERE rp."bgvRequestId" = r."id") AS "reportCount"
-           FROM "BgvRequest" r
-           LEFT JOIN "VendorCompany" vc ON vc."id" = r."vendorCompanyId"
-           LEFT JOIN "VendorUser" vu ON vu."id" = r."assignedVendorUserId"
-          WHERE r."preboardingCandidateId"=$1
-          ORDER BY r."createdAt" DESC LIMIT 5`,
-        candidateId,
-      ).catch(() => []) as any[];
-    } else {
-      rows = await db.$queryRawUnsafe(
-        `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
-                "vendorCompanyId","dueDate","createdAt","updatedAt","version",
-                vc."name" AS "vendorName",
-                vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
-                (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",
-                (SELECT COUNT(*)::int FROM "BgvReport" rp WHERE rp."bgvRequestId" = r."id") AS "reportCount"
-           FROM "BgvRequest" r
-           LEFT JOIN "VendorCompany" vc ON vc."id" = r."vendorCompanyId"
-           LEFT JOIN "VendorUser" vu ON vu."id" = r."assignedVendorUserId"
+        `SELECT r.* FROM "BgvRequest" r ${candidateId ? `WHERE r."preboardingCandidateId"=$1` : ''}
           ORDER BY r."createdAt" DESC LIMIT 200`,
+        ...(candidateId ? [candidateId] : []),
       ).catch(() => []) as any[];
     }
 
-    return NextResponse.json({ requests: rows }, { headers: CORS });
+    return NextResponse.json({ requests: rows }, { headers: corsDbg });
   } catch (error) {
     console.error('BGV requests list error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });

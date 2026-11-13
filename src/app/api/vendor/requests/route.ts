@@ -53,7 +53,19 @@ export async function GET(req: NextRequest) {
     }
     sql += ` ORDER BY r."createdAt" DESC`;
 
-    const requests = await db.$queryRawUnsafe(sql, ...params).catch(() => []) as any[];
+    const corsDbg: Record<string, string> = { ...CORS } as Record<string, string>;
+    let requests: any[];
+    try {
+      requests = await db.$queryRawUnsafe(sql, ...params) as any[];
+    } catch (qErr) {
+      // Never swallow the failure silently: log, surface a short diagnostic
+      // header, fall back to a resilient r.* query so the portal still works.
+      const msg = qErr instanceof Error ? qErr.message : String(qErr);
+      console.error('[vendor-requests] enriched query failed:', msg);
+      corsDbg['x-bgv-list-debug'] = msg.slice(0, 180);
+      const fallback = `SELECT r.* FROM "BgvRequest" r WHERE r."vendorCompanyId"=$1${auth.role === 'vendor_employee' ? ' AND r."assignedVendorUserId"=$2' : ''} ORDER BY r."createdAt" DESC`;
+      requests = await db.$queryRawUnsafe(fallback, ...params).catch(() => []) as any[];
+    }
 
     for (const req of requests) {
       req.checks = await db.$queryRawUnsafe(
@@ -89,7 +101,7 @@ export async function GET(req: NextRequest) {
       vendorUserId: vu.id,
       vendorCompanyId: vu.vendorCompanyId,
       role: vu.role,
-    }, { headers: CORS });
+    }, { headers: corsDbg });
   } catch (error) {
     console.error('Vendor requests GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
