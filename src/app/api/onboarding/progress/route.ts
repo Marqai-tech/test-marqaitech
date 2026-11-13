@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       total: number; completed: number; inProgress: number; pending: number; overdue: number;
       completionPct: number; nextDue: { task: string; dueDate: Date | string | null } | null;
       trainings: string[]; kras: string[];
+      onboardingCompleted: boolean; onboardingCompletedAt: Date | string | null;
     };
 
     const byEmployee = new Map<string, Row>();
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
           dateOfJoining: emp.dateOfJoining as Date | string | null,
           total: 0, completed: 0, inProgress: 0, pending: 0, overdue: 0, completionPct: 0, nextDue: null,
           trainings: [], kras: [],
+          onboardingCompleted: false, onboardingCompletedAt: null,
         };
         byEmployee.set(t.employeeId, row);
       }
@@ -70,6 +72,15 @@ export async function GET(req: NextRequest) {
       if (t.status === 'completed') row.completed++;
       else if (t.status === 'in_progress') row.inProgress++;
       else row.pending++;
+
+      // BRD Figure 1.2: "Onboarding Completed" is its own milestone — the
+      // timestamp of the LAST completed task (null while anything is open).
+      if (t.status === 'completed' && t.completedDate) {
+        const ts = new Date(t.completedDate).getTime();
+        if (!row.onboardingCompletedAt || ts > new Date(row.onboardingCompletedAt as Date).getTime()) {
+          row.onboardingCompletedAt = t.completedDate;
+        }
+      }
 
       if (t.status !== 'completed' && t.dueDate && new Date(t.dueDate).getTime() < now) row.overdue++;
 
@@ -85,6 +96,8 @@ export async function GET(req: NextRequest) {
     const rows = [...byEmployee.values()].map((r) => ({
       ...r,
       completionPct: r.total ? Math.round((r.completed / r.total) * 100) : 0,
+      onboardingCompleted: r.total > 0 && r.completed === r.total,
+      onboardingCompletedAt: r.total > 0 && r.completed === r.total ? r.onboardingCompletedAt : null,
     })).sort((a, b) => a.completionPct - b.completionPct);
 
     const summary = {

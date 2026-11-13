@@ -11,6 +11,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
+import { ensureMilestoneTemplates, backfillMilestoneTasks } from '@/lib/onboarding-milestones';
 
 const CRON_SECRET = process.env.CRON_SECRET || '3boxes-hrms-cron-2026';
 const REMINDER_WINDOW_DAYS = 2;
@@ -41,6 +42,12 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
     const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+    // BRD Figure 1.2 — self-heal the Day 7/30/60/90 milestone templates so
+    // every new joiner's task list includes the follow-up milestones, and
+    // backfill the milestone tasks for joiners already in onboarding.
+    const milestoneTemplatesAdded = await ensureMilestoneTemplates(db).catch(() => 0);
+    const milestoneTasksBackfilled = await backfillMilestoneTasks(db).catch(() => 0);
 
     const tasks = await db.onboardingTask.findMany({
       where: {
@@ -85,7 +92,7 @@ export async function GET(request: NextRequest) {
       try { await db.onboardingTask.update({ where: { id: t.id }, data: { lastRemindedAt: now } }); } catch { /* non-critical */ }
     }
 
-    return NextResponse.json({ success: true, tasksConsidered: tasks.length, remindersSent, checkedAt: now.toISOString() }, { headers: corsHeaders() });
+    return NextResponse.json({ success: true, milestoneTemplatesAdded, milestoneTasksBackfilled, tasksConsidered: tasks.length, remindersSent, checkedAt: now.toISOString() }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Onboarding reminders cron error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

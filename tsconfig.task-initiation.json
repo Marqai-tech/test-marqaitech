@@ -1,12 +1,10 @@
 {
   "extends": "./tsconfig.json",
   "include": [
-    "src/lib/onboarding-documents.ts",
-    "src/app/api/onboarding/documents/upload/route.ts",
-    "src/app/api/onboarding/documents/upload-v2/route.ts",
-    "src/app/api/preboarding/brd/documents/route.ts",
-    "src/app/api/preboarding/brd/documents/[id]/file/route.ts",
-    "src/app/(dashboard)/preboarding/documents/page.tsx",
-    "src/app/candidate-portal/preboarding/page.tsx"
+    "src/lib/onboarding-milestones.ts",
+    "src/app/api/cron/onboarding-reminders/route.ts",
+    "src/app/api/cron/daily-tasks/route.ts",
+    "src/app/api/onboarding/progress/route.ts",
+    "src/app/(dashboard)/onboarding/page.tsx"
   ]
 }

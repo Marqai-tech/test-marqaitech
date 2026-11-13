@@ -285,7 +285,7 @@ function OnboardingContent() {
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
   /* Onboarding progress dashboard (per-employee completion) */
-  const [progress, setProgress] = useState<{ summary: { newHires: number; avgCompletion: number; overdueTasks: number; fullyComplete: number }; rows: Array<{ employeeId: string; name: string; code: string; total: number; completed: number; overdue: number; completionPct: number; nextDue: { task: string; dueDate: string | null } | null }> }>({ summary: { newHires: 0, avgCompletion: 0, overdueTasks: 0, fullyComplete: 0 }, rows: [] });
+  const [progress, setProgress] = useState<{ summary: { newHires: number; avgCompletion: number; overdueTasks: number; fullyComplete: number }; rows: Array<{ employeeId: string; name: string; code: string; total: number; completed: number; overdue: number; completionPct: number; nextDue: { task: string; dueDate: string | null } | null; onboardingCompleted?: boolean; onboardingCompletedAt?: string | null }> }>({ summary: { newHires: 0, avgCompletion: 0, overdueTasks: 0, fullyComplete: 0 }, rows: [] });
   const fetchProgress = useCallback(async () => {
     try {
       const res = await fetch('/api/onboarding/progress', { headers: getAuthHeaders() });
@@ -705,7 +705,7 @@ function OnboardingContent() {
                   className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
                 >
                   <option value="">None</option>
-                  {(employees as Array<Record<string, unknown>>).map(emp => (
+                  {(employees as unknown as Array<Record<string, unknown>>).map(emp => (
                     <option key={String(emp.id)} value={String(emp.id)}>{String(emp.firstName || '')} {String(emp.lastName || '')}{emp.employeeId ? ` (${String(emp.employeeId)})` : ''}</option>
                   ))}
                 </select>
@@ -749,6 +749,11 @@ function OnboardingContent() {
                 <p className="text-[10px] text-thb-text-muted mt-1.5">
                   {r.completed}/{r.total} done{r.overdue ? ` · ${r.overdue} overdue` : ''}{r.nextDue ? ` · next: ${r.nextDue.task.slice(0, 40)}${r.nextDue.task.length > 40 ? '…' : ''}` : ''}
                 </p>
+                {r.onboardingCompleted ? (
+                  <p className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 mt-1.5 w-max" title={r.onboardingCompletedAt ? `All tasks completed ${new Date(r.onboardingCompletedAt).toLocaleDateString('en-IN')}` : 'All tasks completed'}>
+                    ✓ Onboarding completed{r.onboardingCompletedAt ? ` · ${new Date(r.onboardingCompletedAt).toLocaleDateString('en-IN')}` : ''}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

@@ -29,12 +29,15 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — generous budget for 3 sequential sweeps
 
-const BUILD_STAMP = 'unified-daily-cron-2026-11-05';
+const BUILD_STAMP = 'unified-daily-cron-2026-11-13';
 
 const TASKS: ReadonlyArray<{ name: string; path: string }> = [
   { name: 'policy-ack-reminders', path: '/api/cron/policy-ack-reminders' },
   { name: 'leave-reminders', path: '/api/cron/leave-reminders' },
   { name: 'interview-reminders', path: '/api/cron/interview-reminders' },
+  // BRD Figure 1.2 — onboarding task reminders + Day 7/30/60/90 milestone
+  // template self-heal (previously never scheduled).
+  { name: 'onboarding-reminders', path: '/api/cron/onboarding-reminders' },
 ];
 
 function cors() {

@@ -178,7 +178,8 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 | Onboarding tasks/checklist with templates, progress API | **PASS** |
 | Attendance + leave visible to provisional/active employee in portal | **PASS** |
 | Declaration signed at submit; policy acknowledgement module exists | **PASS** |
-| Day 7/30/60/90 follow-ups + escalation | **MISSING** (template offsets −3…+14 only; reminders cron exists but not scheduled — follow-up) |
+| Day 7/30/60/90 follow-ups + escalation | **PASS — Part 8** — Day 7/30/60/90 milestone templates (self-healed idempotently on every cron sweep), backfill for joiners already in onboarding (≤180 days, dueDate = joining + offset), and the onboarding-reminders cron is now SCHEDULED daily 09:00 via the unified `/api/cron/daily-tasks` entry (was never registered) |
+| "Onboarding Completed" state | **PASS — Part 8** — progress API returns `onboardingCompleted` + `onboardingCompletedAt` (timestamp of last completed task); /onboarding shows the badge per employee. Joining, BGV clearance and onboarding completion remain separate milestones |
 | Orientation/training events | **PARTIAL** (task category only) |
 
 ## 14. Notifications
@@ -202,7 +203,7 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 3. ~~**Dashboard gaps** (Recruiter-wise Handover + Joining Trends widgets; Company/Branch/Employment-type filters)~~ **DONE** — widgets + filters shipped (Part 6)
 4. ~~**Document module hardening**: version history, issue/expiry + expired flag, duplicate detection, doc-number/category fields~~ **DONE** (Part 7) — malware/AV scan remains unconfigured (no integration)
 5. **Escalate to HR Admin / Request Additional Info** actions (5.9)
-6. **Day 7/30/60/90 milestones** + schedule the onboarding-reminders cron + "Onboarding Completed" state
+6. ~~**Day 7/30/60/90 milestones** + schedule the onboarding-reminders cron + "Onboarding Completed" state~~ **DONE** (Part 8)
 7. ~~Legacy `/api/recruitment/convert` gate (§2.1 violation) or removal~~ **DONE** (commit a0c1172); `/api/onboarding/convert-to-draft` gated too (this commit)
 8. Candidate ID search + Edit row action (5.2), per-record document slots (5.6), notification fan-out to stakeholders
 
