@@ -751,7 +751,7 @@ export default function PreboardingDashboardPage() {
         <h3 className="text-sm font-semibold text-slate-900 mb-3">Quick Actions</h3>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => router.push('/offers')}
+            onClick={() => router.push('/preboarding/initiation')}
             className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-3.5 py-2 rounded-lg inline-flex items-center gap-2"
           >
             <FiUserPlus className="w-4 h-4" /> Initiate Preboarding

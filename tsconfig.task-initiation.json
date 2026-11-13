@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/app/api/preboarding/brd/initiation/route.ts",
+    "src/app/(dashboard)/preboarding/initiation/page.tsx",
+    "src/app/api/onboarding/convert-to-draft/route.ts",
+    "src/app/(dashboard)/offers/page.tsx",
+    "src/lib/schema-sync.ts",
+    "src/lib/navData.tsx"
+  ]
+}

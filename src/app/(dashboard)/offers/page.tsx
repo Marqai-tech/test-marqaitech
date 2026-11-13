@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink, FiSend, FiUpload,
+  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink, FiSend, FiUpload, FiExternalLink,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -521,13 +521,22 @@ export default function OffersPage() {
                               </button>
                             )}
                             {o.status === 'accepted' && (
-                              <ConvertCandidateButton
-                                offerId={o.id}
-                                defaultJoiningDate={o.joiningDate}
-                                defaultProbationDays={o.probationPeriod}
-                                className="px-2 py-1 text-xs font-medium text-white bg-teal-600 rounded hover:bg-teal-700 inline-flex items-center gap-1"
-                                label="Convert"
-                              />
+                              <>
+                                <ConvertCandidateButton
+                                  offerId={o.id}
+                                  defaultJoiningDate={o.joiningDate}
+                                  defaultProbationDays={o.probationPeriod}
+                                  className="px-2 py-1 text-xs font-medium text-white bg-teal-600 rounded hover:bg-teal-700 inline-flex items-center gap-1"
+                                  label="Convert"
+                                />
+                                <button
+                                  onClick={() => { window.location.href = `/preboarding/initiation?offerId=${o.id}`; }}
+                                  className="px-2 py-1 text-xs font-medium text-teal-700 bg-teal-50 rounded hover:bg-teal-100 flex items-center gap-1 border border-teal-200"
+                                  title="Open the dedicated BRD 5.3 initiation screen (Save as Draft / Send Invitation)"
+                                >
+                                  <FiExternalLink className="w-3 h-3" /> Initiate
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>

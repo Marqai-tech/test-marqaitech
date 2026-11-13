@@ -40,6 +40,34 @@ export async function POST(req: Request) {
     }
     if (!resolvedEmail) return NextResponse.json({ error: 'Could not determine candidate email' }, { status: 400, headers: CORS });
 
+    // ─── BRD §2.1 gate (server-side): preboarding requires an ACCEPTED offer ───
+    // Mirrors the gate added to /api/recruitment/convert. Exception: an
+    // application whose status is 'hired' is the recruitment module's own
+    // accepted state (the Convert action there only renders for hired rows).
+    if (offerId) {
+      const o = await db.$queryRawUnsafe(`SELECT "status" FROM "Offer" WHERE "id"=$1 LIMIT 1`, offerId).catch(() => []) as any[];
+      if (!o.length || o[0].status !== 'accepted') {
+        return NextResponse.json({ error: `BRD §2.1: preboarding can only start for an ACCEPTED offer (current: '${o[0]?.status || 'not found'}'). Use the BRD 5.3 initiation screen.` }, { status: 409, headers: CORS });
+      }
+    } else {
+      const acceptedOffer = await db.$queryRawUnsafe(
+        `SELECT 1 FROM "Offer" WHERE LOWER("candidateEmail") = $1 AND "status" = 'accepted' LIMIT 1`,
+        resolvedEmail.toLowerCase(),
+      ).catch(() => []) as any[];
+      if (!acceptedOffer.length) {
+        if (applicationId) {
+          const app = await db.$queryRawUnsafe(`SELECT "status" FROM "JobApplication" WHERE "id"=$1 LIMIT 1`, applicationId).catch(() => []) as any[];
+          if (app.length && app[0].status === 'hired') {
+            // recruitment's own accepted state — allow (legacy quick path)
+          } else {
+            return NextResponse.json({ error: 'BRD §2.1: no accepted offer found for this candidate/application. Preboarding blocked.' }, { status: 409, headers: CORS });
+          }
+        } else {
+          return NextResponse.json({ error: 'BRD §2.1: no accepted offer found for this candidate. Preboarding blocked.' }, { status: 409, headers: CORS });
+        }
+      }
+    }
+
     // ─── Harden FK targets: departmentId / designationId / reportingManagerId ───
     // API consumers may pass a User id for reportingManagerId (the UI sends an
     // Employee id). Resolve User→Employee so mark-joined's FK insert cannot fail.

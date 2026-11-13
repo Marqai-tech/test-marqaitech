@@ -415,6 +415,37 @@ async function main() {
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedOfferId" TEXT`,
     `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
 
+    // ─── BRD 5.3 Preboarding Initiation ───
+    `CREATE TABLE IF NOT EXISTS "PreboardingInitiation" (
+      "id" TEXT NOT NULL,
+      "tenantId" TEXT,
+      "offerId" TEXT NOT NULL,
+      "applicationId" TEXT,
+      "candidateName" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "jobTitle" TEXT,
+      "hrDetails" JSONB,
+      "checklist" JSONB,
+      "communication" JSONB,
+      "remarks" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "createdById" TEXT,
+      "invitedById" TEXT,
+      "invitedAt" TIMESTAMP(3),
+      "cancelledById" TEXT,
+      "cancelledAt" TIMESTAMP(3),
+      "cancelReason" TEXT,
+      "preboardingCandidateId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "PreboardingInitiation_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "PreboardingInitiation_offerId_idx" ON "PreboardingInitiation"("offerId")`,
+    `CREATE INDEX IF NOT EXISTS "PreboardingInitiation_status_idx" ON "PreboardingInitiation"("status")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "PreboardingInitiation_active_offer_key"
+       ON "PreboardingInitiation"("offerId") WHERE "status" IN ('draft','invited')`,
+    `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "required" BOOLEAN DEFAULT true`,
+
     // ─── VendorCompany table ───
     `CREATE TABLE IF NOT EXISTS "VendorCompany" (
       "id" TEXT NOT NULL,

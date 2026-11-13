@@ -74,9 +74,9 @@ The stub `/preboarding/tasks` entry was removed from the sidebar.
 |---|---|
 | Initiation via Convert dialog on accepted offers (`/offers` → Convert → `/api/onboarding/convert-to-draft`) | **PASS** |
 | Fields: Joining Date, Department, Designation, Employment Type, CTC, Work Location, Company Email, Reporting Manager | **PASS** |
-| Dedicated initiation screen with Offer Details / HR Details / Checklist / Communication toggle / Remarks | **MISSING** — documented follow-up |
-| Actions: Save as Draft, Send Candidate Invitation, Cancel Initiation | **MISSING** — documented follow-up |
-| Server-side accepted-offer verification on the endpoint | **MISSING** — UI-gated only (follow-up) |
+| Dedicated initiation screen with Offer Details / HR Details / Checklist / Communication toggle / Remarks | **PASS — Part 5** — `/preboarding/initiation` (sidebar entry + offers-page "Initiate" deep link + dashboard quick action) |
+| Actions: Save as Draft, Send Candidate Invitation, Cancel Initiation | **PASS — Part 5** — `POST /api/preboarding/brd/initiation` (save-draft / send-invitation / cancel); one active initiation per offer enforced by partial unique index; invitation creates PreboardingCandidate + docs inside ONE `$transaction` |
+| Server-side accepted-offer verification on the endpoint | **PASS — Part 5** — both `/api/preboarding/brd/initiation` (strict: offer must be `accepted`) and `/api/onboarding/convert-to-draft` (offer path strict; application path accepts an accepted offer or `hired` application) |
 
 ## 7. Section 5.4 — Candidate Portal (New Joiner View) — **BUILT THIS COMMIT**
 
@@ -197,13 +197,13 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 
 ## 15. Remaining gap backlog (priority order)
 
-1. **Employee-creation approval workflow** (BRD 6.2 state machine + optional payroll step) + `$transaction` atomicity + Employee↔Candidate link columns (BRD 6.3 #11/#12)
-2. **Initiation screen** (BRD 5.3) with Offer/HR/Checklist/Communication sections, Save-as-Draft, Send Invitation, server-side accepted-offer gate
+1. ~~**Employee-creation approval workflow** (BRD 6.2 state machine + optional payroll step) + `$transaction` atomicity + Employee↔Candidate link columns (BRD 6.3 #11/#12)~~ **DONE** — `EmployeeCreationRequest` state machine + atomic authorize (commit d9b3253)
+2. ~~**Initiation screen** (BRD 5.3) with Offer/HR/Checklist/Communication sections, Save-as-Draft, Send Invitation, server-side accepted-offer gate~~ **DONE** — `/preboarding/initiation` + `POST /api/preboarding/brd/initiation` (this commit)
 3. **Dashboard gaps** (Recruiter-wise Handover + Joining Trends widgets; Company/Branch/Employment-type filters)
 4. **Document module hardening**: version history, issue/expiry + expired flag, duplicate detection, doc-number/category fields
 5. **Escalate to HR Admin / Request Additional Info** actions (5.9)
 6. **Day 7/30/60/90 milestones** + schedule the onboarding-reminders cron + "Onboarding Completed" state
-7. Legacy `/api/recruitment/convert` gate (§2.1 violation) or removal
+7. ~~Legacy `/api/recruitment/convert` gate (§2.1 violation) or removal~~ **DONE** (commit a0c1172); `/api/onboarding/convert-to-draft` gated too (this commit)
 8. Candidate ID search + Edit row action (5.2), per-record document slots (5.6), notification fan-out to stakeholders
 
 ## 16. Security fixes shipped in this commit
