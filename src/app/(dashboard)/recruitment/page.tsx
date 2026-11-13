@@ -2572,7 +2572,7 @@ export default function RecruitmentPage() {
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-end gap-1">
-                                  {isAdmin && (app.status === 'interview' || app.status === 'shortlisted' || app.status === 'screening') && (
+                                  {isAdmin && (app.status === 'interview' || app.status === 'shortlisted') && (
                                     <button onClick={() => {
                                       setScheduleAppId(app.id);
                                       // Find the job posting's department — pass the ID (not the name)

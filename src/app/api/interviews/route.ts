@@ -132,6 +132,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: jobApplicationId, date' }, { status: 400, headers: corsHeaders() });
     }
 
+    // A screening candidate is not yet interview-ready. HR must first move
+    // the application to Shortlisted (Round 1) or Interview (later rounds).
+    // Keep this rule in the API so the scheduling modal cannot bypass the
+    // recruitment pipeline.
+    try {
+      const appRows = await db.$queryRawUnsafe(
+        `SELECT "status" FROM "JobApplication" WHERE "id" = $1 LIMIT 1`,
+        jobApplicationId,
+      ) as any[];
+      const applicationStatus = String(appRows[0]?.status || '').toLowerCase();
+      if (!['shortlisted', 'interview'].includes(applicationStatus)) {
+        return NextResponse.json({
+          error: `This candidate is in ${appRows[0]?.status || 'an ineligible'} status. Move the candidate to Shortlisted before scheduling an interview.`,
+          code: 'APPLICATION_NOT_INTERVIEW_READY',
+          applicationStatus: applicationStatus || null,
+        }, { status: 409, headers: corsHeaders() });
+      }
+    } catch (e) {
+      console.warn('[Interviews POST] application-stage check failed:', e instanceof Error ? e.message : e);
+    }
+
     // Task 167: past date validation
     const today = new Date();
     today.setHours(0, 0, 0, 0);
