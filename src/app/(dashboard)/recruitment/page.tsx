@@ -336,6 +336,8 @@ function InterviewSyncView({ applications, jobPostings, departments, loading }: 
   const typeLabels: Record<string, string> = {
     ai: 'AI Interview', technical: 'Technical', hr: 'HR', offline_panel: 'Panel',
   };
+  const interviewDisplayLabel = (type: string, round?: number | null) =>
+    `${typeLabels[type] || type || 'Interview'} — Round ${round && round > 0 ? round : 1}`;
   const typeColors: Record<string, string> = {
     ai: 'bg-violet-50 text-violet-700 border-violet-200',
     technical: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -421,7 +423,7 @@ function InterviewSyncView({ applications, jobPostings, departments, loading }: 
                     <td className="px-4 py-3">
                       {latest?.type ? (
                         <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold border ${typeColors[latest.type] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                          {typeLabels[latest.type] || latest.type}
+                          {interviewDisplayLabel(latest.type, latest.round || appInterviews.length)}
                         </span>
                       ) : (
                         <span className="text-xs text-thb-text-muted">—</span>

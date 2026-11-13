@@ -75,6 +75,11 @@ const typeLabels: Record<string, string> = {
   ai: 'AI Interview', technical: 'Technical Interview', hr: 'HR Interview', offline_panel: 'Panel Interview',
 };
 
+function interviewDisplayLabel(type: string, round?: number | null) {
+  const label = typeLabels[type] || type || 'Interview';
+  return `${label} — Round ${round && round > 0 ? round : 1}`;
+}
+
 const statusBadges: Record<string, string> = {
   scheduled: 'bg-amber-50 text-amber-700',
   completed: 'bg-emerald-50 text-emerald-700',
@@ -704,13 +709,8 @@ export default function InterviewsPage() {
                         {interview.status}
                       </span>
                       <span className="thb-badge thb-badge-primary">
-                        {typeLabels[interview.type] || interview.type}
+                        {interviewDisplayLabel(interview.type, interview.round)}
                       </span>
-                      {interview.round && interview.round > 1 && (
-                        <span className="thb-badge bg-purple-50 text-purple-700">
-                          Round {interview.round}
-                        </span>
-                      )}
                       {interview.hrDecision && (
                         <span className="thb-badge bg-indigo-50 text-indigo-700">
                           Decision: {decisionLabels[interview.hrDecision] || interview.hrDecision}
