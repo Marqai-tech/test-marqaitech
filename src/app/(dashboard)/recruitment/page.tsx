@@ -3079,7 +3079,7 @@ export default function RecruitmentPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
-                  <input type="date" value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+                  <input type="date" value={interviewForm.date} onChange={(e) => setInterviewForm(prev => ({ ...prev, date: e.target.value }))} onInput={(e) => setInterviewForm(prev => ({ ...prev, date: (e.target as HTMLInputElement).value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time</label>

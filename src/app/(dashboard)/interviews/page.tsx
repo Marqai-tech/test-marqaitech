@@ -1387,7 +1387,8 @@ export default function InterviewsPage() {
                   <input
                     type="date"
                     value={interviewForm.date}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })}
+                    onChange={(e) => setInterviewForm(prev => ({ ...prev, date: e.target.value }))}
+                    onInput={(e) => setInterviewForm(prev => ({ ...prev, date: (e.target as HTMLInputElement).value }))}
                     className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
                   />
                 </div>
