@@ -136,3 +136,20 @@ Commits: `6d1a84d` (candidate docs response dropped Part 7 fields) → `0f6ee99`
 **Test data:** candidate 1 `e2e.fresh.1794554661@hrmscheck.io` / `Welcome@123` (→ Marq022); candidate 2 `e2e.fresh2.1794555176@hrmscheck.io` (OTP); HR `e2e-verify@hrmscheck.io` / `Verify@123`. PAN rejection remark: "Blurry scan — please re-upload a clear copy of your PAN card."
 
 **483eb97 verified live after deployment** (`scripts/verify_e2e_fixes.py`): `POST /api/offers` → 201 with payload (was 500-after-write); `PATCH approve` → 200 status=approved; cron sweep backfilled **20 milestone tasks** and Marq022 now appears in `/onboarding/progress` (4 milestones, onboardingCompleted flags). Both E2E-found defects closed. Feature backlog unchanged (5.9 escalate/request-info, 5.10 assign-task backend, per-record doc slots, malware/AV, email provider).
+
+---
+
+## EVENING — Conflict-marker cleanup + production deploy of the other session's work (`e091c0f`)
+
+Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from the parallel session) had been rebased with **unresolved conflict markers committed into 52 files** — `prisma generate` failed and production could not deploy past `731c0de`. `2a840f4` removed one artifact file but missed the markers.
+
+**Resolution (`e091c0f`, 52 files, −2115 lines of markers):**
+- `prisma/schema.prisma`: kept `workMode` (BRD 6.2) → schema validates (`prisma validate` pass).
+- Adopted from the other session (verified consistent with backend): random temporary-password lifecycle in `bgv/requests/[id]/approve`, `onboarding/bgv`, `onboarding/convert-to-draft` (replaces hardcoded `Welcome@123` — the known tech-debt item), vendor email-activation invite flow (backend `vendor/auth/set-password` SHA-256 single-use endpoint already present), vendor-mode login page, admin-gated vendor-portal stats, ConvertCandidateButton offerId routing.
+- Kept from our verified lineage: BRD 5.9 `findJoiningBlockers` gates on all 3 joining paths, scroll-safe candidate portal nav, offers non-fatal audit catch, milestone chicken-and-egg fix, `data/` skill CSVs.
+
+**Deploy:** `dpl_D8t9WSH4oKfJA4gmKTy9tnV7P2dM` (e091c0f) **READY** in 5m35s. First attempt `dpl_6M6BuTtMCRc4Fk3Z` (2a840f4) ERROR at prisma generate — expected, superseded.
+
+**Post-deploy smoke (live):** /login 200; HR login 200 + token; initiation 200 (eligible 4 / invited 8); pipeline 200 (17 candidates); `/api/preboarding/brd/documents` 200 — **98 docs, 100% with Gap-4 fields** (documentNumber/expiryDate/fileHash/expired); offers 200; cron without secret → 401 (guard intact). All green.
+
+**Production now matches GitHub main (`e091c0f`).**
