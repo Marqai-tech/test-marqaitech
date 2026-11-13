@@ -381,6 +381,40 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "OnboardingDocument_candidateEmail_idx" ON "OnboardingDocument"("candidateEmail")`,
     `CREATE INDEX IF NOT EXISTS "OnboardingDocument_status_idx" ON "OnboardingDocument"("status")`,
 
+    // ─── BRD 6.2 Employee-creation approval workflow ───
+    `CREATE TABLE IF NOT EXISTS "EmployeeCreationRequest" (
+      "id" TEXT NOT NULL,
+      "tenantId" TEXT,
+      "preboardingCandidateId" TEXT NOT NULL,
+      "preboardingId" TEXT,
+      "candidateName" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "employment" JSONB,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "payrollRequired" BOOLEAN NOT NULL DEFAULT false,
+      "createdById" TEXT,
+      "submittedById" TEXT,
+      "submittedAt" TIMESTAMP(3),
+      "payrollReviewedById" TEXT,
+      "payrollReviewedAt" TIMESTAMP(3),
+      "authorizedById" TEXT,
+      "authorizedAt" TIMESTAMP(3),
+      "rejectedById" TEXT,
+      "rejectedAt" TIMESTAMP(3),
+      "rejectReason" TEXT,
+      "employeeRowId" TEXT,
+      "provisionalEmployeeId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "EmployeeCreationRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_preboardingCandidateId_idx" ON "EmployeeCreationRequest"("preboardingCandidateId")`,
+    `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_status_idx" ON "EmployeeCreationRequest"("status")`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedApplicationId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedOfferId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
+
     // ─── VendorCompany table ───
     `CREATE TABLE IF NOT EXISTS "VendorCompany" (
       "id" TEXT NOT NULL,

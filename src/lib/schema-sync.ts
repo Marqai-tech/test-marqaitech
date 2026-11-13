@@ -1216,6 +1216,46 @@ const SYNC_STATEMENTS: string[] = [
     CONSTRAINT "OnboardingConfig_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE INDEX IF NOT EXISTS "OnboardingConfig_tenantId_idx" ON "OnboardingConfig"("tenantId")`,
+
+  // ─── BRD 6.2 Employee-creation approval workflow ───
+  // Draft → Under Review → (optional, configured) Pending Payroll →
+  // Authorized → Created. Terminal: Rejected / Cancelled. Holds the
+  // employment payload until the final Authorized → create step, which
+  // runs inside a single $transaction with the Employee insert.
+  `CREATE TABLE IF NOT EXISTS "EmployeeCreationRequest" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT,
+    "preboardingCandidateId" TEXT NOT NULL,
+    "preboardingId" TEXT,
+    "candidateName" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "employment" JSONB,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "payrollRequired" BOOLEAN NOT NULL DEFAULT false,
+    "createdById" TEXT,
+    "submittedById" TEXT,
+    "submittedAt" TIMESTAMP(3),
+    "payrollReviewedById" TEXT,
+    "payrollReviewedAt" TIMESTAMP(3),
+    "authorizedById" TEXT,
+    "authorizedAt" TIMESTAMP(3),
+    "rejectedById" TEXT,
+    "rejectedAt" TIMESTAMP(3),
+    "rejectReason" TEXT,
+    "employeeRowId" TEXT,
+    "provisionalEmployeeId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmployeeCreationRequest_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_preboardingCandidateId_idx" ON "EmployeeCreationRequest"("preboardingCandidateId")`,
+  `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_status_idx" ON "EmployeeCreationRequest"("status")`,
+
+  // ─── BRD 6.3 #11: Employee ↔ candidate/application link columns ───
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedApplicationId" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedOfferId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.
