@@ -57,6 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const reportRows = await db.$queryRawUnsafe(
       `SELECT "id","version","summary","overallResult","status","submittedAt","pdfStatus","pdfError",
               "standardPdfName","vendorPdfName","hrDecision","hrDecisionById","hrDecisionAt","hrDecisionReason",
+              "snapshot",
               (SELECT "name" FROM "VendorUser" WHERE "id"="BgvReport"."submittedById") AS "investigatorName",
               (SELECT "email" FROM "VendorUser" WHERE "id"="BgvReport"."submittedById") AS "investigatorEmail"
          FROM "BgvReport" WHERE "bgvRequestId"=$1 ORDER BY "version" ASC`,
