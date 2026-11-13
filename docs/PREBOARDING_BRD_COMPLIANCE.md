@@ -212,3 +212,20 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 - `GET /api/audit` — role gate added (was readable by ANY authenticated user)
 - Candidate upload routes (`upload`, `upload-v2`) — approved-document lock (409) + PDF/JPG/PNG MIME whitelist, server-side
 - `GET /api/preboarding/brd/candidate/[id]` — server-side masking of bank account / confirm / PAN / UAN / PF / ESI (was UI-only, bypassable via API)
+
+## 17. E2E round 2026-11-13 (afternoon) — 4 user-reported issues + full-journey test
+
+Live E2E against production beta with two FRESH candidates (no pre-existing state). 65 checks, 57 pass. All four reported issues confirmed, fixed (commits `6d1a84d`, `0f6ee99`, `483eb97`) and re-verified live.
+
+| Reported issue | Root cause | Fix | Live verification |
+|---|---|---|---|
+| Portal nav tabs misaligned / clipped ("…cations", "Bro…") | `justify-center` + `overflow-x-auto` clips overflowing tabs on the left (unreachable); labels shown from 768px where the row cannot fit | Tabs left-aligned scrollable (`shrink-0`), labels/`Candidate Portal`/Logout only at `lg`+ with icon+title below, `.no-scrollbar` utility added to globals.css (`0f6ee99`) | Screenshots at 780/900/1400px inspected — no clipping/collision; all six labels at 1400px |
+| HR rejected a doc — candidate cannot re-upload | Whole-wizard lock (`portalSubmittedAt && !correctionNote`) hid the Re-upload button for ALL documents after submit | Rejected / resubmission_requested / expired docs exempt from the lock (upload + Details stay available); "Submitted to HR" banner points to Document Upload step (`0f6ee99`) | Step 45: re-upload of rejected PAN while submitted → 200, v2 (v1 preserved), status submitted |
+| Candidate onboarded despite rejected docs | None of the 3 employee-creation paths (`mark-joined`, `bgv approved`, joining-formalities `confirm-joined`) checked documents | Shared `findJoiningBlockers()` gate — all REQUIRED docs must be approved; 409 `DOCUMENTS_NOT_APPROVED` listing blockers (`0f6ee99`) | Steps 41-44: all three paths blocked with rejected PAN (409); steps 48-53: after approval, confirm-joined + provisional + BGV → active employee Marq022 |
+| Consent (review step) suspected broken | Working as designed; the visible symptom came from the candidate onboarding response dropping doc metadata (`6d1a84d` fixed earlier today) | — | 4 application consents 201 + readable; submit without declaration → 400 `DECLARATION_REQUIRED`; 2-char signature → 400 `SIGNATURE_REQUIRED`; valid submit 201 + lock 409 |
+
+Additional defects found by the E2E and fixed in `483eb97`:
+1. **Milestone backfill chicken-and-egg** — `backfillMilestoneTasks` only considered employees that already had an OnboardingTask row, but it is the only creator of those rows; brand-new joiners never got Day 7/30/60/90 tasks (progress dashboard empty, `tasksConsidered=0`). Fixed with a joining-window filter (joined ≤30d ago / joining ≤14d ahead).
+2. **Offers API 500-after-write** — `POST /api/offers` and `PATCH /api/offers/{id}` (approve) returned 500 AFTER the offer row was committed because the trailing `auditLog.create` had no `.catch`. Now best-effort, matching convention.
+
+E2E scripts (re-runnable): `scripts/e2e_part1_apply_to_submit.py`, `scripts/e2e_part2_verification_to_employee.py`, `scripts/e2e_run2_readiness.py` (repo root `scripts/` of the sandbox, not the app). Test accounts: candidate `e2e.fresh.1794554661@hrmscheck.io` / `Welcome@123` (now employee Marq022), candidate `e2e.fresh2.1794555176@hrmscheck.io` (ready_to_join), HR `e2e-verify@hrmscheck.io` / `Verify@123`.

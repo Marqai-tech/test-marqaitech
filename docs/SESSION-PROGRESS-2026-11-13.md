@@ -124,3 +124,15 @@ curl -s -X POST "https://api.vercel.com/v13/deployments?teamId=team_TPceTg1lfUwM
 
 ### Remaining backlog (small, documented in compliance doc §15)
 - 5.9 Escalate to HR Admin / Request Additional Info actions; 5.2 Candidate-ID search + Edit row action; per-record document slots (5.6); notification fan-out; malware/AV integration; orientation/training events as first-class entities.
+
+---
+
+## ✅ AFTERNOON E2E ROUND — 4 user-reported issues fixed + full-journey verified (fresh test data)
+
+Commits: `6d1a84d` (candidate docs response dropped Part 7 fields) → `0f6ee99` (rejected-doc re-upload lock exemption; joining gates on all 3 employee-creation paths via `findJoiningBlockers`; portal nav overflow fix; `.no-scrollbar` utility) → `483eb97` (milestone backfill chicken-and-egg; offers API 500-after-write). Deployments: `dpl_3Phot6BK` (6d1a84d) READY, `dpl_FTmZk5a98o` (0f6ee99) READY, `dpl_AZqA7dwFtv` (483eb97) deploying at time of writing.
+
+**E2E results (live, production beta):** 65 checks, 57 pass. Journey completed end-to-end with fresh candidates: application + 4 consents → offer create/approve/accept → initiation → wizard (5 sections) → 5 doc uploads with metadata → declaration submit (negatives verified: 400 DECLARATION_REQUIRED / SIGNATURE_REQUIRED) → HR rejects PAN → **candidate re-uploads while submitted (200, v2)** → **all 3 joining paths blocked with 409 DOCUMENTS_NOT_APPROVED** → HR approves → readiness (positive run with reporting manager: mark-ready 200, stage ready_to_join) → confirm-joined → provisional employee → BGV → **active employee Marq022**. Nav verified visually at 780/900/1400px (agent-browser + VLM, no clipping).
+
+**Test data:** candidate 1 `e2e.fresh.1794554661@hrmscheck.io` / `Welcome@123` (→ Marq022); candidate 2 `e2e.fresh2.1794555176@hrmscheck.io` (OTP); HR `e2e-verify@hrmscheck.io` / `Verify@123`. PAN rejection remark: "Blurry scan — please re-upload a clear copy of your PAN card."
+
+**Still open after this round:** verify `483eb97` live once deployed (offers create/approve should return 200/201; new joiner appears in /onboarding/progress after the milestone sweep) — the E2E scripts re-run these. Feature backlog unchanged (5.9 escalate/request-info, 5.10 assign-task backend, per-record doc slots, malware/AV, email provider).
