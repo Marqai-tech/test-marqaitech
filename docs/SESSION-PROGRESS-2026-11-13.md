@@ -219,3 +219,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live; prod commit = 8bae6cb.
 
 **Production = GitHub main (`8bae6cb`).**
+
+## EVENING 9 — Dynamic interview round labels deployed (`f0834ce`)
+
+`f0834ce` "Show dynamic interview round labels" — interviews page and recruitment InterviewSyncView now render "Type — Round N" badges (e.g. "Technical Interview — Round 2") via a shared `interviewDisplayLabel(type, round)` helper; replaces the separate conditional Round badge on /interviews; recruitment view falls back to `appInterviews.length` when `latest.round` is missing. 2 files, +9/−7. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_JBhrncM2LuPJ6UTjRtSDxABXi6Fj` **READY in 5m30s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA f0834ce.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live; prod commit = f0834ce.
+
+**Production = GitHub main (`f0834ce`).**
