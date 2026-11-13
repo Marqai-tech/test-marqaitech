@@ -166,7 +166,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let createdReport: { id: string; version: number; pdfStatus: string } | null = null;
     await db.$transaction(async (tx: any) => {
       // Advisory lock scoped to this request serializes concurrent submissions.
-      await tx.$queryRawUnsafe(`SELECT pg_advisory_xact_lock(hashtext($1))`, `bgv-submit-${requestId}`);
+      // pg_advisory_xact_lock() returns `void` — the Neon HTTP driver cannot
+      // deserialize a void column, so route the lock through a CTE whose outer
+      // SELECT yields a real (int) value.
+      await tx.$queryRawUnsafe(
+        `WITH lock AS (SELECT pg_advisory_xact_lock(hashtext($1))) SELECT 1 AS acquired FROM lock`,
+        `bgv-submit-${requestId}`,
+      );
 
       // Re-read status inside the lock (guard against a just-submitted case).
       const fresh = await tx.$queryRawUnsafe(
