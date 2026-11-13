@@ -17,11 +17,12 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiCheckCircle, FiClock, FiUpload, FiFileText, FiAlertCircle,
-  FiLoader, FiEye, FiArrowLeft, FiArrowRight, FiLock, FiLogOut,
+  FiLoader, FiEye, FiArrowLeft, FiArrowRight, FiLock,
   FiHelpCircle, FiUser, FiBriefcase, FiCalendar, FiMapPin, FiPhone,
   FiCreditCard, FiAward, FiEdit3, FiCheck, FiSend, FiAlertTriangle, FiHome,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
 
 function getPortalHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_candidate_token') : null;
@@ -195,6 +196,7 @@ function maskValue(v?: string | null, keep = 4): string {
 export default function CandidatePreboardingWizardPage() {
   const router = useRouter();
   const [data, setData] = useState<WizardData | null>(null);
+  const [portalState, setPortalState] = useState<PortalState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState(0);
@@ -254,6 +256,8 @@ export default function CandidatePreboardingWizardPage() {
   useEffect(() => {
     queueMicrotask(() => { void fetchData(); });
   }, [fetchData]);
+
+  useEffect(() => { fetchPortalState().then(setPortalState); }, []);
 
   // ─────────────── Derived state ───────────────
   const locked = !!data?.portalSubmittedAt && !data?.correctionNote;
@@ -479,37 +483,33 @@ export default function CandidatePreboardingWizardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* ── Header (BRD 5.4: logo, company name, candidate name, help, logout) ── */}
-      <header className="bg-gradient-to-r from-emerald-700 to-teal-600 text-white sticky top-0 z-30 shadow-md">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center font-extrabold text-lg shrink-0" aria-hidden>3B</div>
-            <div className="min-w-0">
-              <div className="font-bold leading-tight truncate">{companyLabel}</div>
-              <div className="text-emerald-100 text-xs truncate">Welcome, {data.candidateName}!</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button onClick={() => setShowHelp(v => !v)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors" aria-label="Help / Contact HR">
-              <FiHelpCircle className="h-4 w-4" /><span className="hidden sm:inline">Help / Contact HR</span>
-            </button>
-            <button onClick={() => { localStorage.removeItem('tb_candidate_token'); router.push('/candidate-portal/login'); }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors" aria-label="Logout">
-              <FiLogOut className="h-4 w-4" /><span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-        {showHelp && (
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-4">
-            <div className="bg-white/10 rounded-lg p-4 text-sm grid sm:grid-cols-2 gap-2">
+      {/* ── Shared portal nav (mock 04: Preboarding tab active, state-driven) ── */}
+      <CandidatePortalNav state={portalState} active="preboarding" />
+      {showHelp && (
+        <div className="bg-emerald-50 border-b border-emerald-100">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
+            <div className="rounded-lg p-3 text-sm grid sm:grid-cols-2 gap-2">
               <div className="flex items-center gap-2"><FiUser className="h-4 w-4 shrink-0" /> HR Contact: <strong>{data.hrContact?.name || 'HR Team'}</strong></div>
               <div className="flex items-center gap-2"><FiPhone className="h-4 w-4 shrink-0" /> {hrEmail ? <a href={`mailto:${hrEmail}`} className="underline">{hrEmail}</a> : 'Contact via your recruiter'}</div>
             </div>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* ── Dashboard strip (BRD 5.4: joining date, job title, %, remaining, doc status) ── */}
+        <section className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-lg font-bold text-slate-800">Your preboarding journey</h1>
+            <p className="text-xs text-slate-500">
+              {companyLabel}{data.jobTitle ? ` · ${data.jobTitle}` : ''}
+              {data.documents.length > 0 ? ` · ${approvedDocs}/${data.documents.length} documents approved` : ''}
+            </p>
+          </div>
+          <button onClick={() => setShowHelp(v => !v)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-200 bg-white text-emerald-700 text-[13px] font-medium hover:bg-emerald-50" aria-label="Help / Contact HR">
+            <FiHelpCircle className="h-4 w-4" /> Contact HR
+          </button>
+        </section>
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <InfoTile icon={<FiCalendar className="h-4 w-4" />} label="Joining Date" value={data.joiningDate ? new Date(data.joiningDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'To be confirmed'} />
           <InfoTile icon={<FiBriefcase className="h-4 w-4" />} label="Job Title" value={data.jobTitle || data.designation || '—'} />

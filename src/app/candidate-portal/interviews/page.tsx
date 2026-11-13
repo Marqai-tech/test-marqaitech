@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { FiCalendar, FiClock, FiVideo, FiMapPin, FiCheck, FiX, FiRefreshCw, FiUser } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
 
 export default function CandidateInterviewsPage() {
   const [interviews, setInterviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState<string | null>(null);
+  const [portalState, setPortalState] = useState<PortalState | null>(null);
 
   const getAuthHeaders = () => {
     // CRITICAL FIX #3: Candidate login stores tb_candidate_token, not candidate_token.
@@ -17,10 +19,6 @@ export default function CandidateInterviewsPage() {
       : null;
     return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   };
-
-  useEffect(() => {
-    fetchInterviews();
-  }, []);
 
   const fetchInterviews = async () => {
     try {
@@ -36,6 +34,15 @@ export default function CandidateInterviewsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    queueMicrotask(() => { fetchPortalState().then(setPortalState); });
+    queueMicrotask(() => { fetchInterviews(); });
+  }, []);
+
+
+
+
 
   const handleRespond = async (interviewId: string, action: 'confirm' | 'reschedule' | 'withdraw') => {
     let reason = '';
@@ -73,12 +80,14 @@ export default function CandidateInterviewsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">My Interviews</h1>
-          <p className="text-sm text-slate-500 mt-1">View your interview schedule and confirm attendance</p>
-        </div>
+    <div className="min-h-screen bg-slate-50">
+      <CandidatePortalNav state={portalState} active="interviews" />
+      <div className="py-8 px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-slate-900">My Interviews</h1>
+            <p className="text-sm text-slate-500 mt-1">View your interview schedule and confirm attendance</p>
+          </div>
 
         {interviews.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
@@ -165,6 +174,7 @@ export default function CandidateInterviewsPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

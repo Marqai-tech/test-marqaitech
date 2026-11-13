@@ -17,12 +17,12 @@
  * (case-insensitive email match, status guard, concurrency-safe updateMany).
  */
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import {
   FiCheckCircle, FiXCircle, FiFileText, FiCalendar, FiUser, FiBriefcase,
-  FiAward, FiLoader, FiDownload, FiUpload, FiArrowLeft,
+  FiAward, FiLoader, FiDownload, FiUpload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
 
 interface OfferData {
   id: string;
@@ -58,6 +58,7 @@ const fmtMoney = (n: number, cur: string) => {
 const fmtDate = (d: string) => { try { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); } catch { return d; } };
 
 export default function CandidateOffersPage() {
+  const [portalState, setPortalState] = useState<PortalState | null>(null);
   const [offers, setOffers] = useState<OfferData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -95,6 +96,7 @@ export default function CandidateOffersPage() {
   }, []);
 
   useEffect(() => { queueMicrotask(() => fetchOffers()); }, [fetchOffers]);
+  useEffect(() => { fetchPortalState().then(setPortalState); }, []);
 
   const handleFileUpload = (offerId: string, file: File) => {
     if (file.size > 5 * 1024 * 1024) {
@@ -159,18 +161,17 @@ export default function CandidateOffersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <Link href="/candidate-portal/dashboard" className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
-            <FiArrowLeft className="w-4 h-4" />
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-slate-900">My Offers</h1>
-            <p className="text-sm text-slate-500 mt-1">Review your offer letters, e-sign, and accept or decline</p>
+    <div className="min-h-screen bg-slate-50">
+      <CandidatePortalNav state={portalState} active="offers" />
+      <div className="py-8 px-4">
+        <div className="max-w-3xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-slate-900">My Offers</h1>
+              <p className="text-sm text-slate-500 mt-1">Review your offer letters, e-sign, and accept or decline</p>
+            </div>
           </div>
-        </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -383,6 +384,7 @@ export default function CandidateOffersPage() {
         <p className="text-center text-[10px] text-slate-400 mt-6">
           Questions about your offer? Please reply to the offer email or contact HR directly.
         </p>
+        </div>
       </div>
     </div>
   );
