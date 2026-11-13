@@ -1,9 +1,94 @@
 # Vendor BGV workflow — implementation status, verification evidence and handover
 
-> Cycle: 12 Nov 2026. Builds on commit `171e629` (the 16-mock-screen feature drop)
-> and the follow-up repair/feature commits `400398f`, `d6eaa77`, `edc289d`.
+> Cycle: 13 Nov 2026 (latest — see §0). Prior cycle: 12 Nov 2026 (§1+).
 > Live environment: `https://3boxes-hrms-beta.vercel.app` (tenant DB `tenant_test_marqaitech`).
 > Authoritative brief: `ZAI-IMPLEMENTATION-PROMPT.md` (see repo root / upload bundle).
+
+## 0. Cycle 13 Nov 2026 — fresh full-lifecycle E2E + two fixes
+
+The previous cycles were blocked on a missing BGV-eligible candidate. This
+cycle created fresh synthetic recruitment data through the real APIs and ran
+the **complete vendor BGV lifecycle live** on the beta, then fixed the two
+defects it exposed.
+
+### 0.1 What was executed (API-driven, real endpoints, synthetic data only)
+
+Fresh candidate A (`fv-e2e-mwej4by3@bgvtest.io`, "Farah Vhora") →
+`convert-to-draft` → candidate portal login → 6 documents uploaded via
+`upload-v2` → HR approved all 6 → **BGV-2026-0003** initiated (5 checks, 6
+shared documents, due date, instructions) → vendor admin assigned the case →
+(re-assignment with reason exercised live) → investigator completed 5 checks
+(**4 Clear + 1 "Unable to Verify" with required reason** — a completed result,
+per the brief) + evidence uploads (PNG + PDF) → **report v1 submitted** with
+optional vendor PDF → HR review → **rework_required on the criminal check**
+(reason mandatory) → investigator corrected the check + new evidence →
+**report v2** → HR **approved** → `approved_by_hr`, employee activation ran
+(Employee ID `Marq019` issued by the existing policy chain).
+
+### 0.2 Assertions verified live (all PASS)
+
+| # | Assertion | Evidence |
+|---|---|---|
+| 1 | Fresh candidate → eligible for initiation (no settled-state block) | `POST /api/bgv/initiate` 201, case `BGV-2026-0003` |
+| 2 | HR draft privacy pre-submission | `GET /api/bgv/requests/{id}` returns progress counts only — 0 findings/result fields leaked |
+| 3 | Submitted snapshots visible to HR (v1: 4 Clear + Unable-to-Verify; v2: 5 Clear) | `reports[].checks` with results + findings + evidence refs |
+| 4 | Version history preserved | versions `1, 2` both returned after v2 |
+| 5 | Standard PDF download (HR + same-company admin) | HTTP 200, `%PDF`, ~9.4 KB |
+| 6 | Evidence file download (HR) | HTTP 200 `image/png` |
+| 7 | Optional vendor PDF download (HR) | HTTP 200 valid PDF via `?variant=vendor` |
+| 8 | Candidate portal token cannot download vendor report | HTTP 403 |
+| 9 | Vendor admin cannot edit checks (monitor only) | HTTP 403 "Vendor admins monitor cases" |
+| 10 | Post-submission check edit blocked (frozen version) | HTTP 409 state-machine message |
+| 11 | Duplicate submission blocked (double-click) | HTTP 409, clean message, no extra version/email |
+| 12 | Rework → notification to investigator + admin, case `rework_required` | `POST …/review` 200, employee list shows rework state |
+| 13 | HR approval updates linked workflow once, audit-trail + activation email | `POST …/approve` 200 "Employee ID: Marq019" |
+
+### 0.3 Defects found and fixed (this cycle)
+
+1. **Assignment history was empty** (`6dc75f3`) — `BgvAssignment` rows were
+   only written when unassigning a previous holder, so the first assignment
+   never opened a tenure row and the HR/vendor case detail returned
+   `assignments: []`. Fixed to an open-interval trail: every assignment opens
+   a row (reason "Initial assignment"), reassignment to a different employee
+   closes the previous open row (`unassignedAt`/`unassignedById`), same-holder
+   re-assign refreshes the request without duplicating rows. Verified live on
+   **BGV-2026-0004** (fresh candidate B, "Arjun Nair"): first assignment →
+   exactly 1 open row ("Ravi Verifier — assigned … (current)" in the UI
+   History tab); same-holder re-assign → still 1 row.
+2. **Vendor employee My Cases rendered permanently empty** (`8be2383`) — the
+   dashboard defaulted to the `unassigned` tab, which does not exist in the
+   employee tab strip, so the filter always matched zero rows while
+   `GET /api/vendor/requests` correctly returned the assigned case. Employees
+   now land on the Assigned tab once the session role resolves.
+
+### 0.4 Live UI walkthrough (Chromium, synthetic data, screenshots)
+
+| # | Screen | Result |
+|---|---|---|
+| 1 | `/login` → Vendor tab, admin sign-in | dashboard renders with filter tabs |
+| 2 | Vendor Dashboard "All Cases" | `BGV-2026-0003` Approved, `BGV-2026-0004` Assigned, unassigned badge counts correct |
+| 3 | Case workspace `/vendor-portal/requests/{id}` | candidate header, Shared Documents (6), Checks (2), History tabs |
+| 4 | History tab | "No reports submitted yet." + **Assignment trail: Ravi Verifier — assigned 13/11/2026 (current)** (fix #1 visible) |
+| 5 | `/bgv-dashboard` (HR) | full case list with statuses, investigators, progress %, version counts |
+| 6 | HR case review (0003, expanded) | Rework-requested audit + Submitted Report v1 (05:23:14) + v2 (05:24:45) with investigator + overall findings + Approved by HR |
+| 7 | Candidate portal preboarding (candidate B) | 9-step wizard, "6/6 documents approved" |
+| 8 | Vendor employee dashboard | My Cases heading + assigned-case rows (after fix #2 deploy) |
+
+### 0.5 Remaining limitations / not tested
+
+1. **Holder-changed reassignment path** (close old row + open new row) is
+   code-reviewed and typechecked but not live-executed: the tenant has only
+   ONE active vendor employee, and invite activation requires the emailed
+   single-use token (invite links are deliberately never returned by the API).
+2. HR **Reject** path was not exercised in this cycle (approved instead);
+   reject semantics are unchanged from the 12 Nov cycle and use the same
+   permission-checked route family.
+3. Email delivery still depends on the configured provider; notification rows
+   record queued/failed honestly (no delivery evidence invented).
+4. Parallel concurrent-deploy activity from another workspace continued
+   during this cycle (candidate-portal BRD work on the same repo); BGV code
+   paths were not touched there.
+
 
 ## 1. What this cycle changed (concise change summary)
 
