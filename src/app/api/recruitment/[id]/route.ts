@@ -321,6 +321,34 @@ export async function PATCH(
           { status: 400, headers: corsHeaders() }
         );
       }
+      if (status === 'offered' && application.status === 'interview') {
+        try {
+          const planRows = await db.$queryRawUnsafe(
+            `SELECT jp."interviewPlan" FROM "JobPosting" jp WHERE jp."id" = $1 LIMIT 1`,
+            application.jobPostingId,
+          ) as any[];
+          const rawPlan = planRows[0]?.interviewPlan;
+          if (rawPlan) {
+            const plan = typeof rawPlan === 'string' ? JSON.parse(rawPlan) : rawPlan;
+            const requiredRounds = Array.isArray(plan) ? plan.length : 0;
+            const completedRows = await db.$queryRawUnsafe(
+              `SELECT "round", "status", "hrDecision" FROM "Interview" WHERE "jobApplicationId" = $1 AND "status" = 'completed' ORDER BY "round" ASC`,
+              application.id,
+            ) as any[];
+            const completedRounds = new Set(completedRows.map((r: any) => Number(r.round || 1)));
+            const missing = Array.from({ length: requiredRounds }, (_, i) => i + 1).filter((round) => !completedRounds.has(round));
+            if (missing.length > 0) {
+              return NextResponse.json({
+                error: `Cannot move to Offered. Complete all configured interview rounds first. Missing rounds: ${missing.join(', ')}.`,
+                code: 'INTERVIEW_PLAN_INCOMPLETE',
+                missingRounds: missing,
+              }, { status: 409, headers: corsHeaders() });
+            }
+          }
+        } catch (e) {
+          console.warn('[Recruitment PATCH] interview plan gate failed:', e instanceof Error ? e.message : e);
+        }
+      }
       if (status === 'hired' && !['offered', 'hired'].includes(application.status)) {
         return NextResponse.json(
           { error: 'Cannot move to Hired without an Offer first. Current status: ' + application.status },
