@@ -52,9 +52,9 @@ The stub `/preboarding/tasks` entry was removed from the sidebar.
 | 10 metric cards (Total Preboarding → Did Not Join, exact BRD labels) | **PASS** — all 10, each navigates to filtered candidate list |
 | Pipeline stepper (Offer Accepted → … → Joined) | **PASS** |
 | Widgets: Upcoming Joiners, Pending Documents, Verification Queue, Joining Readiness, Department-wise Joiners, Delayed Activities | **PASS** (6) |
-| Widgets: Recruiter-wise Handover, Joining Trends | **MISSING** — Joining Trends exists inside Reports page, not dashboard (follow-up) |
+| Widgets: Recruiter-wise Handover, Joining Trends | **PASS — Part 6** — Recruiter-wise Handover table (Total/Active/Joined/Docs-pending per recruiter) + 6-month Joining Trends chart (joined vs expected) on the dashboard |
 | Filters: Department, Preboarding Status, Verification Status, Joining Date, Recruiter | **PASS** (5) |
-| Filters: Company, Branch, Employment Type | **MISSING** (follow-up) |
+| Filters: Company, Branch, Employment Type | **PASS — Part 6** — dashboard filter row + candidates list client-side filters (`?company=&branch=&employmentType=`); `PreboardingCandidate.companyId/branchId` columns populated at BRD 5.3 initiation |
 | Quick actions (all 7) | **PASS** |
 
 ## 5. Section 5.2 — Candidates List
@@ -199,7 +199,7 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 
 1. ~~**Employee-creation approval workflow** (BRD 6.2 state machine + optional payroll step) + `$transaction` atomicity + Employee↔Candidate link columns (BRD 6.3 #11/#12)~~ **DONE** — `EmployeeCreationRequest` state machine + atomic authorize (commit d9b3253)
 2. ~~**Initiation screen** (BRD 5.3) with Offer/HR/Checklist/Communication sections, Save-as-Draft, Send Invitation, server-side accepted-offer gate~~ **DONE** — `/preboarding/initiation` + `POST /api/preboarding/brd/initiation` (this commit)
-3. **Dashboard gaps** (Recruiter-wise Handover + Joining Trends widgets; Company/Branch/Employment-type filters)
+3. ~~**Dashboard gaps** (Recruiter-wise Handover + Joining Trends widgets; Company/Branch/Employment-type filters)~~ **DONE** — widgets + filters shipped (Part 6)
 4. **Document module hardening**: version history, issue/expiry + expired flag, duplicate detection, doc-number/category fields
 5. **Escalate to HR Admin / Request Additional Info** actions (5.9)
 6. **Day 7/30/60/90 milestones** + schedule the onboarding-reminders cron + "Onboarding Completed" state

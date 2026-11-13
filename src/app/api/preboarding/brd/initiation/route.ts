@@ -275,6 +275,17 @@ export async function POST(req: NextRequest) {
       const ok = await db.$queryRawUnsafe(`SELECT id FROM "Designation" WHERE id=$1 LIMIT 1`, designationId).catch(() => []) as any[];
       if (!ok[0]) designationId = null;
     }
+    // BRD 5.1 filters — company/branch stored on the preboarding record.
+    let companyId = hrDetails.companyId || null;
+    let branchId = hrDetails.branchId || null;
+    if (companyId) {
+      const ok = await db.$queryRawUnsafe(`SELECT id FROM "Company" WHERE id=$1 LIMIT 1`, companyId).catch(() => []) as any[];
+      if (!ok[0]) companyId = null;
+    }
+    if (branchId) {
+      const ok = await db.$queryRawUnsafe(`SELECT id FROM "Branch" WHERE id=$1 LIMIT 1`, branchId).catch(() => []) as any[];
+      if (!ok[0]) branchId = null;
+    }
     if (reportingManagerId) {
       const empOk = await db.$queryRawUnsafe(`SELECT id FROM "Employee" WHERE id=$1 LIMIT 1`, reportingManagerId).catch(() => []) as any[];
       if (!empOk[0]) {
@@ -365,13 +376,13 @@ export async function POST(req: NextRequest) {
           `INSERT INTO "PreboardingCandidate"
              ("id","candidateName","candidateEmail","jobTitle","departmentId","designationId","reportingManagerId",
               "employmentType","offeredSalary","currency","ctc","workLocation","joiningDate","startDate","offerDate",
-              "offerId","jobApplicationId","candidatePortalUserId","companyEmail","onboardingStatus","status",
-              "backgroundCheckStatus","convertedById","createdAt","updatedAt")
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'INR',$10,$11,$12,$12,NOW(),$13,$14,$15,$16,'bgv_pending',
-                  'document_collection','pending',$17,NOW(),NOW())`,
+              "offerId","jobApplicationId","candidatePortalUserId","companyEmail","companyId","branchId",
+              "onboardingStatus","status","backgroundCheckStatus","convertedById","createdAt","updatedAt")
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'INR',$10,$11,$12,$12,NOW(),$13,$14,$15,$16,$17,$18,'bgv_pending',
+                  'document_collection','pending',$19,NOW(),NOW())`,
           pbId, offer.candidateName, candidateEmail, offer.position || null, departmentId, designationId,
           reportingManagerId, hrDetails.employmentType || 'full-time', ctc, ctc, hrDetails.workLocation || null,
-          jDate, offerId, applicationId, portalUserId, companyEmail, userId,
+          jDate, offerId, applicationId, portalUserId, companyEmail, companyId, branchId, userId,
         );
 
         for (const doc of documents) {

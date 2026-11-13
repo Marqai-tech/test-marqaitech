@@ -56,17 +56,21 @@ export async function GET(req: NextRequest) {
               pbc."joiningConfirmed", pbc."joiningConfirmedAt", pbc."actualJoiningDate", pbc."reportingTime", pbc."reportingLocation",
               pbc."didNotJoinAt", pbc."noShowReason", pbc."postponedJoiningDate", pbc."postponementReason",
               pbc."cancelledAt", pbc."cancellationReason", pbc."hrAssignedTo", pbc."recruiterName",
-              pbc."workMode", pbc."branch", pbc."reminderSentAt", pbc."offerDate"
+              pbc."workMode", pbc."branch", pbc."companyId", pbc."branchId", pbc."reminderSentAt", pbc."offerDate"
        FROM "PreboardingCandidate" pbc
        ORDER BY pbc."createdAt" DESC
        LIMIT 300`,
     ).catch(() => []) as any[];
 
-    // Resolve department + designation + manager names once (small ref tables)
+    // Resolve department + designation + manager + company + branch names once (small ref tables)
     const deptRows = await db.$queryRawUnsafe(`SELECT id, name FROM "Department"`).catch(() => []) as any[];
     const desigRows = await db.$queryRawUnsafe(`SELECT id, title FROM "Designation"`).catch(() => []) as any[];
     const deptMap = new Map(deptRows.map((d: any) => [d.id, d.name]));
     const desigMap = new Map(desigRows.map((d: any) => [d.id, d.title]));
+    const companyRows = await db.$queryRawUnsafe(`SELECT id, name FROM "Company" WHERE status = 'active'`).catch(() => []) as any[];
+    const companyMap = new Map(companyRows.map((c: any) => [c.id, c.name]));
+    const branchRows = await db.$queryRawUnsafe(`SELECT id, name FROM "Branch"`).catch(() => []) as any[];
+    const branchMap = new Map(branchRows.map((b: any) => [b.id, b.name]));
 
     let managerMap = new Map<string, string>();
     try {
@@ -105,7 +109,8 @@ export async function GET(req: NextRequest) {
         employmentType: pb.employmentType || null,
         workLocation: pb.workLocation || null,
         workMode: pb.workMode || null,
-        branch: pb.branch || null,
+        company: pb.companyId ? (companyMap.get(pb.companyId) || null) : null,
+        branch: pb.branchId ? (branchMap.get(pb.branchId) || pb.branch || null) : (pb.branch || null),
         recruiter: pb.recruiterName || null,
         hrAssignedTo: pb.hrAssignedTo || null,
         joiningDate: pb.joiningDate || pb.startDate || null,

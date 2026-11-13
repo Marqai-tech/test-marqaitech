@@ -365,6 +365,8 @@ const EXTRA_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "PreboardingInitiation_active_offer_key"
      ON "PreboardingInitiation"("offerId") WHERE "status" IN ('draft','invited')`,
   `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "required" BOOLEAN DEFAULT true`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "branchId" TEXT`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -36,6 +36,9 @@ interface PreboardingCandidate {
   recruiter: string | null;
   hrAssignedTo: string | null;
   joiningDate: string | null;
+  employmentType: string | null;
+  company: string | null;
+  branch: string | null;
   offerStatus: string;
   documentStatus: string;
   verificationStatus: string;
@@ -162,6 +165,9 @@ function CandidatesContent() {
   const initialVerification = searchParams.get('verification') || '';
   const initialDateRange = searchParams.get('dateRange') || '';
   const initialRecruiter = searchParams.get('recruiter') || '';
+  const initialCompany = searchParams.get('company') || '';
+  const initialBranch = searchParams.get('branch') || '';
+  const initialEmploymentType = searchParams.get('employmentType') || '';
 
   const [data, setData] = useState<PipelineResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +183,9 @@ function CandidatesContent() {
   const [jobTitle, setJobTitle] = useState('');
   const [dateRange, setDateRange] = useState(initialDateRange);
   const [recruiter, setRecruiter] = useState(initialRecruiter);
+  const [company, setCompany] = useState(initialCompany);
+  const [branch, setBranch] = useState(initialBranch);
+  const [employmentType, setEmploymentType] = useState(initialEmploymentType);
   const [verification, setVerification] = useState(initialVerification);
   const [readiness, setReadiness] = useState(initialReadiness);
   const [filter, setFilter] = useState(initialFilter); // documents_pending | verification_pending | remind
@@ -251,6 +260,18 @@ function CandidatesContent() {
     () => Array.from(new Set(candidates.map(c => c.recruiter).filter((r): r is string => Boolean(r)))).sort(),
     [candidates],
   );
+  const companies = useMemo(
+    () => Array.from(new Set(candidates.map(c => c.company).filter((x): x is string => Boolean(x)))).sort(),
+    [candidates],
+  );
+  const branchNames = useMemo(
+    () => Array.from(new Set(candidates.map(c => c.branch).filter((x): x is string => Boolean(x)))).sort(),
+    [candidates],
+  );
+  const employmentTypes = useMemo(
+    () => Array.from(new Set(candidates.map(c => c.employmentType).filter((x): x is string => Boolean(x)))).sort(),
+    [candidates],
+  );
 
   // ─── Client-side filtering ───
 
@@ -265,6 +286,9 @@ function CandidatesContent() {
     if (jobTitle) rows = rows.filter(c => c.jobTitle === jobTitle);
     if (department) rows = rows.filter(c => c.department === department);
     if (recruiter) rows = rows.filter(c => c.recruiter === recruiter);
+    if (company) rows = rows.filter(c => c.company === company);
+    if (branch) rows = rows.filter(c => c.branch === branch);
+    if (employmentType) rows = rows.filter(c => c.employmentType === employmentType);
     if (stage) rows = rows.filter(c => c.stage === stage);
     if (verification) rows = rows.filter(c => c.verificationStatus === verification);
     if (readiness) rows = rows.filter(c => c.joiningReadiness === readiness);
@@ -288,7 +312,7 @@ function CandidatesContent() {
     }
     if (confirmedOnly) rows = rows.filter(c => c.joiningConfirmed);
     return rows;
-  }, [candidates, nowMs, search, jobTitle, department, recruiter, stage, verification, readiness, dateRange, filter, upcomingOnly, confirmedOnly]);
+  }, [candidates, nowMs, search, jobTitle, department, recruiter, stage, verification, readiness, dateRange, filter, upcomingOnly, confirmedOnly, company, branch, employmentType]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -302,6 +326,7 @@ function CandidatesContent() {
   const clearFilters = () => {
     setSearch(''); setStage(''); setDepartment(''); setJobTitle('');
     setDateRange(''); setRecruiter(''); setVerification(''); setReadiness('');
+    setCompany(''); setBranch(''); setEmploymentType('');
     setFilter(''); setUpcomingOnly(false); setConfirmedOnly(false);
     resetPage();
   };
@@ -571,6 +596,33 @@ function CandidatesContent() {
             >
               <option value="">All Recruiters</option>
               {recruiters.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+            <select
+              value={company}
+              onChange={e => { setCompany(e.target.value); resetPage(); }}
+              aria-label="Filter by company"
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white w-full lg:w-auto"
+            >
+              <option value="">All Companies</option>
+              {companies.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select
+              value={branch}
+              onChange={e => { setBranch(e.target.value); resetPage(); }}
+              aria-label="Filter by branch"
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white w-full lg:w-auto"
+            >
+              <option value="">All Branches</option>
+              {branchNames.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select
+              value={employmentType}
+              onChange={e => { setEmploymentType(e.target.value); resetPage(); }}
+              aria-label="Filter by employment type"
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white w-full lg:w-auto"
+            >
+              <option value="">All Types</option>
+              {employmentTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <button
               onClick={clearFilters}

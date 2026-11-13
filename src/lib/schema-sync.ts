@@ -1295,6 +1295,10 @@ const SYNC_STATEMENTS: string[] = [
   // BRD 5.8 required/optional indicator for joining documents (also written
   // by the BRD 5.3 initiation checklist).
   `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "required" BOOLEAN DEFAULT true`,
+
+  // ─── BRD 5.1 dashboard filters: Company / Branch on preboarding records ───
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "branchId" TEXT`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.

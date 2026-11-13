@@ -123,6 +123,8 @@ function InitiationContent() {
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [designations, setDesignations] = useState<Array<{ id: string; title: string }>>([]);
   const [managers, setManagers] = useState<Array<{ id: string; name: string }>>([]);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [branches, setBranches] = useState<Array<{ id: string; name: string; companyId?: string | null }>>([]);
 
   const [hr, setHr] = useState({
     joiningDate: '',
@@ -134,6 +136,8 @@ function InitiationContent() {
     workLocation: '',
     companyEmail: '',
     hrContactName: '',
+    companyId: '',
+    branchId: '',
   });
   const [docs, setDocs] = useState<ChecklistDoc[]>(DEFAULT_DOCS.map(d => ({ ...d })));
   const [extraItems, setExtraItems] = useState<string[]>([]);
@@ -197,6 +201,8 @@ function InitiationContent() {
         workLocation: sv('workLocation'),
         companyEmail: sv('companyEmail', `${offer.candidateName.split(' ')[0].toLowerCase()}@marqaitech.com`),
         hrContactName: sv('hrContactName'),
+        companyId: sv('companyId'),
+        branchId: sv('branchId'),
       });
       const savedDocs = d?.checklist?.documents;
       setDocs(Array.isArray(savedDocs) && savedDocs.length ? savedDocs : DEFAULT_DOCS.map(x => ({ ...x })));
@@ -235,6 +241,14 @@ function InitiationContent() {
         const emps = (d.employees || d.data || d || []) as Array<{ id: string; firstName?: string; lastName?: string; employeeId?: string }>;
         setManagers(emps.map(e => ({ id: e.id, name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.employeeId || e.id })));
       })
+      .catch(() => {});
+    fetch('/api/companies', { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : { companies: [] })
+      .then(d => setCompanies((d.companies || d.data || d || []) as Array<{ id: string; name: string }>))
+      .catch(() => {});
+    fetch('/api/branches', { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : { branches: [] })
+      .then(d => setBranches((d.branches || d.data || d || []) as Array<{ id: string; name: string; companyId?: string | null }>))
       .catch(() => {});
   }, [activeOffer]);
 
@@ -411,6 +425,20 @@ function InitiationContent() {
                 <div>
                   <label className={labelCls}>HR Contact (name shown to candidate)</label>
                   <input type="text" value={hr.hrContactName} onChange={e => setHr({ ...hr, hrContactName: e.target.value })} placeholder="e.g. Madhuri N (HR)" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Company</label>
+                  <select value={hr.companyId} onChange={e => setHr({ ...hr, companyId: e.target.value, branchId: branches.some(b => b.companyId && b.companyId === e.target.value) ? hr.branchId : '' })} className={inputCls}>
+                    <option value="">Select company</option>
+                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Branch</label>
+                  <select value={hr.branchId} onChange={e => setHr({ ...hr, branchId: e.target.value })} className={inputCls}>
+                    <option value="">Select branch</option>
+                    {(hr.companyId ? branches.filter(b => !b.companyId || b.companyId === hr.companyId) : branches).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
                 </div>
               </div>
             </section>

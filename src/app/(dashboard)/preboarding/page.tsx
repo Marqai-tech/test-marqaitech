@@ -7,7 +7,7 @@ import {
   FiRefreshCw, FiUsers, FiCalendar, FiClock, FiFileText, FiCheckCircle,
   FiXCircle, FiAlertTriangle, FiUserCheck, FiFlag, FiChevronRight,
   FiUserPlus, FiList, FiEye, FiBell, FiEdit2, FiCheckSquare, FiActivity,
-  FiSearch, FiFilter, FiAlertCircle, FiArrowRight,
+  FiSearch, FiFilter, FiAlertCircle, FiArrowRight, FiTrendingUp,
 } from 'react-icons/fi';
 
 // ─────────────────────────────────────────────────────────────
@@ -36,6 +36,10 @@ interface PreboardingCandidate {
   recruiter: string | null;
   hrAssignedTo: string | null;
   joiningDate: string | null;
+  actualJoiningDate: string | null;
+  employmentType: string | null;
+  company: string | null;
+  branch: string | null;
   offerStatus: string;
   documentStatus: string;
   verificationStatus: string;
@@ -224,6 +228,66 @@ export default function PreboardingDashboardPage() {
     () => Array.from(new Set(candidates.map(c => c.recruiter).filter((r): r is string => Boolean(r)))).sort(),
     [candidates],
   );
+  const companies = useMemo(
+    () => Array.from(new Set(candidates.map(c => c.company).filter((x): x is string => Boolean(x)))).sort(),
+    [candidates],
+  );
+  const branchNames = useMemo(
+    () => Array.from(new Set(candidates.map(c => c.branch).filter((x): x is string => Boolean(x)))).sort(),
+    [candidates],
+  );
+  const employmentTypes = useMemo(
+    () => Array.from(new Set(candidates.map(c => c.employmentType).filter((x): x is string => Boolean(x)))).sort(),
+    [candidates],
+  );
+
+  // ─── BRD 5.1 widgets: Recruiter-wise Handover + Joining Trends ───
+
+  const recruiterHandover = useMemo(() => {
+    const map = new Map<string, { recruiter: string; total: number; active: number; joined: number; pendingDocs: number }>();
+    for (const c of candidates) {
+      if (c.stage === 'cancelled') continue;
+      const key = c.recruiter || 'Unassigned';
+      const row = map.get(key) || { recruiter: key, total: 0, active: 0, joined: 0, pendingDocs: 0 };
+      row.total += 1;
+      if (c.stage === 'joined') row.joined += 1;
+      else if (c.stage !== 'did_not_join') row.active += 1;
+      if (c.documentStatus === 'Pending' && c.stage !== 'did_not_join') row.pendingDocs += 1;
+      map.set(key, row);
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, 6);
+  }, [candidates]);
+
+  const joiningTrends = useMemo(() => {
+    // Last 6 months including the current one: joined (actual DOJ) vs expected.
+    const buckets: { label: string; key: string; joined: number; expected: number }[] = [];
+    // nowMs is captured at fetch time (always > 0 by the time this renders).
+    const base = new Date(nowMs);
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      buckets.push({
+        label: d.toLocaleDateString('en-US', { month: 'short' }),
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        joined: 0,
+        expected: 0,
+      });
+    }
+    const idx = new Map(buckets.map((b, i) => [b.key, i]));
+    const inWindow = (iso: string | null) => {
+      if (!iso) return null;
+      const dt = new Date(iso);
+      if (Number.isNaN(dt.getTime())) return null;
+      return idx.get(`${dt.getFullYear()}-${dt.getMonth()}`) ?? null;
+    };
+    for (const c of candidates) {
+      if (c.stage === 'cancelled' || c.stage === 'did_not_join') continue;
+      const ji = inWindow(c.actualJoiningDate || (c.stage === 'joined' ? c.joiningDate : null));
+      if (ji != null) buckets[ji].joined += 1;
+      const ei = inWindow(c.joiningDate);
+      if (ei != null && c.stage !== 'joined') buckets[ei].expected += 1;
+    }
+    return buckets;
+  }, [candidates, nowMs]);
 
   // ─── Metric cards ───
 
@@ -327,6 +391,9 @@ export default function PreboardingDashboardPage() {
   const [fVerification, setFVerification] = useState('');
   const [fDateRange, setFDateRange] = useState('');
   const [fRecruiter, setFRecruiter] = useState('');
+  const [fCompany, setFCompany] = useState('');
+  const [fBranch, setFBranch] = useState('');
+  const [fEmploymentType, setFEmploymentType] = useState('');
 
   const applyFilters = () => {
     const params = new URLSearchParams();
@@ -335,6 +402,9 @@ export default function PreboardingDashboardPage() {
     if (fVerification) params.set('verification', fVerification);
     if (fDateRange) params.set('dateRange', fDateRange);
     if (fRecruiter) params.set('recruiter', fRecruiter);
+    if (fCompany) params.set('company', fCompany);
+    if (fBranch) params.set('branch', fBranch);
+    if (fEmploymentType) params.set('employmentType', fEmploymentType);
     router.push(`/preboarding/candidates${params.toString() ? `?${params.toString()}` : ''}`);
   };
 
@@ -744,6 +814,92 @@ export default function PreboardingDashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Recruiter-wise Handover (BRD 5.1) */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-900 inline-flex items-center gap-2">
+              <FiUsers className="text-teal-600 w-4 h-4" /> Recruiter-wise Handover
+            </h3>
+            <button
+              onClick={() => router.push('/preboarding/candidates')}
+              className="text-xs font-medium text-teal-600 hover:text-teal-700 inline-flex items-center gap-1"
+            >
+              View All <FiChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {recruiterHandover.length === 0 ? (
+            <p className="text-xs text-slate-400 py-6 text-center">No recruiter handovers yet.</p>
+          ) : (
+            <div className="flex-1 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-slate-100">
+                    <th className="py-2 font-medium">Recruiter</th>
+                    <th className="py-2 font-medium text-center">Total</th>
+                    <th className="py-2 font-medium text-center">Active</th>
+                    <th className="py-2 font-medium text-center">Joined</th>
+                    <th className="py-2 font-medium text-center">Docs Pending</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {recruiterHandover.map(r => (
+                    <tr key={r.recruiter} className="hover:bg-slate-50">
+                      <td className="py-2 font-medium text-slate-700 truncate max-w-[10rem]" title={r.recruiter}>{r.recruiter}</td>
+                      <td className="py-2 text-center text-slate-700">{r.total}</td>
+                      <td className="py-2 text-center">
+                        <span className="px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium">{r.active}</span>
+                      </td>
+                      <td className="py-2 text-center">
+                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">{r.joined}</span>
+                      </td>
+                      <td className="py-2 text-center">
+                        <span className={`px-1.5 py-0.5 rounded-full font-medium ${r.pendingDocs ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-500'}`}>{r.pendingDocs}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Joining Trends (BRD 5.1) */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-semibold text-slate-900 inline-flex items-center gap-2">
+              <FiTrendingUp className="text-teal-600 w-4 h-4" /> Joining Trends
+            </h3>
+            <span className="text-xs text-slate-400">last 6 months</span>
+          </div>
+          <div className="flex items-center gap-4 mb-2 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500 inline-block" /> Joined (actual)</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-teal-300 inline-block" /> Expected</span>
+          </div>
+          <div className="flex-1 flex items-end justify-between gap-2 h-40 px-1 pb-1">
+            {joiningTrends.map(b => {
+              const max = Math.max(1, ...joiningTrends.map(x => x.joined + x.expected));
+              const joinedH = Math.round((b.joined / max) * 100);
+              const expectedH = Math.round((b.expected / max) * 100);
+              return (
+                <div key={b.key} className="flex-1 flex flex-col items-center gap-1 min-w-0" title={`${b.label}: ${b.joined} joined, ${b.expected} expected`}>
+                  <div className="w-full flex flex-col justify-end items-center h-28 gap-0.5">
+                    {b.expected > 0 && (
+                      <div className="w-3/5 rounded-t-sm bg-teal-300" style={{ height: `${expectedH}%` }} />
+                    )}
+                    {b.joined > 0 && (
+                      <div className="w-3/5 rounded-t-sm bg-emerald-500" style={{ height: `${joinedH}%` }} />
+                    )}
+                    {b.joined === 0 && b.expected === 0 && (
+                      <div className="w-3/5 h-0.5 rounded-sm bg-slate-200" />
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">{b.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       {/* 5. Quick Actions bar */}
@@ -800,7 +956,7 @@ export default function PreboardingDashboardPage() {
         <h3 className="text-sm font-semibold text-slate-900 mb-3 inline-flex items-center gap-2">
           <FiFilter className="text-slate-400 w-4 h-4" /> Filters
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
           <div>
             <label htmlFor="flt-dept" className="block text-xs font-medium text-slate-500 mb-1">Department</label>
             <select
@@ -870,6 +1026,42 @@ export default function PreboardingDashboardPage() {
             >
               <option value="">All Recruiters</option>
               {recruiters.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="flt-company" className="block text-xs font-medium text-slate-500 mb-1">Company</label>
+            <select
+              id="flt-company"
+              value={fCompany}
+              onChange={e => setFCompany(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full bg-white"
+            >
+              <option value="">All Companies</option>
+              {companies.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="flt-branch" className="block text-xs font-medium text-slate-500 mb-1">Branch</label>
+            <select
+              id="flt-branch"
+              value={fBranch}
+              onChange={e => setFBranch(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full bg-white"
+            >
+              <option value="">All Branches</option>
+              {branchNames.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="flt-emp" className="block text-xs font-medium text-slate-500 mb-1">Employment Type</label>
+            <select
+              id="flt-emp"
+              value={fEmploymentType}
+              onChange={e => setFEmploymentType(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full bg-white"
+            >
+              <option value="">All Types</option>
+              {employmentTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         </div>
