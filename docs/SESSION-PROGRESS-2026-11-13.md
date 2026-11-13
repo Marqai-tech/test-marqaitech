@@ -197,3 +197,15 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate still live (stranger 404 / candidate devOtp); prod commit = 3515c0b; `/schedule-interview` serves the redirect payload.
 
 **Production = GitHub main (`3515c0b`).**
+
+## EVENING 7 — Interview-stage-only scheduling deployed (`ff373b9`)
+
+(Interim: `019a96c` "Block interview scheduling from screening stage" was deployed from the parallel session between our deploys.)
+
+`ff373b9` "Require interview stage before scheduling" — tightens eligibility further: the Schedule-Interview button (recruitment page) and the `POST /api/interviews` gate now require application status exactly `interview` (previously `shortlisted` was also allowed); Shortlisted/Screening candidates must be explicitly advanced to Interview first. 409 `APPLICATION_NOT_INTERVIEW_READY` with updated message. Pre-flight: conflict scan clean, esbuild pass on both files.
+
+**Deploy:** `dpl_Hp2LZVnzm1NJDhSK8UKiMA63AQ8V` **READY in 5m30s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA ff373b9.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live (stranger 404 / candidate devOtp); prod commit = ff373b9.
+
+**Production = GitHub main (`ff373b9`).**
