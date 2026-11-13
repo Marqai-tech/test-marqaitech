@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
     try {
       if (candidateId) {
         rows = await db.$queryRawUnsafe(
-          `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
-                  "vendorCompanyId","dueDate","createdAt","updatedAt","version",
+          `SELECT r."id", r."caseNumber", r."status", r."candidateEmail", r."candidateName", r."preboardingCandidateId",
+                  r."vendorCompanyId", r."dueDate", r."createdAt", r."updatedAt", r."version",
                   vc."name" AS "vendorName",
                   vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
                   (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",
@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
         ) as any[];
       } else {
         rows = await db.$queryRawUnsafe(
-          `SELECT r."id","caseNumber","status","candidateEmail","candidateName","preboardingCandidateId",
-                  "vendorCompanyId","dueDate","createdAt","updatedAt","version",
+          `SELECT r."id", r."caseNumber", r."status", r."candidateEmail", r."candidateName", r."preboardingCandidateId",
+                  r."vendorCompanyId", r."dueDate", r."createdAt", r."updatedAt", r."version",
                   vc."name" AS "vendorName",
                   vu."name" AS "assigneeName", vu."email" AS "assigneeEmail",
                   (SELECT json_agg(json_build_object('id', c."id", 'status', c."status")) FROM "BgvCheck" c WHERE c."bgvRequestId" = r."id") AS "checkStates",

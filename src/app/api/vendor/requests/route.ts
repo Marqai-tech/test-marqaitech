@@ -36,10 +36,10 @@ export async function GET(req: NextRequest) {
     }
     const vu = vuRows[0];
 
-    let sql = `SELECT r."id","candidateEmail","candidateName","preboardingCandidateId","vendorCompanyId",
-                      "initiatedByHRId","status","caseNumber","dueDate","instructions","checks",
-                      "assignedVendorUserId","assignedById","assignedAt","version",
-                      "reworkReason","reworkChecks","reworkDueDate","createdAt","updatedAt",
+    let sql = `SELECT r."id", r."candidateEmail", r."candidateName", r."preboardingCandidateId", r."vendorCompanyId",
+                      r."initiatedByHRId", r."status", r."caseNumber", r."dueDate", r."instructions", r."checks",
+                      r."assignedVendorUserId", r."assignedById", r."assignedAt", r."version",
+                      r."reworkReason", r."reworkChecks", r."reworkDueDate", r."createdAt", r."updatedAt",
                       vc."name" AS "vendorName",
                       vu2."name" AS "assigneeName", vu2."email" AS "assigneeEmail"
                  FROM "BgvRequest" r
