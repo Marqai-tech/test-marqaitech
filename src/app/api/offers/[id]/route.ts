@@ -429,7 +429,7 @@ export async function PATCH(
         module: 'offers',
         details: `Updated offer ${id} status to ${effectiveStatus}${updateData.approvalTiers ? ' (tier approval recorded)' : ''}`,
       },
-    });
+    }).catch(() => null); // non-fatal — the status update already succeeded; an audit failure must not 500 it
 
     return NextResponse.json({ offer }, { headers: corsHeaders() });
   } catch (error) {

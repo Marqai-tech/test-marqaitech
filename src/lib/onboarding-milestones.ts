@@ -101,9 +101,15 @@ export async function backfillMilestoneTasks(db: Tx): Promise<number> {
   const joiners = await db.$queryRawUnsafe(
     `SELECT e."id", e."dateOfJoining" FROM "Employee" e
      WHERE e."dateOfJoining" IS NOT NULL
-       AND e."dateOfJoining" >= NOW() - INTERVAL '180 days'
-       AND EXISTS (SELECT 1 FROM "OnboardingTask" t WHERE t."employeeId" = e."id")`,
+       AND e."dateOfJoining" >= NOW() - INTERVAL '30 days'
+       AND e."dateOfJoining" <= NOW() + INTERVAL '14 days'`,
   ).catch(() => []) as any[];
+  // NOTE: previously this query required an existing OnboardingTask row per
+  // employee (EXISTS ...) — but backfillMilestoneTasks is the ONLY creator of
+  // OnboardingTask rows, so that filter excluded every brand-new joiner and
+  // the progress dashboard stayed empty forever (chicken-and-egg). The window
+  // above (joined ≤30d ago / joining ≤14d ahead) keeps historical employees
+  // out; per-(employee, template) idempotency is handled inside the loop.
   if (!joiners.length) return 0;
 
   let created = 0;

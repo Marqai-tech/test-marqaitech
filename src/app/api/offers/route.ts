@@ -241,7 +241,7 @@ export async function POST(request: Request) {
         module: 'offers',
         details: `Created offer for ${candidateName} - ${position}`,
       },
-    });
+    }).catch(() => null); // non-fatal — an audit failure must not 500 the creation (offer row already exists)
 
     return NextResponse.json({ offer }, { status: 201, headers: corsHeaders() });
   } catch (error) {
