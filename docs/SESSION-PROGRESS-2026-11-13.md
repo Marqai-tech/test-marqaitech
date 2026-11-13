@@ -75,7 +75,9 @@
 | `799cacc`+`f96af13` | 4 (states 04–08) | dpl_2TVZjewx… | **READY** |
 | `d9b3253` | 5 (BRD 6.2) | dpl_7PGCmhPz… | **READY** |
 | `a0c1172` | Gap 6 (§2.1 gate) | dpl_24kdpJBW… | **READY** |
-| `8be2383` (HEAD) | merge + vendor My-Cases fix | dpl_5i3EX9wW… | **READY** |
+| `8be2383` | merge + vendor My-Cases fix | dpl_5i3EX9wW… | **READY** |
+| `1c20c71` | Gap 2 (BRD 5.3 Initiation screen) | dpl_DMYRpMRsRduN→superseded | READY |
+| `7a4edeb` (HEAD) | Gap 3 (BRD 5.1 widgets + filters) | dpl_DiCR8Yp3a2fXg | **READY** |
 
 **Live post-deploy verification (production beta):** `GET /api/candidate-portal/portal-state` returns HTTP 200 with real state-driven data — `preboarding: { PRE-2026-0001, stage: initiated, status: joined, submittedAt: 2026-11-12 }`, `awaitingHR: []`, `unreadNotifications: 13`. The Preboarding tab will therefore render for this candidate, and the journey-overview view (mock 04) is their default Preboarding screen.
 
