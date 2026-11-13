@@ -19,7 +19,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   FiCheckCircle, FiXCircle, FiFileText, FiCalendar, FiUser, FiBriefcase,
-  FiAward, FiLoader, FiDownload, FiUpload,
+  FiAward, FiLoader, FiDownload, FiUpload, FiInfo,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
@@ -65,6 +65,7 @@ export default function CandidateOffersPage() {
   // Per-offer response UI state (one set per offer; tracked by offer id)
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [signatures, setSignatures] = useState<Record<string, string>>({});
+  const [termsAccepted, setTermsAccepted] = useState<Record<string, boolean>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [signedCopies, setSignedCopies] = useState<Record<string, string>>({});
   const [signedCopyNames, setSignedCopyNames] = useState<Record<string, string>>({});
@@ -287,6 +288,37 @@ export default function CandidateOffersPage() {
                     <div className="px-6 pb-6 pt-2 space-y-4 border-t border-slate-100">
                       <h3 className="text-sm font-semibold text-slate-800">Record Your Response</h3>
 
+                      {/* Inline offer letter preview (mock 02) */}
+                      {(() => {
+                        const letterUrl = offer.offerLetterUrl || offer.generatedPdfUrl;
+                        if (!letterUrl || !letterUrl.startsWith('data:')) return null;
+                        return (
+                          <div className="rounded-xl border border-slate-200 overflow-hidden">
+                            <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-medium text-slate-600 flex items-center gap-1.5">
+                                <FiFileText className="w-3.5 h-3.5 text-red-500" />
+                                Offer Letter
+                              </span>
+                              <a href={letterUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] text-emerald-700 font-medium hover:underline">
+                                Open full letter →
+                              </a>
+                            </div>
+                            <iframe src={letterUrl} title="Offer letter preview" className="w-full h-72 bg-white" />
+                          </div>
+                        );
+                      })()}
+
+                      {/* Terms acknowledgement gate (mock 02: accept disabled until checked) */}
+                      <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={!!termsAccepted[offer.id]}
+                          onChange={(e) => setTermsAccepted((prev) => ({ ...prev, [offer.id]: e.target.checked }))}
+                          className="mt-0.5 w-4 h-4 accent-emerald-600"
+                        />
+                        <span className="text-[13px] text-slate-700">I have read the offer terms.</span>
+                      </label>
+
                       {/* E-signature input */}
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -347,8 +379,9 @@ export default function CandidateOffersPage() {
                       <div className="flex flex-col sm:flex-row gap-3">
                         <button
                           onClick={() => respond(offer.id, 'accept')}
-                          disabled={respondingId === offer.id}
-                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                          disabled={respondingId === offer.id || !termsAccepted[offer.id]}
+                          title={!termsAccepted[offer.id] ? 'Tick "I have read the offer terms" to enable' : undefined}
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <FiCheckCircle className="w-4 h-4" />
                           {respondingId === offer.id ? 'Submitting…' : 'Accept Offer'}
@@ -381,7 +414,12 @@ export default function CandidateOffersPage() {
           </div>
         )}
 
-        <p className="text-center text-[10px] text-slate-400 mt-6">
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 mt-6 flex items-start gap-2.5">
+          <FiInfo className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-emerald-800">Accepting the offer does not activate employee access. HR will initiate preboarding and notify you.</p>
+        </div>
+
+        <p className="text-center text-[10px] text-slate-400 mt-4">
           Questions about your offer? Please reply to the offer email or contact HR directly.
         </p>
         </div>

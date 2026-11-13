@@ -8,7 +8,7 @@ import {
   FiCalendar, FiTarget, FiZap, FiBookOpen, FiAlertCircle, FiActivity,
   FiArrowRight, FiStar, FiMapPin, FiRefreshCw, FiLogOut, FiBarChart2,
   FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch, FiGlobe, FiShield,
-  FiFileText, FiHelpCircle,
+  FiFileText, FiHelpCircle, FiCheck,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
@@ -424,20 +424,56 @@ export default function CandidateDashboardPage() {
       {!portalState?.preboarding && (portalState?.awaitingHR?.length ?? 0) > 0 && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           {portalState.awaitingHR.map((aw) => (
-            <div key={aw.applicationId} className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 mb-2">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <p className="text-sm font-bold text-amber-900 flex items-center gap-2">
-                    <FiCheckCircle className="w-4 h-4 text-emerald-600" />
-                    Offer accepted — awaiting HR initiation
-                  </p>
-                  <p className="text-xs text-amber-800 mt-0.5">
-                    You have accepted the offer for the {aw.jobTitle || aw.position} position. HR will notify you when preboarding is ready.
-                  </p>
+            <div key={aw.applicationId} className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 mb-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Left: accepted offer summary (mock 03) */}
+                <div className="flex items-start gap-4">
+                  <span className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <FiCheckCircle className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Offer accepted</p>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">{aw.jobTitle || aw.position}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {aw.acceptedAt ? `Accepted ${new Date(aw.acceptedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Offer accepted'}
+                      {' · '}<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium"><FiClock className="w-3 h-3" /> Awaiting HR initiation</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1.5">HR will notify you when preboarding is ready.</p>
+                    <Link href="/candidate-portal/offers" className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
+                      <FiFileText className="w-3.5 h-3.5" /> View accepted offer
+                    </Link>
+                  </div>
                 </div>
-                <Link href="/candidate-portal/offers" className="px-4 py-2 rounded-lg border border-amber-300 bg-white text-amber-800 text-xs font-semibold whitespace-nowrap hover:bg-amber-100">
-                  View accepted offer
-                </Link>
+                {/* Right: What's next stepper (mock 03) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold text-slate-700 mb-3">What&apos;s next?</p>
+                  <ol className="space-y-3">
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0"><FiCheck className="w-3 h-3" /></span>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-slate-800">Offer accepted</p>
+                        <p className="text-[11px] text-slate-500">You have accepted the offer for {aw.jobTitle || aw.position}.</p>
+                      </div>
+                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold shrink-0">Complete</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full border-2 border-slate-300 bg-white shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-slate-800">HR initiates preboarding</p>
+                        <p className="text-[11px] text-slate-500">Our HR team will set up your preboarding and share the next steps.</p>
+                      </div>
+                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold shrink-0">Pending</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full border-2 border-slate-300 bg-white shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-slate-800">Complete joining information</p>
+                        <p className="text-[11px] text-slate-500">Provide your joining details (employment information, documents, and other required details).</p>
+                      </div>
+                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold shrink-0">Pending</span>
+                    </li>
+                  </ol>
+                </div>
               </div>
             </div>
           ))}
@@ -458,6 +494,25 @@ export default function CandidateDashboardPage() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Welcome band (mock 01) — name + most-relevant application reference */}
+        <section className="flex items-center gap-4 flex-wrap">
+          <span className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-bold shrink-0">
+            {profile.name.split(/\s+/).map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'C'}
+          </span>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Welcome, {profile.name}.</h1>
+            <p className="text-sm text-slate-500">
+              {(() => {
+                const active = applications.find((a) => ['interview', 'offered'].includes(a.status))
+                  || applications.find((a) => a.status === 'applied')
+                  || applications[0];
+                if (!active) return 'Track your applications, interviews, and next steps.';
+                return `${active.jobTitle} (${active.id.slice(-8).toUpperCase()})`;
+              })()}
+            </p>
+          </div>
+        </section>
+
         {/* Stats Grid */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3">Application Overview</h2>
