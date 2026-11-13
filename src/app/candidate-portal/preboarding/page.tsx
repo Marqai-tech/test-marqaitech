@@ -20,6 +20,7 @@ import {
   FiLoader, FiEye, FiArrowLeft, FiArrowRight, FiLock,
   FiHelpCircle, FiUser, FiBriefcase, FiCalendar, FiMapPin, FiPhone,
   FiCreditCard, FiAward, FiEdit3, FiCheck, FiSend, FiAlertTriangle, FiHome,
+  FiUsers, FiChevronRight, FiBookOpen,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
@@ -197,6 +198,7 @@ export default function CandidatePreboardingWizardPage() {
   const router = useRouter();
   const [data, setData] = useState<WizardData | null>(null);
   const [portalState, setPortalState] = useState<PortalState | null>(null);
+  const [viewMode, setViewMode] = useState<'overview' | 'step'>('overview');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState(0);
@@ -530,16 +532,152 @@ export default function CandidatePreboardingWizardPage() {
           </div>
         )}
         {locked && (
-          <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 flex items-center gap-3">
-            <FiLock className="h-5 w-5 text-emerald-600 shrink-0" />
-            <div className="text-sm text-emerald-800">
-              <strong>Submitted to HR.</strong> Your details are now read-only while HR verifies them.
-              {data.portalSubmittedAt && <> Submitted on {new Date(data.portalSubmittedAt).toLocaleString('en-IN')}.</>}
+          <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <FiLock className="h-5 w-5 text-emerald-600 shrink-0" />
+              <div className="text-sm text-emerald-800">
+                <strong>Submitted to HR.</strong> Your details are now read-only while HR verifies them.
+                {data.portalSubmittedAt && <> Submitted on {new Date(data.portalSubmittedAt).toLocaleString('en-IN')}.</>}
+              </div>
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { label: 'Submitted', done: true },
+                { label: 'HR review', done: false },
+                { label: 'Joining confirmation', done: data.onboardingStatus === 'provisional_employee' || data.onboardingStatus === 'active_employee' },
+                { label: 'Employee activation', done: data.onboardingStatus === 'active_employee' },
+              ].map((s, i) => (
+                <div key={s.label} className={`rounded-lg px-3 py-2 flex items-center gap-2 ${s.done ? 'bg-emerald-100 text-emerald-800' : 'bg-white border border-emerald-100 text-slate-500'}`}>
+                  {s.done ? <FiCheck className="w-3.5 h-3.5 shrink-0" /> : <span className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 shrink-0" />}
+                  <span className="text-[11px] font-medium">{s.label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-emerald-700 flex items-center gap-1.5"><FiAlertCircle className="w-3.5 h-3.5" /> Submission does not activate employee access.</p>
           </div>
         )}
 
+        {/* ── Journey overview (mock 04) — the default view; each step opens the wizard ── */}
+        {viewMode === 'overview' && (
+          <>
+            <section className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 flex items-start gap-3">
+              <span className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0"><FiSend className="h-4 w-4" /></span>
+              <div>
+                <p className="text-sm font-bold text-emerald-900">HR has initiated your preboarding.</p>
+                <p className="text-xs text-emerald-800 mt-0.5">Start your preboarding before your joining date to help us get everything ready for a smooth and hassle-free onboarding.</p>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
+                <div className="relative w-16 h-16 shrink-0">
+                  <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
+                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="#059669" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${Math.min(completionPct,100) * 0.972} 100`} />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-slate-700">{completedCount} of 9</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Preboarding progress</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{completedCount} of 9 steps complete</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
+                <span className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><FiFileText className="h-5 w-5" /></span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Documents</p>
+                  <span className={`inline-block mt-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                    data.documents.length === 0 ? 'bg-slate-100 text-slate-600'
+                    : data.documents.every((d: any) => d.status === 'approved') ? 'bg-emerald-100 text-emerald-700'
+                    : data.documents.some((d: any) => d.status === 'rejected' || d.status === 'resubmission_requested') ? 'bg-red-100 text-red-700'
+                    : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {data.documents.length === 0 ? 'No documents assigned'
+                      : data.documents.every((d: any) => d.status === 'approved') ? 'All approved'
+                      : data.documents.some((d: any) => d.status === 'rejected' || d.status === 'resubmission_requested') ? 'Correction requested'
+                      : `${data.documents.filter((d: any) => d.status !== 'pending').length} of ${data.documents.length} submitted`}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><FiHelpCircle className="h-5 w-5" /></span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800">Need help?</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Contact HR for any questions about preboarding.</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowHelp(v => !v)} className="px-3.5 py-2 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-semibold hover:bg-emerald-50 whitespace-nowrap">Contact HR</button>
+              </div>
+            </section>
+
+            <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {STEPS.map((s, i) => {
+                const st = stepStatuses[i];
+                const done = st === 'submitted' || st === 'approved';
+                const isCurrent = !done && st !== 'rejected' && (i === 0 || stepStatuses.slice(0, i).some((x) => x === 'submitted' || x === 'approved'));
+                const locked = i === STEPS.length - 1 && !(stepStatuses.slice(0, 8).every((x) => x === 'submitted' || x === 'approved'));
+                const icons = [<FiCheckCircle key="a" />, <FiUser key="b" />, <FiMapPin key="c" />, <FiUsers key="d" />, <FiBookOpen key="e" />, <FiCreditCard key="f" />, <FiUpload key="g" />, <FiFileText key="h" />, <FiLock key="i" />];
+                const descriptions = [
+                  'A quick overview of what to expect in your preboarding journey.',
+                  'Provide your basic personal details as per official records.',
+                  'Add your current and permanent address details.',
+                  'Share your family details and emergency contact information.',
+                  'Provide your education qualifications and relevant work experience.',
+                  'Add your bank account details and statutory information (e.g., PAN, Aadhaar, etc.).',
+                  'Upload the required documents as per the checklist.',
+                  'Review your provided information and agree to the declaration.',
+                  'Submit your completed preboarding details to HR for verification.',
+                ];
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => { if (locked) { toast.error('Complete the earlier steps first — the final submission unlocks when everything is ready.'); return; } setActiveStep(i); setViewMode('step'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className={`w-full text-left px-5 py-4 flex items-center gap-4 border-b border-slate-100 last:border-b-0 transition-colors ${isCurrent && !done ? 'bg-emerald-50/60' : 'hover:bg-slate-50'}`}
+                  >
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold shrink-0 ${
+                      done ? 'bg-emerald-500 text-white' : st === 'rejected' ? 'bg-red-500 text-white' : isCurrent ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'
+                    }`}>{done ? <FiCheck className="h-4 w-4" /> : i + 1}</span>
+                    <span className="text-emerald-600 shrink-0 hidden sm:block">{icons[i]}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-slate-800">{s.label}</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">{descriptions[i]}</span>
+                    </span>
+                    {locked ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 font-medium shrink-0"><FiLock className="w-3 h-3" /> Locked</span>
+                    ) : done ? (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-semibold shrink-0">{st === 'approved' ? 'Approved' : 'Complete'}</span>
+                    ) : st === 'rejected' ? (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full bg-red-100 text-red-700 font-semibold shrink-0">Needs attention</span>
+                    ) : isCurrent ? (
+                      <span className="text-[11px] px-3 py-1.5 rounded-full bg-emerald-600 text-white font-semibold shrink-0">Start</span>
+                    ) : st === 'in_progress' ? (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold shrink-0">In progress</span>
+                    ) : (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 font-medium shrink-0">Not started</span>
+                    )}
+                    <FiChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                  </button>
+                );
+              })}
+            </section>
+
+            <section className="flex items-center justify-between gap-3 flex-wrap">
+              <button onClick={() => router.push('/candidate-portal/dashboard')} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 hover:text-emerald-800">
+                <FiArrowLeft className="w-4 h-4" /> Back to applications
+              </button>
+              <button
+                onClick={() => { const next = STEPS.findIndex((_, i) => { const st = stepStatuses[i]; return st !== 'submitted' && st !== 'approved'; }); setActiveStep(next === -1 ? 8 : next); setViewMode('step'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+              >
+                Continue preboarding <FiArrowRight className="w-4 h-4" />
+              </button>
+            </section>
+          </>
+        )}
+
         {/* ── Stepper ── */}
+        {viewMode === 'step' && (
         <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 overflow-x-auto">
           <div className="flex items-center gap-1 min-w-max">
             {STEPS.map((s, i) => {
@@ -569,13 +707,19 @@ export default function CandidatePreboardingWizardPage() {
           </div>
           <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${completionPct}%` }} /></div>
         </section>
+        )}
 
         {/* ── Step content ── */}
         <section className="bg-white rounded-xl shadow-sm border border-slate-200">
           <div className="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
-            <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm sm:text-base">
-              <FiEdit3 className="h-5 w-5 text-emerald-600 shrink-0" /> Step {activeStep + 1}: {STEPS[activeStep].label}
-            </h2>
+            <div className="min-w-0">
+              <button onClick={() => setViewMode('overview')} className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-800 mb-1">
+                <FiArrowLeft className="w-3 h-3" /> Preboarding journey
+              </button>
+              <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm sm:text-base">
+                <FiEdit3 className="h-5 w-5 text-emerald-600 shrink-0" /> Step {activeStep + 1}: {STEPS[activeStep].label}
+              </h2>
+            </div>
             <StepStatusChip status={stepStatuses[activeStep]} />
           </div>
           <div className="px-5 sm:px-6 py-5">
@@ -988,14 +1132,30 @@ function BankStep({ bank, setBank, errors, locked }:
 // ─────────────────── Step 7: Document Upload ───────────────────
 function DocumentsStep({ docs, uploadingDocId, onUpload, onView, locked, onNext }:
   { docs: OnboardingDocument[]; uploadingDocId: string | null; onUpload: (id: string, f: File) => void; onView: (d: OnboardingDocument) => void; locked: boolean; onNext: () => void }) {
+  const needsAction = docs.filter((d) => d.status === 'rejected' || d.status === 'resubmission_requested');
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">Upload the required joining documents. Allowed formats: PDF, JPG, PNG — maximum 10MB each. Rejected documents can be re-uploaded after correction.</p>
+      <p className="text-sm text-slate-500">Upload the required joining documents. Allowed formats: PDF, JPG, PNG — maximum 10MB each. Uploads are reviewed individually by HR.</p>
+      {needsAction.length > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-bold text-amber-900 flex items-center gap-2">
+            <FiAlertTriangle className="w-4 h-4" /> Action required: replace {needsAction.length === 1 ? `"${needsAction[0].documentLabel}"` : `${needsAction.length} documents`}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {needsAction.map((d) => (
+              <li key={d.id} className="text-xs text-amber-800">
+                <span className="font-semibold">{d.documentLabel}:</span> {d.reviewNotes || 'HR requested a replacement. Please upload a clear, complete copy.'}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-amber-700 mt-2">Only the requested documents will return to HR review. Approved documents remain unchanged.</p>
+        </div>
+      )}
       {docs.map(doc => {
         const cfg = DOC_STATUS[doc.status] || DOC_STATUS.pending;
         const canUpload = !locked && (doc.status === 'pending' || doc.status === 'rejected' || doc.status === 'resubmission_requested');
         return (
-          <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border border-slate-200 rounded-lg">
+          <div key={doc.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border ${doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'border-amber-300 bg-amber-50/40 border-l-4 border-l-amber-400' : 'border-slate-200'}`}>
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${doc.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'bg-red-100 text-red-600' : doc.status === 'submitted' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
               <FiFileText className="h-5 w-5" />
             </div>
