@@ -56,10 +56,7 @@ export default function CandidateLoginPage() {
         // - If password exists, default to password tab
         // - Otherwise, default to OTP tab
         if (d.hasPassword && tab === 'otp') setTab('password');
-        else if (!d.hasPassword && tab === 'password' && !d.exists) {
-          // New user — show OTP tab so they can register
-          setTab('otp');
-        }
+        else if (!d.hasPassword && tab === 'password' && d.exists) setTab('otp');
       } catch {
         // ignore — user can still try either tab
       }
