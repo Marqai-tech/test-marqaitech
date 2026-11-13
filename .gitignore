@@ -48,3 +48,9 @@ nexus-hrms/
 tool-results/
 dev-verify.log
 core
+<<<<<<< HEAD
+=======
+
+.vercel
+.env*
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)

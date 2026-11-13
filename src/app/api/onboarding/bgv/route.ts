@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+<<<<<<< HEAD
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { hashPassword } from '@/lib/auth';
 import { findJoiningBlockers } from '@/lib/onboarding-documents';
+=======
+import { randomBytes } from 'node:crypto';
+import { getDb } from '@/lib/tenant-db';
+import { getAuthInfo } from '@/lib/companyScope';
+import { hashPassword } from '@/lib/auth';
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'PATCH, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
@@ -31,6 +38,7 @@ export async function PATCH(req: NextRequest) {
     if (bgvStatus === 'approved') {
       if (pb.onboardingStatus === 'active_employee') return NextResponse.json({ error: 'Already activated' }, { status: 409, headers: CORS });
 
+<<<<<<< HEAD
       // BRD 5.9/6.2 — employee activation requires every required document
       // approved; rejected/pending required docs block BGV approval.
       const blockers = await findJoiningBlockers(db, preboardingCandidateId);
@@ -41,6 +49,8 @@ export async function PATCH(req: NextRequest) {
         }, { status: 409, headers: CORS });
       }
 
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
       // ─── Generate sequential MarqNNN employee code ───
       let empCode = 'Marq001';
       try {
@@ -65,16 +75,31 @@ export async function PATCH(req: NextRequest) {
       const firstName = (pb.candidateName||'New').split(' ')[0];
       const lastName = (pb.candidateName||'Employee').split(' ').slice(1).join(' ') || 'Employee';
       const userEmail = (pb.companyEmail || pb.candidateEmail || '').toLowerCase();
+<<<<<<< HEAD
+=======
+      const temporaryPassword = `Marq!${randomBytes(9).toString('base64url')}`;
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 
       // ─── Ensure User row exists (created at convert-to-draft time) ───
       let user = await db.user.findUnique({ where: { email: userEmail }, select: { id: true, role: true, status: true } }).catch(() => null);
       if (!user) {
+<<<<<<< HEAD
         const hashed = await hashPassword('Welcome@123');
         user = await db.user.create({ data: { email: userEmail, password: hashed, name: pb.candidateName, role: 'employee', status: 'active', tenantId: auth.tenantId || null } }).catch((e:any) => { throw new Error(`User create failed: ${e.message}`); }) as any;
       } else {
         if (user.role !== 'employee' || user.status !== 'active') {
           await db.user.update({ where: { id: user.id }, data: { role: 'employee', status: 'active' } }).catch(() => null);
         }
+=======
+        const hashed = await hashPassword(temporaryPassword);
+        user = await db.user.create({ data: { email: userEmail, password: hashed, name: pb.candidateName, role: 'employee', status: 'active', tenantId: auth.tenantId || null } }).catch((e:any) => { throw new Error(`User create failed: ${e.message}`); }) as any;
+      } else {
+        const hashed = await hashPassword(temporaryPassword);
+        await db.user.update({ where: { id: user.id }, data: { password: hashed, role: 'employee', status: 'active' } }).catch(() => null);
+      }
+      if (!user) {
+        return NextResponse.json({ error: 'Unable to resolve or create the employee account' }, { status: 500, headers: CORS });
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
       }
 
       // ─── Determine if there's already a provisional Employee to upgrade ───
@@ -132,27 +157,46 @@ export async function PATCH(req: NextRequest) {
       try {
         const { sendEmail } = await import('@/lib/email');
         await sendEmail({
+<<<<<<< HEAD
           to: pb.candidateEmail,
+=======
+          to: pb.candidateEmail || userEmail,
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
           subject: 'Welcome to the team! Your employee account is now active',
           html: `<h2>Welcome aboard, ${firstName}!</h2>
                  <p>Your background verification has been approved. Your employee account is now active.</p>
                  <table style="border-collapse:collapse;font-family:Arial;">
                    <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Employee ID:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><b style="color:#0F766E;font-size:16px;">${empCode}</b></td></tr>
                    <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Company Email:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${pb.companyEmail || pb.candidateEmail}</td></tr>
+<<<<<<< HEAD
                    <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Password:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">Welcome@123</td></tr>
                    <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Login URL:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><a href="https://3boxes-hrms-beta.vercel.app/login">https://3boxes-hrms-beta.vercel.app/login</a></td></tr>
                  </table>
                  <p style="margin-top:16px;font-size:13px;color:#475569;">You can now log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Your password is <code>Welcome@123</code> — please change it after your first login.</p>`,
+=======
+                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Temporary password:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${temporaryPassword}</td></tr>
+                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Login URL:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><a href="https://3boxes-hrms-beta.vercel.app/login">https://3boxes-hrms-beta.vercel.app/login</a></td></tr>
+                 </table>
+                 <p style="margin-top:16px;font-size:13px;color:#475569;">You can now log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Change this temporary password immediately after signing in.</p>`,
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
         }).catch(() => null);
       } catch (e:any) { console.warn('[BGV approve] Email send failed:', e.message); }
 
       // ─── In-app notification ───
+<<<<<<< HEAD
       if (user) {
+=======
+      if (user && auth.tenantId) {
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
         try {
           await db.notification.create({ data: {
             userId: user.id, tenantId: auth.tenantId,
             title: 'Welcome to the team!',
+<<<<<<< HEAD
             message: `Account active. Employee ID: ${empCode}. Log in with Marq ID + Welcome@123.`,
+=======
+            message: `Account active. Employee ID: ${empCode}. A temporary password was sent to your email.`,
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
             type: 'success', category: 'onboarding', isRead: false, isEmailSent: false,
           } }).catch(() => null);
         } catch {}
@@ -166,7 +210,11 @@ export async function PATCH(req: NextRequest) {
         onboardingStatus: 'active_employee',
         employeeId,
         employeeCode: empCode,
+<<<<<<< HEAD
         loginEmail: pb.companyEmail || pb.candidateEmail,
+=======
+        loginEmail: pb.companyEmail || pb.candidateEmail || '',
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
         isUpgrade,
       }, { headers: CORS });
 

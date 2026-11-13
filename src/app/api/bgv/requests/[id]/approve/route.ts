@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+<<<<<<< HEAD
+=======
+import { randomBytes } from 'node:crypto';
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 
@@ -78,6 +82,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
           // ─── Ensure User row exists ───
           let user = await db.user.findUnique({ where: { email: userEmail }, select: { id: true, role: true, status: true } }).catch(() => null);
+<<<<<<< HEAD
           if (!user) {
             const { hashPassword } = await import('@/lib/auth');
             const hashed = await hashPassword('Welcome@123');
@@ -86,6 +91,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             if (user.role !== 'employee' || user.status !== 'active') {
               await db.user.update({ where: { id: user.id }, data: { role: 'employee', status: 'active' } }).catch(() => null);
             }
+=======
+          const temporaryPassword = `Marq!${randomBytes(9).toString('base64url')}`;
+          const { hashPassword } = await import('@/lib/auth');
+          const hashedPassword = await hashPassword(temporaryPassword);
+          if (!user) {
+            user = await db.user.create({ data: { email: userEmail, password: hashedPassword, name: pb.candidateName, role: 'employee', status: 'active', tenantId: auth.tenantId || null } }).catch((e:any) => { throw new Error(`User create: ${e.message}`); }) as any;
+          } else {
+            await db.user.update({ where: { id: user.id }, data: { password: hashedPassword, role: 'employee', status: 'active' } }).catch(() => null);
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
           }
           if (!user) {
             // create failed or missing — abort the activation cleanly instead of writing orphan rows
@@ -148,10 +162,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                      <table style="border-collapse:collapse;font-family:Arial;">
                        <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Employee ID:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><b style="color:#0F766E;font-size:16px;">${empCode}</b></td></tr>
                        <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Company Email:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${pb.companyEmail||pb.candidateEmail}</td></tr>
+<<<<<<< HEAD
                        <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Password:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">Welcome@123</td></tr>
                        <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Login URL:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><a href="https://3boxes-hrms-beta.vercel.app/login">https://3boxes-hrms-beta.vercel.app/login</a></td></tr>
                      </table>
                      <p style="margin-top:16px;font-size:13px;color:#475569;">Log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Your password is <code>Welcome@123</code>.</p>` }).catch(() => null);
+=======
+                       <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Temporary password:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${temporaryPassword}</td></tr>
+                       <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Login URL:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><a href="https://3boxes-hrms-beta.vercel.app/login">https://3boxes-hrms-beta.vercel.app/login</a></td></tr>
+                     </table>
+                     <p style="margin-top:16px;font-size:13px;color:#475569;">Log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Change this temporary password immediately after signing in.</p>` }).catch(() => null);
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
           } catch {}
 
           if (user && auth.tenantId) { try { await db.notification.create({ data: { userId: user.id, tenantId: auth.tenantId, title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: false } }).catch(() => null); } catch {} }

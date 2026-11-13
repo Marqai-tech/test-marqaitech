@@ -212,6 +212,7 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 - `GET /api/audit` — role gate added (was readable by ANY authenticated user)
 - Candidate upload routes (`upload`, `upload-v2`) — approved-document lock (409) + PDF/JPG/PNG MIME whitelist, server-side
 - `GET /api/preboarding/brd/candidate/[id]` — server-side masking of bank account / confirm / PAN / UAN / PF / ESI (was UI-only, bypassable via API)
+<<<<<<< HEAD
 
 ## 17. E2E round 2026-11-13 (afternoon) — 4 user-reported issues + full-journey test
 
@@ -229,3 +230,5 @@ Additional defects found by the E2E and fixed in `483eb97` (both re-verified liv
 2. **Offers API 500-after-write** — `POST /api/offers` and `PATCH /api/offers/{id}` (approve) returned 500 AFTER the offer row was committed because the trailing `auditLog.create` had no `.catch`. Now best-effort, matching convention.
 
 E2E scripts (re-runnable): `scripts/e2e_part1_apply_to_submit.py`, `scripts/e2e_part2_verification_to_employee.py`, `scripts/e2e_run2_readiness.py` (repo root `scripts/` of the sandbox, not the app). Test accounts: candidate `e2e.fresh.1794554661@hrmscheck.io` / `Welcome@123` (now employee Marq022), candidate `e2e.fresh2.1794555176@hrmscheck.io` (ready_to_join), HR `e2e-verify@hrmscheck.io` / `Verify@123`.
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)

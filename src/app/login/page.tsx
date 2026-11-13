@@ -417,14 +417,24 @@ export default function LoginPage() {
 
           {/* Headline — reference image 1 */}
           <h1 className="text-[28px] sm:text-[32px] font-extrabold text-[#16254E] tracking-tight leading-tight mb-2">
+<<<<<<< HEAD
             {isPlatformSite && !tenantInfo ? 'Welcome Back, Super Admin' : loginMode === 'user' ? 'Welcome Back' : 'Candidate Login'}
+=======
+            {isPlatformSite && !tenantInfo ? 'Welcome Back, Super Admin' : loginMode === 'user' ? 'Welcome Back' : loginMode === 'vendor' ? 'Vendor Portal Login' : 'Candidate Login'}
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
           </h1>
           <p className="text-[13px] sm:text-sm text-slate-500 leading-relaxed mb-4">
             {isPlatformSite && !tenantInfo
               ? 'Manage all tenants, approve trials, and control subscriptions.'
               : loginMode === 'user'
                 ? "Today is a new day. It's your day. You shape it. Sign in to start managing your people and workforce with ease."
+<<<<<<< HEAD
                 : 'Track your applications, optimize your resume, and find matching jobs.'}
+=======
+                : loginMode === 'vendor'
+                  ? 'Sign in to review assigned background-verification cases and manage your vendor team.'
+                  : 'Track your applications, optimize your resume, and find matching jobs.'}
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
           </p>
           {isPlatformSite && (
             <div className="mb-5 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200">
@@ -1151,7 +1161,11 @@ export default function LoginPage() {
    illustration pane on desktop and below the form on mobile (lg:hidden), so
    the left login column stays short and matches the reference format.
    ═══════════════════════════════════════════════════════════════════════════ */
+<<<<<<< HEAD
 function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' }) {
+=======
+function LoginQuickOptions({ loginMode }: { loginMode: 'user' | 'candidate' | 'vendor' }) {
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
   const [showAppInfo, setShowAppInfo] = useState(false);
 
   return (

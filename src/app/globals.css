@@ -466,6 +466,7 @@ select[required]:invalid,
 textarea[required]:not(:placeholder-shown):invalid {
   border-color: #ef4444; /* red-500 */
 }
+<<<<<<< HEAD
 
 /* Candidate portal nav: horizontal scroll without a visible scrollbar */
 .no-scrollbar {
@@ -475,3 +476,5 @@ textarea[required]:not(:placeholder-shown):invalid {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)

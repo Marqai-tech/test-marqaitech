@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+<<<<<<< HEAD
+=======
+import { randomBytes } from 'node:crypto';
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { hashPassword } from '@/lib/auth';
@@ -104,8 +108,13 @@ export async function POST(req: Request) {
 
     let existingUser = await db.user.findUnique({ where: { email: finalCompanyEmail } }).catch(() => null);
     if (!existingUser) {
+<<<<<<< HEAD
       const hashedPwd = await hashPassword('Welcome@123');
       existingUser = await db.user.create({ data: { email: finalCompanyEmail, password: hashedPwd, name: resolvedName, role: 'employee', status: 'active', tenantId: auth.tenantId || null } }).catch(() => null as any);
+=======
+      const hashedPwd = await hashPassword(`Pending!${randomBytes(12).toString('base64url')}`);
+      existingUser = await db.user.create({ data: { email: finalCompanyEmail, password: hashedPwd, name: resolvedName, role: 'employee', status: 'inactive', tenantId: auth.tenantId || null } }).catch(() => null as any);
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
     }
 
     const pbId = `pb-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;

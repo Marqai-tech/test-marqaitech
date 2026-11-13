@@ -115,7 +115,11 @@ export default function VendorManagementVendorsPage() {
   const [expandedLoading, setExpandedLoading] = useState(false);
 
   // invite user form state (per vendor)
+<<<<<<< HEAD
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'vendor_employee', password: 'Welcome@123' });
+=======
+  const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'vendor_employee' });
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
   const [inviting, setInviting] = useState(false);
   const [userActionLoading, setUserActionLoading] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<VendorUser | null>(null);
@@ -204,7 +208,11 @@ export default function VendorManagementVendorsPage() {
   const toggleExpand = async (v: VendorCompany) => {
     if (expandedId === v.id) { setExpandedId(null); return; }
     setExpandedId(v.id);
+<<<<<<< HEAD
     setInviteForm({ email: '', name: '', role: 'vendor_employee', password: 'Welcome@123' });
+=======
+    setInviteForm({ email: '', name: '', role: 'vendor_employee' });
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
     setResetTarget(null);
     setExpandedLoading(true);
     try { await reloadUsers(v.id); } catch { toast.error('Failed to load vendor users'); }
@@ -219,12 +227,21 @@ export default function VendorManagementVendorsPage() {
     try {
       const res = await fetch(`/api/vendors/${vendorId}/invite-employee`, {
         method: 'POST', headers: getAuthHeaders(),
+<<<<<<< HEAD
         body: JSON.stringify({ email: inviteForm.email.trim(), name: inviteForm.name.trim(), role: inviteForm.role, password: inviteForm.password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       toast.success(`Vendor ${inviteForm.role === 'vendor_admin' ? 'admin' : 'employee'} created — password: ${data.password || inviteForm.password}`, { duration: 6000 });
       setInviteForm({ email: '', name: '', role: 'vendor_employee', password: 'Welcome@123' });
+=======
+        body: JSON.stringify({ email: inviteForm.email.trim(), name: inviteForm.name.trim(), role: inviteForm.role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(`Vendor ${inviteForm.role === 'vendor_admin' ? 'admin' : 'employee'} invited. They must activate from the emailed link and create their own password.`, { duration: 7000 });
+      setInviteForm({ email: '', name: '', role: 'vendor_employee' });
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
       await reloadUsers(vendorId);
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed'); }
     finally { setInviting(false); }
@@ -403,13 +420,20 @@ export default function VendorManagementVendorsPage() {
                           <option value="vendor_admin">Vendor Admin</option>
                         </select>
                         <div className="flex gap-2">
+<<<<<<< HEAD
                           <input value={inviteForm.password} onChange={e => setInviteForm({ ...inviteForm, password: e.target.value })} placeholder="Initial password" className="px-3 py-2 border border-thb-border rounded-lg text-sm flex-1 min-w-0" />
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
                           <button onClick={() => addUser(v.id)} disabled={inviting} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
                             {inviting ? <FiLoader className="w-4 h-4 animate-spin" /> : <FiSend className="w-4 h-4" />} Add
                           </button>
                         </div>
                       </div>
+<<<<<<< HEAD
                       <p className="text-xs text-thb-text-muted mt-2">The user can immediately log in at <span className="font-medium">/login → Vendor tab</span> with this password.</p>
+=======
+                      <p className="text-xs text-thb-text-muted mt-2">An activation email is queued. The user creates a password from the single-use link, then signs in at <span className="font-medium">/login → Vendor</span>.</p>
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
                     </div>
 
                     {/* Users table */}

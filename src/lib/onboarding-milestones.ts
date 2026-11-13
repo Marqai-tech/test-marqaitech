@@ -101,6 +101,7 @@ export async function backfillMilestoneTasks(db: Tx): Promise<number> {
   const joiners = await db.$queryRawUnsafe(
     `SELECT e."id", e."dateOfJoining" FROM "Employee" e
      WHERE e."dateOfJoining" IS NOT NULL
+<<<<<<< HEAD
        AND e."dateOfJoining" >= NOW() - INTERVAL '30 days'
        AND e."dateOfJoining" <= NOW() + INTERVAL '14 days'`,
   ).catch(() => []) as any[];
@@ -110,6 +111,11 @@ export async function backfillMilestoneTasks(db: Tx): Promise<number> {
   // the progress dashboard stayed empty forever (chicken-and-egg). The window
   // above (joined ≤30d ago / joining ≤14d ahead) keeps historical employees
   // out; per-(employee, template) idempotency is handled inside the loop.
+=======
+       AND e."dateOfJoining" >= NOW() - INTERVAL '180 days'
+       AND EXISTS (SELECT 1 FROM "OnboardingTask" t WHERE t."employeeId" = e."id")`,
+  ).catch(() => []) as any[];
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
   if (!joiners.length) return 0;
 
   let created = 0;

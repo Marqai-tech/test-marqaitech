@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
+<<<<<<< HEAD
 import { findJoiningBlockers } from '@/lib/onboarding-documents';
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
@@ -43,6 +46,7 @@ export async function POST(req: NextRequest) {
     if (pb.onboardingStatus === 'active_employee') return NextResponse.json({ error: 'Already activated' }, { status: 409, headers: CORS });
     if (pb.onboardingStatus === 'bgv_failed') return NextResponse.json({ error: 'BGV failed' }, { status: 400, headers: CORS });
 
+<<<<<<< HEAD
     // BRD 5.9/5.10 — provisional joining also requires all required documents
     // approved; a rejected/pending required document blocks it.
     const blockers = await findJoiningBlockers(db, preboardingCandidateId);
@@ -53,6 +57,8 @@ export async function POST(req: NextRequest) {
       }, { status: 409, headers: CORS });
     }
 
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
     // ─── Resolve department + designation (required by Employee model) ───
     let deptId = pb.departmentId;
     if (!deptId) {

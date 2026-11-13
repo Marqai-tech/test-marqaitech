@@ -46,7 +46,11 @@
 
 Gaps 2-5 are DONE (deployed + verified): Gap 2 initiation screen (dpl_DMY→DiCR8Yp READY), Gap 3 widgets/filters (READY, pipeline API returns employmentType/company), Gap 4 doc hardening (live: 54 docs carry documentNumber/expiryDate/expired/fileHash), Gap 5 milestones (wired into onboarding-reminders sweep; runs on schedule — live trigger requires CRON_SECRET by design). For the next session:
 
+<<<<<<< HEAD
 **Part 10: Full E2E live verification** — DONE 13 Nov 2026. Full API E2E journey (fresh candidate → apply → offer → accept → BRD 5.3 initiation → wizard ×5 → 6 docs upload → HR rework → v2 re-upload → approve → submit → BRD 5.11 confirm-joined → BRD 6.2 ECA authorize → employee created atomically → BGV initiate → vendor assign → verifier 3 checks Clear → report v1 → HR approve): **26/27 steps PASS, Marq025 issued**. Leftover case bgv-1794542921962-u2g0ta (report v2) approved → Marq020. 10 live UI screenshots in /p10-screens of the repo download bundle. Two production bugs found+fixed: Employee.workMode missing (928e3d1), offers auditLog 500-after-commit (483eb97). Known test-data rule: synthetic candidates need unique FIRST names (companyEmail = firstname@marqaitech.com; Employee.userId unique). Offer send requires branded PDF first (NO_PDF); email send honestly fails without provider (EMAIL_FAILED → reverts to approved).
+=======
+**Part 10: Full E2E live verification** of the complete journey (fresh candidate → offer → accept → HR initiate → wizard → documents → rework → submit → joining confirm → BGV → activation) + screenshots of the 3 portal states + final delivery report.
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 
 ## E2E verification done this session (live, beta)
 | # | Test | Result |
@@ -124,6 +128,7 @@ curl -s -X POST "https://api.vercel.com/v13/deployments?teamId=team_TPceTg1lfUwM
 
 ### Remaining backlog (small, documented in compliance doc §15)
 - 5.9 Escalate to HR Admin / Request Additional Info actions; 5.2 Candidate-ID search + Edit row action; per-record document slots (5.6); notification fan-out; malware/AV integration; orientation/training events as first-class entities.
+<<<<<<< HEAD
 
 ---
 
@@ -136,3 +141,5 @@ Commits: `6d1a84d` (candidate docs response dropped Part 7 fields) → `0f6ee99`
 **Test data:** candidate 1 `e2e.fresh.1794554661@hrmscheck.io` / `Welcome@123` (→ Marq022); candidate 2 `e2e.fresh2.1794555176@hrmscheck.io` (OTP); HR `e2e-verify@hrmscheck.io` / `Verify@123`. PAN rejection remark: "Blurry scan — please re-upload a clear copy of your PAN card."
 
 **483eb97 verified live after deployment** (`scripts/verify_e2e_fixes.py`): `POST /api/offers` → 201 with payload (was 500-after-write); `PATCH approve` → 200 status=approved; cron sweep backfilled **20 milestone tasks** and Marq022 now appears in `/onboarding/progress` (4 milestones, onboardingCompleted flags). Both E2E-found defects closed. Feature backlog unchanged (5.9 escalate/request-info, 5.10 assign-task backend, per-record doc slots, malware/AV, email provider).
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)

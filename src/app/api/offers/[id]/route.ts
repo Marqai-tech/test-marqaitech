@@ -429,7 +429,11 @@ export async function PATCH(
         module: 'offers',
         details: `Updated offer ${id} status to ${effectiveStatus}${updateData.approvalTiers ? ' (tier approval recorded)' : ''}`,
       },
+<<<<<<< HEAD
     }).catch(() => null); // non-fatal — the status update already succeeded; an audit failure must not 500 it
+=======
+    });
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
 
     return NextResponse.json({ offer }, { headers: corsHeaders() });
   } catch (error) {

@@ -104,6 +104,7 @@ export async function findDuplicates(
   }
   return hits;
 }
+<<<<<<< HEAD
 
 export interface JoiningBlocker {
   documentLabel: string;
@@ -131,3 +132,5 @@ export async function findJoiningBlockers(db: Tx, preboardingCandidateId: string
     required: r.required !== false,
   }));
 }
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)

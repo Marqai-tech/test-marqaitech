@@ -333,7 +333,10 @@ const EXTRA_STATEMENTS = [
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedApplicationId" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedOfferId" TEXT`,
+<<<<<<< HEAD
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "workMode" TEXT`,
+=======
+>>>>>>> e220f68 (Complete HRMS lifecycle workflow and UI audit fixes)
   `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
 
   // ─── BRD 5.3 Preboarding Initiation (tenant DBs) ───
