@@ -41,7 +41,9 @@ export async function GET(req: NextRequest) {
     const scope = url.searchParams.get('scope'); // 'mine' = interviews where I'm a panelist
 
     // Task 167: use RAW SQL for schema-drift resilience
-    let sql = `SELECT i.*, ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+    let sql = `SELECT i.*, ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle",
+                      CASE WHEN jp."interviewPlan" IS NULL OR jp."interviewPlan" = '' THEN 0
+                           ELSE jsonb_array_length(jp."interviewPlan"::jsonb) END AS "planTotal"
                FROM "Interview" i
                LEFT JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
                LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"

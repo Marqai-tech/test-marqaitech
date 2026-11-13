@@ -66,6 +66,7 @@ interface Interview {
   hrDecision?: string | null;
   hrDecisionReason?: string | null;
   round?: number | null;
+  planTotal?: number | null;
 }
 
 /* ── Constants ── */
@@ -711,6 +712,11 @@ export default function InterviewsPage() {
                       <span className="thb-badge thb-badge-primary">
                         {interviewDisplayLabel(interview.type, interview.round)}
                       </span>
+                      {Number(interview.planTotal || 0) > 0 && (
+                        <span className="thb-badge bg-slate-50 text-slate-700 border border-slate-200">
+                          Round {interview.round || 1} of {interview.planTotal} · {Math.max(Number(interview.planTotal) - Number(interview.round || 1), 0)} remaining
+                        </span>
+                      )}
                       {interview.hrDecision && (
                         <span className="thb-badge bg-indigo-50 text-indigo-700">
                           Decision: {decisionLabels[interview.hrDecision] || interview.hrDecision}
