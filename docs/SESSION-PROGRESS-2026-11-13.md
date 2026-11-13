@@ -229,3 +229,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live; prod commit = f0834ce.
 
 **Production = GitHub main (`f0834ce`).**
+
+## EVENING 10 — Dynamic interview plans deployed (`122cd1e`, incl. `dc0eb46` + `61042da` + DB-fix)
+
+`dc0eb46` "Add dynamic interview plans per job posting": new nullable `JobPosting.interviewPlan` (JSON array of {sequence,name,type}); recruitment create/PATCH normalize+persist the plan; `POST /api/interviews` honours the plan as authoritative (409 INTERVIEW_PLAN_COMPLETE / INTERVIEW_PLAN_TYPE_MISMATCH). `61042da` "Enforce job interview plan before offer" (+28, offer route gate). **Deploy blocker found & fixed:** the commit shipped the schema field but NO migration — JobPosting is only covered by `_generated-tables` CREATE IF NOT EXISTS (no-op on existing table) and gen-init-table-fixes (JobPosting not in 0_init), so the column would never reach the production DB and every Prisma JobPosting query would 500. Fix commit `122cd1e`: one idempotent `ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT` added to the hand-curated schema-sync list. (Vercel env API now returns sensitive-encrypted blobs — direct out-of-band ALTER not possible, so the fix rides the build.)
+
+**Deploy:** `dpl_42zAtQuPcGwGMcoAsALQFHanA5Gq` (SHA 122cd1e = dc0eb46 + 61042da + fix) **READY in 14m40s** (longer: SchemaSyncState hash changed → full 1952-statement sync). Build logs: `[tenant-sync] + JobPosting.interviewPlan TEXT` applied on tenant DB, platform sync OK (3 pre-existing non-fatal Employee-column warnings unchanged).
+
+**Post-deploy smoke (12/12 PASS + JobPosting endpoints):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 122cd1e; **GET /api/job-portal 200 and GET /api/recruitment 200** — interviewPlan column live, Prisma reads/writes healthy.
+
+**Production = GitHub main (`122cd1e`).**
