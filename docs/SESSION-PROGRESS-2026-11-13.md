@@ -187,3 +187,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); documents 200 (2); offers 200; cron without secret → 401; **OTP gate live**: stranger email → 404 CANDIDATE_NOT_FOUND, pipeline candidate `p10.cand1.eohy7t@hrmscheck.io` → 200 + devOtp issued; latest production READY commit = a37739b.
 
 **Production = GitHub main (`a37739b`).**
+
+## EVENING 6 — Sequential interview rounds deployed (`3515c0b`)
+
+`3515c0b` "Enforce sequential interview rounds" — server-side gate in `POST /api/interviews`: a candidate cannot be scheduled for the next round until the previous one is completed (409 `PREVIOUS_INTERVIEW_NOT_COMPLETED`; cancelled/no_show excluded); round 2 must use Technical type, round ≥3 must use HR type (400). Check is wrapped in try/catch (warn only, non-fatal). New `/schedule-interview` page redirects to `/interviews` (static-prerendered NEXT_REDIRECT → client navigation). Pre-flight: redirect target exists, Interview model has all raw-SQL columns (round/type/status/jobApplicationId/createdAt), esbuild pass, conflict scan clean.
+
+**Deploy:** `dpl_8hsr4d6wyHMNMvZDVpihVT9ZT2bP` **READY in 6m00s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 3515c0b.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate still live (stranger 404 / candidate devOtp); prod commit = 3515c0b; `/schedule-interview` serves the redirect payload.
+
+**Production = GitHub main (`3515c0b`).**
