@@ -177,6 +177,14 @@ export async function GET(request: Request) {
         id: d.id, documentType: d.documentType, documentLabel: d.documentLabel,
         fileUrl: d.fileUrl, fileName: d.fileName, fileSize: d.fileSize, mimeType: d.mimeType,
         status: d.status, reviewedAt: d.reviewedAt, reviewNotes: d.reviewNotes, uploadedAt: d.uploadedAt,
+        // BRD 5.8 (Part 7): metadata + versioning must reach the candidate
+        // wizard too — this mapping previously dropped them, so doc number /
+        // issue / expiry / version / required never rendered after a PATCH.
+        documentNumber: d.documentNumber ?? null,
+        issueDate: d.issueDate ?? null,
+        expiryDate: d.expiryDate ?? null,
+        version: d.version ?? 0,
+        required: d.required ?? true,
       })),
       hrContact,
       companyName,
