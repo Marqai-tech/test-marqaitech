@@ -271,6 +271,25 @@ export async function POST(req: NextRequest) {
       if (computedRound >= 3 && type && type !== 'hr') {
         return NextResponse.json({ error: 'The final HR round must use the HR Interview type.' }, { status: 400, headers: corsHeaders() });
       }
+
+      // A job posting may define its own ordered interview plan. When present,
+      // that plan is authoritative for the next round and prevents HR from
+      // skipping or inventing rounds for this position.
+      const planRows = await db.$queryRawUnsafe(
+        `SELECT jp."interviewPlan" FROM "JobPosting" jp JOIN "JobApplication" ja ON ja."jobPostingId" = jp."id" WHERE ja."id" = $1 LIMIT 1`,
+        jobApplicationId,
+      ) as any[];
+      const rawPlan = planRows[0]?.interviewPlan;
+      if (rawPlan) {
+        const plan = typeof rawPlan === 'string' ? JSON.parse(rawPlan) : rawPlan;
+        const planned = Array.isArray(plan) ? plan.find((r: any) => Number(r.sequence) === computedRound) : null;
+        if (!planned) {
+          return NextResponse.json({ error: `All configured interview rounds for this position are complete.`, code: 'INTERVIEW_PLAN_COMPLETE' }, { status: 409, headers: corsHeaders() });
+        }
+        if (type && type !== planned.type) {
+          return NextResponse.json({ error: `This position requires ${planned.name} for Round ${computedRound}.`, code: 'INTERVIEW_PLAN_TYPE_MISMATCH', expectedType: planned.type, expectedRound: computedRound }, { status: 409, headers: corsHeaders() });
+        }
+      }
     } catch (e) {
       console.warn('[Interviews POST] sequential-round check failed:', e instanceof Error ? e.message : e);
     }

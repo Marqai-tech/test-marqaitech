@@ -149,7 +149,7 @@ export default function InterviewsPage() {
   // Lets HR schedule a new interview directly from the Interview Management
   // page (without navigating to Find Candidates first).
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [applicants, setApplicants] = useState<Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }>>([]);
+  const [applicants, setApplicants] = useState<Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; interviewPlan?: string | null; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }>>([]);
   const [applicantSearch, setApplicantSearch] = useState('');
   const [selectedAppId, setSelectedAppId] = useState<string>('');
   const [selectedAppDept, setSelectedAppDept] = useState<string>('');
@@ -247,13 +247,13 @@ export default function InterviewsPage() {
       if (res.ok) {
         const data = await res.json();
         const jobs = data.jobPostings || [];
-        const allApps: Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }> = [];
+        const allApps: Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; interviewPlan?: string | null; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }> = [];
         for (const job of jobs) {
           const apps = job.applications || [];
           for (const app of apps) {
             allApps.push({
               ...app,
-              jobPosting: { id: job.id, title: job.title, department: job.department },
+              jobPosting: { id: job.id, title: job.title, interviewPlan: job.interviewPlan, department: job.department },
               jobPostingId: job.id,
             });
           }

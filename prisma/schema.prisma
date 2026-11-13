@@ -754,6 +754,9 @@ model JobPosting {
   postedDate  DateTime @default(now())
   closingDate DateTime?
   vacancies   Int @default(1)
+  // JSON array defining the required interview sequence for this specific job posting.
+  // Example: [{"name":"Technical Interview Round 1","type":"technical"}, ...]
+  interviewPlan String?
 
   applications JobApplication[]
   referrals    Referral[]

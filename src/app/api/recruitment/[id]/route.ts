@@ -160,6 +160,7 @@ export async function PUT(
       requirements,
       closingDate,
       vacancies,
+      interviewPlan,
       status,
     } = body;
 
@@ -205,6 +206,15 @@ export async function PUT(
     if (vacancies !== undefined) updateData.vacancies = parseInt(String(vacancies)) || 1;
     if (closingDate !== undefined) updateData.closingDate = closingDate ? new Date(closingDate) : null;
     if (status !== undefined) updateData.status = status;
+    if (interviewPlan !== undefined) {
+      try {
+        const parsed = typeof interviewPlan === 'string' ? JSON.parse(interviewPlan) : interviewPlan;
+        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any, i: number) => !r?.name || !['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type))) throw new Error('invalid');
+        updateData.interviewPlan = JSON.stringify(parsed.map((r: any, i: number) => ({ sequence: i + 1, name: String(r.name).trim(), type: r.type })));
+      } catch {
+        return NextResponse.json({ error: 'Interview plan must be a valid non-empty JSON array with name and type for every round.' }, { status: 400, headers: corsHeaders() });
+      }
+    }
 
     const jobPosting = await db.jobPosting.update({
       where: { id },

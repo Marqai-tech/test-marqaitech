@@ -104,6 +104,7 @@ interface JobPosting {
   postedDate: string;
   closingDate?: string | null;
   vacancies: number;
+  interviewPlan?: string | null;
   department?: { id: string; name: string } | null;
   applications?: JobApplication[];
   _count?: { applications: number };
@@ -285,6 +286,7 @@ const initialJobForm = {
   requirements: '',
   vacancies: '1',
   closingDate: '',
+  interviewPlan: '[{"name":"Technical Interview Round 1","type":"technical"},{"name":"Technical Interview Round 2","type":"technical"},{"name":"HR Interview Round 3","type":"hr"}]',
 };
 
 const initialAppForm = {
@@ -1480,6 +1482,7 @@ export default function RecruitmentPage() {
       requirements: job.requirements || '',
       vacancies: String(job.vacancies),
       closingDate: job.closingDate ? job.closingDate.split('T')[0] : '',
+      interviewPlan: job.interviewPlan || initialJobForm.interviewPlan,
     });
     setShowJobForm(true);
     setShowAppForm(false);
@@ -1933,6 +1936,11 @@ export default function RecruitmentPage() {
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requirements</label>
                 <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interview Plan (JSON) <span className="text-red-500 font-bold">*</span></label>
+                <textarea rows={4} value={jobForm.interviewPlan} onChange={e => setJobForm(p => ({ ...p, interviewPlan: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
+                <p className="text-[11px] text-thb-text-muted mt-1">Define the exact sequence for this position, for example Technical Round 1, Technical Round 2, then HR Round 3.</p>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>

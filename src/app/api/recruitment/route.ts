@@ -444,6 +444,7 @@ export async function POST(request: Request) {
       requirements,
       closingDate,
       vacancies,
+      interviewPlan,
     } = body;
 
     if (!title || !departmentId || !description) {
@@ -471,6 +472,19 @@ export async function POST(request: Request) {
       );
     }
 
+    let normalizedInterviewPlan: string | null = null;
+    if (interviewPlan !== undefined && interviewPlan !== null && String(interviewPlan).trim()) {
+      try {
+        const parsed = typeof interviewPlan === 'string' ? JSON.parse(interviewPlan) : interviewPlan;
+        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any, i: number) => !r?.name || !['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type) || Number(r?.sequence || i + 1) !== i + 1)) {
+          return NextResponse.json({ error: 'Interview plan must be an ordered array with name and valid type for every round.' }, { status: 400, headers: corsHeaders() });
+        }
+        normalizedInterviewPlan = JSON.stringify(parsed.map((r: any, i: number) => ({ sequence: i + 1, name: String(r.name).trim(), type: r.type })));
+      } catch {
+        return NextResponse.json({ error: 'Interview plan must be valid JSON.' }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     const jobPosting = await db.jobPosting.create({
       data: {
         title,
@@ -484,6 +498,7 @@ export async function POST(request: Request) {
         requirements,
         closingDate: closingDate ? new Date(closingDate) : null,
         vacancies: vacancies || 1,
+        interviewPlan: normalizedInterviewPlan,
         status: 'open',
       },
       include: {
