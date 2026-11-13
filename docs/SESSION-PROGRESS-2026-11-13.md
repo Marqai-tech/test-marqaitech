@@ -177,3 +177,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (8/8 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); documents 200 (2); offers 200; cron without secret → 401; latest production READY commit = 672343e.
 
 **Production = GitHub main (`672343e`).**
+
+## EVENING 5 — Candidate OTP registration gate deployed (`a37739b`)
+
+`a37739b` "Require candidate account or application for OTP" — candidate-portal auth change: `request-otp` now requires either an existing `CandidatePortalUser` or a previously submitted `JobApplication` for the email (else 404 `CANDIDATE_NOT_FOUND` with "apply for a job first" message); closes the REQ-CAND-05 open pre-registration loophole. Login page tab-fallback no longer auto-switches to OTP for non-existent users. Build-safety verified: `findUnique({where:{candidateEmail}})` valid via `@@unique([candidateEmail])` (same pattern already used by verify-otp), `ignoreBuildErrors` irrelevant, esbuild pass, conflict scan clean.
+
+**Pre-flight:** both changed files compile; schema check pass. **Deploy:** `dpl_8X6Kt3HCbNcDA9RHYS8YeTag58VX` **READY in 5m38s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA a37739b. (Sandbox recycled mid-task — repo re-cloned, smoke script rebuilt with new OTP-gate checks.)
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); documents 200 (2); offers 200; cron without secret → 401; **OTP gate live**: stranger email → 404 CANDIDATE_NOT_FOUND, pipeline candidate `p10.cand1.eohy7t@hrmscheck.io` → 200 + devOtp issued; latest production READY commit = a37739b.
+
+**Production = GitHub main (`a37739b`).**
