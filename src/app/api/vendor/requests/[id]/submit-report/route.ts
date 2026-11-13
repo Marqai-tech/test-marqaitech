@@ -342,12 +342,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
     console.error('BGV submit-report error:', error);
-    // TEMP DIAGNOSTIC (test tenant): return the real failure message so the
-    // live E2E cycle can capture it. Remove once the root cause is fixed.
-    return NextResponse.json({
-      error: 'Internal server error',
-      debug: String(error?.message || error).slice(0, 400),
-      stack0: String(error?.stack || '').split('\n').slice(0, 4).join(' | ').slice(0, 300),
-    }, { status: 500, headers: CORS });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
   }
 }
