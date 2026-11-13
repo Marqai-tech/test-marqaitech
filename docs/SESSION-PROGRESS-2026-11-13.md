@@ -46,7 +46,7 @@
 
 Gaps 2-5 are DONE (deployed + verified): Gap 2 initiation screen (dpl_DMY→DiCR8Yp READY), Gap 3 widgets/filters (READY, pipeline API returns employmentType/company), Gap 4 doc hardening (live: 54 docs carry documentNumber/expiryDate/expired/fileHash), Gap 5 milestones (wired into onboarding-reminders sweep; runs on schedule — live trigger requires CRON_SECRET by design). For the next session:
 
-**Part 10: Full E2E live verification** of the complete journey (fresh candidate → offer → accept → HR initiate → wizard → documents → rework → submit → joining confirm → BGV → activation) + screenshots of the 3 portal states + final delivery report.
+**Part 10: Full E2E live verification** — DONE 13 Nov 2026. Full API E2E journey (fresh candidate → apply → offer → accept → BRD 5.3 initiation → wizard ×5 → 6 docs upload → HR rework → v2 re-upload → approve → submit → BRD 5.11 confirm-joined → BRD 6.2 ECA authorize → employee created atomically → BGV initiate → vendor assign → verifier 3 checks Clear → report v1 → HR approve): **26/27 steps PASS, Marq025 issued**. Leftover case bgv-1794542921962-u2g0ta (report v2) approved → Marq020. 10 live UI screenshots in /p10-screens of the repo download bundle. Two production bugs found+fixed: Employee.workMode missing (928e3d1), offers auditLog 500-after-commit (483eb97). Known test-data rule: synthetic candidates need unique FIRST names (companyEmail = firstname@marqaitech.com; Employee.userId unique). Offer send requires branded PDF first (NO_PDF); email send honestly fails without provider (EMAIL_FAILED → reverts to approved).
 
 ## E2E verification done this session (live, beta)
 | # | Test | Result |
