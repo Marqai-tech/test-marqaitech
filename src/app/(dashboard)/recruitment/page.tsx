@@ -289,6 +289,16 @@ const initialJobForm = {
   interviewPlan: '[{"name":"Technical Interview Round 1","type":"technical"},{"name":"Technical Interview Round 2","type":"technical"},{"name":"HR Interview Round 3","type":"hr"}]',
 };
 
+type InterviewPlanRow = { name: string; type: 'technical' | 'hr' | 'ai' | 'offline_panel' };
+function parseInterviewPlan(value: string): InterviewPlanRow[] {
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.length) return parsed.map((r: any) => ({ name: String(r?.name || 'Interview Round'), type: ['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type) ? r.type : 'technical' }));
+  } catch { /* use default */ }
+  return [{ name: 'Technical Interview Round 1', type: 'technical' }];
+}
+function serializeInterviewPlan(rows: InterviewPlanRow[]) { return JSON.stringify(rows.map((row, i) => ({ sequence: i + 1, ...row }))); }
+
 const initialAppForm = {
   jobPostingId: '',
   candidateName: '',
@@ -1937,10 +1947,9 @@ export default function RecruitmentPage() {
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requirements</label>
                 <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interview Plan (JSON) <span className="text-red-500 font-bold">*</span></label>
-                <textarea rows={4} value={jobForm.interviewPlan} onChange={e => setJobForm(p => ({ ...p, interviewPlan: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
-                <p className="text-[11px] text-thb-text-muted mt-1">Define the exact sequence for this position, for example Technical Round 1, Technical Round 2, then HR Round 3.</p>
+              <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
+                <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-thb-text-primary">Interview Plan <span className="text-red-500">*</span></label><p className="text-[11px] text-thb-text-muted mt-0.5">Configure the required sequence for this position.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(jobForm.interviewPlan); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan([...rows, { name: `Interview Round ${rows.length + 1}`, type: 'technical' }]) })); }} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">+ Add Round</button></div>
+                <div className="space-y-2">{parseInterviewPlan(jobForm.interviewPlan).map((row, i, rows) => <div key={`${i}-${row.name}`} className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 p-2"><span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">{i + 1}</span><input value={row.name} onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="ai">AI</option><option value="offline_panel">Panel</option></select><button type="button" disabled={rows.length === 1} onClick={() => { const next = rows.filter((_, index) => index !== i); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50 disabled:opacity-30" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
