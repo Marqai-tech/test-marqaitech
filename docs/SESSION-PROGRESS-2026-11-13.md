@@ -239,3 +239,13 @@ Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from th
 **Post-deploy smoke (12/12 PASS + JobPosting endpoints):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 122cd1e; **GET /api/job-portal 200 and GET /api/recruitment 200** — interviewPlan column live, Prisma reads/writes healthy.
 
 **Production = GitHub main (`122cd1e`).**
+
+## EVENING 11 — Interview plan editor + progress + job status deployed (`98bc696`, incl. `df219fd`/`e99b2ad`/`01a9b65`)
+
+Three user commits deployed together (user asked for 01a9b65; the other two sat below it on main): `df219fd` visual interview plan editor (add/remove/rename rounds with type select, replaces the raw JSON textarea); `e99b2ad` interview plan progress ("Round N of M · X remaining" badge; interviews GET SQL computes planTotal via jsonb_array_length); `01a9b65` job posting status control (Open/On Hold/Closed/Filled select). No schema changes — no migration needed this time. Pre-flight: conflict scan clean, esbuild pass on all 3 changed files.
+
+**Deploy:** `dpl_BQ8n4p8pY7wM1cktVDZJNCiHzTrR` (SHA 98bc696 = 01a9b65 + docs ledger) **READY in 5m35s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`.
+
+**Post-deploy smoke (12/12 PASS + endpoints):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 98bc696; `/api/job-portal` 200, `/api/recruitment` 200, `/api/interviews` 200 (planTotal query healthy).
+
+**Production = GitHub main (`98bc696`).**
