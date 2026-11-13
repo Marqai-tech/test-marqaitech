@@ -259,3 +259,13 @@ Three user commits deployed together (user asked for 01a9b65; the other two sat 
 **Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8 — changed route healthy); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 606f0ea.
 
 **Production = GitHub main (`606f0ea`).**
+
+## EVENING 13 — Requisition as interview plan source deployed (`12c440b`, incl. `bda0fa0` + DB-fix)
+
+`bda0fa0` "Make requisition the interview plan source": new `Requisition.interviewPlan String?`; requisition create/PATCH normalize+persist the plan; job posting create copies the plan from the linked requisition when not explicitly provided (plus a runtime self-healing ADD COLUMN for JobPosting). **Same migration gap as last time caught pre-deploy:** no migration committed, Requisition not in 0_init and its generated CREATE IF NOT EXISTS is a no-op — requisition-create INSERT writes the column explicitly (hard fail) and the Prisma client selects it on every read. Fix commit `12c440b`: idempotent `ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT` in schema-sync. Pre-flight: conflict scan clean, esbuild pass on all 4 changed files.
+
+**Deploy:** `dpl_B68qerhtQVue1M6FnNhy7rayzvaW` (SHA 12c440b = bda0fa0 + fix) **READY in 14m40s** (full sync re-run). Build log: `[tenant-sync] + Requisition.interviewPlan TEXT` applied on ALL 4 active tenant DBs (tenant_abcd, tenant_abcdv, tenant_marq, tenant_test_marqaitech).
+
+**Post-deploy smoke (12/12 PASS + endpoints):** standard suite green (initiation eligible 3 / invited 8; pipeline 14; documents 2; offers 200; cron 401; OTP gate live); prod commit = 12c440b; **GET /api/requisitions 200, GET /api/jobs 200** — Requisition.interviewPlan live on reads and writes.
+
+**Production = GitHub main (`12c440b`).**
