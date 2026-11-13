@@ -20,6 +20,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { HR_ROLES, notifyCandidate, audit, ensurePreboardingId } from '@/lib/preboarding';
+import { isExpired } from '@/lib/onboarding-documents';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -62,24 +63,48 @@ export async function GET(req: NextRequest) {
     // Strip multi-MB base64 columns; expose stable view/download URLs instead.
     // (Browsers block top-level navigation to data: URLs — the old fileUrl
     // payload could never be viewed. /documents/<id>/file streams real bytes.)
+    const nowMs = Date.now();
     const lightRows = rows.map((d: any) => {
       const { fileUrl, fileData, ...rest } = d;
       const hasFile = Boolean(fileUrl || fileData);
       return {
         ...rest,
         hasFile,
+        expired: isExpired(d.expiryDate, nowMs),
         viewUrl: hasFile ? `/api/preboarding/brd/documents/${d.id}/file` : null,
         downloadUrl: hasFile ? `/api/preboarding/brd/documents/${d.id}/file?download=1` : null,
       };
     });
 
-    let documents = lightRows;
+    // Version history (BRD 5.8): included for the single-candidate workspace
+    // view (HR Level-2 screen). Metadata only — archived file bytes are served
+    // via /documents/<id>/file?version=N.
+    let versionMap = new Map<string, any[]>();
+    if (candidateId && lightRows.length) {
+      const versions = await db.$queryRawUnsafe(
+        `SELECT "id","onboardingDocumentId","version","fileName","fileSize","status","uploadedAt","archivedAt"
+         FROM "OnboardingDocumentVersion"
+         WHERE "onboardingDocumentId" IN (${lightRows.map((_: any, i: number) => `$${i + 1}`).join(',')})
+         ORDER BY "version" DESC`,
+        ...lightRows.map((d: any) => d.id),
+      ).catch(() => []) as any[];
+      versionMap = new Map(versions.reduce((acc: [string, any[]][], v: any) => {
+        const list = acc.find(([k]) => k === v.onboardingDocumentId)?.[1] || [];
+        list.push({ ...v, viewUrl: `/api/preboarding/brd/documents/${v.onboardingDocumentId}/file?version=${v.version}`, downloadUrl: `/api/preboarding/brd/documents/${v.onboardingDocumentId}/file?version=${v.version}&download=1` });
+        const existing = acc.find(([k]) => k === v.onboardingDocumentId);
+        if (existing) existing[1] = list; else acc.push([v.onboardingDocumentId, list]);
+        return acc;
+      }, [] as [string, any[]][]));
+    }
+    const documentsWithVersions = lightRows.map((d: any) => ({ ...d, versions: versionMap.get(d.id) || [] }));
+
+    let documents = documentsWithVersions;
     switch (tab) {
-      case 'pending': documents = lightRows.filter((d: any) => d.status === 'pending'); break;
-      case 'submitted': documents = lightRows.filter((d: any) => d.status === 'submitted'); break;
-      case 'approved': documents = lightRows.filter((d: any) => d.status === 'approved'); break;
-      case 'rejected': documents = lightRows.filter((d: any) => d.status === 'rejected'); break;
-      case 'awaiting_resubmission': documents = lightRows.filter((d: any) => d.status === 'resubmission_requested' || d.status === 'rejected'); break;
+      case 'pending': documents = documentsWithVersions.filter((d: any) => d.status === 'pending'); break;
+      case 'submitted': documents = documentsWithVersions.filter((d: any) => d.status === 'submitted'); break;
+      case 'approved': documents = documentsWithVersions.filter((d: any) => d.status === 'approved'); break;
+      case 'rejected': documents = documentsWithVersions.filter((d: any) => d.status === 'rejected'); break;
+      case 'awaiting_resubmission': documents = documentsWithVersions.filter((d: any) => d.status === 'resubmission_requested' || d.status === 'rejected'); break;
       default: break;
     }
 
@@ -114,13 +139,35 @@ export async function PATCH(req: NextRequest) {
     const action = String(body.action || '');
     const remarks = String(body.remarks || body.notes || '').trim();
     if (!documentId) return NextResponse.json({ error: 'documentId required' }, { status: 400, headers: CORS });
-    if (!['approve', 'reject', 'request_resubmission'].includes(action)) {
-      return NextResponse.json({ error: "action must be 'approve' | 'reject' | 'request_resubmission'" }, { status: 400, headers: CORS });
+    if (!['approve', 'reject', 'request_resubmission', 'update_metadata'].includes(action)) {
+      return NextResponse.json({ error: "action must be 'approve' | 'reject' | 'request_resubmission' | 'update_metadata'" }, { status: 400, headers: CORS });
     }
 
     const docs = await db.$queryRawUnsafe(`SELECT * FROM "OnboardingDocument" WHERE "id"=$1 LIMIT 1`, documentId).catch(() => []) as any[];
     if (!docs.length) return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: CORS });
     const doc = docs[0];
+
+    // ── update_metadata (BRD 5.8): HR edits number / issue / expiry dates ──
+    if (action === 'update_metadata') {
+      const documentNumber = typeof body.documentNumber === 'string' ? body.documentNumber.trim() : null;
+      const issueDate = body.issueDate ? new Date(body.issueDate) : null;
+      const expiryDate = body.expiryDate ? new Date(body.expiryDate) : null;
+      if (issueDate && Number.isNaN(issueDate.getTime())) return NextResponse.json({ error: 'Invalid issue date' }, { status: 400, headers: CORS });
+      if (expiryDate && Number.isNaN(expiryDate.getTime())) return NextResponse.json({ error: 'Invalid expiry date' }, { status: 400, headers: CORS });
+      if (documentNumber) {
+        const dup = await db.$queryRawUnsafe(
+          `SELECT "documentLabel" FROM "OnboardingDocument" WHERE "candidateEmail"=$1 AND "id"<>$2 AND "documentNumber"=$3 LIMIT 1`,
+          doc.candidateEmail, documentId, documentNumber,
+        ).catch(() => []) as any[];
+        if (dup.length) return NextResponse.json({ error: `Duplicate document number — already used as "${dup[0].documentLabel}".` }, { status: 409, headers: CORS });
+      }
+      await db.$executeRawUnsafe(
+        `UPDATE "OnboardingDocument" SET "documentNumber"=$1,"issueDate"=$2,"expiryDate"=$3,"updatedAt"=NOW() WHERE "id"=$4`,
+        documentNumber ?? doc.documentNumber ?? null, issueDate || doc.issueDate || null, expiryDate || doc.expiryDate || null, documentId,
+      );
+      await audit(db, (decoded as any).userId, 'DOCUMENT_METADATA_UPDATED', 'preboarding', `${doc.candidateEmail}: "${doc.documentLabel}" metadata updated by HR`);
+      return NextResponse.json({ message: 'Document details updated', documentId }, { headers: CORS });
+    }
 
     // BRD 5.8 F validations
     if (action === 'reject' && !remarks) {

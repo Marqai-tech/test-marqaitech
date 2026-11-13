@@ -116,8 +116,8 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 | Approved documents locked | **PASS + hardened** — HR re-review 409 (existing) + **candidate upload now 409 server-side on approved docs (FIXED this commit)** |
 | File type whitelist PDF/JPG/JPEG/PNG | **FIXED this commit** — server-side MIME whitelist on both upload routes (was client-only and allowed .doc/.docx) |
 | 10MB limit | **PASS** (client + server) |
-| Version history for resubmitted documents | **MISSING** (re-upload overwrites in place — follow-up) |
-| Document ID/Number, Issue/Expiry dates, expired-doc flagging, duplicate detection, malware scan | **MISSING** (follow-up) |
+| Version history for resubmitted documents | **PASS — Part 7** — re-upload archives the current file into `OnboardingDocumentVersion` (v1, v2, …); HR sees the version badge + history list with View/Download per archived version (`/file?version=N`); nothing is silently overwritten |
+| Document ID/Number, Issue/Expiry dates, expired-doc flagging, duplicate detection, malware scan | **PARTIAL — Part 7**: Document number + issue/expiry dates collected at upload (candidate) and editable by HR (`update_metadata`); EXPIRED flag shown to HR and candidate; duplicate detection server-side (same SHA-256 file content or same document number on another of the candidate's documents → 409). **Malware/AV scan NOT implemented** — no AV integration configured (fileHash computed as a hook point); noted as remaining config |
 | Notify candidate on correction/rejection | **PASS** (CandidateMessage + best-effort email) |
 
 ## 9. Section 5.9 — Verification & Approval
@@ -200,7 +200,7 @@ The previous status doc incorrectly claimed `/candidate-portal/preboarding` exis
 1. ~~**Employee-creation approval workflow** (BRD 6.2 state machine + optional payroll step) + `$transaction` atomicity + Employee↔Candidate link columns (BRD 6.3 #11/#12)~~ **DONE** — `EmployeeCreationRequest` state machine + atomic authorize (commit d9b3253)
 2. ~~**Initiation screen** (BRD 5.3) with Offer/HR/Checklist/Communication sections, Save-as-Draft, Send Invitation, server-side accepted-offer gate~~ **DONE** — `/preboarding/initiation` + `POST /api/preboarding/brd/initiation` (this commit)
 3. ~~**Dashboard gaps** (Recruiter-wise Handover + Joining Trends widgets; Company/Branch/Employment-type filters)~~ **DONE** — widgets + filters shipped (Part 6)
-4. **Document module hardening**: version history, issue/expiry + expired flag, duplicate detection, doc-number/category fields
+4. ~~**Document module hardening**: version history, issue/expiry + expired flag, duplicate detection, doc-number/category fields~~ **DONE** (Part 7) — malware/AV scan remains unconfigured (no integration)
 5. **Escalate to HR Admin / Request Additional Info** actions (5.9)
 6. **Day 7/30/60/90 milestones** + schedule the onboarding-reminders cron + "Onboarding Completed" state
 7. ~~Legacy `/api/recruitment/convert` gate (§2.1 violation) or removal~~ **DONE** (commit a0c1172); `/api/onboarding/convert-to-draft` gated too (this commit)

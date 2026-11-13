@@ -71,13 +71,38 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!headers.get('authorization')) headers.set('authorization', `Bearer ${token}`);
     const db = await getDb(new NextRequest(req.url, { method: 'GET', headers }));
 
-    const rows = await db.$queryRawUnsafe<DocFileRow[]>(
-      `SELECT "id", "candidateEmail", "fileName", "fileUrl", "fileData", "mimeType", "fileMimeType", "fileSize"
-       FROM "OnboardingDocument" WHERE "id" = $1 LIMIT 1`,
-      id,
-    ).catch(() => [] as DocFileRow[]);
-    if (!rows.length) return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: CORS });
-    const doc = rows[0];
+    const url = new URL(req.url);
+    const versionParam = url.searchParams.get('version');
+    const requestedVersion = versionParam ? Number(versionParam) : null;
+
+    let doc: DocFileRow;
+    if (requestedVersion != null && Number.isFinite(requestedVersion) && requestedVersion >= 0) {
+      // Archived version (BRD 5.8 version history).
+      const vrows = await db.$queryRawUnsafe<DocFileRow[]>(
+        `SELECT "onboardingDocumentId" AS "id", '' AS "candidateEmail", "fileName", NULL AS "fileUrl", "fileData",
+                NULL AS "mimeType", "fileMimeType", "fileSize"
+         FROM "OnboardingDocumentVersion"
+         WHERE "onboardingDocumentId" = $1 AND "version" = $2 LIMIT 1`,
+        id, requestedVersion,
+      ).catch(() => [] as DocFileRow[]);
+      if (!vrows.length) return NextResponse.json({ error: `Version ${requestedVersion} not found for this document` }, { status: 404, headers: CORS });
+      // Ownership still checked against the LIVE document row (the archived
+      // copy carries no candidateEmail).
+      const liveRows = await db.$queryRawUnsafe<{ candidateEmail: string | null }[]>(
+        `SELECT "candidateEmail" FROM "OnboardingDocument" WHERE "id" = $1 LIMIT 1`, id,
+      ).catch(() => [] as { candidateEmail: string | null }[]);
+      if (!liveRows.length) return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: CORS });
+      vrows[0].candidateEmail = liveRows[0].candidateEmail;
+      doc = vrows[0];
+    } else {
+      const rows = await db.$queryRawUnsafe<DocFileRow[]>(
+        `SELECT "id", "candidateEmail", "fileName", "fileUrl", "fileData", "mimeType", "fileMimeType", "fileSize"
+         FROM "OnboardingDocument" WHERE "id" = $1 LIMIT 1`,
+        id,
+      ).catch(() => [] as DocFileRow[]);
+      if (!rows.length) return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: CORS });
+      doc = rows[0];
+    }
 
     const claims = (decoded || {}) as TokenClaims;
     const role = String(claims.role || '');

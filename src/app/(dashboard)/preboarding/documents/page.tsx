@@ -56,6 +56,18 @@ function getAuthHeaders() {
 }
 
 /* ── Types ── */
+interface DocVersion {
+  id: string;
+  version: number;
+  fileName: string | null;
+  fileSize: number | null;
+  status: string | null;
+  uploadedAt: string | null;
+  archivedAt: string;
+  viewUrl: string;
+  downloadUrl: string;
+}
+
 interface PipelineDoc {
   id: string;
   documentType: string | null;
@@ -95,6 +107,12 @@ interface WorkspaceDoc {
   fileMimeType?: string | null;
   reviewedAt?: string | null;
   reviewedBy?: string | null;
+  documentNumber?: string | null;
+  issueDate?: string | null;
+  expiryDate?: string | null;
+  version?: number | null;
+  expired?: boolean;
+  versions?: DocVersion[];
   hasFile: boolean;
   viewUrl?: string | null;
   downloadUrl?: string | null;
@@ -695,8 +713,13 @@ function CandidateWorkspace({
                             <div className="flex items-center gap-2.5">
                               <FiFile className={`w-4 h-4 shrink-0 ${isSelected ? 'text-teal-700' : 'text-slate-400'}`} />
                               <div className="min-w-0">
-                                <p className={`font-medium truncate max-w-[240px] ${isSelected ? 'text-teal-900' : 'text-slate-800'}`}>{doc.documentLabel || doc.documentType}</p>
+                                <p className={`font-medium truncate max-w-[240px] ${isSelected ? 'text-teal-900' : 'text-slate-800'}`}>
+                                  {doc.documentLabel || doc.documentType}
+                                  {doc.version ? <span className="ml-1.5 text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1 py-px align-middle" title="Current version (re-uploads archive previous versions)">v{doc.version}</span> : null}
+                                  {doc.expired ? <span className="ml-1.5 text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded px-1 py-px align-middle" title={`Expired ${doc.expiryDate ? new Date(doc.expiryDate).toLocaleDateString('en-IN') : ''}`}>EXPIRED</span> : null}
+                                </p>
                                 {doc.fileName ? <p className="text-[11px] text-slate-400 truncate max-w-[240px]" title={doc.fileName}>{doc.fileName}</p> : null}
+                                {doc.documentNumber ? <p className="text-[11px] text-slate-400 truncate max-w-[240px]">No. {doc.documentNumber}{doc.expiryDate ? ` · expires ${new Date(doc.expiryDate).toLocaleDateString('en-IN')}` : ''}</p> : null}
                               </div>
                             </div>
                           </td>
@@ -806,6 +829,45 @@ function CandidateWorkspace({
                     <p className="text-xs font-semibold text-orange-700 mb-0.5">Request / rejection note sent to candidate</p>
                     <p className="text-sm text-orange-800 break-words">{selected.reviewNotes}</p>
                     {selected.reviewedAt ? <p className="text-[11px] text-orange-500 mt-1">{fmtDateTime(selected.reviewedAt)}{selected.reviewedBy ? ` · by ${selected.reviewedBy}` : ''}</p> : null}
+                  </div>
+                ) : null}
+
+                {/* Details & version history (BRD 5.8) */}
+                {(selected.documentNumber || selected.issueDate || selected.expiryDate || (selected.versions && selected.versions.length > 0) || (selected.version || 0) > 1) ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3.5 py-3 space-y-2">
+                    <p className="text-xs font-semibold text-slate-600">Document details</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                      <span className="text-slate-500">Document number</span>
+                      <span className="text-slate-800 font-medium text-right">{selected.documentNumber || '—'}</span>
+                      <span className="text-slate-500">Issue date</span>
+                      <span className="text-slate-800 font-medium text-right">{selected.issueDate ? new Date(selected.issueDate).toLocaleDateString('en-IN') : '—'}</span>
+                      <span className="text-slate-500">Expiry date</span>
+                      <span className={`font-medium text-right ${selected.expired ? 'text-red-600' : 'text-slate-800'}`}>
+                        {selected.expiryDate ? new Date(selected.expiryDate).toLocaleDateString('en-IN') : '—'}{selected.expired ? ' · EXPIRED' : ''}
+                      </span>
+                      <span className="text-slate-500">Current version</span>
+                      <span className="text-slate-800 font-medium text-right">v{selected.version || 0}</span>
+                    </div>
+                    {selected.versions && selected.versions.length > 0 ? (
+                      <div className="pt-1">
+                        <p className="text-xs font-semibold text-slate-600 mb-1.5">Version history</p>
+                        <ul className="space-y-1">
+                          {selected.versions.map((v) => (
+                            <li key={v.id} className="flex items-center justify-between gap-2 text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
+                              <span className="min-w-0">
+                                <span className="font-semibold text-slate-700">v{v.version}</span>
+                                <span className="text-slate-400 ml-1.5 truncate">{v.fileName || 'file'}</span>
+                                <span className="text-slate-400 ml-1.5 whitespace-nowrap">· {v.uploadedAt ? new Date(v.uploadedAt).toLocaleDateString('en-IN') : '—'}</span>
+                              </span>
+                              <span className="flex items-center gap-2 shrink-0">
+                                <a href={v.viewUrl} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:text-teal-900 font-medium" onClick={(e) => e.stopPropagation()}>View</a>
+                                <a href={v.downloadUrl} className="text-slate-500 hover:text-slate-800 font-medium" onClick={(e) => e.stopPropagation()}>Download</a>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 

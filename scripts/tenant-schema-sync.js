@@ -367,6 +367,30 @@ const EXTRA_STATEMENTS = [
   `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "required" BOOLEAN DEFAULT true`,
   `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
   `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "branchId" TEXT`,
+
+  // ─── BRD 5.8 document hardening (tenant DBs) ───
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "documentNumber" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "issueDate" TIMESTAMP(3)`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "expiryDate" TIMESTAMP(3)`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "version" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileHash" TEXT`,
+  `CREATE TABLE IF NOT EXISTS "OnboardingDocumentVersion" (
+    "id" TEXT NOT NULL,
+    "onboardingDocumentId" TEXT NOT NULL,
+    "version" INTEGER NOT NULL,
+    "fileName" TEXT,
+    "fileData" TEXT,
+    "fileMimeType" TEXT,
+    "fileSize" INTEGER,
+    "fileHash" TEXT,
+    "status" TEXT,
+    "uploadedAt" TIMESTAMP(3),
+    "archivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OnboardingDocumentVersion_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocumentVersion_doc_idx" ON "OnboardingDocumentVersion"("onboardingDocumentId")`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

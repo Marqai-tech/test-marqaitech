@@ -43,6 +43,11 @@ interface OnboardingDocument {
   reviewedAt?: string | null;
   reviewNotes?: string | null;
   uploadedAt?: string | null;
+  documentNumber?: string | null;
+  issueDate?: string | null;
+  expiryDate?: string | null;
+  version?: number | null;
+  required?: boolean | null;
 }
 
 interface PersonalForm {
@@ -197,6 +202,7 @@ function maskValue(v?: string | null, keep = 4): string {
 export default function CandidatePreboardingWizardPage() {
   const router = useRouter();
   const [data, setData] = useState<WizardData | null>(null);
+  const [nowMs, setNowMs] = useState(0);
   const [portalState, setPortalState] = useState<PortalState | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'step'>('overview');
   const [loading, setLoading] = useState(true);
@@ -205,6 +211,7 @@ export default function CandidatePreboardingWizardPage() {
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
+  const [savingDocId, setSavingDocId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
   // Form state (steps 2–6)
@@ -247,6 +254,9 @@ export default function CandidatePreboardingWizardPage() {
       }
       const d: WizardData = await res.json();
       setData(d);
+      // Captured at fetch time so expiry flags in the Documents step stay
+      // pure during render (no Date.now() inside the component body).
+      setNowMs(Date.now());
       hydrateForms(d);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load preboarding data');
@@ -412,7 +422,7 @@ export default function CandidatePreboardingWizardPage() {
   }
 
   // ─────────────── Documents ───────────────
-  const handleFileUpload = async (docId: string, file: File) => {
+  const handleFileUpload = async (docId: string, file: File, meta?: { documentNumber?: string; issueDate?: string; expiryDate?: string }) => {
     const ALLOWED = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!ALLOWED.includes(file.type)) { toast.error('Only PDF, JPG or PNG files are allowed'); return; }
     if (file.size > 10 * 1024 * 1024) { toast.error('File too large — maximum 10MB'); return; }
@@ -422,17 +432,35 @@ export default function CandidatePreboardingWizardPage() {
       reader.onload = async () => {
         const res = await fetch('/api/onboarding/documents/upload', {
           method: 'POST', headers: getPortalHeaders(),
-          body: JSON.stringify({ documentId: docId, fileDataUrl: reader.result, fileName: file.name, fileSize: file.size, mimeType: file.type }),
+          body: JSON.stringify({
+            documentId: docId, fileDataUrl: reader.result, fileName: file.name, fileSize: file.size, mimeType: file.type,
+            documentNumber: meta?.documentNumber || undefined, issueDate: meta?.issueDate || undefined, expiryDate: meta?.expiryDate || undefined,
+          }),
         });
         const result = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(result.error || 'Upload failed');
-        toast.success('Document uploaded — submitted for HR review');
+        toast.success(result.message || 'Document uploaded — submitted for HR review');
         await fetchData(true);
       };
       reader.onerror = () => toast.error('Could not read file');
       reader.readAsDataURL(file);
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Upload failed'); }
     finally { setUploadingDocId(null); }
+  };
+
+  const saveDocDetails = async (docId: string, meta: { documentNumber?: string; issueDate?: string; expiryDate?: string }) => {
+    setSavingDocId(docId);
+    try {
+      const res = await fetch('/api/onboarding/documents/upload', {
+        method: 'PATCH', headers: getPortalHeaders(),
+        body: JSON.stringify({ documentId: docId, ...meta }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Save failed');
+      toast.success('Document details saved');
+      await fetchData(true);
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Save failed'); }
+    finally { setSavingDocId(null); }
   };
 
   const viewDocument = (doc: OnboardingDocument) => {
@@ -745,8 +773,8 @@ export default function CandidatePreboardingWizardPage() {
               <BankStep bank={bank} setBank={setBank} errors={errors} locked={locked} />
             )}
             {activeStep === 6 && (
-              <DocumentsStep docs={data.documents} uploadingDocId={uploadingDocId}
-                onUpload={handleFileUpload} onView={viewDocument} locked={locked}
+              <DocumentsStep docs={data.documents} uploadingDocId={uploadingDocId} savingDocId={savingDocId} nowMs={nowMs}
+                onUpload={handleFileUpload} onSaveDetails={saveDocDetails} onView={viewDocument} locked={locked}
                 onNext={() => setActiveStep(7)} />
             )}
             {activeStep === 7 && (
@@ -1130,12 +1158,30 @@ function BankStep({ bank, setBank, errors, locked }:
 }
 
 // ─────────────────── Step 7: Document Upload ───────────────────
-function DocumentsStep({ docs, uploadingDocId, onUpload, onView, locked, onNext }:
-  { docs: OnboardingDocument[]; uploadingDocId: string | null; onUpload: (id: string, f: File) => void; onView: (d: OnboardingDocument) => void; locked: boolean; onNext: () => void }) {
+function DocumentsStep({ docs, uploadingDocId, savingDocId, nowMs, onUpload, onSaveDetails, onView, locked, onNext }:
+  { docs: OnboardingDocument[]; uploadingDocId: string | null; savingDocId: string | null; nowMs: number; onUpload: (id: string, f: File, meta?: { documentNumber?: string; issueDate?: string; expiryDate?: string }) => void; onSaveDetails: (id: string, meta: { documentNumber?: string; issueDate?: string; expiryDate?: string }) => void; onView: (d: OnboardingDocument) => void; locked: boolean; onNext: () => void }) {
+  const ref = nowMs || 0; // 0 → expiry flags hidden until the first fetch completes
   const needsAction = docs.filter((d) => d.status === 'rejected' || d.status === 'resubmission_requested');
+  const expiredDocs = docs.filter((d) => d.expiryDate && ref > 0 && new Date(d.expiryDate).getTime() < ref);
+  // Per-doc detail inputs (document number / issue / expiry) — keyed by doc id.
+  const [details, setDetails] = useState<Record<string, { documentNumber: string; issueDate: string; expiryDate: string }>>({});
+  const [openDetails, setOpenDetails] = useState<string | null>(null);
+  const metaOf = (d: OnboardingDocument) => details[d.id] || {
+    documentNumber: d.documentNumber || '',
+    issueDate: d.issueDate ? new Date(d.issueDate).toISOString().slice(0, 10) : '',
+    expiryDate: d.expiryDate ? new Date(d.expiryDate).toISOString().slice(0, 10) : '',
+  };
+  const setMeta = (id: string, patch: Partial<{ documentNumber: string; issueDate: string; expiryDate: string }>, base: { documentNumber: string; issueDate: string; expiryDate: string }) =>
+    setDetails(prev => ({ ...prev, [id]: { ...base, ...patch } }));
+  const hasUnsaved = (d: OnboardingDocument) => {
+    const m = details[d.id];
+    return Boolean(m && (m.documentNumber !== (d.documentNumber || '')
+      || m.issueDate !== (d.issueDate ? new Date(d.issueDate).toISOString().slice(0, 10) : '')
+      || m.expiryDate !== (d.expiryDate ? new Date(d.expiryDate).toISOString().slice(0, 10) : '')));
+  };
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">Upload the required joining documents. Allowed formats: PDF, JPG, PNG — maximum 10MB each. Uploads are reviewed individually by HR.</p>
+      <p className="text-sm text-slate-500">Upload the required joining documents. Allowed formats: PDF, JPG, PNG — maximum 10MB each. Uploads are reviewed individually by HR. Re-uploading replaces the file and keeps previous versions in history — HR can still view them.</p>
       {needsAction.length > 0 && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
           <p className="text-sm font-bold text-amber-900 flex items-center gap-2">
@@ -1151,37 +1197,87 @@ function DocumentsStep({ docs, uploadingDocId, onUpload, onView, locked, onNext 
           <p className="text-[11px] text-amber-700 mt-2">Only the requested documents will return to HR review. Approved documents remain unchanged.</p>
         </div>
       )}
+      {expiredDocs.length > 0 && (
+        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3">
+          <p className="text-sm font-bold text-red-900 flex items-center gap-2">
+            <FiAlertTriangle className="w-4 h-4" /> {expiredDocs.length === 1 ? `"${expiredDocs[0].documentLabel}" has expired` : `${expiredDocs.length} documents have expired`}
+          </p>
+          <p className="text-xs text-red-700 mt-1">Expired documents may delay your joining formalities. Please upload a renewed copy{expiredDocs.length > 1 ? ' for each' : ''}.</p>
+        </div>
+      )}
       {docs.map(doc => {
         const cfg = DOC_STATUS[doc.status] || DOC_STATUS.pending;
         const canUpload = !locked && (doc.status === 'pending' || doc.status === 'rejected' || doc.status === 'resubmission_requested');
+        const canEditDetails = !locked && doc.status !== 'approved' && doc.status !== 'pending';
+        const isExpired = Boolean(doc.expiryDate && ref > 0 && new Date(doc.expiryDate).getTime() < ref);
+        const base = metaOf(doc);
         return (
-          <div key={doc.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border ${doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'border-amber-300 bg-amber-50/40 border-l-4 border-l-amber-400' : 'border-slate-200'}`}>
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${doc.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'bg-red-100 text-red-600' : doc.status === 'submitted' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-              <FiFileText className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-slate-800 text-sm">{doc.documentLabel}</div>
-              <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2">
-                {doc.fileName && <span className="truncate">{doc.fileName}</span>}
-                {doc.fileSize ? <span>({(doc.fileSize / 1024 / 1024).toFixed(2)} MB)</span> : null}
-                {doc.uploadedAt && <span>· {new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</span>}
+          <div key={doc.id} className={`p-3 rounded-lg border ${doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'border-amber-300 bg-amber-50/40 border-l-4 border-l-amber-400' : 'border-slate-200'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${doc.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : doc.status === 'rejected' || doc.status === 'resubmission_requested' ? 'bg-red-100 text-red-600' : doc.status === 'submitted' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                <FiFileText className="h-5 w-5" />
               </div>
-              {doc.reviewNotes && <div className="text-xs text-red-600 mt-1">HR Remarks: {doc.reviewNotes}</div>}
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-slate-800 text-sm flex items-center gap-1.5 flex-wrap">
+                  {doc.documentLabel}
+                  {doc.required === false ? <span className="text-[10px] font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-1.5">Optional</span> : null}
+                  {doc.version ? <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1" title="Current version — previous versions are preserved for HR">v{doc.version}</span> : null}
+                  {isExpired ? <span className="text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded px-1">EXPIRED</span> : null}
+                </div>
+                <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2">
+                  {doc.fileName && <span className="truncate">{doc.fileName}</span>}
+                  {doc.fileSize ? <span>({(doc.fileSize / 1024 / 1024).toFixed(2)} MB)</span> : null}
+                  {doc.uploadedAt && <span>· {new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</span>}
+                  {doc.documentNumber && <span>· No. {doc.documentNumber}</span>}
+                  {doc.expiryDate && <span className={isExpired ? 'text-red-600 font-medium' : ''}>· expires {new Date(doc.expiryDate).toLocaleDateString('en-IN')}</span>}
+                </div>
+                {doc.reviewNotes && <div className="text-xs text-red-600 mt-1">HR Remarks: {doc.reviewNotes}</div>}
+              </div>
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${cfg.color} shrink-0 w-max`}>{cfg.label}</span>
+              {doc.fileUrl && doc.status !== 'pending' && (
+                <button onClick={() => onView(doc)} className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors shrink-0" title="View uploaded document" aria-label={`View ${doc.documentLabel}`}>
+                  <FiEye className="h-4 w-4" />
+                </button>
+              )}
+              {canEditDetails && (
+                <button onClick={() => setOpenDetails(openDetails === doc.id ? null : doc.id)}
+                  className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border shrink-0 transition-colors ${openDetails === doc.id ? 'bg-slate-700 border-slate-700 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                  title="Document number, issue date and expiry date">
+                  Details{hasUnsaved(doc) ? ' •' : ''}
+                </button>
+              )}
+              {canUpload && (
+                <label className="cursor-pointer shrink-0">
+                  <span className={`inline-flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${uploadingDocId === doc.id ? 'bg-slate-200 text-slate-400' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
+                    {uploadingDocId === doc.id ? <><FiLoader className="h-3 w-3 mr-1 animate-spin" /> Uploading…</> : <><FiUpload className="h-3 w-3 mr-1" /> {doc.status === 'pending' ? 'Upload' : 'Re-upload'}</>}
+                  </span>
+                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={uploadingDocId === doc.id}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(doc.id, f, base); e.target.value = ''; }} />
+                </label>
+              )}
             </div>
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${cfg.color} shrink-0 w-max`}>{cfg.label}</span>
-            {doc.fileUrl && doc.status !== 'pending' && (
-              <button onClick={() => onView(doc)} className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors shrink-0" title="View uploaded document" aria-label={`View ${doc.documentLabel}`}>
-                <FiEye className="h-4 w-4" />
-              </button>
-            )}
-            {canUpload && (
-              <label className="cursor-pointer shrink-0">
-                <span className={`inline-flex items-center px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${uploadingDocId === doc.id ? 'bg-slate-200 text-slate-400' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
-                  {uploadingDocId === doc.id ? <><FiLoader className="h-3 w-3 mr-1 animate-spin" /> Uploading…</> : <><FiUpload className="h-3 w-3 mr-1" /> {doc.status === 'pending' ? 'Upload' : 'Re-upload'}</>}
-                </span>
-                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={uploadingDocId === doc.id}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(doc.id, f); e.target.value = ''; }} />
-              </label>
+            {(openDetails === doc.id && canEditDetails) && (
+              <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Document number</label>
+                  <input type="text" value={base.documentNumber} placeholder="e.g. X1234567" onChange={e => setMeta(doc.id, { documentNumber: e.target.value }, base)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-emerald-400" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Issue date</label>
+                  <input type="date" value={base.issueDate} onChange={e => setMeta(doc.id, { issueDate: e.target.value }, base)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-emerald-400" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Expiry date</label>
+                  <input type="date" value={base.expiryDate} onChange={e => setMeta(doc.id, { expiryDate: e.target.value }, base)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-emerald-400" />
+                </div>
+                <button onClick={() => onSaveDetails(doc.id, base)} disabled={savingDocId === doc.id}
+                  className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+                  {savingDocId === doc.id ? <><FiLoader className="h-3 w-3 animate-spin" /> Saving…</> : 'Save details'}
+                </button>
+              </div>
             )}
           </div>
         );
