@@ -84,14 +84,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
-    // History row for reassignment (previous holder loses access immediately).
-    if (isReassignment || (bgvReq.assignedVendorUserId && bgvReq.assignedVendorUserId !== vendorUserId)) {
+    // ── Assignment history (BgvAssignment = open-interval audit trail).
+    // Every assignment event opens a row for the new holder; a reassignment to
+    // a DIFFERENT employee closes the previous open row first. The first
+    // assignment also gets a row — without it the history table only ever
+    // records unassignment events (found during the live E2E: assignments
+    // came back empty for a freshly assigned case).
+    const holderChanged = Boolean(bgvReq.assignedVendorUserId) && bgvReq.assignedVendorUserId !== vendorUserId;
+    if (holderChanged) {
       await db.$executeRawUnsafe(
-        `INSERT INTO "BgvAssignment" ("id","bgvRequestId","vendorUserId","assignedById","assignedAt","unassignedAt","unassignedById","reason")
-         VALUES ($1,$2,$3,$4,$5,NOW(),$6,$7)`,
+        `UPDATE "BgvAssignment"
+            SET "unassignedAt"=NOW(), "unassignedById"=$1,
+                "reason"=COALESCE("reason", $2)
+          WHERE "bgvRequestId"=$3 AND "vendorUserId"=$4 AND "unassignedAt" IS NULL`,
+        admin.id,
+        holderChanged && isReassignment ? String(reason).slice(0, 500) : 'Assignment changed',
+        requestId, bgvReq.assignedVendorUserId,
+      ).catch(() => 0);
+    }
+    // Never duplicate an open row for the same holder (re-assigning the same
+    // employee just refreshes due date/instructions on the request itself).
+    const openRows = await db.$queryRawUnsafe(
+      `SELECT "id" FROM "BgvAssignment" WHERE "bgvRequestId"=$1 AND "vendorUserId"=$2 AND "unassignedAt" IS NULL LIMIT 1`,
+      requestId, vendorUserId,
+    ).catch(() => []) as any[];
+    if (openRows.length === 0) {
+      await db.$executeRawUnsafe(
+        `INSERT INTO "BgvAssignment" ("id","bgvRequestId","vendorUserId","assignedById","assignedAt","reason")
+         VALUES ($1,$2,$3,$4,NOW(),$5)`,
         `asg-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
-        requestId, bgvReq.assignedVendorUserId, bgvReq.assignedById || 'unknown', bgvReq.assignedAt || new Date(),
-        admin.id, isReassignment ? String(reason).slice(0, 500) : 'Assignment changed',
+        requestId, vendorUserId, admin.id,
+        isReassignment ? String(reason).slice(0, 500) : 'Initial assignment',
       ).catch(() => 0);
     }
 
