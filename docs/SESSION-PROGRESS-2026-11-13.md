@@ -99,3 +99,26 @@ curl -s -X POST "https://api.vercel.com/v13/deployments?teamId=team_TPceTg1lfUwM
 - **Email inbox delivery NOT claimed** — no SMTP/Resend provider is configured on the beta; emails are logged/best-effort. BgvNotification rows track queued/sent/failed honestly.
 - The new BRD 6.2 workflow API is deployed but not yet exercised end-to-end live (needs a joined candidate with all docs approved; Part 10 covers this).
 - Repo-conventional `no-explicit-any` lint errors remain in touched files (same pattern as 400+ existing routes; build passes via `ignoreBuildErrors`).
+
+---
+
+## ✅ COMPLETED BY THE FOLLOW-UP SESSION (4 commits — gaps 2–5 all closed)
+
+> Continuation session (sandbox recycled; state recovered from GitHub). Same workflow: one part = one commit = one deploy.
+
+### Gap 2 → Part 5 — Dedicated Initiation screen (BRD 5.3) — `1c20c71`
+- `/preboarding/initiation` — sidebar entry, offers-page "Initiate" deep link, dashboard quick action. Level 1: eligible accepted offers / saved drafts / recent invitations. Level 2: Offer Details (read-only) · HR Details (joining date, dept, designation, manager, employment type, CTC, work location, company email, HR contact, **Company + Branch**) · Checklist & Required Documents (per-doc required/optional + extra items) · Communication & Remarks (email + in-app toggles).
+- `POST /api/preboarding/brd/initiation`: save-draft / send-invitation / cancel. Server-side accepted-offer gate; invitation creates PreboardingCandidate + docs + portal user + HRMS user in ONE `$transaction`; unique active-initiation-per-offer index → retries are 409, never duplicates. Email sent best-effort, honestly reported.
+- §2.1 gate added to `/api/onboarding/convert-to-draft` (offer path strict; application path = accepted offer or `hired`).
+
+### Gap 3 → Part 6 — Dashboard widgets + filters (BRD 5.1) — `7a4edeb`
+- Recruiter-wise Handover widget + 6-month Joining Trends (joined vs expected) on `/preboarding`; Company / Branch / Employment-type filters on the dashboard + candidates list; `PreboardingCandidate.companyId/branchId` persisted at initiation.
+
+### Gap 4 → Part 7 — Document hardening (BRD 5.8) — `8305f2b`
+- Version history (OnboardingDocumentVersion; re-upload archives prior file; HR views/downloads any version via `/file?version=N`), duplicate detection (SHA-256 content + document number → 409), document number / issue / expiry dates (candidate + HR editing), EXPIRED flagging (HR + candidate), fixed silent portal-message failure in both upload routes. **Malware scan NOT claimed** (no AV integration; fileHash is the hook).
+
+### Gap 5 → Part 8 — Day 7/30/60/90 milestones (BRD Figure 1.2) — `c49c846`
+- Milestone templates (self-healing seed) + backfill for in-flight joiners; **onboarding-reminders cron now actually scheduled** via the unified daily-tasks sweep (was never registered); "Onboarding Completed" state (progress API + /onboarding badge).
+
+### Remaining backlog (small, documented in compliance doc §15)
+- 5.9 Escalate to HR Admin / Request Additional Info actions; 5.2 Candidate-ID search + Edit row action; per-record document slots (5.6); notification fan-out; malware/AV integration; orientation/training events as first-class entities.

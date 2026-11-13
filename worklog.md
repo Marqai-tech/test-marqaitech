@@ -5997,3 +5997,40 @@ Stage Summary:
 - Verification & Approvals is merged into Documents (sidebar + redirect) — no more duplicate queue; the old "all candidates' documents at once" screen is gone.
 - Live-verified end-to-end on 3boxes-hrms-beta.vercel.app with real tenant data for every file type; screenshots saved in agent context (verify-1…verify-5).
 - Hardening: tenant-DB schema drift can no longer break document viewing (all byte columns guaranteed by schema-sync), and the file route is lint/TS clean.
+
+---
+Task ID: 164
+Agent: main agent (Z.ai CLI, new session — continued from recycled sandbox)
+Task: Continue the 10-part candidate→employee journey build — remaining BRD gaps 2-5 (Initiation screen 5.3, dashboard widgets 5.1, document hardening 5.8, Day 7/30/60/90 milestones) with one commit+deploy per part
+
+Context: Sandbox was recycled mid-session; repo state recovered from GitHub (Marqai-tech/test-marqaitech). Previous session's handover (docs/SESSION-PROGRESS-2026-11-13.md @ 1f3f024) confirmed parts 1-5 + gap 6 done/deployed; a concurrent session verified those live (4d5c71a).
+
+Work Done (4 commits, each typechecked via scoped task tsconfig — full-project tsc OOMs in this sandbox; lint clean apart from the repo's tolerated no-explicit-any raw-SQL convention):
+
+1. Part 5 / Gap 2 — BRD 5.3 dedicated Initiation screen (1c20c71):
+   - New /preboarding/initiation (sidebar 'Initiation' entry, offers-page 'Initiate' deep link ?offerId=, dashboard quick action). Level 1: eligible ACCEPTED offers + saved drafts + recent invitations; Level 2: Offer Details (read-only) / HR Details (incl. Company + Branch selectors, branch scoped to company) / Checklist & Required Documents (per-doc required/optional toggles + extra checklist items) / Communication & Remarks (email + in-app toggles).
+   - New POST /api/preboarding/brd/initiation: save-draft (upsert per offer while draft), send-invitation (server-side accepted-offer gate + no-active-preboarding check; PreboardingCandidate + selected OnboardingDocuments + portal user + HRMS User(companyEmail, tenantId) + status flip inside ONE $transaction; partial unique index PreboardingInitiation_active_offer_key makes retries/double-clicks a 409), cancel (draft only, reason required, audited). In-app CandidateMessage + best-effort email AFTER the data change; emailSent reported honestly.
+   - §2.1 gate added to /api/onboarding/convert-to-draft (offer path strict; application path allows accepted offer OR 'hired' application).
+   - Schema: PreboardingInitiation table + partial unique index; OnboardingDocument.required column (schema-sync ×3).
+
+2. Part 6 / Gap 3 — BRD 5.1 dashboard (7a4edeb):
+   - /preboarding: Recruiter-wise Handover widget (Total/Active/Joined/Docs-pending per recruiter, top 6) + 6-month Joining Trends chart (joined-actual vs expected). Filter row 5 → 8 filters (Company, Branch, Employment Type added; grid lg:4 xl:8).
+   - Candidates list: 3 new client-side filters + params (company, branch, employmentType) + Clear support.
+   - Pipeline API resolves Company/Branch names from reference tables; candidates carry company/branch/employmentType/actualJoiningDate. PreboardingCandidate.companyId/branchId columns written at initiation (FK-normalized).
+
+3. Part 7 / Gap 4 — BRD 5.8 document hardening (8305f2b):
+   - Version history: re-upload archives the live file into new OnboardingDocumentVersion table (v1, v2, …) BEFORE overwriting. HR workspace: vN badge per row + Details & Version history panel (doc number, issue/expiry, EXPIRED flag, per-version View/Download via /file?version=N with ownership still checked against the live row).
+   - Duplicate detection (server-side, both upload routes): same file content (SHA-256) or same document number on ANOTHER of the candidate's documents → 409 DUPLICATE_DOCUMENT.
+   - Metadata: document number / issue / expiry dates — candidate wizard Document step 'Details' drawer (rides with upload or PATCHes separately); HR update_metadata action. EXPIRED warnings in wizard + HR workspace.
+   - Fixed silent CandidateMessage failure in both upload routes (missing NOT NULL senderName/body).
+   - Malware/AV scan NOT claimed — fileHash is the hook point; no AV integration configured.
+
+4. Part 8 / Gap 5 — BRD Figure 1.2 milestones (c49c846):
+   - New src/lib/onboarding-milestones.ts: Day 7/30/60/90 check-in templates, self-healed idempotently on every onboarding-reminders sweep; backfill for joiners already in onboarding (≤180 days, dueDate = joining + offset, idempotent per employee+template).
+   - /api/cron/onboarding-reminders was NEVER registered in vercel.json — added to the unified /api/cron/daily-tasks sweep (daily 09:00, Hobby-plan safe).
+   - 'Onboarding Completed' state: progress API returns onboardingCompleted + onboardingCompletedAt (timestamp of last completed task); /onboarding badge. Joining, BGV clearance and onboarding completion stay separate milestones.
+   - Fixed pre-existing TS2352 cast in onboarding page.
+
+Deployment: 7a4edeb BUILDING; 8305f2b/c49c846 got no webhook deployment → triggered production deployment dpl_7erkWtAE via Vercel API gitSource (repoId 1422962694, ref main @ c49c846 — contains ALL four parts). Verification pending build completion.
+
+Also: removed a 2.7GB accidental 'core' dump (tsc OOM) from the first Part-5 commit attempt (pre-receive hook rejected it); added 'core' to .gitignore.
