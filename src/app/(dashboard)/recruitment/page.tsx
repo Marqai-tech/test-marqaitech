@@ -194,10 +194,14 @@ function getAppStatusBadge(status: string) {
     shortlisted: 'bg-violet-50 text-violet-700 thb-badge',
     interview: 'bg-amber-50 text-amber-700 thb-badge',
     offered: 'thb-badge thb-badge-success',
+    offer_accepted: 'bg-indigo-50 text-indigo-700 thb-badge',
+    preboarding: 'bg-sky-50 text-sky-700 thb-badge',
+    bgv_in_progress: 'bg-orange-50 text-orange-700 thb-badge',
+    bgv_passed: 'bg-emerald-50 text-emerald-700 thb-badge',
     hired: 'bg-emerald-50 text-emerald-700 thb-badge',
     rejected: 'thb-badge thb-badge-error',
   };
-  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', offered: 'Offered', hired: 'Hired', rejected: 'Rejected' };
+  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', offered: 'Offered', offer_accepted: 'Offer Accepted', preboarding: 'Preboarding', bgv_in_progress: 'BGV In Progress', bgv_passed: 'BGV Passed', hired: 'Hired', rejected: 'Rejected' };
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
@@ -2348,6 +2352,10 @@ export default function RecruitmentPage() {
                                                         <option value="shortlisted">Shortlisted</option>
                                                         <option value="interview">Interview</option>
                                                         <option value="offered">Offered</option>
+                                                        <option value="offer_accepted">Offer Accepted</option>
+                                                        <option value="preboarding">Preboarding</option>
+                                                        <option value="bgv_in_progress">BGV In Progress</option>
+                                                        <option value="bgv_passed">BGV Passed</option>
                                                         <option value="hired">Hired</option>
                                                         <option value="rejected">Rejected</option>
                                                       </select>
@@ -2583,6 +2591,10 @@ export default function RecruitmentPage() {
                                   <option value="shortlisted">Shortlisted</option>
                                   <option value="interview">Interview</option>
                                   <option value="offered">Offered</option>
+                                  <option value="offer_accepted">Offer Accepted</option>
+                                  <option value="preboarding">Preboarding</option>
+                                  <option value="bgv_in_progress">BGV In Progress</option>
+                                  <option value="bgv_passed">BGV Passed</option>
                                   <option value="hired">Hired</option>
                                   <option value="rejected">Rejected</option>
                                 </select>
@@ -2888,6 +2900,10 @@ export default function RecruitmentPage() {
                   <option value="screening">Screening</option>
                   <option value="interview">Interview</option>
                   <option value="offered">Offered</option>
+                  <option value="offer_accepted">Offer Accepted</option>
+                  <option value="preboarding">Preboarding</option>
+                  <option value="bgv_in_progress">BGV In Progress</option>
+                  <option value="bgv_passed">BGV Passed</option>
                   <option value="hired">Hired</option>
                   <option value="talent_pool">Talent Pool</option>
                   <option value="rejected">Rejected</option>

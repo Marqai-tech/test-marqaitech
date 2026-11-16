@@ -147,11 +147,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       updated = await (db as any).offer.update({ where: { id: offer.id }, data: updateData });
     }
 
-    // Task 167: if the candidate accepts, automatically set the JobApplication status to 'hired'.
+    // Offer acceptance is not employment activation. Keep the candidate in the
+    // preboarding gate until HR initiates preboarding and BGV is passed.
     // C-22 fix: if the Offer has no jobApplicationId linked (e.g. it was created
     // manually from /offers without coming through the "Extend Offer" button),
     // fall back to finding the JobApplication by candidateEmail. This ensures
-    // the candidate's status ALWAYS flips to 'hired' on accept, regardless of
+    // the candidate's status moves to 'offer_accepted' on accept, regardless of
     // how the offer was created.
     if (action === 'accept') {
       try {
@@ -184,10 +185,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
         if (jobAppId) {
           await db.$executeRawUnsafe(
-            `UPDATE "JobApplication" SET "status" = 'hired', "updatedAt" = NOW() WHERE "id" = $1`,
+            `UPDATE "JobApplication" SET "status" = 'offer_accepted', "updatedAt" = NOW() WHERE "id" = $1`,
             jobAppId,
           );
-          console.log(`[Offer Accept] JobApplication ${jobAppId} status set to 'hired'`);
+          console.log(`[Offer Accept] JobApplication ${jobAppId} status set to 'offer_accepted'`);
         } else {
           console.warn(`[Offer Accept] No JobApplication found for offer ${offer.id} (candidateEmail=${offerRows[0]?.candidateEmail || 'N/A'}) — auto-hire skipped`);
         }

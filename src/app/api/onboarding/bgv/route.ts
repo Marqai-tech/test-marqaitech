@@ -29,6 +29,11 @@ export async function PATCH(req: NextRequest) {
     const dbStatus = bgvStatus === 'approved' ? 'cleared' : bgvStatus === 'in_progress' ? 'in_progress' : bgvStatus === 'failed' ? 'failed' : 'pending';
     await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "backgroundCheckStatus"=$1,"bgvNotes"=$2,"updatedAt"=NOW() WHERE "id"=$3`, dbStatus, notes||null, preboardingCandidateId).catch(() => 0);
 
+    // Keep the recruitment pipeline aligned with the onboarding gate.
+    if (pb.jobApplicationId && bgvStatus === 'in_progress') {
+      await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='bgv_in_progress', "updatedAt"=NOW() WHERE "id"=$1`, pb.jobApplicationId).catch(() => 0);
+    }
+
     if (bgvStatus === 'approved') {
       if (pb.onboardingStatus === 'active_employee') return NextResponse.json({ error: 'Already activated' }, { status: 409, headers: CORS });
 
@@ -131,6 +136,9 @@ export async function PATCH(req: NextRequest) {
         `UPDATE "PreboardingCandidate" SET "onboardingStatus"='active_employee',"status"='joined',"employeeId"=$1,"activatedAt"=NOW(),"backgroundCheckStatus"='cleared',"updatedAt"=NOW() WHERE "id"=$2`,
         employeeId, preboardingCandidateId,
       ).catch(() => 0);
+      if (pb.jobApplicationId) {
+        await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='hired', "updatedAt"=NOW() WHERE "id"=$1`, pb.jobApplicationId).catch(() => 0);
+      }
 
       // ─── Send activation email to personal email ───
       try {

@@ -289,6 +289,10 @@ export function FindCandidates() {
                     <SelectItem value="shortlisted">Shortlisted</SelectItem>
                     <SelectItem value="interview">Interview</SelectItem>
                     <SelectItem value="offered">Offered</SelectItem>
+              <SelectItem value="offer_accepted">Offer Accepted</SelectItem>
+              <SelectItem value="preboarding">Preboarding</SelectItem>
+              <SelectItem value="bgv_in_progress">BGV In Progress</SelectItem>
+              <SelectItem value="bgv_passed">BGV Passed</SelectItem>
                     <SelectItem value="hired">Hired</SelectItem>
                     <SelectItem value="talent_pool">Talent Pool</SelectItem>
                   </SelectContent>

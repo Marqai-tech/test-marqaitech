@@ -402,7 +402,7 @@ export async function POST(req: NextRequest) {
 
     if (applicationId) {
       await db.$executeRawUnsafe(
-        `UPDATE "JobApplication" SET "status"='preboarding', "updatedAt"=NOW() WHERE "id"=$1 AND "status" IN ('offered','preboarding')`,
+        `UPDATE "JobApplication" SET "status"='preboarding', "updatedAt"=NOW() WHERE "id"=$1 AND "status" IN ('offered','offer_accepted','preboarding')`,
         applicationId,
       ).catch(() => null);
     }

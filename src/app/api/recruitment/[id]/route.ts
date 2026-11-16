@@ -305,7 +305,7 @@ export async function PATCH(
     });
     if (application) {
       // GAP FIX #10: Add 'withdrawn' and 'talent_pool' to valid statuses
-      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired', 'rejected', 'withdrawn', 'talent_pool'];
+      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'offer_accepted', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired', 'rejected', 'withdrawn', 'talent_pool'];
       if (status !== undefined && !validStatuses.includes(status)) {
         return NextResponse.json(
           { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
@@ -373,7 +373,8 @@ export async function PATCH(
               screening: 'Under Screening',
               shortlisted: 'Shortlisted',
               interview: 'Selected for Interview',
-              offered: 'Offer Extended',
+            offered: 'Offer Extended',
+            offer_accepted: 'Offer Accepted — Awaiting Preboarding',
               preboarding: 'Preboarding – BGV Pending',
               bgv_in_progress: 'BGV In Progress',
               bgv_passed: 'BGV Passed',
@@ -477,7 +478,8 @@ export async function PATCH(
             screening: 'Under Screening',
             shortlisted: 'Shortlisted',
             interview: 'Selected for Interview',
-            offered: 'Offer Extended',
+              offered: 'Offer Extended',
+              offer_accepted: 'Offer Accepted — Awaiting Preboarding',
             preboarding: 'Preboarding – BGV Pending',
             bgv_in_progress: 'BGV In Progress',
             bgv_passed: 'BGV Passed',
