@@ -63,6 +63,9 @@ export async function GET(req: NextRequest) {
     const { pb, docs } = loaded;
     const details = parsePortalDetails(pb.portalDetails);
     const preboardingId = await ensurePreboardingId(db, pb);
+    if (pb.backgroundCheckStatus !== 'cleared') {
+      return NextResponse.json({ error: 'Employee conversion is allowed only after BGV is passed.' }, { status: 409, headers: CORS });
+    }
 
     const departments = await db.$queryRawUnsafe(`SELECT id, name FROM "Department" ORDER BY name ASC LIMIT 100`).catch(() => []) as any[];
     const designations = await db.$queryRawUnsafe(`SELECT id, title FROM "Designation" ORDER BY title ASC LIMIT 200`).catch(() => []) as any[];
@@ -221,6 +224,9 @@ export async function POST(req: NextRequest) {
       `UPDATE "PreboardingCandidate" SET "employeeId"=$1, "onboardingStatus"='provisional_employee', "status"='joined', "preboardingStage"='joined', "updatedAt"=NOW() WHERE "id"=$2`,
       empId, candidateId,
     );
+    if (pb.jobApplicationId) {
+      await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='hired', "updatedAt"=NOW() WHERE "id"=$1 AND "status"='bgv_passed'`, pb.jobApplicationId).catch(() => null);
+    }
 
     await notifyCandidate(db, pb.candidateEmail, `Your employee record has been created (provisional ID: ${provCode}). System access details will be shared shortly. Formal Employee ID is issued after BGV clearance.`);
     await audit(db, (decoded as any).userId, 'CREATE_EMPLOYEE_FROM_PREBOARDING', 'preboarding',

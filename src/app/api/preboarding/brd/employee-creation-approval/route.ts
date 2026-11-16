@@ -114,6 +114,9 @@ export async function POST(req: NextRequest) {
     if (!pbRows.length) return NextResponse.json({ error: 'Preboarding candidate not found' }, { status: 404, headers: CORS });
     const pb = pbRows[0];
     const preboardingId = pb.preboardingId || await ensurePreboardingId(db, pb);
+    if (pb.backgroundCheckStatus !== 'cleared') {
+      return NextResponse.json({ error: 'Employee conversion is allowed only after BGV is passed.' }, { status: 409, headers: CORS });
+    }
 
     let ecr = await loadActiveRequest(db, candidateId);
 
@@ -267,6 +270,9 @@ export async function POST(req: NextRequest) {
          WHERE "id"=$2`,
         empId, candidateId,
       );
+        if (pb.jobApplicationId) {
+          await tx.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='hired', "updatedAt"=NOW() WHERE "id"=$1 AND "status"='bgv_passed'`, pb.jobApplicationId).catch(() => null);
+        }
       await tx.$executeRawUnsafe(
         `UPDATE "EmployeeCreationRequest"
          SET "status"='created', "authorizedById"=$2, "authorizedAt"=NOW(),

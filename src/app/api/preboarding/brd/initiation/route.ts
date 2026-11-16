@@ -400,6 +400,13 @@ export async function POST(req: NextRequest) {
       throw e;
     }
 
+    if (applicationId) {
+      await db.$executeRawUnsafe(
+        `UPDATE "JobApplication" SET "status"='preboarding', "updatedAt"=NOW() WHERE "id"=$1 AND "status" IN ('offered','preboarding')`,
+        applicationId,
+      ).catch(() => null);
+    }
+
     const preboardingId = await ensurePreboardingId(db, { id: pbId });
 
     // Notifications AFTER the data change succeeded (BRD 5.3).

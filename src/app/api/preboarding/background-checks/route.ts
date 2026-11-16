@@ -155,6 +155,25 @@ export async function PATCH(req: NextRequest) {
         where: { id: check.preboardingCandidateId },
         data: { backgroundCheckStatus: mapped },
       }).catch(() => null);
+
+      const pbRows = await db.$queryRawUnsafe(
+        `SELECT "jobApplicationId", "candidateEmail", "candidateName" FROM "PreboardingCandidate" WHERE "id"=$1 LIMIT 1`,
+        check.preboardingCandidateId,
+      ).catch(() => []) as any[];
+      const pb = pbRows[0];
+      if (pb?.jobApplicationId && status === 'cleared') {
+        await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='bgv_passed', "updatedAt"=NOW() WHERE "id"=$1`, pb.jobApplicationId).catch(() => null);
+      } else if (pb?.jobApplicationId && status === 'in_progress') {
+        await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='bgv_in_progress', "updatedAt"=NOW() WHERE "id"=$1 AND "status" IN ('preboarding','bgv_in_progress')`).catch(() => null);
+      }
+      if (pb?.candidateEmail && ['in_progress', 'cleared', 'failed'].includes(status)) {
+        const label = status === 'cleared' ? 'BGV Passed' : status === 'failed' ? 'BGV Failed' : 'BGV In Progress';
+        await import('@/lib/email').then(({ sendEmail }) => sendEmail({
+          to: pb.candidateEmail,
+          subject: `Background verification update: ${label}`,
+          html: `<p>Dear ${pb.candidateName || 'Candidate'},</p><p>Your background verification status is now <strong>${label}</strong>.</p>${status === 'cleared' ? '<p>HR will now complete your employee conversion and share your employee access details.</p>' : ''}`,
+        })).catch(() => null);
+      }
     }
 
     return NextResponse.json({ check, message: 'Background check updated' }, { headers: corsHeaders() });

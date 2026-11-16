@@ -305,7 +305,7 @@ export async function PATCH(
     });
     if (application) {
       // GAP FIX #10: Add 'withdrawn' and 'talent_pool' to valid statuses
-      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'hired', 'rejected', 'withdrawn', 'talent_pool'];
+      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired', 'rejected', 'withdrawn', 'talent_pool'];
       if (status !== undefined && !validStatuses.includes(status)) {
         return NextResponse.json(
           { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
@@ -349,9 +349,9 @@ export async function PATCH(
           console.warn('[Recruitment PATCH] interview plan gate failed:', e instanceof Error ? e.message : e);
         }
       }
-      if (status === 'hired' && !['offered', 'hired'].includes(application.status)) {
+      if (status === 'hired' && !['bgv_passed', 'hired'].includes(application.status)) {
         return NextResponse.json(
-          { error: 'Cannot move to Hired without an Offer first. Current status: ' + application.status },
+          { error: 'Cannot move to Hired until BGV has passed. Current status: ' + application.status },
           { status: 400, headers: corsHeaders() }
         );
       }
@@ -374,6 +374,9 @@ export async function PATCH(
               shortlisted: 'Shortlisted',
               interview: 'Selected for Interview',
               offered: 'Offer Extended',
+              preboarding: 'Preboarding – BGV Pending',
+              bgv_in_progress: 'BGV In Progress',
+              bgv_passed: 'BGV Passed',
               hired: 'Hired',
               rejected: 'Rejected',
             };
@@ -475,6 +478,9 @@ export async function PATCH(
             shortlisted: 'Shortlisted',
             interview: 'Selected for Interview',
             offered: 'Offer Extended',
+            preboarding: 'Preboarding – BGV Pending',
+            bgv_in_progress: 'BGV In Progress',
+            bgv_passed: 'BGV Passed',
             hired: 'Hired',
             rejected: 'Rejected',
           };
