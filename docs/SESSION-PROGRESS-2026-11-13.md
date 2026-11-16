@@ -285,3 +285,13 @@ Two user commits deployed together (bb084a0 requested; f9ad472 landed during the
 **Deploy:** `dpl_Ajj2FFfaZ4QZ1G6ipdBQKvU7YKqV` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA bb084a0.
 
 **Post-deploy smoke (11/11 PASS):** GET / 200; HR login; initiation/pipeline/documents/offers 200; background-checks GET 200; cron guard 401; OTP gate stranger-404 + CANDIDATE_NOT_FOUND + known candidate 200; prod commit bb084a0.
+
+## AFTERNOON 16j — bc47dd4 restored to production + tabbed-login redirect fix (`deploy-base` branch)
+
+User reported the login tabs (Employee/HR, Candidate, Vendor) "gone". Investigation: the tabs were never removed — `/login` on the current lineage always had all three (verified live HTML); users landing on `/` were redirected to `/landing` (marketing page) instead. Meanwhile the team force-pushed main to the new lineage (f783030d mega-merge Tasks 158-165 + leave-setup a48004d7 + login redesign 23f32afb/a5d75780) and deployed it (a5d7578 READY); that login has only 2 tabs (no Vendor). User chose bc47dd4 era back.
+
+**Fix:** one-line root redirect change on `src/app/page.tsx` (`/landing` → `/login`, mirroring team commit 23f32afb) on branch `deploy-base` = **bc47dd4 + 67eba5cd only** (git diff vs bc47dd4: 1 file, +1/−1). Pushed `deploy-base` with refreshed GitHub token. Deployed `dpl_4RJtHkThQX26rC5sf81Hmjg8WQLC` via gitSource ref=deploy-base — **READY ~5 min**, aliasAssigned=True → beta domain, SHA 67eba5c. Team's new-lineage commits explicitly EXCLUDED.
+
+**Smoke 14/14 PASS** (3 login tabs live, HR login, BRD/offers APIs, cron guard, OTP gate, prod commit). Root `/` now lands on the tabbed login.
+
+**Note:** "Browse Jobs" tab exists in no commit of this repo (only the pre-Nov-16 app, commit f41525c, not in this repo's history).
