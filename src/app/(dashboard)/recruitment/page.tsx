@@ -195,13 +195,15 @@ function getAppStatusBadge(status: string) {
     interview: 'bg-amber-50 text-amber-700 thb-badge',
     offered: 'thb-badge thb-badge-success',
     offer_accepted: 'bg-indigo-50 text-indigo-700 thb-badge',
+    offer_declined: 'bg-red-50 text-red-700 thb-badge',
+    offer_expired: 'bg-slate-100 text-slate-700 thb-badge',
     preboarding: 'bg-sky-50 text-sky-700 thb-badge',
     bgv_in_progress: 'bg-orange-50 text-orange-700 thb-badge',
     bgv_passed: 'bg-emerald-50 text-emerald-700 thb-badge',
     hired: 'bg-emerald-50 text-emerald-700 thb-badge',
     rejected: 'thb-badge thb-badge-error',
   };
-  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', offered: 'Offered', offer_accepted: 'Offer Accepted', preboarding: 'Preboarding', bgv_in_progress: 'BGV In Progress', bgv_passed: 'BGV Passed', hired: 'Hired', rejected: 'Rejected' };
+  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', offered: 'Offered', offer_accepted: 'Offer Accepted', offer_declined: 'Offer Declined', offer_expired: 'Offer Expired', preboarding: 'Preboarding', bgv_in_progress: 'BGV In Progress', bgv_passed: 'BGV Passed', hired: 'Hired', rejected: 'Rejected' };
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
@@ -2351,12 +2353,6 @@ export default function RecruitmentPage() {
                                                         <option value="screening">Screening</option>
                                                         <option value="shortlisted">Shortlisted</option>
                                                         <option value="interview">Interview</option>
-                                                        <option value="offered">Offered</option>
-                                                        <option value="offer_accepted">Offer Accepted</option>
-                                                        <option value="preboarding">Preboarding</option>
-                                                        <option value="bgv_in_progress">BGV In Progress</option>
-                                                        <option value="bgv_passed">BGV Passed</option>
-                                                        <option value="hired">Hired</option>
                                                         <option value="rejected">Rejected</option>
                                                       </select>
                                                       <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-teal-600 text-white text-xs font-medium rounded hover:bg-teal-700 transition-colors">
@@ -2369,7 +2365,7 @@ export default function RecruitmentPage() {
                                                   ) : (
                                                     <div className="flex items-center gap-2">
                                                       <span className={appBadge.className}>{appBadge.label}</span>
-                                                      {isAdmin && (
+                                                      {isAdmin && ['applied', 'screening', 'shortlisted', 'interview'].includes(app.status) && (
                                                         <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Change Hiring Stage">
                                                           <FiEdit2 className="w-3.5 h-3.5" />
                                                         </button>
@@ -2590,12 +2586,6 @@ export default function RecruitmentPage() {
                                   <option value="screening">Screening</option>
                                   <option value="shortlisted">Shortlisted</option>
                                   <option value="interview">Interview</option>
-                                  <option value="offered">Offered</option>
-                                  <option value="offer_accepted">Offer Accepted</option>
-                                  <option value="preboarding">Preboarding</option>
-                                  <option value="bgv_in_progress">BGV In Progress</option>
-                                  <option value="bgv_passed">BGV Passed</option>
-                                  <option value="hired">Hired</option>
                                   <option value="rejected">Rejected</option>
                                 </select>
                               ) : (
@@ -2680,7 +2670,7 @@ export default function RecruitmentPage() {
                                       <FiFileText className="w-4 h-4" />
                                     </button>
                                   )}
-                                  {isAdmin && (
+                                  {isAdmin && ['applied', 'screening', 'shortlisted', 'interview'].includes(app.status) && (
                                     <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Change Hiring Stage">
                                       <FiEdit2 className="w-4 h-4" />
                                     </button>
@@ -2901,6 +2891,8 @@ export default function RecruitmentPage() {
                   <option value="interview">Interview</option>
                   <option value="offered">Offered</option>
                   <option value="offer_accepted">Offer Accepted</option>
+                  <option value="offer_declined">Offer Declined</option>
+                  <option value="offer_expired">Offer Expired</option>
                   <option value="preboarding">Preboarding</option>
                   <option value="bgv_in_progress">BGV In Progress</option>
                   <option value="bgv_passed">BGV Passed</option>

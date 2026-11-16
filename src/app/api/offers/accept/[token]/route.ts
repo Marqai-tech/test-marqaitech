@@ -73,6 +73,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     const offer = await (db as any).offer?.findUnique({ where: { accessToken: token }, select: PUBLIC_SELECT });
     if (!offer) return NextResponse.json({ error: 'Offer link is invalid or has expired' }, { status: 404, headers: corsHeaders() });
 
+    if (offer.status === 'sent' && offer.sentAt && Date.now() - new Date(offer.sentAt).getTime() >= 7 * 86400000) {
+      await (db as any).offer.update({ where: { id: offer.id }, data: { status: 'expired' } }).catch(() => null);
+      return NextResponse.json({ error: 'This offer has expired' }, { status: 410, headers: corsHeaders() });
+    }
+
     // Tenant branding
     let companyName: string | null = null;
     try {
@@ -106,6 +111,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     const offer = await (db as any).offer?.findUnique({ where: { accessToken: token } });
     if (!offer) return NextResponse.json({ error: 'Offer link is invalid or has expired' }, { status: 404, headers: corsHeaders() });
+    if (offer.status === 'sent' && offer.sentAt && Date.now() - new Date(offer.sentAt).getTime() >= 7 * 86400000) {
+      await (db as any).offer.update({ where: { id: offer.id }, data: { status: 'expired' } }).catch(() => null);
+      if (offer.jobApplicationId) {
+        await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='offer_expired', "updatedAt"=NOW() WHERE "id"=$1`, offer.jobApplicationId).catch(() => null);
+      }
+      return NextResponse.json({ error: 'This offer has expired' }, { status: 410, headers: corsHeaders() });
+    }
     if (!['sent', 'approved'].includes(offer.status)) {
       return NextResponse.json({ error: `This offer can no longer be responded to (current status: ${offer.status})` }, { status: 400, headers: corsHeaders() });
     }
@@ -126,7 +138,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       respondedAt: new Date(),
     };
     if (comments) updateData.responseNotes = comments;
-    if (action === 'accept') {
+    if (action === 'accept' || action === 'decline') {
       updateData.candidateSignature = sanitizeMultiLineText(String(body.signatureName).trim(), 120);
       updateData.candidateSignedAt = new Date();
       updateData.esignProvider = 'internal_self_service';
@@ -185,10 +197,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
         if (jobAppId) {
           await db.$executeRawUnsafe(
-            `UPDATE "JobApplication" SET "status" = 'offer_accepted', "updatedAt" = NOW() WHERE "id" = $1`,
+            `UPDATE "JobApplication" SET "status" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+            action === 'accept' ? 'offer_accepted' : 'offer_declined',
             jobAppId,
           );
-          console.log(`[Offer Accept] JobApplication ${jobAppId} status set to 'offer_accepted'`);
+          console.log(`[Offer Accept] JobApplication ${jobAppId} status set to '${action === 'accept' ? 'offer_accepted' : 'offer_declined'}'`);
         } else {
           console.warn(`[Offer Accept] No JobApplication found for offer ${offer.id} (candidateEmail=${offerRows[0]?.candidateEmail || 'N/A'}) — auto-hire skipped`);
         }

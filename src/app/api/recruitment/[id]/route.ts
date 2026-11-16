@@ -305,11 +305,22 @@ export async function PATCH(
     });
     if (application) {
       // GAP FIX #10: Add 'withdrawn' and 'talent_pool' to valid statuses
-      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'offer_accepted', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired', 'rejected', 'withdrawn', 'talent_pool'];
+      const validStatuses = ['applied', 'screening', 'shortlisted', 'interview', 'offered', 'offer_accepted', 'offer_declined', 'offer_expired', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired', 'rejected', 'withdrawn', 'talent_pool'];
       if (status !== undefined && !validStatuses.includes(status)) {
         return NextResponse.json(
           { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
           { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      // Offer, acceptance, preboarding, BGV and hiring stages are controlled
+      // by their domain actions; they must not be set from the generic stage
+      // dropdown.
+      const actionDrivenStatuses = ['offered', 'offer_accepted', 'offer_declined', 'offer_expired', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired'];
+      if (status !== undefined && actionDrivenStatuses.includes(status) && status !== application.status) {
+        return NextResponse.json(
+          { error: `${status} is controlled by its workflow action. Use Offer Management, Preboarding, or BGV actions instead.` },
+          { status: 409, headers: corsHeaders() },
         );
       }
 
@@ -375,6 +386,8 @@ export async function PATCH(
               interview: 'Selected for Interview',
             offered: 'Offer Extended',
             offer_accepted: 'Offer Accepted — Awaiting Preboarding',
+            offer_declined: 'Offer Declined',
+            offer_expired: 'Offer Expired',
               preboarding: 'Preboarding – BGV Pending',
               bgv_in_progress: 'BGV In Progress',
               bgv_passed: 'BGV Passed',
@@ -480,6 +493,8 @@ export async function PATCH(
             interview: 'Selected for Interview',
               offered: 'Offer Extended',
               offer_accepted: 'Offer Accepted — Awaiting Preboarding',
+              offer_declined: 'Offer Declined',
+              offer_expired: 'Offer Expired',
             preboarding: 'Preboarding – BGV Pending',
             bgv_in_progress: 'BGV In Progress',
             bgv_passed: 'BGV Passed',

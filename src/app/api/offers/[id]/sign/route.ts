@@ -162,7 +162,8 @@ export async function POST(
       },
     });
 
-    // GAP FIX #8: Dispatch offer accepted notification + update JobApplication to 'hired'
+    // Offer acceptance is not employment activation. Keep the application in
+    // offer_accepted until HR initiates preboarding and BGV is passed.
     // (Previously the internal e-sign route set status='accepted' but dispatched NO notification
     //  and didn't update the linked JobApplication — IT provisioning was never triggered)
     try {
@@ -185,10 +186,10 @@ export async function POST(
           }).catch(() => null);
         }
       }
-      // Update JobApplication to 'hired' if linked
+      // Update JobApplication to 'offer_accepted' if linked
       if (offer.jobApplicationId) {
         await db.$executeRawUnsafe(
-          `UPDATE "JobApplication" SET "status" = 'hired', "updatedAt" = NOW() WHERE "id" = $1`,
+          `UPDATE "JobApplication" SET "status" = 'offer_accepted', "updatedAt" = NOW() WHERE "id" = $1`,
           offer.jobApplicationId,
         ).catch(() => null);
       }
