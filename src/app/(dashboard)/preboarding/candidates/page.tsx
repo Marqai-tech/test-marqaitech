@@ -706,7 +706,10 @@ function CandidatesContent() {
                     <td className="px-3 py-3 text-slate-600 whitespace-nowrap">
                       {c.candidateId ? (
                         <button
-                          onClick={() => router.push(`/candidates/${c.candidateId}`)}
+                          // Open the HR preboarding record, not the legacy
+                          // candidate profile route (which returns 404 for
+                          // preboarding IDs and hides the BGV workflow).
+                          onClick={() => router.push(`/preboarding/candidates/${c.id}`)}
                           className="text-teal-600 hover:text-teal-700 hover:underline"
                           title="Open candidate profile"
                         >
