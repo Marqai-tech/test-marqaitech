@@ -94,7 +94,7 @@ export async function POST(
 
     // Fetch interview + candidate details for notifications
     const interviewRows = await db.$queryRawUnsafe(
-      `SELECT i."date", i."time", i."type", ja."candidateName", jp."title" AS "jobTitle"
+      `SELECT i."date", i."time", i."type", i."duration", i."location", i."meetingUrl", i."round", ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
        FROM "Interview" i
        JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
        LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
@@ -102,6 +102,54 @@ export async function POST(
       id,
     ) as any[];
     const interview = interviewRows[0];
+
+    // Candidate notification is sent only after an assigned interviewer has
+    // accepted the interview. Scheduling itself must not notify the candidate
+    // while the panel assignment is still pending confirmation.
+    if (action === 'accept' && interview?.candidateEmail) {
+      try {
+        const { sendEmail } = await import('@/lib/email');
+        const { sendTenantEmail } = await import('@/lib/notification-channels');
+        const dateStr = interview.date
+          ? new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'TBD';
+        const typeLabel = interview.type === 'technical' ? 'Technical Interview'
+          : interview.type === 'hr' ? 'HR Interview'
+          : interview.type === 'ai' ? 'AI Interview' : 'Panel Interview';
+        const round = Number(interview.round || 1);
+        const roundLabel = round > 1 ? ` (Round ${round})` : '';
+        const subject = `Interview Confirmed${roundLabel}: ${interview.candidateName} — ${interview.jobTitle || 'Interview'}`;
+        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <h2 style="color:#4f46e5;">Interview Confirmed${roundLabel}</h2>
+          <p>Dear ${interview.candidateName},</p>
+          <p>Your interviewer has accepted the <strong>${interview.jobTitle || 'interview'}</strong> interview assignment.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+            ${round > 1 ? `<tr><td style="padding:8px 12px;background:#f1f5f9;font-weight:600;width:35%;">Round</td><td style="padding:8px 12px;">${round}</td></tr>` : ''}
+            <tr><td style="padding:8px 12px;background:#f1f5f9;font-weight:600;width:35%;">Date</td><td style="padding:8px 12px;">${dateStr}</td></tr>
+            <tr><td style="padding:8px 12px;background:#f1f5f9;font-weight:600;">Time</td><td style="padding:8px 12px;">${interview.time || 'TBD'}</td></tr>
+            <tr><td style="padding:8px 12px;background:#f1f5f9;font-weight:600;">Type</td><td style="padding:8px 12px;">${typeLabel}</td></tr>
+            <tr><td style="padding:8px 12px;background:#f1f5f9;font-weight:600;">Mode</td><td style="padding:8px 12px;">${interview.location ? `Offline — ${interview.location}` : interview.meetingUrl ? `Online — ${interview.meetingUrl}` : 'TBD'}</td></tr>
+          </table>
+          ${interview.meetingUrl ? `<p><a href="${interview.meetingUrl}" style="display:inline-block;padding:10px 20px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">Join Meeting</a></p>` : ''}
+          <p>Regards,<br/>HR Team</p>
+        </div>`;
+        let sent = false;
+        let error = '';
+        try {
+          const result = await sendEmail({ to: interview.candidateEmail, subject, html });
+          sent = result.success;
+          error = result.error || '';
+        } catch (e) { error = e instanceof Error ? e.message : String(e); }
+        if (!sent) {
+          const fallback = await sendTenantEmail(db, String(decoded.tenantId || ''), { to: interview.candidateEmail, subject, html });
+          sent = fallback.success;
+          error = error || fallback.error || '';
+        }
+        console.log(`[AcceptDecline] Candidate interview-confirmed email to ${interview.candidateEmail}: ${sent ? 'SENT' : 'FAILED'} — ${error}`);
+      } catch (emailErr) {
+        console.warn('[AcceptDecline] Candidate confirmation email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
+      }
+    }
 
     // Notify HR of the response
     try {

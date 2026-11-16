@@ -509,8 +509,6 @@ export async function POST(req: NextRequest) {
       const timeStr = time || 'TBD';
       // C-22: dynamic interview round number — compute the round for this
       // application (MAX existing round + 1, or 1 if this is the first).
-      const interviewRound = round ? Number(round) : 1;
-      const roundLabel = interviewRound > 1 ? ` (Round ${interviewRound})` : '';
 
       try {
         const { dispatchNotification } = await import('@/lib/notification-center');
@@ -554,74 +552,8 @@ export async function POST(req: NextRequest) {
         },
       }).catch(() => null);
 
-      // GAP FIX #2: Also dispatch recruitment.interview.scheduled to the candidate (email-only).
-      //
-      // Why sendEmail() FIRST (not dispatchNotification): the candidate's email
-      // is typically an external address (gmail/yahoo/outlook). sendEmail() in
-      // src/lib/email.ts does smart routing — internal domains go through SMTP,
-      // external go through Resend directly with the verified FROM address.
-      // The previous implementation went through dispatchNotification →
-      // sendTenantEmail, which tries tenant SMTP first; if tenant SMTP is
-      // misconfigured or its circuit breaker is open, the dispatch silently
-      // failed (the surrounding .catch(() => null) swallowed the error) and
-      // the candidate received NO interview-scheduled email while still
-      // receiving other status-change emails that use sendEmail() directly.
-      //
-      // We now mirror the status-change email path (recruitment/[id]/route.ts):
-      //   1. sendEmail() FIRST — smart SMTP/Resend routing
-      //   2. sendTenantEmail() fallback — tenant SMTP → env SMTP → Resend
-      //   3. console.log the result so Vercel logs show exactly what happened
-      if (app?.candidateEmail) {
-        try {
-          const { sendEmail } = await import('@/lib/email');
-          const { sendTenantEmail } = await import('@/lib/notification-channels');
-          const candidateSubject = `Interview Scheduled${roundLabel}: ${app.candidateName} — ${jobTitle} (${dateStr})`;
-          const candidateHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-            <h2 style="color:#4f46e5;">Interview Scheduled${roundLabel}</h2>
-            <p>Dear ${app.candidateName},</p>
-            <p>An interview has been scheduled for the <strong>${jobTitle}</strong> position${roundLabel ? ` — <strong>Round ${interviewRound}</strong>` : ''}.</p>
-            <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
-              ${interviewRound > 1 ? `<tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;width:35%;">Round</td><td style="padding:8px 12px;">${interviewRound}</td></tr>` : ''}
-              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;width:35%;">Date</td><td style="padding:8px 12px;">${dateStr}</td></tr>
-              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Time</td><td style="padding:8px 12px;">${timeStr}</td></tr>
-              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Type</td><td style="padding:8px 12px;">${typeLabel}</td></tr>
-              <tr><td style="padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;">Mode</td><td style="padding:8px 12px;">${location ? `Offline — ${location}` : meetingUrl ? `Online — ${meetingUrl}` : 'TBD'}</td></tr>
-            </table>
-            ${meetingUrl ? `<p><a href="${meetingUrl}" style="display:inline-block;padding:10px 20px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">Join Meeting</a></p>` : ''}
-            <p>Please be available 5 minutes before the scheduled time. A reminder will be sent closer to the interview.</p>
-            <p>Regards,<br/>HR Team</p>
-          </div>`;
-          let candidateSent = false;
-          let candidateErr = '';
-          try {
-            const candRes = await sendEmail({
-              to: app.candidateEmail,
-              subject: candidateSubject,
-              html: candidateHtml,
-            });
-            candidateSent = candRes.success;
-            candidateErr = candRes.error || '';
-          } catch (e) {
-            candidateErr = e instanceof Error ? e.message : String(e);
-          }
-          if (!candidateSent) {
-            try {
-              const fbRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
-                to: app.candidateEmail,
-                subject: candidateSubject,
-                html: candidateHtml,
-              });
-              candidateSent = fbRes.success;
-              candidateErr = candidateErr || fbRes.error || '';
-            } catch (e) {
-              candidateErr = candidateErr + ' | fallback failed: ' + (e instanceof Error ? e.message : String(e));
-            }
-          }
-          console.log(`[Interviews POST] Candidate interview-scheduled email to ${app.candidateEmail}: ${candidateSent ? 'SENT' : 'FAILED'} — ${candidateErr}`);
-        } catch (emailErr) {
-          console.warn('[Interviews POST] Candidate interview-scheduled email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
-        }
-      }
+      // Candidate notification is intentionally deferred until the assigned
+      // interviewer accepts. Scheduling only sends the panel invitation.
     }
 
     return NextResponse.json({
