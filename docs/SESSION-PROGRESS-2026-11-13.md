@@ -277,3 +277,11 @@ Three user commits deployed together (user asked for 01a9b65; the other two sat 
 **Deploy:** `dpl_3R4CUXEPkm4MDsjD8G7dF8WxyHVc` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA f8e6615.
 
 **Post-deploy smoke (11/11 PASS):** GET / 200; HR login OK; initiation/pipeline/documents/offers 200; cron guard 401; OTP gate stranger-404 + CANDIDATE_NOT_FOUND + known-candidate 200; prod commit f8e6615.
+
+## MORNING 16b — BGV initiation card deployed (`bb084a0`, incl. `f9ad472`)
+
+Two user commits deployed together (bb084a0 requested; f9ad472 landed during the prior build): `f9ad472` preboarding candidate profile navigation fix (+4/-1, candidates list page); `bb084a0` BGV initiation card on the preboarding candidate profile (+41/-1): vendor (Manual/Sterling/HireRight/First Advantage) + package (Basic/Standard/Enhanced/Executive) selects and an Initiate BGV button POSTing /api/preboarding/background-checks, disabled once in_progress/cleared; card shows current BGV status. UI-to-API contract verified against the route's POST signature (same value sets). No schema changes. Pre-flight: conflict scan clean, esbuild pass on the bb084a0 tree.
+
+**Deploy:** `dpl_Ajj2FFfaZ4QZ1G6ipdBQKvU7YKqV` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA bb084a0.
+
+**Post-deploy smoke (11/11 PASS):** GET / 200; HR login; initiation/pipeline/documents/offers 200; background-checks GET 200; cron guard 401; OTP gate stranger-404 + CANDIDATE_NOT_FOUND + known candidate 200; prod commit bb084a0.
