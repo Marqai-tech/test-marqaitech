@@ -269,3 +269,11 @@ Three user commits deployed together (user asked for 01a9b65; the other two sat 
 **Post-deploy smoke (12/12 PASS + endpoints):** standard suite green (initiation eligible 3 / invited 8; pipeline 14; documents 2; offers 200; cron 401; OTP gate live); prod commit = 12c440b; **GET /api/requisitions 200, GET /api/jobs 200** — Requisition.interviewPlan live on reads and writes.
 
 **Production = GitHub main (`12c440b`).**
+
+## MORNING 16 — BGV hiring lifecycle enforcement deployed (`f8e6615`)
+
+`f8e6615` "Enforce preboarding and BGV hiring lifecycle" — 5 routes, +47/-3, NO schema changes: (1) background-checks route syncs JobApplication status on BGV transitions (in_progress→bgv_in_progress, cleared→bgv_passed) and emails the candidate; (2) employee-creation + employee-creation-approval now 409 unless `backgroundCheckStatus==='cleared'`, and on conversion set JobApplication→hired; (3) initiation sets application→preboarding; (4) recruitment PATCH accepts the new statuses (preboarding/bgv_in_progress/bgv_passed) with labels, and 'hired' now requires bgv_passed (was: offered). Note: sandbox was recycled before this deploy — repo re-cloned, smoke-test.sh rebuilt at scripts/smoke-test.sh (fixed a shell-quoting bug in the stranger-email check). Pre-flight: conflict scan clean, esbuild pass on all 5 changed files (re-verified on the f8e6615 tree after an initial run against a stale checkout).
+
+**Deploy:** `dpl_3R4CUXEPkm4MDsjD8G7dF8WxyHVc` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA f8e6615.
+
+**Post-deploy smoke (11/11 PASS):** GET / 200; HR login OK; initiation/pipeline/documents/offers 200; cron guard 401; OTP gate stranger-404 + CANDIDATE_NOT_FOUND + known-candidate 200; prod commit f8e6615.
