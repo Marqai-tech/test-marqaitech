@@ -349,11 +349,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
+    <div className="min-h-screen flex relative overflow-hidden lg:flex-row-reverse">
       {/* ===== LEFT PANEL — Branding & Features ===== */}
       <div className="hidden lg:flex lg:w-[55%] xl:w-[58%] relative flex-col justify-between">
-        {/* Deep gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0B1120] via-[#0F2D1A] to-[#0F2E1A]" />
+        {/* Light blue gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-cyan-50 to-emerald-50" />
 
         {/* Animated mesh pattern */}
         <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -430,16 +430,16 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  Transform Your
+                  Smarter HR
                   <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400">
-                    HR Operations
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-cyan-500 to-emerald-500">
+                    Starts Here
                   </span>
                 </>
               )}
             </h2>
 
-            <p className="text-slate-300/80 text-base leading-relaxed mb-10 max-w-md">
+            <p className="text-slate-600 text-base leading-relaxed mb-10 max-w-md">
               {isPlatformSite
                 ? 'The central platform control center for managing all tenants, approving trial registrations, controlling subscriptions, and overseeing the entire 3Boxes HRMS ecosystem. Only live production data — no demo or dummy data.'
                 : 'The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Group.'
@@ -454,22 +454,22 @@ export default function LoginPage() {
                     <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
                       <FiUsers className="w-5 h-5 text-green-400" />
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Tenants</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">View, configure, and manage all tenant organizations</p>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Tenants</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">View, configure, and manage all tenant organizations</p>
                   </div>
                   <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
                     <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
                       <FiUserCheck className="w-5 h-5 text-emerald-400" />
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Approvals</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Trial registration, domain, and subscription approvals</p>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Approvals</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Trial registration, domain, and subscription approvals</p>
                   </div>
                   <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
                     <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
                       <FiCreditCard className="w-5 h-5 text-emerald-400" />
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Subscriptions</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Plan management, billing, and renewal cycle control</p>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Subscriptions</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Plan management, billing, and renewal cycle control</p>
                   </div>
                 </>
               ) : (
@@ -478,22 +478,22 @@ export default function LoginPage() {
                     <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
                       <FiUsers className="w-5 h-5 text-green-400" />
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-1">People</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Employee lifecycle, engagement & growth management</p>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">People</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Employee lifecycle, engagement & growth management</p>
                   </div>
                   <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
                     <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
                       <FiSettings className="w-5 h-5 text-emerald-400" />
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Process</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">Automated workflows, compliance & approvals</p>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Process</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Automated workflows, compliance & approvals</p>
                   </div>
                   <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
                     <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
                       <FiCpu className="w-5 h-5 text-emerald-400" />
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Technology</h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">AI interviews, analytics & smart automation</p>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Technology</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">AI interviews, analytics & smart automation</p>
                   </div>
                 </>
               )}
@@ -506,13 +506,13 @@ export default function LoginPage() {
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
                   {['bg-green-500', 'bg-emerald-500', 'bg-green-500', 'bg-amber-500'].map((c, i) => (
-                    <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-[#0F1D3A] flex items-center justify-center text-[10px] font-bold text-white`}>
+                    <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-white flex items-center justify-center text-[10px] font-bold text-white`}>
                       {['SK', 'AP', 'MJ', 'RK'][i]}
                     </div>
                   ))}
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-white">2,500+ Companies</p>
+                  <p className="text-xs font-semibold text-slate-700">2,500+ Companies</p>
                   <p className="text-[10px] text-slate-400">Trust 3Boxes HRMS</p>
                 </div>
               </div>
@@ -521,7 +521,7 @@ export default function LoginPage() {
                 {[...Array(5)].map((_, i) => (
                   <FiStar key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                 ))}
-                <span className="text-xs font-semibold text-white ml-1">4.9/5</span>
+                <span className="text-xs font-semibold text-slate-700 ml-1">4.9/5</span>
               </div>
             </div>
 
