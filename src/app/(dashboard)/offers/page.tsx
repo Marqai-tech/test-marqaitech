@@ -80,6 +80,7 @@ export default function OffersPage() {
   const [form, setForm] = useState(initialForm);
   // GAP FIX #6: Store jobApplicationId from URL params (when navigated from recruitment pipeline)
   const [jobApplicationId, setJobApplicationId] = useState<string | null>(null);
+  const [linkedCandidateId, setLinkedCandidateId] = useState<string | null>(null);
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -98,6 +99,7 @@ export default function OffersPage() {
       const candidateName = params.get('candidateName');
       const candidateEmail = params.get('candidateEmail');
       const jobAppId = params.get('jobApplicationId');
+      const candidateId = params.get('candidateId');
       const position = params.get('position');
       if (candidateName || candidateEmail || jobAppId) {
         setForm({
@@ -107,6 +109,7 @@ export default function OffersPage() {
           position: position || '',
         });
         setJobApplicationId(jobAppId || null);
+        setLinkedCandidateId(candidateId || jobAppId || null);
         setShowForm(true);
       }
     }
@@ -118,6 +121,7 @@ export default function OffersPage() {
     // Phase 13 fix: Clear jobApplicationId when opening a fresh offer form
     // (previously it could retain the previous candidate's application link)
     setJobApplicationId(null);
+    setLinkedCandidateId(null);
     setShowForm(true);
     setViewingId(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -152,7 +156,9 @@ export default function OffersPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.candidateName || !form.position) { toast.error('Name and position are required'); return; }
+    if (!form.candidateName || !form.candidateEmail || !form.position || !form.joiningDate) {
+      toast.error('Candidate name, email, position, and joining date are required'); return;
+    }
     // FIX(offer): coerce the string-backed numeric fields back to numbers
     // before sending to the API. Empty string → 0 (or 90 for probation).
     const payload = {
@@ -179,7 +185,7 @@ export default function OffersPage() {
         toast.success('Offer updated');
       } else {
         // GAP FIX #6: Pass jobApplicationId when creating offer (links to recruitment pipeline)
-        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...payload, candidateId: jobApplicationId || `candidate-${Date.now()}`, jobApplicationId: jobApplicationId || undefined }) });
+        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...payload, candidateId: linkedCandidateId || jobApplicationId || `candidate-${Date.now()}`, jobApplicationId: jobApplicationId || undefined }) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Offer created');
       }
