@@ -49,6 +49,15 @@ const initialForm = {
   departmentId: '', designationId: '', positionTitle: '', positionType: 'new', numberOfOpenings: 1, employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '', reason: '', interviewPlan: JSON.stringify([{ sequence: 1, name: 'Technical Round 1', type: 'technical' }, { sequence: 2, name: 'HR Round', type: 'hr' }], null, 2),
 };
 
+type InterviewPlanRow = { name: string; type: 'technical' | 'hr' | 'ai' | 'offline_panel' };
+function parseInterviewPlan(value: string): InterviewPlanRow[] {
+  try {
+    const rows = JSON.parse(value || '[]');
+    return Array.isArray(rows) && rows.length ? rows.map((r: any) => ({ name: String(r.name || 'Interview Round'), type: ['technical', 'hr', 'ai', 'offline_panel'].includes(r.type) ? r.type : 'technical' })) : [{ name: 'Technical Round 1', type: 'technical' }];
+  } catch { return [{ name: 'Technical Round 1', type: 'technical' }]; }
+}
+function serializeInterviewPlan(rows: InterviewPlanRow[]) { return JSON.stringify(rows.map((row, i) => ({ sequence: i + 1, ...row }))); }
+
 // Task 164: user-facing status labels
 function getApprovalLabel(status: string): string {
   const map: Record<string, string> = {
@@ -652,10 +661,9 @@ export default function RequisitionsPage() {
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Hiring <span className="text-red-500 font-bold">*</span> <span className="text-thb-text-muted">(required to submit)</span></label>
                 <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="e.g. Need additional developer for the new product launch in Q1 2027" rows={2} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
-              <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
-                <label className="block text-xs font-semibold text-indigo-900 mb-1">Interview plan for this role</label>
-                <p className="text-[11px] text-indigo-700 mb-2">This ordered plan is copied to the Job Posting and controls candidate progression.</p>
-                <textarea value={form.interviewPlan} onChange={(e) => setForm({ ...form, interviewPlan: e.target.value })} rows={5} className="w-full px-3 py-2.5 rounded-lg border border-indigo-200 bg-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" aria-label="Interview plan JSON" />
+              <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+                <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-indigo-900">Interview Plan for This Role</label><p className="text-[11px] text-indigo-700 mt-0.5">Add and arrange the rounds HR expects. This plan is copied to the Job Posting.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(form.interviewPlan); setForm({ ...form, interviewPlan: serializeInterviewPlan([...rows, { name: `Interview Round ${rows.length + 1}`, type: 'technical' }]) }); }} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700">+ Add Round</button></div>
+                <div className="space-y-2">{parseInterviewPlan(form.interviewPlan).map((row, i, rows) => <div key={`${i}-${row.name}`} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg bg-white border border-indigo-100 p-2"><span className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span><input value={row.name} onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="sm:w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="ai">AI</option><option value="offline_panel">Panel</option></select><button type="button" disabled={rows.length === 1} onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan(rows.filter((_, index) => index !== i)) })} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50 disabled:opacity-30" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
               </div>
             </div>
             {/* Task 164: Save as Draft + Submit for Approval */}
