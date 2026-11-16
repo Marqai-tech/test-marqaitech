@@ -193,6 +193,7 @@ function getAppStatusBadge(status: string) {
     screening: 'bg-teal-50 text-teal-700 thb-badge',
     shortlisted: 'bg-violet-50 text-violet-700 thb-badge',
     interview: 'bg-amber-50 text-amber-700 thb-badge',
+    interview_completed: 'bg-violet-50 text-violet-700 thb-badge',
     offered: 'thb-badge thb-badge-success',
     offer_accepted: 'bg-indigo-50 text-indigo-700 thb-badge',
     offer_declined: 'bg-red-50 text-red-700 thb-badge',
@@ -203,7 +204,7 @@ function getAppStatusBadge(status: string) {
     hired: 'bg-emerald-50 text-emerald-700 thb-badge',
     rejected: 'thb-badge thb-badge-error',
   };
-  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', offered: 'Offered', offer_accepted: 'Offer Accepted', offer_declined: 'Offer Declined', offer_expired: 'Offer Expired', preboarding: 'Preboarding', bgv_in_progress: 'BGV In Progress', bgv_passed: 'BGV Passed', hired: 'Hired', rejected: 'Rejected' };
+  const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', shortlisted: 'Shortlisted', interview: 'Interview', interview_completed: 'Interview Completed', offered: 'Offered', offer_accepted: 'Offer Accepted', offer_declined: 'Offer Declined', offer_expired: 'Offer Expired', preboarding: 'Preboarding', bgv_in_progress: 'BGV In Progress', bgv_passed: 'BGV Passed', hired: 'Hired', rejected: 'Rejected' };
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 

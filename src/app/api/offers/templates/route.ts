@@ -96,6 +96,7 @@ export async function POST(request: Request) {
     if (!HR_ROLES_TPL.includes((decoded.role as string) || '')) {
       return NextResponse.json({ error: 'Only HR/Admin can create offer templates' }, { status: 403, headers: corsHeaders() });
     }
+    const body = await request.json();
     const { name, country, language, body: templateBody, header, footer, clauses, isActive } = body;
 
     if (!name || !templateBody) {

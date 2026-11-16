@@ -843,6 +843,35 @@ export async function PATCH(req: NextRequest) {
         }
       }
 
+      // Move the application forward only after every configured interview
+      // round is completed. Offer creation/sending remains the next HR action.
+      try {
+        const planRows = await db.$queryRawUnsafe(
+          `SELECT "interviewPlan" FROM "JobPosting" jp
+           JOIN "JobApplication" ja ON ja."jobPostingId" = jp."id"
+           WHERE ja."id" = $1 LIMIT 1`,
+          existingRows[0].jobApplicationId,
+        ) as any[];
+        const rawPlan = planRows[0]?.interviewPlan;
+        const plan = typeof rawPlan === 'string' ? JSON.parse(rawPlan) : rawPlan;
+        const requiredRounds = Array.isArray(plan) ? plan.length : 0;
+        if (requiredRounds > 0) {
+          const completedRows = await db.$queryRawUnsafe(
+            `SELECT DISTINCT "round" FROM "Interview" WHERE "jobApplicationId"=$1 AND "status"='completed'`,
+            existingRows[0].jobApplicationId,
+          ) as any[];
+          const completedRounds = new Set(completedRows.map((r: any) => Number(r.round || 1)));
+          if (Array.from({ length: requiredRounds }, (_, i) => i + 1).every((round) => completedRounds.has(round))) {
+            await db.$executeRawUnsafe(
+              `UPDATE "JobApplication" SET "status"='interview_completed', "updatedAt"=NOW() WHERE "id"=$1 AND "status"='interview'`,
+              existingRows[0].jobApplicationId,
+            );
+          }
+        }
+      } catch (e) {
+        console.warn('[Interview Complete] Could not advance application stage:', e instanceof Error ? e.message : e);
+      }
+
       // 4) Notify all accepted panel members to submit their feedback
       try {
         const panelRows = await db.$queryRawUnsafe(

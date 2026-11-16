@@ -74,6 +74,21 @@ function formatDate(value: Date | string | null | undefined): string {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+/** Convert simple Markdown that may exist in older templates into printable HTML. */
+export function normalizeTemplateMarkup(value: string): string {
+  return value
+    .replace(/```(?:html|htm|markdown)?/gi, '')
+    .replace(/```/g, '')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/gi, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    .replace(/\\([.!])/g, '$1')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/\n/g, '<br />');
+}
+
 export function renderOfferTemplate(
   body: string,
   input: TemplateRenderInput
@@ -95,7 +110,9 @@ export function renderOfferTemplate(
     todayDate: formatDate(today),
   };
 
-  let rendered = body || '';
+  // Templates are HTML fields, so tolerate accidental Markdown code fences
+  // pasted into older templates without showing ``` in the final letter.
+  let rendered = normalizeTemplateMarkup(body || '');
   const missing: string[] = [];
 
   for (const key of KNOWN_PLACEHOLDERS) {
@@ -126,8 +143,8 @@ export function wrapRenderedOffer(
   opts: { header?: string | null; footer?: string | null; title?: string } = {}
 ): string {
   const title = opts.title ? escapeHtml(opts.title) : 'Offer Letter';
-  const header = opts.header || '';
-  const footer = opts.footer || '';
+  const header = normalizeTemplateMarkup(opts.header || '');
+  const footer = normalizeTemplateMarkup(opts.footer || '');
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

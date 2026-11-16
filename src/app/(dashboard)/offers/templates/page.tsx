@@ -1,17 +1,65 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   FiPlus, FiX, FiEdit2, FiTrash2, FiFileText, FiEye, FiCopy, FiUpload, FiImage, FiLayout,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { renderOfferTemplate, wrapRenderedOffer } from '@/lib/offer-template';
+import { normalizeTemplateMarkup, renderOfferTemplate, wrapRenderedOffer } from '@/lib/offer-template';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+function VisualTemplateEditor({
+  value,
+  onChange,
+  placeholder,
+  minHeight = 180,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+  placeholder: string;
+  minHeight?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current && ref.current.innerHTML !== value) ref.current.innerHTML = value;
+  }, [value]);
+
+  const format = (command: string, commandValue?: string) => {
+    ref.current?.focus();
+    document.execCommand(command, false, commandValue);
+    if (ref.current) onChange(ref.current.innerHTML);
+  };
+
+  return (
+    <div className="rounded-lg border border-thb-border overflow-hidden bg-white">
+      <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
+        <button type="button" onClick={() => format('bold')} className="px-2 py-1 text-xs font-bold rounded hover:bg-white" title="Bold">B</button>
+        <button type="button" onClick={() => format('italic')} className="px-2 py-1 text-xs italic rounded hover:bg-white" title="Italic">I</button>
+        <button type="button" onClick={() => format('underline')} className="px-2 py-1 text-xs underline rounded hover:bg-white" title="Underline">U</button>
+        <select aria-label="Text style" onChange={(e) => format('formatBlock', e.target.value)} className="text-xs border rounded px-1 py-1 bg-white">
+          <option value="p">Paragraph</option>
+          <option value="h2">Heading</option>
+          <option value="h3">Subheading</option>
+        </select>
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        data-placeholder={placeholder}
+        className="w-full px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+        style={{ minHeight }}
+      />
+    </div>
+  );
 }
 
 interface OfferTemplate {
@@ -74,7 +122,7 @@ const DEFAULT_TEMPLATE_BODY = `<h2>Offer of Employment</h2>
 <p><strong>Compensation:</strong> {{currency}} {{salary}} per month (CTC: {{currency}} {{ctc}} per annum).</p>
 <p><strong>Joining Date:</strong> {{joiningDate}}</p>
 <p><strong>Probation Period:</strong> {{probationDays}} days</p>
-${'`'}${'`'}${'`'}`;
+<p><strong>Reporting To:</strong> {{reportingTo}}</p>`;
 
 const SAMPLE_DATA = {
   candidateName: 'Aarav Sharma',
@@ -230,9 +278,9 @@ export default function OfferTemplatesPage() {
       name: t.name || '',
       country: t.country || '*',
       language: t.language || 'en',
-      body: t.body || '',
-      header: t.header || '',
-      footer: t.footer || '',
+      body: normalizeTemplateMarkup(t.body || ''),
+      header: normalizeTemplateMarkup(t.header || ''),
+      footer: normalizeTemplateMarkup(t.footer || ''),
       isActive: t.isActive !== false,
     });
     setEditingId(t.id);
@@ -499,7 +547,7 @@ export default function OfferTemplatesPage() {
 
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                    Body * (HTML with placeholders)
+                    Body * (visual editor)
                   </label>
                   <div className="mb-2 flex flex-wrap gap-1">
                     {PLACEHOLDER_HINTS.map((ph) => (
@@ -514,13 +562,8 @@ export default function OfferTemplatesPage() {
                       </button>
                     ))}
                   </div>
-                  <textarea
-                    rows={14}
-                    value={form.body}
-                    onChange={(e) => setForm({ ...form, body: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                    placeholder="Enter the offer letter body..."
-                  />
+                  <VisualTemplateEditor value={form.body} onChange={(body) => setForm({ ...form, body })} placeholder="Write the offer letter content here..." minHeight={260} />
+                  <p className="text-[10px] text-thb-text-muted">Use the formatting buttons above. Click a placeholder button to insert candidate-specific values.</p>
                 </div>
 
                 {/* ═══ HEADER SECTION (with logo upload + quick-fill templates) ═══ */}
@@ -577,15 +620,9 @@ export default function OfferTemplatesPage() {
                     </div>
                   </div>
 
-                  <textarea
-                    rows={5}
-                    value={form.header}
-                    onChange={(e) => setForm({ ...form, header: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    placeholder="Enter header HTML — upload a logo or use a quick-fill template above. Example: <h1>Company Name</h1><img src='...' />"
-                  />
+                  <VisualTemplateEditor value={form.header} onChange={(header) => setForm({ ...form, header })} placeholder="Add company name, logo, address, and offer title..." minHeight={110} />
                   <p className="text-[10px] text-thb-text-muted">
-                    💡 The header appears at the top of the offer letter with a blue bottom border. Upload a logo (PNG/JPG/SVG, max 500KB) or pick a template above. Replace <code className="bg-slate-100 px-1 rounded">LOGO_URL_HERE</code> with your logo URL, or use the Upload Logo button to embed it.
+                    💡 The header appears at the top of the offer letter. Use a quick-fill option or upload a logo; no HTML knowledge is required.
                   </p>
                 </div>
 
@@ -642,15 +679,9 @@ export default function OfferTemplatesPage() {
                     </div>
                   </div>
 
-                  <textarea
-                    rows={5}
-                    value={form.footer}
-                    onChange={(e) => setForm({ ...form, footer: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400"
-                    placeholder="Enter footer HTML — use a quick-fill template above or write your own. Example: company address, contact info, confidentiality notice."
-                  />
+                  <VisualTemplateEditor value={form.footer} onChange={(footer) => setForm({ ...form, footer })} placeholder="Add company address, contact details, and confidentiality notice..." minHeight={110} />
                   <p className="text-[10px] text-thb-text-muted">
-                    💡 The footer appears at the bottom with a top border. Common uses: company address, contact info, GST/CIN number, confidentiality notice. Edit the template text to match your company details.
+                    💡 The footer appears at the bottom with a top border. Use the quick-fill options and edit the visible text directly.
                   </p>
                 </div>
 
