@@ -259,12 +259,18 @@ export const navSections: NavSection[] = [
 
       // ── Settings (admin-only) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
+      { label: 'Leave Setup', href: '/leave/setup', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Leave Settings', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Policy', href: '/leave/leave-policy?tab=documents', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Leave Configuration', href: '/leave/configuration', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Approval Workflows', href: '/leave/approval-workflows', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
+
+      // ── Leave Adjustment (CR-03) ──
+      { label: 'Leave Adjustment', href: '#adjustment-divider', icon: <FiLayers className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },
+      { label: 'Request Adjustment', href: '/leave/adjustments/request', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Manage Adjustments', href: '/leave/adjustments', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
