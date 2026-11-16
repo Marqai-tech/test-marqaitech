@@ -39,6 +39,7 @@ import {
   FiPhone,
   FiRefreshCw,
   FiSend,
+  FiShield,
   FiSquare,
   FiUser,
   FiUsers,
@@ -477,6 +478,28 @@ export default function PreboardingCandidateDetailsPage() {
   const [activeTab, setActiveTab] = useState<DetailsTab>('details');
   const [actionModal, setActionModal] = useState<ActionModal>(null);
   const [busy, setBusy] = useState(false);
+  const [bgvVendor, setBgvVendor] = useState('manual');
+  const [bgvPackage, setBgvPackage] = useState('standard');
+
+  const initiateBgv = async () => {
+    if (!candidate?.id) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/preboarding/background-checks', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ preboardingCandidateId: candidate.id, vendor: bgvVendor, package: bgvPackage }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Unable to initiate BGV');
+      toast.success('BGV initiated successfully');
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to initiate BGV');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const [readinessDetail, setReadinessDetail] = useState<ReadinessDetail | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
@@ -1254,7 +1277,24 @@ export default function PreboardingCandidateDetailsPage() {
 
           {/* ═══ VERIFICATION TAB ═══ */}
           {activeTab === 'verification' ? (
-            <div>
+            <div className="space-y-5">
+              <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-xl bg-violet-600 p-3 text-white"><FiShield className="h-5 w-5" /></div>
+                    <div>
+                      <h3 className="font-semibold text-slate-800">Background Verification</h3>
+                      <p className="mt-1 text-sm text-slate-600">Initiate BGV after required preboarding details are submitted. The candidate will be moved to BGV In Progress.</p>
+                      <p className="mt-2 text-xs font-medium text-violet-700">Current status: {candidate.bgvStatus || 'Pending'}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-xs font-medium text-slate-600">Vendor<select value={bgvVendor} onChange={(e) => setBgvVendor(e.target.value)} className="mt-1 block rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm"><option value="manual">Manual</option><option value="sterling">Sterling</option><option value="hireright">HireRight</option><option value="first_advantage">First Advantage</option></select></label>
+                    <label className="text-xs font-medium text-slate-600">Package<select value={bgvPackage} onChange={(e) => setBgvPackage(e.target.value)} className="mt-1 block rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm"><option value="basic">Basic</option><option value="standard">Standard</option><option value="enhanced">Enhanced</option><option value="executive">Executive</option></select></label>
+                    <button onClick={initiateBgv} disabled={busy || ['in_progress', 'cleared'].includes(String(candidate.bgvStatus || ''))} className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"><FiShield className="h-4 w-4" />{busy ? 'Initiating…' : candidate.bgvStatus === 'cleared' ? 'BGV Passed' : candidate.bgvStatus === 'in_progress' ? 'BGV In Progress' : 'Initiate BGV'}</button>
+                  </div>
+                </div>
+              </div>
               <p className="text-sm text-slate-500 mb-4">
                 Focused verification queue — documents awaiting review. Approved documents are locked and remain visible under the Documents tab.
               </p>
