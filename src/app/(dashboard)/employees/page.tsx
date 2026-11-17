@@ -712,21 +712,29 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [formTab, setFormTab] = useState('personal');
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
-  // Task 137 — per-tab requirement chips (derived from the stepper validation)
+  // When CREATING a new employee (formOnly + !editingId), HR sees only the
+  // essential tabs (Personal + Employment). The remaining tabs are completed
+  // by the EMPLOYEE after logging in via My Profile -> Update Requests.
+  // When EDITING, all tabs are shown so HR can update any section.
+  const isHrCreateMode = formOnly && !editingId;
+  const allFormTabs = [
+    { key: 'personal', label: 'Personal', icon: '👤' },
+    { key: 'address', label: 'Address', icon: '📍' },
+    { key: 'employment', label: 'Employment', icon: '💼' },
+    { key: 'bank', label: 'Bank & Finance', icon: '🏨' },
+    { key: 'statutory', label: 'Statutory', icon: '📋' },
+    { key: 'emergency', label: 'Emergency', icon: '🚨' },
+    { key: 'health', label: 'Health', icon: '❤️' },
+    { key: 'overseas', label: 'Overseas', icon: '🌍' },
+    { key: 'experience', label: 'Experience', icon: '📄' },
+    { key: 'documents', label: 'Documents', icon: '📎' },
+    { key: 'policies', label: 'Policies', icon: '🛡️' },
+  ] as const;
+  const hrEssentialKeys = ['personal', 'employment'];
   const formTabs = (
-    [
-      { key: 'personal', label: 'Personal', icon: '👤' },
-      { key: 'address', label: 'Address', icon: '📍' },
-      { key: 'employment', label: 'Employment', icon: '💼' },
-      { key: 'bank', label: 'Bank & Finance', icon: '🏦' },
-      { key: 'statutory', label: 'Statutory', icon: '📋' },
-      { key: 'emergency', label: 'Emergency', icon: '🚨' },
-      { key: 'health', label: 'Health', icon: '❤️' },
-      { key: 'overseas', label: 'Overseas', icon: '🌍' },
-      { key: 'experience', label: 'Experience', icon: '📄' },
-      { key: 'documents', label: 'Documents', icon: '📎' },
-      { key: 'policies', label: 'Policies', icon: '🛡️' },
-    ] as const
+    isHrCreateMode
+      ? allFormTabs.filter(t => hrEssentialKeys.includes(t.key))
+      : allFormTabs
   ).map((t) => ({ ...t, required: (SECTION_REQUIRED_FIELDS[t.key] || []).length > 0 }));
   // Task 137 — auto-fetched company logos + assigned-policy grid state
   const [logoFetching, setLogoFetching] = useState<Set<number>>(new Set());
@@ -2320,6 +2328,19 @@ const handleExperienceLetterPick = (
             </div>
 
             <form onSubmit={handleSubmit}>
+              {/* HR Create Mode info banner */}
+              {isHrCreateMode && (
+                <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                  <p className="font-semibold">HR Essential Fields Only</p>
+                  <p className="mt-0.5 text-xs text-blue-600">
+                    Fill in the essential fields (Basic Info, Contact, Employment, Organization, Reporting).
+                    After saving, the employee will be invited to complete their remaining profile
+                    (Personal Details, Address, Family, Emergency, Education, Experience, Documents, Bank)
+                    via My Profile &rarr; Update Requests. HR will see all employee updates in the
+                    <a href="/employees/update-requests" className="underline font-medium"> Update Requests</a> inbox.
+                  </p>
+                </div>
+              )}
               {/* Personal Information */}
               {formTab === 'personal' && (
                 <div className="space-y-4">
