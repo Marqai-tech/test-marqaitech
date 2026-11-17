@@ -412,6 +412,8 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     status: orig?.status || 'draft', effectiveDate: orig?.effectiveDate || '',
     expiryDate: orig?.expiryDate || '', category: 'leave',
   });
+  const [pdfFile, setPdfFile] = useState<{ name: string; dataUrl: string } | null>(null);
+  const [pdfError, setPdfError] = useState('');
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
@@ -420,14 +422,27 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
   const show = (k: string) => tried && errs[k];
   const inp = 'w-full h-10 border border-slate-200 rounded-lg px-3 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
 
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPdfError('');
+    if (file.type !== 'application/pdf') { setPdfError('Only PDF files are allowed'); return; }
+    if (file.size > 3 * 1024 * 1024) { setPdfError('File size must not exceed 3MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setPdfFile({ name: file.name, dataUrl: reader.result as string }); };
+    reader.readAsDataURL(file);
+  };
+
   const save = async () => {
     setTried(true);
     if (Object.keys(errs).length) return;
     setSaving(true);
     try {
-      const body = { title: f.title, code: f.code, description: f.description, status: f.status, category: 'leave', effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null };
+      const body: any = { title: f.title, code: f.code, description: f.description, status: f.status, category: 'leave', effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null };
+      if (pdfFile) { body.fileUrl = pdfFile.dataUrl; body.fileName = pdfFile.name; body.fileMimeType = 'application/pdf'; body.fileSize = pdfFile.dataUrl.length; }
       const sep = sq ? `&${sq}` : '';
-      const url = editId ? `/api/policies/${editId}?${sep}` : `/api/policies${sq ? `?${sq}` : ''}`;
+      const companyId = sq ? sq.split('=')[1] : '';
+      const url = editId ? `/api/policies/${editId}?${sep}` : `/api/policies${companyId ? `?companyId=${companyId}` : ''}`;
       const method = editId ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
@@ -441,13 +456,14 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     <div>
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5 items-start">
         <nav className="hidden lg:block sticky top-4 bg-white border border-slate-100 rounded-2xl shadow-sm p-2">
-          {[{ id: 'po-basic', label: 'Policy details' }, { id: 'po-period', label: 'Leave period' }].map((it, i) => (
+          {[{ id: 'po-basic', label: 'Policy details' }, { id: 'po-doc', label: 'Policy document' }, { id: 'po-period', label: 'Leave period' }].map((it, i) => (
             <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
               <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i + 1}</span>{it.label}
             </a>
           ))}
         </nav>
         <div>
+          {/* Section 1: Policy details */}
           <section id="po-basic" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
             <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">1</div><div><h3 className="text-[14.5px] font-extrabold">Policy details</h3><p className="text-[12px] text-slate-500">Name the policy so HR can recognise it.</p></div></div>
             <div className="px-5 pb-4">
@@ -459,8 +475,29 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
               </div>
             </div>
           </section>
+
+          {/* Section 2: Policy document (PDF upload, max 3MB) */}
+          <section id="po-doc" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">2</div><div><h3 className="text-[14.5px] font-extrabold">Policy document</h3><p className="text-[12px] text-slate-500">Upload the policy PDF (max 3MB, PDF only)</p></div></div>
+            <div className="px-5 pb-4">
+              <div className="pt-3.5">
+                <label className={`flex items-center gap-3 border-1.5 border-dashed rounded-xl p-4 cursor-pointer transition-colors ${pdfError ? 'border-red-300 bg-red-50' : pdfFile ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'}`}>
+                  <input type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
+                  <FiFileText className={`w-5 h-5 flex-shrink-0 ${pdfError ? 'text-red-400' : pdfFile ? 'text-emerald-500' : 'text-slate-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[13px] font-semibold truncate ${pdfError ? 'text-red-600' : pdfFile ? 'text-emerald-700' : 'text-slate-600'}`}>{pdfFile ? pdfFile.name : pdfError ? pdfError : 'Upload policy document (PDF only, max 3MB)'}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{pdfFile ? `${(pdfFile.dataUrl.length / 1024).toFixed(0)} KB` : 'Click to browse'}</p>
+                  </div>
+                  {pdfFile && <button type="button" className="text-red-500 hover:text-red-700 p-1" onClick={(e) => { e.preventDefault(); setPdfFile(null); }}><FiX className="w-4 h-4" /></button>}
+                </label>
+                {pdfError && <div className="text-[11.5px] text-red-500 mt-1.5 font-semibold">{pdfError}</div>}
+              </div>
+            </div>
+          </section>
+
+          {/* Section 3: Leave period */}
           <section id="po-period" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">2</div><div><h3 className="text-[14.5px] font-extrabold">Leave period</h3><p className="text-[12px] text-slate-500">The leave accounting year.</p></div></div>
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">3</div><div><h3 className="text-[14.5px] font-extrabold">Leave period</h3><p className="text-[12px] text-slate-500">The leave accounting year.</p></div></div>
             <div className="px-5 pb-4">
               <div className="grid grid-cols-2 gap-x-6">
                 <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective from</label><input type="date" className={inp} value={f.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
@@ -712,3 +749,89 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
   );
 }
 
+
+/* ═══ Mapping Overview with List view ═══ */
+function MappingOverview({ types, policies, rules, loading }: { types: LType[]; policies: LPolicy[]; rules: LRule[]; loading: boolean }) {
+  const [view, setView] = useState<'List' | 'Matrix'>('List');
+  const [pf, setPf] = useState('');
+  const activeTypes = types.filter(t => t.status === 'active');
+
+  // Build mapping rows from rules (each rule links a leave type to a policy via leaveTypeId)
+  const mappings: Array<{ policy: LPolicy | undefined; type: LType | undefined; rule: LRule | undefined }> = [];
+  for (const r of rules) {
+    const lt = types.find(t => t.id === (r.leaveTypeId || r.typeId));
+    if (!lt) continue;
+    // Each rule is a mapping entry: policy → type → rule
+    // Since we don't have explicit policy-rule links, show rules grouped by type
+    mappings.push({ policy: policies[0], type: lt, rule: r });
+  }
+  const filtered = pf ? mappings.filter(m => m.policy?.id === pf) : mappings;
+
+  return (
+    <div>
+      {/* Overview stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><p className="text-[11px] font-semibold text-slate-400 uppercase">Total Types</p><p className="text-xl font-extrabold mt-1">{types.length}</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><p className="text-[11px] font-semibold text-slate-400 uppercase">Total Policies</p><p className="text-xl font-extrabold mt-1">{policies.length}</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><p className="text-[11px] font-semibold text-slate-400 uppercase">Total Rules</p><p className="text-xl font-extrabold mt-1">{rules.length}</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><p className="text-[11px] font-semibold text-slate-400 uppercase">Mappings</p><p className="text-xl font-extrabold mt-1 text-emerald-600">{mappings.length}</p></div>
+      </div>
+
+      <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-slate-100">
+          <h2 className="text-[15px] font-extrabold">Policy Mapping</h2><span className="text-[12px] text-slate-500">{mappings.length} mappings</span>
+          <span className="flex-1" />
+          <div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+            {['List', 'Matrix'].map(o => <button key={o} className={`h-7 px-3 rounded-md text-[12px] font-bold ${view === o ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => setView(o as 'List' | 'Matrix')}>{o}</button>)}
+          </div>
+          {view === 'List' && <select className="h-8 border border-slate-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-slate-600 outline-none" value={pf} onChange={e => setPf(e.target.value)}>
+            <option value="">All policies</option>{policies.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+          </select>}
+        </div>
+
+        {view === 'List' ? (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead><tr>{['Policy', 'Leave type', 'Rule applied', 'Days/year', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i === 5 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+              <tbody>
+                {loading ? <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+                 filtered.length === 0 ? <tr><td colSpan={6} className="text-center py-10 text-slate-500">No mappings yet. Create rules in Step 3 to build mappings.</td></tr> :
+                 filtered.map((m, i) => (
+                  <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                    <td className="px-3.5 py-3 font-bold text-[13px]">{m.policy?.title || '—'}</td>
+                    <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{m.type && <CodeChip code={m.type.code} color={m.type.calendarColor} />}<span className="text-[13px]">{m.type?.name}</span></div></td>
+                    <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || '—'}</td>
+                    <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule?.entitledDaysPerYear || '—'}</td>
+                    <td className="px-3.5 py-3"><StatusPill s={m.rule?.status || 'Inactive'} /></td>
+                    <td className="px-3.5 py-3 text-right"><button className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto"><FiEdit2 className="w-3 h-3" />Edit</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead><tr>
+                <th className="text-left text-[10.5px] font-bold uppercase text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 sticky left-0 bg-white">Policy</th>
+                {activeTypes.map(t => <th key={t.id} className="text-center text-[10px] font-bold text-slate-400 px-1 py-2.5 border-b border-slate-100 bg-slate-50/50" title={t.name}>{t.code}</th>)}
+              </tr></thead>
+              <tbody>
+                {policies.map(p => (
+                  <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
+                    <td className="px-3.5 py-3 sticky left-0 bg-white"><div className="font-bold text-[13px]">{p.title}</div><div className="text-[11px] text-slate-500">{p.status}</div></td>
+                    {activeTypes.map(t => {
+                      const r = rules.find(rule => (rule.leaveTypeId || rule.typeId) === t.id);
+                      return <td key={t.id} className="text-center py-3">{r ? <span className="inline-grid place-items-center w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-extrabold">{r.entitledDaysPerYear || '✓'}</span> : <span className="inline-grid place-items-center w-7 h-7 rounded-lg text-slate-300 border border-dashed border-slate-200 text-[11px]">—</span>}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[12px] text-slate-500 px-4 py-3 border-t border-slate-100">Number = days per year from the mapped rule · ✓ = mapped without a fixed entitlement · — = not mapped</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
