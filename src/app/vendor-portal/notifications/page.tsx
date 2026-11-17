@@ -13,9 +13,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  FiBell, FiArrowLeft, FiLoader, FiCheckCircle, FiXCircle, FiClock,
+  FiBell, FiLoader, FiCheckCircle, FiXCircle, FiClock,
   FiAlertCircle, FiUserCheck, FiSend, FiRotateCcw, FiInfo, FiFileText, FiUsers,
 } from 'react-icons/fi';
+import VendorPortalHeader from '../VendorPortalHeader';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -92,30 +93,15 @@ export default function VendorNotificationsPage() {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="bg-[#0B2447] text-white px-5 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-bold">3Boxes HRMS</span>
-          <span className="text-slate-300 text-sm">| Vendor BGV Portal</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="inline-flex items-center gap-1.5"><FiBell /> Notifications</span>
-        </div>
-      </header>
+      <VendorPortalHeader title="Notification Center" subtitle="Updates about your cases, invitations and team — newest first." backHref="/vendor-portal/dashboard" backLabel="Dashboard" />
 
       <main className="max-w-3xl mx-auto p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Notification Center</h1>
-            <p className="text-xs text-slate-500">Updates about your cases, invitations and team — newest first.</p>
-          </div>
+        <div className="flex items-center justify-end mb-4">
           <div className="flex items-center gap-2">
             <button onClick={() => void load()} disabled={loading}
               className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg">
               {loading ? <FiLoader className="animate-spin" /> : <FiRotateCcw />} Refresh
             </button>
-            <Link href="/vendor-portal/dashboard" className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg">
-              <FiArrowLeft /> Dashboard
-            </Link>
           </div>
         </div>
 

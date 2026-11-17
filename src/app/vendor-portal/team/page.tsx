@@ -14,10 +14,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiUsers, FiRefreshCw, FiLoader, FiAlertCircle, FiUserPlus, FiX,
-  FiRotateCcw, FiSend, FiSlash, FiCheckCircle, FiInfo, FiArrowLeft, FiLock, FiUser, FiLogOut,
+  FiRotateCcw, FiSend, FiSlash, FiCheckCircle, FiInfo, FiLock,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import VendorPortalBell from '../VendorPortalBell';
+import VendorPortalHeader from '../VendorPortalHeader';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -31,7 +31,6 @@ interface TeamUser {
 
 export default function VendorTeamPage() {
   const router = useRouter();
-  const logout = () => { localStorage.removeItem('tb_token'); localStorage.removeItem('tb_user'); router.push('/login'); };
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [vendorCompanyId, setVendorCompanyId] = useState<string | null>(null);
   const [vendorName, setVendorName] = useState('');
@@ -126,21 +125,12 @@ export default function VendorTeamPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-        <div className="max-w-5xl mx-auto px-6 py-5">
-          <div className="flex items-center justify-between mb-2">
-            <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white text-sm"><FiArrowLeft /> Dashboard</button>
-            <div className="flex items-center gap-3"><button onClick={() => router.push('/vendor-portal/profile')} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiUser /> My Profile</button><VendorPortalBell /><button onClick={logout} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiLogOut /> Logout</button></div>
-          </div>
-          <h1 className="text-xl font-bold flex items-center gap-2"><FiUsers className="h-5 w-5" /> Team{vendorName ? ` — ${vendorName}` : ''}</h1>
-          <p className="text-slate-300 text-sm mt-0.5">Manage your vendor team and their access to BGV cases. Each member signs in with their own work email.</p>
-        </div>
-      </div>
+      <VendorPortalHeader title={`Team${vendorName ? ` — ${vendorName}` : ''}`} subtitle="Manage your vendor team and their access to BGV cases. Each member signs in with their own work email." isAdmin />
 
       <div className="max-w-5xl mx-auto px-6 py-6 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-xs text-slate-500 flex items-center gap-1.5"><FiInfo /> Employees must activate via their emailed link before they can be assigned cases. Passwords are never visible to anyone.</p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:flex gap-2">
             <button onClick={load} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-slate-50 inline-flex items-center gap-2"><FiRefreshCw /> Refresh</button>
             <button onClick={() => setInviteOpen(true)} className="px-3.5 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 inline-flex items-center gap-2"><FiUserPlus /> Invite Employee</button>
           </div>

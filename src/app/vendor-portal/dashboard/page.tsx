@@ -20,10 +20,9 @@ import { useRouter } from 'next/navigation';
 import {
   FiShield, FiRefreshCw, FiLoader, FiAlertCircle, FiUserPlus, FiClock,
   FiCheckCircle, FiFileText, FiUsers, FiSearch, FiChevronRight, FiX, FiInfo, FiSettings,
-  FiUser, FiLogOut,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import VendorPortalBell from '../VendorPortalBell';
+import VendorPortalHeader from '../VendorPortalHeader';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -111,12 +110,6 @@ export default function VendorDashboardPage() {
 
   const isAdmin = vendorInfo?.role === 'vendor_admin';
 
-  const logout = () => {
-    localStorage.removeItem('tb_token');
-    localStorage.removeItem('tb_user');
-    router.push('/login');
-  };
-
   const TABS = isAdmin
     ? [
         { key: 'unassigned', label: 'Unassigned' },
@@ -167,33 +160,11 @@ export default function VendorDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-        <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-3"><FiShield className="h-6 w-6" /> {isAdmin ? 'Vendor Dashboard' : 'My Cases'}</h1>
-            <p className="text-slate-300 mt-1 text-sm">
-              {isAdmin ? 'BGV cases for your company — assign investigators and monitor progress.' : 'Only cases assigned to you appear here.'}
-            </p>
-          </div>
-          <nav className="flex items-center gap-2">
-            {isAdmin && (
-              <button onClick={() => router.push('/vendor-portal/team')} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2">
-                <FiUsers className="h-4 w-4" /> Team
-              </button>
-            )}
-            <button onClick={() => router.push('/vendor-portal/profile')} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2">
-              <FiUser className="h-4 w-4" /> My Profile
-            </button>
-            <button onClick={fetchRequests} disabled={loading} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2">
-              <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-            <VendorPortalBell />
-            <button onClick={logout} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2" aria-label="Logout">
-              <FiLogOut className="h-4 w-4" /> Logout
-            </button>
-          </nav>
-        </div>
-      </div>
+      <VendorPortalHeader
+        title={isAdmin ? 'Vendor Dashboard' : 'My Cases'}
+        subtitle={isAdmin ? 'BGV cases for your company — assign investigators and monitor progress.' : 'Only cases assigned to you appear here.'}
+        isAdmin={isAdmin}
+      />
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
         {/* Stats */}

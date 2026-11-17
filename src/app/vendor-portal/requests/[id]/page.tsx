@@ -20,12 +20,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  FiArrowLeft, FiShield, FiLoader, FiAlertCircle, FiCheckCircle, FiXCircle,
+  FiShield, FiLoader, FiAlertCircle, FiCheckCircle, FiXCircle,
   FiFileText, FiUpload, FiSend, FiEye, FiDownload, FiInfo, FiClock,
-  FiRefreshCw, FiAlertTriangle, FiSave, FiList, FiUser, FiCalendar, FiLogOut,
+  FiRefreshCw, FiAlertTriangle, FiSave, FiList, FiUser, FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import VendorPortalBell from '../../VendorPortalBell';
+import VendorPortalHeader from '../../VendorPortalHeader';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -76,7 +76,6 @@ function fileToBase64(file: File): Promise<string> {
 export default function VendorRequestDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const logout = () => { localStorage.removeItem('tb_token'); localStorage.removeItem('tb_user'); router.push('/login'); };
   const requestId = params.id as string;
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -130,14 +129,7 @@ export default function VendorRequestDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-        <div className="max-w-5xl mx-auto px-6 py-5">
-          <div className="flex items-center justify-between mb-2">
-            <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white text-sm"><FiArrowLeft /> My Cases</button>
-            <button onClick={() => router.push('/vendor-portal/profile')} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiUser /> My Profile</button>
-            <VendorPortalBell />
-            <button onClick={logout} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiLogOut /> Logout</button>
-          </div>
+      <VendorPortalHeader title="BGV Case Workspace" subtitle="Review shared documents, complete checks, and submit the verification report." isAdmin={myRole === 'vendor_admin'} backHref="/vendor-portal/dashboard" backLabel="My Cases">
           <div className="flex flex-wrap items-center gap-3">
             <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-sm font-semibold">{(data.candidateName || data.candidateEmail || '?').slice(0, 2).toUpperCase()}</span>
             <div className="min-w-0">
@@ -159,8 +151,7 @@ export default function VendorRequestDetailPage() {
             </div>
           )}
           {data.instructions && <p className="text-slate-300 text-xs mt-3 flex items-start gap-1.5"><FiInfo className="mt-0.5 shrink-0" /> Instructions from HR: {data.instructions}</p>}
-        </div>
-      </div>
+      </VendorPortalHeader>
 
       <div className="max-w-5xl mx-auto px-6 py-6">
         {/* Tabs */}
