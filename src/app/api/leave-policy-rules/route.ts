@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
+import { ensureLeaveSetupSchema } from '@/lib/leave-setup-schema';
 import { validateCompanyOwnership } from '@/lib/company-ownership';
 
 function corsHeaders() {
@@ -26,6 +27,7 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
   try {
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -79,6 +81,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
     const auth = await getAuthInfo(req);
     if (!auth || !['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
@@ -130,6 +133,17 @@ export async function POST(req: NextRequest) {
         name,
         policyId: policyId || null,
         companyId: resolvedCompanyId,
+        gender: (body.gender || 'both') as string,
+        specificEmployeeIds: body.specificEmployeeIds ? JSON.stringify(body.specificEmployeeIds) : null,
+        onlyTheseEmployees: body.onlyTheseEmployees || false,
+        entitledDaysPerYear: Number(body.entitledDaysPerYear || 0),
+        advanceNoticeDays: Number(body.advanceNoticeDays || 0),
+        minDaysPerRequest: Number(body.minDaysPerRequest || 0.5),
+        maxDaysPerRequest: Number(body.maxDaysPerRequest || 0),
+        carryForwardToNextYear: body.carryForwardToNextYear || false,
+        leaveEncashmentApplicable: body.leaveEncashmentApplicable || false,
+        leaveTypeId: body.leaveTypeId || null,
+        ruleCode: body.ruleCode || null,
         employmentType: employmentType || 'all',
         branchId: branchId || null,
         departmentId: departmentId || null,
