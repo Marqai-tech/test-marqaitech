@@ -128,22 +128,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: ownership.error || 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
+    // Step 1: Create with Prisma — only fields that exist in the generated schema
     const rule = await db.leavePolicyRule.create({
       data: {
         name,
         policyId: policyId || null,
         companyId: resolvedCompanyId,
-        gender: (body.gender || 'both') as string,
-        specificEmployeeIds: body.specificEmployeeIds ? JSON.stringify(body.specificEmployeeIds) : null,
-        onlyTheseEmployees: body.onlyTheseEmployees || false,
-        entitledDaysPerYear: Number(body.entitledDaysPerYear || 0),
-        advanceNoticeDays: Number(body.advanceNoticeDays || 0),
-        minDaysPerRequest: Number(body.minDaysPerRequest || 0.5),
-        maxDaysPerRequest: Number(body.maxDaysPerRequest || 0),
-        carryForwardToNextYear: body.carryForwardToNextYear || false,
-        leaveEncashmentApplicable: body.leaveEncashmentApplicable || false,
-        leaveTypeId: body.leaveTypeId || null,
-        ruleCode: body.ruleCode || null,
         employmentType: employmentType || 'all',
         branchId: branchId || null,
         departmentId: departmentId || null,
@@ -159,12 +149,31 @@ export async function POST(req: NextRequest) {
         maxCarryForwardDays: maxCarryForwardDays ?? 5,
         priority: priority ?? 0,
         status: status || 'active',
-      } as any,
+      },
       include: {
         branch: { select: { id: true, name: true } },
         department: { select: { id: true, name: true } },
       },
     });
+
+    // Step 2: UPDATE with raw SQL for spec fields (columns added at runtime by ensureLeaveSetupSchema)
+    try {
+      await db.$executeRawUnsafe(
+        \`UPDATE "LeavePolicyRule" SET "gender" = $1, "entitledDaysPerYear" = $2, "advanceNoticeDays" = $3, "minDaysPerRequest" = $4, "maxDaysPerRequest" = $5, "carryForwardToNextYear" = $6, "leaveEncashmentApplicable" = $7, "leaveTypeId" = $8, "ruleCode" = $9, "specificEmployeeIds" = $10, "onlyTheseEmployees" = $11 WHERE "id" = $12\`,
+        String(body.gender || 'both'),
+        Number(body.entitledDaysPerYear || 0),
+        Number(body.advanceNoticeDays || 0),
+        Number(body.minDaysPerRequest || 0.5),
+        Number(body.maxDaysPerRequest || 0),
+        Boolean(body.carryForwardToNextYear || false),
+        Boolean(body.leaveEncashmentApplicable || false),
+        body.leaveTypeId || null,
+        body.ruleCode || null,
+        body.specificEmployeeIds ? JSON.stringify(body.specificEmployeeIds) : null,
+        Boolean(body.onlyTheseEmployees || false),
+        rule.id
+      );
+    } catch (e) { console.error('[leave-policy-rules] spec field update failed:', e); }
 
     return NextResponse.json({ rule }, { status: 201, headers: corsHeaders() });
   } catch (error) {
