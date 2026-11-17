@@ -26,6 +26,7 @@
  * Environment variables:
  *  - RESEND_API_KEY        (required) Your Resend API key
  *  - RESEND_FROM_EMAIL     (optional) Verified sending address, e.g. noreply@yourcompany.com
+ *  - RESEND_CC_EMAIL       (optional) Additional recipient for HRMS notifications
  *                          If set AND the domain is verified in Resend, this takes precedence.
  *                          If not set, defaults to the Resend sandbox sender.
  *  - EMAIL_FROM            (deprecated) Legacy env var — still supported but RESEND_FROM_EMAIL
@@ -225,7 +226,11 @@ function isInternalEmail(email: string): boolean {
 export async function sendEmail(
   params: SendEmailParams,
 ): Promise<SendEmailResult> {
-  const { to, subject, html, from } = params;
+  const { to: primaryTo, subject, html, from } = params;
+  const configuredCc = process.env.RESEND_CC_EMAIL?.trim();
+  const to = configuredCc
+    ? Array.from(new Set([...(Array.isArray(primaryTo) ? primaryTo : [primaryTo]), configuredCc]))
+    : primaryTo;
 
   // Resolve the FROM address: explicit param > RESEND_FROM_EMAIL > EMAIL_FROM > sandbox
   const sender = from || getEmailFromAddress();
