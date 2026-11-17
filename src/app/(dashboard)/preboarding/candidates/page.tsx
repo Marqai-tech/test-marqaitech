@@ -662,7 +662,6 @@ function CandidatesContent() {
           </div>
         ) : (
           <>
-          {/* Compact cards keep the full workflow readable on phones/tablets. */}
           <div className="md:hidden divide-y divide-slate-100">
             {paged.map(c => (
               <article key={c.id} className="p-4 space-y-3">
