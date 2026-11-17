@@ -158,8 +158,8 @@ export async function POST(req: NextRequest) {
 
     // Step 2: UPDATE with raw SQL for spec fields (columns added at runtime by ensureLeaveSetupSchema)
     try {
-      await db.$executeRawUnsafe(
-        \`UPDATE "LeavePolicyRule" SET "gender" = $1, "entitledDaysPerYear" = $2, "advanceNoticeDays" = $3, "minDaysPerRequest" = $4, "maxDaysPerRequest" = $5, "carryForwardToNextYear" = $6, "leaveEncashmentApplicable" = $7, "leaveTypeId" = $8, "ruleCode" = $9, "specificEmployeeIds" = $10, "onlyTheseEmployees" = $11 WHERE "id" = $12\`,
+      const sql = 'UPDATE "LeavePolicyRule" SET "gender" = $1, "entitledDaysPerYear" = $2, "advanceNoticeDays" = $3, "minDaysPerRequest" = $4, "maxDaysPerRequest" = $5, "carryForwardToNextYear" = $6, "leaveEncashmentApplicable" = $7, "leaveTypeId" = $8, "ruleCode" = $9, "specificEmployeeIds" = $10, "onlyTheseEmployees" = $11 WHERE "id" = $12';
+      await db.$executeRawUnsafe(sql,
         String(body.gender || 'both'),
         Number(body.entitledDaysPerYear || 0),
         Number(body.advanceNoticeDays || 0),
