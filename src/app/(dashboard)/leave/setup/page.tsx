@@ -411,6 +411,18 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     title: orig?.title || '', code: orig?.code || '', description: orig?.description || '',
     status: orig?.status || 'draft', effectiveDate: orig?.effectiveDate || '',
     expiryDate: orig?.expiryDate || '', category: 'leave',
+    // Section 2: Applies to
+    empStatus: ['Confirmed'] as string[], departments: ['All'] as string[],
+    locations: ['All'] as string[], grades: ['All'] as string[],
+    // Section 3: Leave period
+    yearStart: 'January',
+    // Section 4: Leave crediting
+    creditMode: 'Pro-rata monthly', creditDay: 'First day of month', roundOff: 'Nearest 0.5', schedulerDate: '',
+    // Section 6: Approval & workflow
+    approval: 'Reporting Manager',
+    wfManagerSelf: false, wfAllowHoliday: false, wfShowYearWise: false, wfRequireReason: true,
+    wfCheckRules: true, wfAutoMonthly: false, wfShowTeam: false, wfShowEncash: false,
+    wfCurrentYearOnly: false, wfYearEndPending: false,
   });
   const [pdfFile, setPdfFile] = useState<{ name: string; dataUrl: string } | null>(null);
   const [pdfError, setPdfError] = useState('');
@@ -419,8 +431,18 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
   const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
   const errs: Record<string, string> = {};
   if (!f.title.trim()) errs.title = 'Enter a policy name';
+  if (!f.empStatus.length) errs.empStatus = 'Select at least one employee status';
   const show = (k: string) => tried && errs[k];
   const inp = 'w-full h-10 border border-slate-200 rounded-lg px-3 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const sec = (n: number, title: string, desc: string, id: string, children: React.ReactNode) => <section id={id} className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4"><div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">{n}</div><div><h3 className="text-[14.5px] font-extrabold">{title}</h3><p className="text-[12px] text-slate-500">{desc}</p></div></div><div className="px-5 pb-4">{children}</div></section>;
+  const checks = (k: string, opts: string[], allLabel?: string) => {
+    const isAll = allLabel && (f as any)[k].includes('All');
+    const toggle = (o: string) => { const cur = (f as any)[k] as string[]; if (o === 'All') return set(k, isAll ? [] : ['All']); const base = cur.filter(v => v !== 'All'); set(k, base.includes(o) ? base.filter(v => v !== o) : [...base, o]); };
+    const list = allLabel ? ['All', ...opts] : opts;
+    return <div className="flex flex-wrap gap-2">{list.map(o => { const on = o === 'All' ? isAll : (f as any)[k].includes(o); return <span key={o} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-[12.5px] font-semibold cursor-pointer ${on ? 'border-blue-200 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-600'}`} onClick={() => toggle(o)}><span className={`w-4 h-4 rounded border ${on ? 'bg-blue-500 border-blue-500' : 'border-slate-300'} flex items-center justify-center`}>{on && <FiCheck className="w-2.5 h-2.5 text-white" />}</span>{o === 'All' ? allLabel : o}</span>; })}</div>;
+  };
+  const wfCheck = (k: string, label: string) => <div className="flex items-center gap-2.5 py-1.5"><span className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer ${(f as any)[k] ? 'bg-blue-500 border-blue-500' : 'border-slate-300'}`} onClick={() => set(k, !(f as any)[k])}>{(f as any)[k] && <FiCheck className="w-2.5 h-2.5 text-white" />}</span><span className="text-[12.5px] font-semibold text-slate-700">{label}</span></div>;
 
   const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -440,9 +462,8 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     try {
       const body: any = { title: f.title, code: f.code, description: f.description, status: f.status, category: 'leave', effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null };
       if (pdfFile) { body.fileUrl = pdfFile.dataUrl; body.fileName = pdfFile.name; body.fileMimeType = 'application/pdf'; body.fileSize = pdfFile.dataUrl.length; }
-      const sep = sq ? `&${sq}` : '';
       const companyId = sq ? sq.split('=')[1] : '';
-      const url = editId ? `/api/policies/${editId}?${sep}` : `/api/policies${companyId ? `?companyId=${companyId}` : ''}`;
+      const url = editId ? `/api/policies/${editId}?${sq || ''}` : `/api/policies${companyId ? `?companyId=${companyId}` : ''}`;
       const method = editId ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
@@ -456,62 +477,96 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     <div>
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5 items-start">
         <nav className="hidden lg:block sticky top-4 bg-white border border-slate-100 rounded-2xl shadow-sm p-2">
-          {[{ id: 'po-basic', label: 'Policy details' }, { id: 'po-doc', label: 'Policy document' }, { id: 'po-period', label: 'Leave period' }].map((it, i) => (
-            <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-              <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i + 1}</span>{it.label}
+          {[{id:'po-basic',l:'Policy details'},{id:'po-who',l:'Applies to'},{id:'po-period',l:'Leave period'},{id:'po-credit',l:'Leave crediting'},{id:'po-doc',l:'Policy document'},{id:'po-flow',l:'Approval & workflow'}].map((it,i) => (
+            <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({behavior:'smooth',block:'start'})}>
+              <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i+1}</span>{it.l}
             </a>
           ))}
         </nav>
         <div>
           {/* Section 1: Policy details */}
-          <section id="po-basic" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">1</div><div><h3 className="text-[14.5px] font-extrabold">Policy details</h3><p className="text-[12px] text-slate-500">Name the policy so HR can recognise it.</p></div></div>
-            <div className="px-5 pb-4">
-              <div className="grid grid-cols-2 gap-x-6">
-                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy name<span className="text-red-500 ml-0.5">*</span></label><input className={`${inp} ${show('title') ? 'border-red-300 bg-red-50' : ''}`} value={f.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Staff Leave Policy 2026"/>{show('title') && <div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.title}</div>}</div>
-                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy code</label><input className={inp} value={f.code} onChange={e => set('code', e.target.value)} placeholder="POL-STF-26"/></div>
-                <div className="pt-3.5 col-span-2"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Description</label><textarea className={`${inp} h-20 resize-vertical`} value={f.description} onChange={e => set('description', e.target.value)} placeholder="Who is this policy for?"/></div>
-                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Status</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Draft', 'Active', 'Inactive'].map(o => <button key={o} type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${f.status === o.toLowerCase() ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => set('status', o.toLowerCase())}>{o}</button>)}</div><p className="text-[11.5px] text-slate-500 mt-1">Draft policies are not applied to employees</p></div>
-              </div>
+          {sec(1,'Policy details','Name the policy so HR can recognise it.','po-basic',
+            <div className="grid grid-cols-2 gap-x-6">
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy name<span className="text-red-500 ml-0.5">*</span></label><input className={`${inp} ${show('title')?'border-red-300 bg-red-50':''}`} value={f.title} onChange={e=>set('title',e.target.value)} placeholder="e.g. Staff Leave Policy 2026"/>{show('title')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.title}</div>}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy code</label><input className={inp} value={f.code} onChange={e=>set('code',e.target.value)} placeholder="POL-STF-26"/></div>
+              <div className="pt-3.5 col-span-2"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Description</label><textarea className={`${inp} h-20 resize-vertical`} value={f.description} onChange={e=>set('description',e.target.value)} placeholder="Who is this policy for?"/></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Status</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Draft','Active','Inactive'].map(o=><button key={o} type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${f.status===o.toLowerCase()?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`} onClick={()=>set('status',o.toLowerCase())}>{o}</button>)}</div><p className="text-[11.5px] text-slate-500 mt-1">Draft policies are not applied to employees</p></div>
             </div>
-          </section>
+          )}
 
-          {/* Section 2: Policy document (PDF upload, max 3MB) */}
-          <section id="po-doc" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">2</div><div><h3 className="text-[14.5px] font-extrabold">Policy document</h3><p className="text-[12px] text-slate-500">Upload the policy PDF (max 3MB, PDF only)</p></div></div>
-            <div className="px-5 pb-4">
-              <div className="pt-3.5">
-                <label className={`flex items-center gap-3 border-1.5 border-dashed rounded-xl p-4 cursor-pointer transition-colors ${pdfError ? 'border-red-300 bg-red-50' : pdfFile ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'}`}>
-                  <input type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
-                  <FiFileText className={`w-5 h-5 flex-shrink-0 ${pdfError ? 'text-red-400' : pdfFile ? 'text-emerald-500' : 'text-slate-400'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[13px] font-semibold truncate ${pdfError ? 'text-red-600' : pdfFile ? 'text-emerald-700' : 'text-slate-600'}`}>{pdfFile ? pdfFile.name : pdfError ? pdfError : 'Upload policy document (PDF only, max 3MB)'}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{pdfFile ? `${(pdfFile.dataUrl.length / 1024).toFixed(0)} KB` : 'Click to browse'}</p>
-                  </div>
-                  {pdfFile && <button type="button" className="text-red-500 hover:text-red-700 p-1" onClick={(e) => { e.preventDefault(); setPdfFile(null); }}><FiX className="w-4 h-4" /></button>}
-                </label>
-                {pdfError && <div className="text-[11.5px] text-red-500 mt-1.5 font-semibold">{pdfError}</div>}
-              </div>
+          {/* Section 2: Applies to */}
+          {sec(2,'Applies to','Employees matching ALL of these filters get this policy.','po-who',
+            <div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employee status<span className="text-red-500 ml-0.5">*</span></label>{checks('empStatus',['Probation','Confirmed','Intern','Notice period'])}{show('empStatus')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.empStatus}</div>}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Department</label>{checks('departments',['Engineering','Sales','Operations','Finance','HR & Admin','Customer Success'],'All departments')}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Location</label>{checks('locations',['Chennai','Bengaluru','Hyderabad','Mumbai','Remote'],'All locations')}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Grade</label>{checks('grades',['G1 \u2013 Associate','G2 \u2013 Senior','G3 \u2013 Lead','G4 \u2013 Manager','G5 \u2013 Director'],'All grades')}</div>
             </div>
-          </section>
+          )}
 
           {/* Section 3: Leave period */}
-          <section id="po-period" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">3</div><div><h3 className="text-[14.5px] font-extrabold">Leave period</h3><p className="text-[12px] text-slate-500">The leave accounting year.</p></div></div>
-            <div className="px-5 pb-4">
-              <div className="grid grid-cols-2 gap-x-6">
-                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective from</label><input type="date" className={inp} value={f.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
-                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective to</label><input type="date" className={inp} value={f.expiryDate} onChange={e => set('expiryDate', e.target.value)} /></div>
+          {sec(3,'Leave period','The leave accounting year \u2014 balances reset or carry forward at its end.','po-period',
+            <div>
+              <div className="grid grid-cols-3 gap-x-6">
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Leave year starts in</label><select className={inp} value={f.yearStart} onChange={e=>set('yearStart',e.target.value)}>{months.map(m=><option key={m}>{m}</option>)}</select></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective from</label><input type="date" className={inp} value={f.effectiveDate} onChange={e=>set('effectiveDate',e.target.value)}/></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective to</label><input type="date" className={inp} value={f.expiryDate} onChange={e=>set('expiryDate',e.target.value)}/></div>
               </div>
+              <div className="flex gap-2.5 bg-blue-50 border border-blue-100 rounded-xl p-3 mt-3 text-[12.5px] text-blue-800"><FiInfo className="w-4 h-4 flex-shrink-0 mt-0.5"/><span>Leave year: <b>{f.yearStart} \u2013 {months[(months.indexOf(f.yearStart)+11)%12]}</b>. Year-end processing (carry forward, lapse, encashment) runs at the end of this period.</span></div>
             </div>
-          </section>
+          )}
+
+          {/* Section 4: Leave crediting */}
+          {sec(4,'Leave crediting','When the leave balance is added to employee accounts.','po-credit',
+            <div className="grid grid-cols-2 gap-x-6">
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Credit method</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Pro-rata monthly','Advance (on joining)'].map(o=><button key={o} type="button" className={`h-8 px-3.5 rounded-md text-[12px] font-bold ${f.creditMode===o?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`} onClick={()=>set('creditMode',o)}>{o}</button>)}</div><p className="text-[11.5px] text-slate-500 mt-1">{f.creditMode==='Pro-rata monthly'?'Yearly entitlement \u00F7 12, credited every month':'Full yearly entitlement credited upfront'}</p></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Credited on</label><select className={inp} value={f.creditDay} onChange={e=>set('creditDay',e.target.value)}>{f.creditMode==='Pro-rata monthly'?<><option>First day of month</option><option>Last day of month</option><option>Specific date of month</option></>:<><option>On policy assignment</option><option>Start of leave year</option><option>Specific date</option></>}</select></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Round off fractional days</label><select className={inp} value={f.roundOff} onChange={e=>set('roundOff',e.target.value)}><option>Nearest 0.5</option><option>Lower (0.5)</option><option>Higher (0.5)</option><option>Nearest whole day</option><option>No rounding</option></select><p className="text-[11.5px] text-slate-500 mt-1">e.g. 1.25 \u2192 1.5 (nearest 0.5)</p></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Balance scheduler start date</label><input type="date" className={inp} value={f.schedulerDate} onChange={e=>set('schedulerDate',e.target.value)}/><p className="text-[11.5px] text-slate-500 mt-1">First date the system credits leave automatically</p></div>
+            </div>
+          )}
+
+          {/* Section 5: Policy document (PDF upload, max 3MB) */}
+          {sec(5,'Policy document','Upload the policy PDF (max 3MB, PDF only)','po-doc',
+            <div className="pt-3.5">
+              <label className={`flex items-center gap-3 border-2 border-dashed rounded-xl p-4 cursor-pointer transition-colors ${pdfError?'border-red-300 bg-red-50':pdfFile?'border-emerald-400 bg-emerald-50':'border-slate-200 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'}`}>
+                <input type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload}/>
+                <FiFileText className={`w-5 h-5 flex-shrink-0 ${pdfError?'text-red-400':pdfFile?'text-emerald-500':'text-slate-400'}`}/>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[13px] font-semibold truncate ${pdfError?'text-red-600':pdfFile?'text-emerald-700':'text-slate-600'}`}>{pdfFile?pdfFile.name:pdfError?pdfError:'Upload policy document (PDF only, max 3MB)'}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{pdfFile?`${(pdfFile.dataUrl.length/1024).toFixed(0)} KB`:'Click to browse'}</p>
+                </div>
+                {pdfFile&&<button type="button" className="text-red-500 hover:text-red-700 p-1" onClick={e=>{e.preventDefault();setPdfFile(null);}}><FiX className="w-4 h-4"/></button>}
+              </label>
+              {pdfError&&<div className="text-[11.5px] text-red-500 mt-1.5 font-semibold">{pdfError}</div>}
+            </div>
+          )}
+
+          {/* Section 6: Approval & workflow */}
+          {sec(6,'Approval & workflow','How leave requests under this policy are approved and shown.','po-flow',
+            <div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Approval flow</label><select className={inp} value={f.approval} onChange={e=>set('approval',e.target.value)}><option>Reporting Manager</option><option>Reporting Manager \u2192 HR</option><option>Reporting Manager \u2192 Dept. Head</option><option>Auto-approve</option></select></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Workflow settings</label><div className="grid grid-cols-2 gap-x-4">
+                {wfCheck('wfManagerSelf','Manager can approve their own leave')}
+                {wfCheck('wfAllowHoliday','Allow exceptions for holidays / working days')}
+                {wfCheck('wfShowYearWise','Show year-wise leave balance')}
+                {wfCheck('wfRequireReason','Leave reason is mandatory')}
+                {wfCheck('wfCheckRules','Check rules when employee applies')}
+                {wfCheck('wfAutoMonthly','Credit monthly leave automatically')}
+                {wfCheck('wfShowTeam','Show team members on leave while applying')}
+                {wfCheck('wfShowEncash','Show encashable balance in leave summary')}
+                {wfCheck('wfCurrentYearOnly','Show only current-year summary to employees')}
+                {wfCheck('wfYearEndPending','Allow year-end processing with pending requests')}
+              </div></div>
+            </div>
+          )}
         </div>
       </div>
       <div className="sticky bottom-0 bg-slate-50/90 backdrop-blur border-t border-slate-200 py-3 flex gap-2.5 items-center z-5">
-        <span className="text-[12.5px] text-slate-500">Fields marked <b className="text-red-500">*</b> are required</span>
-        <span className="flex-1" />
+        <span className={'text-[12.5px] '+(Object.keys(errs).length&&tried?'text-red-500 font-semibold':'text-slate-500')}>{Object.keys(errs).length&&tried?Object.keys(errs).length+' required field(s) missing':<>Fields marked <b className="text-red-500">*</b> are required</>}</span>
+        <span className="flex-1"/>
         <button className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-[13px] font-bold hover:bg-slate-50" onClick={onCancel}>Cancel</button>
-        <button className="h-10 px-5 rounded-xl bg-slate-800 text-white text-[13px] font-bold hover:bg-slate-900 shadow-md disabled:opacity-50" onClick={save} disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save changes' : 'Create policy')}</button>
+        <button className="h-10 px-5 rounded-xl bg-slate-800 text-white text-[13px] font-bold hover:bg-slate-900 shadow-md disabled:opacity-50" onClick={save} disabled={saving}>{saving?'Saving\u2026':(editId?'Save changes':'Create policy')}</button>
       </div>
     </div>
   );
