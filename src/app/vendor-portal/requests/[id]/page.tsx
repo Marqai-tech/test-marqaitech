@@ -22,7 +22,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   FiArrowLeft, FiShield, FiLoader, FiAlertCircle, FiCheckCircle, FiXCircle,
   FiFileText, FiUpload, FiSend, FiEye, FiDownload, FiInfo, FiClock,
-  FiRefreshCw, FiAlertTriangle, FiSave, FiList, FiUser, FiCalendar,
+  FiRefreshCw, FiAlertTriangle, FiSave, FiList, FiUser, FiCalendar, FiLogOut,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import VendorPortalBell from '../../VendorPortalBell';
@@ -76,6 +76,7 @@ function fileToBase64(file: File): Promise<string> {
 export default function VendorRequestDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const logout = () => { localStorage.removeItem('tb_token'); localStorage.removeItem('tb_user'); router.push('/login'); };
   const requestId = params.id as string;
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,7 +134,9 @@ export default function VendorRequestDetailPage() {
         <div className="max-w-5xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between mb-2">
             <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white text-sm"><FiArrowLeft /> My Cases</button>
+            <button onClick={() => router.push('/vendor-portal/profile')} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiUser /> My Profile</button>
             <VendorPortalBell />
+            <button onClick={logout} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiLogOut /> Logout</button>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-sm font-semibold">{(data.candidateName || data.candidateEmail || '?').slice(0, 2).toUpperCase()}</span>

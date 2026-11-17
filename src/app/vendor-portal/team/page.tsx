@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiUsers, FiRefreshCw, FiLoader, FiAlertCircle, FiUserPlus, FiX,
-  FiRotateCcw, FiSend, FiSlash, FiCheckCircle, FiInfo, FiArrowLeft, FiLock,
+  FiRotateCcw, FiSend, FiSlash, FiCheckCircle, FiInfo, FiArrowLeft, FiLock, FiUser, FiLogOut,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import VendorPortalBell from '../VendorPortalBell';
@@ -31,6 +31,7 @@ interface TeamUser {
 
 export default function VendorTeamPage() {
   const router = useRouter();
+  const logout = () => { localStorage.removeItem('tb_token'); localStorage.removeItem('tb_user'); router.push('/login'); };
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [vendorCompanyId, setVendorCompanyId] = useState<string | null>(null);
   const [vendorName, setVendorName] = useState('');
@@ -129,7 +130,7 @@ export default function VendorTeamPage() {
         <div className="max-w-5xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between mb-2">
             <button onClick={() => router.push('/vendor-portal/dashboard')} className="flex items-center gap-2 text-slate-300 hover:text-white text-sm"><FiArrowLeft /> Dashboard</button>
-            <VendorPortalBell />
+            <div className="flex items-center gap-3"><button onClick={() => router.push('/vendor-portal/profile')} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiUser /> My Profile</button><VendorPortalBell /><button onClick={logout} className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"><FiLogOut /> Logout</button></div>
           </div>
           <h1 className="text-xl font-bold flex items-center gap-2"><FiUsers className="h-5 w-5" /> Team{vendorName ? ` — ${vendorName}` : ''}</h1>
           <p className="text-slate-300 text-sm mt-0.5">Manage your vendor team and their access to BGV cases. Each member signs in with their own work email.</p>
