@@ -175,8 +175,10 @@ export default function LeaveSetupPage() {
       {mode === 'list' && tab === 'types' && <TypesList types={types} rules={rules} loading={loading} onCreate={() => go('types', 'form')} onEdit={(id) => go('types', 'form', id)} />}
       {mode === 'form' && tab === 'types' && <TypeForm editId={editId} types={types} onCancel={() => go('types')} onSaved={onSaved} scopeQuery={sq} />}
       {mode === 'list' && tab === 'policy' && <PolicyList policies={policies} loading={loading} onCreate={() => go('policy', 'form')} onEdit={(id) => go('policy', 'form', id)} />}
+      {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
-      {mode === 'list' && tab === 'mapping' && <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-8 text-center text-slate-500">Mapping view — select a policy to configure type + rule mappings.</div>}
+      {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
+      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} loading={loading} />}
     </div>
   );
 }
@@ -398,6 +400,201 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
         <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Entitlement & credit</h4><KV items={[['Entitled days/year', r.entitledDaysPerYear || r.entitledDays || '—'], ['Min days/request', r.minDaysPerRequest || r.minDays || 0.5], ['Max days/request', r.maxDaysPerRequest || r.maxDays || '—'], ['Advance notice', (r.advanceNoticeDays || r.noticeDays || 0) + ' days'], ['Half day', (r.halfDayAllowed || r.halfDay) ? 'Yes' : 'No'], ['Gender', r.gender || 'Both'], ['Status', r.status]]} /></div>
         <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Carry forward & encashment</h4><KV items={[['Carry forward', (r.carryForwardToNextYear || r.carryForward) ? 'Yes' : 'No'], ['Status', r.status]]} /></div>
       </Drawer>}
+    </div>
+  );
+}
+
+/* ═══ Policy Form (inline, 5-step) ═══ */
+function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: string | null; policies: LPolicy[]; onCancel: () => void; onSaved: () => void; sq: string }) {
+  const orig = editId && policies.find(p => p.id === editId);
+  const [f, setF] = useState({
+    title: orig?.title || '', code: orig?.code || '', description: orig?.description || '',
+    status: orig?.status || 'draft', effectiveDate: orig?.effectiveDate || '',
+    expiryDate: orig?.expiryDate || '', category: 'leave',
+  });
+  const [tried, setTried] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
+  const errs: Record<string, string> = {};
+  if (!f.title.trim()) errs.title = 'Enter a policy name';
+  const show = (k: string) => tried && errs[k];
+  const inp = 'w-full h-10 border border-slate-200 rounded-lg px-3 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+
+  const save = async () => {
+    setTried(true);
+    if (Object.keys(errs).length) return;
+    setSaving(true);
+    try {
+      const body = { title: f.title, code: f.code, description: f.description, status: f.status, category: 'leave', effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null };
+      const sep = sq ? `&${sq}` : '';
+      const url = editId ? `/api/policies/${editId}?${sep}` : `/api/policies${sq ? `?${sq}` : ''}`;
+      const method = editId ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      toast.success(`Policy "${f.title}" saved`);
+      onSaved();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5 items-start">
+        <nav className="hidden lg:block sticky top-4 bg-white border border-slate-100 rounded-2xl shadow-sm p-2">
+          {[{ id: 'po-basic', label: 'Policy details' }, { id: 'po-period', label: 'Leave period' }].map((it, i) => (
+            <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i + 1}</span>{it.label}
+            </a>
+          ))}
+        </nav>
+        <div>
+          <section id="po-basic" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">1</div><div><h3 className="text-[14.5px] font-extrabold">Policy details</h3><p className="text-[12px] text-slate-500">Name the policy so HR can recognise it.</p></div></div>
+            <div className="px-5 pb-4">
+              <div className="grid grid-cols-2 gap-x-6">
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy name<span className="text-red-500 ml-0.5">*</span></label><input className={`${inp} ${show('title') ? 'border-red-300 bg-red-50' : ''}`} value={f.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Staff Leave Policy 2026"/>{show('title') && <div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.title}</div>}</div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy code</label><input className={inp} value={f.code} onChange={e => set('code', e.target.value)} placeholder="POL-STF-26"/></div>
+                <div className="pt-3.5 col-span-2"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Description</label><textarea className={`${inp} h-20 resize-vertical`} value={f.description} onChange={e => set('description', e.target.value)} placeholder="Who is this policy for?"/></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Status</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Draft', 'Active', 'Inactive'].map(o => <button key={o} type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${f.status === o.toLowerCase() ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => set('status', o.toLowerCase())}>{o}</button>)}</div><p className="text-[11.5px] text-slate-500 mt-1">Draft policies are not applied to employees</p></div>
+              </div>
+            </div>
+          </section>
+          <section id="po-period" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">2</div><div><h3 className="text-[14.5px] font-extrabold">Leave period</h3><p className="text-[12px] text-slate-500">The leave accounting year.</p></div></div>
+            <div className="px-5 pb-4">
+              <div className="grid grid-cols-2 gap-x-6">
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective from</label><input type="date" className={inp} value={f.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective to</label><input type="date" className={inp} value={f.expiryDate} onChange={e => set('expiryDate', e.target.value)} /></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div className="sticky bottom-0 bg-slate-50/90 backdrop-blur border-t border-slate-200 py-3 flex gap-2.5 items-center z-5">
+        <span className="text-[12.5px] text-slate-500">Fields marked <b className="text-red-500">*</b> are required</span>
+        <span className="flex-1" />
+        <button className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-[13px] font-bold hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+        <button className="h-10 px-5 rounded-xl bg-slate-800 text-white text-[13px] font-bold hover:bg-slate-900 shadow-md disabled:opacity-50" onClick={save} disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save changes' : 'Create policy')}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Rule Form (inline) ═══ */
+function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: string | null; rules: LRule[]; types: LType[]; onCancel: () => void; onSaved: () => void; sq: string }) {
+  const orig = editId && rules.find(r => r.id === editId);
+  const [f, setF] = useState({
+    name: orig?.name || '', leaveTypeId: orig?.leaveTypeId || orig?.typeId || '',
+    status: orig?.status || 'draft', gender: orig?.gender || 'both',
+    entitledDaysPerYear: String(orig?.entitledDaysPerYear || ''), minDaysPerRequest: String(orig?.minDaysPerRequest || 0.5),
+    maxDaysPerRequest: String(orig?.maxDaysPerRequest || ''), advanceNoticeDays: String(orig?.advanceNoticeDays || 0),
+    halfDayAllowed: orig?.halfDayAllowed ?? true, carryForwardToNextYear: orig?.carryForward ?? false,
+    leaveEncashmentApplicable: false, employmentType: 'all',
+  });
+  const [tried, setTried] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
+  const errs: Record<string, string> = {};
+  if (!f.name.trim()) errs.name = 'Enter a rule name';
+  if (!f.leaveTypeId) errs.leaveTypeId = 'Select a leave type';
+  const show = (k: string) => tried && errs[k];
+  const inp = 'w-full h-10 border border-slate-200 rounded-lg px-3 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+
+  const save = async () => {
+    setTried(true);
+    if (Object.keys(errs).length) return;
+    setSaving(true);
+    try {
+      const body = {
+        name: f.name, leaveTypeId: f.leaveTypeId, status: f.status,
+        gender: f.gender, entitledDaysPerYear: Number(f.entitledDaysPerYear) || 0,
+        minDaysPerRequest: Number(f.minDaysPerRequest) || 0.5, maxDaysPerRequest: Number(f.maxDaysPerRequest) || 0,
+        advanceNoticeDays: Number(f.advanceNoticeDays) || 0, halfDayAllowed: f.halfDayAllowed,
+        carryForwardToNextYear: f.carryForwardToNextYear, leaveEncashmentApplicable: f.leaveEncashmentApplicable,
+        employmentType: f.employmentType,
+      };
+      const sep = sq ? `&${sq}` : '';
+      const url = editId ? `/api/leave-policy-rules/${editId}?${sep}` : `/api/leave-policy-rules${sq ? `?${sq}` : ''}`;
+      const method = editId ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      toast.success(`Rule "${f.name}" saved`);
+      onSaved();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5 items-start">
+        <nav className="hidden lg:block sticky top-4 bg-white border border-slate-100 rounded-2xl shadow-sm p-2">
+          {[{ id: 'ru-basic', label: 'Rule details' }, { id: 'ru-ent', label: 'Entitlement' }, { id: 'ru-apply', label: 'Applying rules' }, { id: 'ru-elig', label: 'Eligibility' }].map((it, i) => (
+            <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i + 1}</span>{it.label}
+            </a>
+          ))}
+        </nav>
+        <div>
+          {/* Section 1: Rule details */}
+          <section id="ru-basic" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">1</div><div><h3 className="text-[14.5px] font-extrabold">Rule details</h3><p className="text-[12px] text-slate-500">Which leave type these rules are for.</p></div></div>
+            <div className="px-5 pb-4">
+              <div className="grid grid-cols-2 gap-x-6">
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Leave type<span className="text-red-500 ml-0.5">*</span></label>
+                  <select className={`${inp} ${show('leaveTypeId') ? 'border-red-300 bg-red-50' : ''}`} value={f.leaveTypeId} onChange={e => set('leaveTypeId', e.target.value)}>
+                    <option value="">Select leave type…</option>
+                    {types.filter(t => t.status === 'active').map(t => <option key={t.id} value={t.id}>{t.code} – {t.name}</option>)}
+                  </select>
+                  {show('leaveTypeId') && <div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.leaveTypeId}</div>}
+                </div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Rule name<span className="text-red-500 ml-0.5">*</span></label><input className={`${inp} ${show('name') ? 'border-red-300 bg-red-50' : ''}`} value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. CL – Standard"/>{show('name') && <div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.name}</div>}</div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Status</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Draft', 'Active', 'Inactive'].map(o => <button key={o} type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${f.status === o.toLowerCase() ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => set('status', o.toLowerCase())}>{o}</button>)}</div></div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 2: Entitlement */}
+          <section id="ru-ent" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">2</div><div><h3 className="text-[14.5px] font-extrabold">Entitlement</h3><p className="text-[12px] text-slate-500">How many days the employee gets.</p></div></div>
+            <div className="px-5 pb-4">
+              <div className="grid grid-cols-2 gap-x-6">
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Entitled days per year</label><input type="number" className={inp} value={f.entitledDaysPerYear} onChange={e => set('entitledDaysPerYear', e.target.value)} /></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Advance notice (days)</label><input type="number" className={inp} value={f.advanceNoticeDays} onChange={e => set('advanceNoticeDays', e.target.value)} /></div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 3: Applying rules */}
+          <section id="ru-apply" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">3</div><div><h3 className="text-[14.5px] font-extrabold">Applying rules</h3><p className="text-[12px] text-slate-500">Limits checked when an employee submits a request.</p></div></div>
+            <div className="px-5 pb-4">
+              <div className="grid grid-cols-2 gap-x-6">
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Minimum days per request</label><input type="number" step="0.5" className={inp} value={f.minDaysPerRequest} onChange={e => set('minDaysPerRequest', e.target.value)} /></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Maximum days per request</label><input type="number" className={inp} value={f.maxDaysPerRequest} onChange={e => set('maxDaysPerRequest', e.target.value)} /></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Half day allowed?</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5"><button type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${f.halfDayAllowed ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`} onClick={() => set('halfDayAllowed', true)}>Yes</button><button type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${!f.halfDayAllowed ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`} onClick={() => set('halfDayAllowed', false)}>No</button></div></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Carry forward to next year?</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5"><button type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${f.carryForwardToNextYear ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`} onClick={() => set('carryForwardToNextYear', true)}>Yes</button><button type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${!f.carryForwardToNextYear ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`} onClick={() => set('carryForwardToNextYear', false)}>No</button></div></div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 4: Eligibility */}
+          <section id="ru-elig" className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-4">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5"><div className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-extrabold">4</div><div><h3 className="text-[14.5px] font-extrabold">Eligibility</h3><p className="text-[12px] text-slate-500">Who can use this leave under this rule.</p></div></div>
+            <div className="px-5 pb-4">
+              <div className="grid grid-cols-2 gap-x-6">
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Gender</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Both', 'Male', 'Female', 'Others'].map(o => <button key={o} type="button" className={`h-8 px-3.5 rounded-md text-[12.5px] font-bold ${f.gender === o.toLowerCase() ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => set('gender', o.toLowerCase())}>{o}</button>)}</div></div>
+                <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employment type</label><select className={inp} value={f.employmentType} onChange={e => set('employmentType', e.target.value)}><option value="all">All</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="contract">Contract</option><option value="internship">Internship</option></select></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div className="sticky bottom-0 bg-slate-50/90 backdrop-blur border-t border-slate-200 py-3 flex gap-2.5 items-center z-5">
+        <span className="text-[12.5px] text-slate-500">Fields marked <b className="text-red-500">*</b> are required</span>
+        <span className="flex-1" />
+        <button className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-[13px] font-bold hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+        <button className="h-10 px-5 rounded-xl bg-slate-800 text-white text-[13px] font-bold hover:bg-slate-900 shadow-md disabled:opacity-50" onClick={save} disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save changes' : 'Create rule')}</button>
+      </div>
     </div>
   );
 }
