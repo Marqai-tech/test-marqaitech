@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
         maxCarryForwardDays: maxCarryForwardDays ?? 5,
         priority: priority ?? 0,
         status: status || 'active',
-      },
+      } as any,
       include: {
         branch: { select: { id: true, name: true } },
         department: { select: { id: true, name: true } },

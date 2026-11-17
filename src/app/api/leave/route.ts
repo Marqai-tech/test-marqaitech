@@ -313,12 +313,24 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { employeeId, leaveTypeId, startDate, endDate, halfDay, halfDaySlot } = body;
+    const { leaveTypeId, startDate, endDate, halfDay, halfDaySlot } = body;
     // HR options: skip approval (auto-approve) + notify a specific person
     const skipApproval = body.skipApproval === true;
     const notifyEmail = typeof body.notifyEmail === 'string' && body.notifyEmail.trim() ? body.notifyEmail.trim() : '';
     // Sanitize free-text fields to strip HTML/script content before persisting.
     const reason = sanitizeMultiLineText(body.reason, 2000);
+
+    // Resolve employeeId: from body (HR applying on behalf) or from token (employee self-apply)
+    let employeeId = body.employeeId;
+    if (!employeeId) {
+      const selfEmp = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { id: true },
+      }).catch(() => null);
+      if (selfEmp) {
+        employeeId = selfEmp.id;
+      }
+    }
 
     if (!employeeId || !leaveTypeId || !startDate || !endDate) {
       return NextResponse.json(
