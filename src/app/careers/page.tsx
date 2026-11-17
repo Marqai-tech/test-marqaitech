@@ -396,8 +396,7 @@ export default function CareersPage() {
     // confusing post-submit account setup step.
     if (typeof window !== 'undefined' && !localStorage.getItem('tb_candidate_token')) {
       toast.error('Create and verify a candidate account before applying.');
-      const redirect = `/careers?jobId=${encodeURIComponent(job.id)}`;
-      router.push(`/login?mode=candidate&redirect=${encodeURIComponent(redirect)}`);
+      router.push('/candidate-portal/register');
       return;
     }
     setApplyJob(job);

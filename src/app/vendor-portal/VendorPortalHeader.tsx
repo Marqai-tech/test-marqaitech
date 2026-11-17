@@ -11,10 +11,11 @@ type Props = {
   isAdmin?: boolean;
   backLabel?: string;
   backHref?: string;
+  backToPrevious?: boolean;
   children?: ReactNode;
 };
 
-export default function VendorPortalHeader({ title, subtitle, isAdmin, backLabel, backHref, children }: Props) {
+export default function VendorPortalHeader({ title, subtitle, isAdmin, backLabel, backHref, backToPrevious, children }: Props) {
   const router = useRouter();
   const logout = () => {
     localStorage.removeItem('tb_token');
@@ -27,8 +28,8 @@ export default function VendorPortalHeader({ title, subtitle, isAdmin, backLabel
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="min-w-0">
-            {backHref && (
-              <button onClick={() => router.push(backHref)} className="mb-2 inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white">
+            {(backHref || backToPrevious) && (
+              <button onClick={() => backToPrevious ? router.back() : router.push(backHref!)} className="mb-2 inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white">
                 <FiArrowLeft /> {backLabel || 'Back'}
               </button>
             )}

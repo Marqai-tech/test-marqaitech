@@ -93,7 +93,7 @@ export default function VendorNotificationsPage() {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <VendorPortalHeader title="Notification Center" subtitle="Updates about your cases, invitations and team — newest first." backHref="/vendor-portal/dashboard" backLabel="Dashboard" />
+      <VendorPortalHeader title="Notification Center" subtitle="Updates about your cases, invitations and team — newest first." backToPrevious backLabel="Back to previous screen" />
 
       <main className="max-w-3xl mx-auto p-4 sm:p-6">
         <div className="flex items-center justify-end mb-4">

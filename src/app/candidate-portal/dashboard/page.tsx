@@ -160,8 +160,6 @@ export default function CandidateDashboardPage() {
   const [matchingJobsLoading, setMatchingJobsLoading] = useState(false);
   const [reuploadingAppId, setReuploadingAppId] = useState<string | null>(null);
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
-  // Auto-apply state: track which jobs are being auto-applied
-  const [autoApplyingJobIds, setAutoApplyingJobIds] = useState<Set<string>>(new Set());
   // Scraped external jobs from job portals
   const [scrapedJobs, setScrapedJobs] = useState<Array<{
     id: string;
@@ -238,59 +236,9 @@ export default function CandidateDashboardPage() {
     queueMicrotask(() => { fetchScrapedJobs(); });
   }, [fetchData, fetchMatchingJobs, fetchScrapedJobs, router]);
 
-  // ─── Auto-apply handler ───
-  // When candidate clicks "Apply now" on a matching job, auto-apply
-  // using their stored resume and profile instead of redirecting to /careers
-  const handleAutoApply = async (job: MatchingJob) => {
-    if (autoApplyingJobIds.has(job.id)) return;
-
-    setAutoApplyingJobIds(prev => new Set(prev).add(job.id));
-    try {
-      // Get the candidate's profile and resume
-      const profileRes = await fetch('/api/candidate-portal/dashboard', { headers: getAuthHeaders() });
-      const profileData = await profileRes.json();
-
-      const candidateEmail = typeof window !== 'undefined' ? localStorage.getItem('tb_candidate_email') : null;
-      if (!candidateEmail) {
-        toast.error('Please login again to apply');
-        return;
-      }
-
-      // Auto-apply using the candidate's stored resume
-      const applyRes = await fetch('/api/public/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobPostingId: job.id,
-          candidateName: profileData.profile?.name || '',
-          candidateEmail: candidateEmail,
-          candidatePhone: '',
-          resumeDataUrl: '', // Will use stored resume
-          source: 'candidate_portal_auto',
-        }),
-      });
-
-      const applyData = await applyRes.json();
-
-      if (applyRes.ok) {
-        toast.success(`Applied to "${job.title}" at ${job.company}!`);
-        // Refresh dashboard to show new application
-        fetchData();
-      } else if (applyRes.status === 409) {
-        toast.error(`You've already applied to this position`);
-      } else {
-        throw new Error(applyData.error || 'Failed to apply');
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to apply');
-    } finally {
-      setAutoApplyingJobIds(prev => {
-        const next = new Set(prev);
-        next.delete(job.id);
-        return next;
-      });
-    }
-  };
+  // Applications are completed on the job page, where the candidate must
+  // explicitly upload a resume and review the form before submission.
+  const openJobApplication = (job: MatchingJob) => router.push(`/careers?jobId=${encodeURIComponent(job.id)}`);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -964,20 +912,10 @@ export default function CandidateDashboardPage() {
                       </div>
                     )}
                     <button
-                      onClick={() => handleAutoApply(job)}
-                      disabled={autoApplyingJobIds.has(job.id)}
+                      onClick={() => openJobApplication(job)}
                       className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 disabled:opacity-60 px-3 py-1.5 rounded-lg mt-2.5 transition-all"
                     >
-                      {autoApplyingJobIds.has(job.id) ? (
-                        <>
-                          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Applying...
-                        </>
-                      ) : (
-                        <>
-                          <FiZap className="w-3 h-3" /> Auto-Apply
-                        </>
-                      )}
+                      <><FiBriefcase className="w-3 h-3" /> View &amp; Apply</>
                     </button>
                   </div>
                 ))}

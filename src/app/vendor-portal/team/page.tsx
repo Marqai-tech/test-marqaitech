@@ -125,7 +125,7 @@ export default function VendorTeamPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <VendorPortalHeader title={`Team${vendorName ? ` — ${vendorName}` : ''}`} subtitle="Manage your vendor team and their access to BGV cases. Each member signs in with their own work email." isAdmin />
+      <VendorPortalHeader title={`Team${vendorName ? ` — ${vendorName}` : ''}`} subtitle="Manage your vendor team and their access to BGV cases. Each member signs in with their own work email." isAdmin backToPrevious backLabel="Back to previous screen" />
 
       <div className="max-w-5xl mx-auto px-6 py-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

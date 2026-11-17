@@ -22,7 +22,7 @@ export default function VendorProfilePage() {
   const isAdmin = user.role === 'vendor_admin';
   return (
     <main className="min-h-screen bg-slate-50">
-      <VendorPortalHeader title="My Profile" subtitle="Your vendor account, company and access information." isAdmin={isAdmin} />
+      <VendorPortalHeader title="My Profile" subtitle="Your vendor account, company and access information." isAdmin={isAdmin} backToPrevious backLabel="Back to previous screen" />
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
         <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
           <div className="p-5 sm:p-8 flex flex-col sm:flex-row items-start gap-5 border-b">
