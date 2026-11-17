@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     if (!decoded) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role as string)) {
       return NextResponse.json({ error: 'Only admins can run cleanup' }, { status: 403 });
     }
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     // Find the admin employee to keep
     const adminEmployee = allEmployees.find(e =>
-      e.user && ['super_admin', 'tenant_admin', 'admin'].includes(e.user.role || '')
+      e.user && ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(e.user.role || '')
     );
 
     let keepId: string | null = null;

@@ -31,13 +31,43 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
 
     const body = await req.json();
     const { offerId, applicationId, candidateId, joiningDate, probationPeriod } = body || {};
     if (!offerId && !applicationId && !candidateId) {
       return NextResponse.json({ error: 'Provide offerId, applicationId, or candidateId' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // BRD §2.1 gate: an employee may only be created after the candidate has
+    // ACCEPTED an offer for this application. The compliant path is
+    // /api/onboarding/convert-to-draft (preboarding) — this legacy endpoint
+    // previously created ACTIVE employees with no accepted-offer check.
+    const emailOrId = candidateId || null;
+    let gateEmail: string | null = null;
+    if (emailOrId) {
+      const c = await (db as any).$queryRawUnsafe(`SELECT "candidateEmail" FROM "Candidate" WHERE "id"=$1 LIMIT 1`, emailOrId).catch(() => []) as any[];
+      gateEmail = c[0]?.candidateEmail || null;
+    }
+    if (offerId) {
+      const o = await (db as any).$queryRawUnsafe(`SELECT "candidateEmail","status" FROM "Offer" WHERE "id"=$1 LIMIT 1`, offerId).catch(() => []) as any[];
+      if (o.length && o[0].status !== 'accepted') {
+        return NextResponse.json({ error: 'BRD §2.1: the offer must be accepted by the candidate before conversion. Use the preboarding flow (/api/onboarding/convert-to-draft).' }, { status: 409, headers: corsHeaders() });
+      }
+      gateEmail = gateEmail || o[0]?.candidateEmail || null;
+    }
+    if (!offerId && (applicationId || gateEmail)) {
+      const appRows = await (db as any).$queryRawUnsafe(
+        `SELECT o."status" FROM "Offer" o
+         WHERE o."status" = 'accepted'
+           AND (o."id" = $1 OR ($2::text IS NOT NULL AND LOWER(o."candidateEmail") = $2))
+         LIMIT 1`,
+        offerId || null, gateEmail || null,
+      ).catch(() => []) as any[];
+      if (!appRows.length) {
+        return NextResponse.json({ error: 'BRD §2.1: no accepted offer found for this candidate/application. Conversion blocked.' }, { status: 409, headers: corsHeaders() });
+      }
     }
 
     const result = await convertCandidateToEmployee(db as Record<string, any>, {

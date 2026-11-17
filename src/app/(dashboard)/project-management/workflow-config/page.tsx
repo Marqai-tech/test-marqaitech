@@ -5,11 +5,13 @@
  * Mirrors /recruitment/workflow-config — dynamic, per-tenant (optionally per-company):
  *   - Intake approval chain + mandatory intake fields
  *   - Stage-gate review chain (e.g. Team Lead → Project Sponsor)
- *   - Capacity rules (over-allocation threshold, soft allocation, backup hand-off)
  *   - Workspace automation (chat room + delivery board on approval)
- *   - Timesheet rules (approval routing, waterfall phase gating)
  *   - Closure rules (post-mortem, compliance checklist)
- *   - Sprint defaults
+ *
+ * Task 152 — PM scope reduction: Capacity & Resource Rules, Timesheets and
+ * Sprint defaults were REMOVED from the UI (those modules are no longer part
+ * of the slimmed Project Management module). The API still tolerates the
+ * legacy keys, so saved configs keep loading without error.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -126,7 +128,7 @@ function TierEditor({ title, icon, chain, setChain, employees }: {
 
 export default function ProjectWorkflowConfigPage() {
   const { user } = useAuthStore();
-  const canManage = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const canManage = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -204,7 +206,7 @@ export default function ProjectWorkflowConfigPage() {
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2"><FiGitMerge className="text-fuchsia-600" /> Project Delivery Workflow</h1>
-          <p className="text-xs text-slate-500 mt-1">Dynamic configuration for intake approvals, stage gates, capacity rules, timesheets and closure — applies to every project in this scope.</p>
+          <p className="text-xs text-slate-500 mt-1">Dynamic configuration for intake approvals, stage gates, workspace automation and closure — applies to every project in this scope.</p>
         </div>
         <div className="flex items-center gap-2">
           {companies.length > 0 && (
@@ -247,29 +249,7 @@ export default function ProjectWorkflowConfigPage() {
         </div>
 
         <div className="border border-slate-200 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><FiUsers /> 3. Capacity &amp; Resource Rules</h2>
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            <label className="text-xs text-slate-600">
-              Over-allocation threshold (%)
-              <input type="number" min={50} max={400} value={cfg.capacity.overAllocationThresholdPct}
-                onChange={(e) => setCfg({ ...cfg, capacity: { ...cfg.capacity, overAllocationThresholdPct: Number(e.target.value) || 100 } })}
-                className="mt-1 w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" />
-              <span className="text-[10px] text-slate-400">Alert when combined allocations exceed this.</span>
-            </label>
-            <label className="text-xs text-slate-600">
-              Backup hand-off trigger (working days)
-              <input type="number" min={1} max={90} value={cfg.capacity.backupHandoffLeaveDays}
-                onChange={(e) => setCfg({ ...cfg, capacity: { ...cfg.capacity, backupHandoffLeaveDays: Number(e.target.value) || 5 } })}
-                className="mt-1 w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" />
-              <span className="text-[10px] text-slate-400">Extended leave ≥ this many days prompts a backup assignment.</span>
-            </label>
-          </div>
-          <Toggle label={'Soft ("bench") reservations count toward capacity'} value={cfg.capacity.includeSoftAllocations} onChange={(v) => setCfg({ ...cfg, capacity: { ...cfg.capacity, includeSoftAllocations: v } })} />
-          <Toggle label="Backup hand-off prompts enabled" value={cfg.capacity.backupHandoffEnabled} onChange={(v) => setCfg({ ...cfg, capacity: { ...cfg.capacity, backupHandoffEnabled: v } })} />
-        </div>
-
-        <div className="border border-slate-200 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><FiSettings /> 4. Automated Workspace</h2>
+          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><FiSettings /> 3. Automated Workspace</h2>
           <p className="text-[11px] text-slate-400 mb-2">On intake approval, the system centralizes the project and notifies assigned members.</p>
           <Toggle label="Auto-create collaboration chat room" value={cfg.workspace.autoCreateChatRoom} onChange={(v) => setCfg({ ...cfg, workspace: { ...cfg.workspace, autoCreateChatRoom: v } })} />
           <Toggle label="Auto-create kanban delivery board" hint="Seeded from project tasks; two-way linked with the Collaboration module board." value={cfg.workspace.autoCreateKanbanBoard} onChange={(v) => setCfg({ ...cfg, workspace: { ...cfg.workspace, autoCreateKanbanBoard: v } })} />
@@ -278,23 +258,7 @@ export default function ProjectWorkflowConfigPage() {
         </div>
 
         <div className="border border-slate-200 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><FiClock /> 5. Timesheets</h2>
-          <label className="text-xs text-slate-600 block">
-            Approval routing
-            <select value={cfg.timesheets.approvalMode}
-              onChange={(e) => setCfg({ ...cfg, timesheets: { ...cfg.timesheets, approvalMode: e.target.value } })}
-              className="mt-1 w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white">
-              <option value="allocation_approver">Allocation approver → project manager (fallback)</option>
-              <option value="project_manager">Always project manager</option>
-              <option value="hr_admin">HR / admin role</option>
-            </select>
-          </label>
-          <Toggle label="Enforce waterfall phase gating" hint="Time cannot be logged to Phase N before Phase N−1 is approved." value={cfg.timesheets.enforceWaterfallPhaseGating} onChange={(v) => setCfg({ ...cfg, timesheets: { ...cfg.timesheets, enforceWaterfallPhaseGating: v } })} />
-          <Toggle label="Pre-populate active sprint on timesheet lines" value={cfg.timesheets.autoPrepopulateSprint} onChange={(v) => setCfg({ ...cfg, timesheets: { ...cfg.timesheets, autoPrepopulateSprint: v } })} />
-        </div>
-
-        <div className="border border-slate-200 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><FiCheckCircle /> 6. Closure &amp; Compliance</h2>
+          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><FiCheckCircle /> 4. Closure &amp; Compliance</h2>
           <Toggle label="Post-mortem reviews required before sign-off" value={cfg.closure.requirePostMortem} onChange={(v) => setCfg({ ...cfg, closure: { ...cfg.closure, requirePostMortem: v } })} />
           <Toggle label="All milestones must be approved before closure" value={cfg.closure.requireAllMilestonesApproved} onChange={(v) => setCfg({ ...cfg, closure: { ...cfg.closure, requireAllMilestonesApproved: v } })} />
           <label className="text-xs text-slate-600 block mt-2">Compliance &amp; policy checklist
@@ -305,11 +269,6 @@ export default function ProjectWorkflowConfigPage() {
               placeholder="One item per line"
               className="mt-1 w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" />
             <span className="text-[10px] text-slate-400">Must be confirmed at project sign-off.</span>
-          </label>
-          <label className="text-xs text-slate-600 block mt-2">Default sprint duration (days)
-            <input type="number" min={3} max={60} value={cfg.sprints.defaultDurationDays}
-              onChange={(e) => setCfg({ ...cfg, sprints: { ...cfg.sprints, defaultDurationDays: Number(e.target.value) || 14 } })}
-              className="mt-1 w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" />
           </label>
         </div>
       </section>

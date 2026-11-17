@@ -189,7 +189,7 @@ const MODULE_DEFINITIONS = [
 
 const DEFAULT_ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'approve'];
 const LIMITED_ACTION_MODULES = ['dashboard', 'notifications', 'docs'];
-const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ai_admin'];
+const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ceo', 'ai_admin'];
 
 // 3 standard roles only
 const SYSTEM_ROLES = [
@@ -230,7 +230,7 @@ async function seedRBACData(userId?: string) {
     }
     if (!existingRole) {
       let roleTenantId = roleDef.tenantId;
-      if (roleTenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin') {
+      if (roleTenantId === null && roleDef.key !== 'super_admin' && (roleDef.key !== 'tenant_admin' && roleDef.key !== 'ceo')) {
         const tenants = await getPlatformDb().tenant.findMany({ take: 1 });
         roleTenantId = tenants.length > 0 ? tenants[0].id : null;
       }
@@ -313,7 +313,7 @@ async function seedRBACData(userId?: string) {
         data: {
           userId: user.id,
           roleId: createdRoles[newRoleKey],
-          companyId: companies.length > 0 && newRoleKey !== 'super_admin' && newRoleKey !== 'tenant_admin' ? companies[0].id : null,
+          companyId: companies.length > 0 && newRoleKey !== 'super_admin' && (newRoleKey !== 'tenant_admin' && newRoleKey !== 'ceo') ? companies[0].id : null,
           assignedBy: userId || null
         }
       });

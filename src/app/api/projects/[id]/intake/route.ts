@@ -317,7 +317,7 @@ async function employeeIdForUser(db: any, userId?: string): Promise<string | nul
 
 /** Can this user decide the given pending step? */
 async function userCanDecideStep(db: any, step: any, myEmployeeId: string | null, role: string): Promise<boolean> {
-  if (['tenant_admin', 'super_admin'].includes(role)) return true; // admin override
+  if (['tenant_admin', 'ceo', 'super_admin'].includes(role)) return true; // admin override
   switch (step.approverType) {
     case 'reporting_manager':
     case 'department_head':
@@ -326,8 +326,8 @@ async function userCanDecideStep(db: any, step: any, myEmployeeId: string | null
       return !!myEmployeeId && step.approverValue === myEmployeeId;
     case 'hr_admin':
       return ['hr_admin', 'admin'].includes(role);
-    case 'tenant_admin':
-      return ['tenant_admin', 'admin'].includes(role);
+    case 'tenant_admin': case 'ceo':
+      return ['tenant_admin', 'ceo', 'admin'].includes(role);
     default:
       return false;
   }

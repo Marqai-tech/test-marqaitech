@@ -30,7 +30,7 @@ export async function POST(
     }
 
     // Only super_admin and tenant_admin can assign roles
-    if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+    if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to assign roles' },
         { status: 403, headers: corsHeaders() }
@@ -73,7 +73,7 @@ export async function POST(
     }
 
     // Tenant admin can only assign roles within their tenant
-    if (user.role === 'tenant_admin') {
+    if ((user.role === 'tenant_admin' || user.role === 'ceo')) {
       if (role.tenantId !== user.tenantId && role.tenantId !== null) {
         return NextResponse.json(
           { error: 'Cannot assign roles outside your tenant' },
@@ -97,7 +97,7 @@ export async function POST(
     }
 
     // Tenant admin can only assign roles to users in their tenant
-    if (user.role === 'tenant_admin') {
+    if ((user.role === 'tenant_admin' || user.role === 'ceo')) {
       const outsideTenant = targetUsers.filter((u) => u.tenantId !== user.tenantId);
       if (outsideTenant.length > 0) {
         return NextResponse.json(

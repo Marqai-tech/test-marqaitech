@@ -48,6 +48,13 @@ export function escapeHtml(value: string): string {
  * Wrap a plain-text notification body into a branded, email-client-safe
  * HTML document. Action buttons (Approve/Reject) are rendered when an
  * actionUrl is provided — recipients act without opening the HRMS platform.
+ *
+ * ENHANCED: now delegates to the full branded template renderer in
+ * email-template-renderer.ts. The legacy signature is preserved so all
+ * existing dispatchNotification callers get the new design automatically.
+ * Branding (logo, brandColor, contact) is fetched by notification-center.ts
+ * and passed via the `branding` field. When branding is not provided, a
+ * clean fallback with the company name only is used.
  */
 export function buildEmailHtml(opts: {
   title: string;
@@ -55,40 +62,32 @@ export function buildEmailHtml(opts: {
   actionUrl?: string;
   companyName?: string;
   expiresAt?: string;
+  branding?: {
+    name: string;
+    logoUrl?: string | null;
+    brandColor?: string | null;
+    website?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+  };
+  status?: 'approved' | 'rejected' | 'pending' | 'info' | 'warning' | 'welcome';
+  greeting?: string;
 }): string {
-  const { title, bodyText, actionUrl, companyName = '3Boxes HRMS', expiresAt } = opts;
-  const paragraphs = bodyText
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) =>
-      `<p style="margin:0 0 14px;white-space:pre-line;color:#334155;font-size:14px;line-height:1.6;">${escapeHtml(p)}</p>`,
-    )
-    .join('');
-
-  const buttons = actionUrl
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 6px;"><tr>
-        <td style="padding-right:10px;"><a href="${actionUrl}&action=approve" style="display:inline-block;padding:12px 26px;background:#10b981;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">&#10003; Approve</a></td>
-        <td><a href="${actionUrl}&action=reject" style="display:inline-block;padding:12px 26px;background:#ef4444;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">&#10007; Reject</a></td>
-      </tr></table>
-      ${expiresAt ? `<p style="margin:10px 0 0;font-size:12px;color:#94a3b8;">Action links expire on ${escapeHtml(expiresAt)}.</p>` : ''}`
-    : '';
-
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;padding:24px 16px;">
-    <div style="background:linear-gradient(135deg,#065f46,#10b981);border-radius:14px 14px 0 0;padding:22px 28px;">
-      <div style="color:rgba(255,255,255,.85);font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(companyName)}</div>
-      <div style="color:#ffffff;font-size:19px;font-weight:700;margin-top:4px;line-height:1.35;">${escapeHtml(title)}</div>
-    </div>
-    <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:26px 28px 22px;box-shadow:0 6px 24px rgba(15,23,42,.08);">
-      ${paragraphs}
-      ${buttons}
-      <div style="border-top:1px solid #e2e8f0;margin-top:20px;padding-top:14px;font-size:11px;color:#94a3b8;">
-        Sent by ${escapeHtml(companyName)} via 3Boxes HRMS · People · Process · Technology
-      </div>
-    </div>
-  </div>
-</body></html>`;
+  const { title, bodyText, actionUrl, companyName = '3Boxes HRMS', expiresAt, branding, status, greeting } = opts;
+  // Lazy import to avoid circular dependency at module-load time
+  const { buildBrandedEmail } = require('./email-template-renderer');
+  return buildBrandedEmail({
+    title,
+    bodyText,
+    actionUrl,
+    status,
+    greeting,
+    actionExpiresAt: expiresAt,
+    approvalActions: actionUrl ? {
+      approveUrl: actionUrl + (actionUrl.includes('?') ? '&' : '?') + 'action=approve',
+      rejectUrl: actionUrl + (actionUrl.includes('?') ? '&' : '?') + 'action=reject',
+    } : undefined,
+    branding: branding || { name: companyName },
+  });
 }

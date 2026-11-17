@@ -464,10 +464,10 @@ export async function POST(request: Request) {
     // notifications to MD/Employee. Here we just notify that the review
     // was submitted.)
     try {
-      const { createNotification } = await import('@/lib/notifications');
+      const { createNotification, sendNotificationEmail } = await import('@/lib/notifications');
       const { resolveRoleRecipients } = await import('@/lib/notification-center');
-      const { sendTenantEmail } = await import('@/lib/notification-channels');
       const { ensureWorkflowConfig, resolveTierApprovers } = await import('@/lib/approverResolve');
+      const { buildBrandedEmailForTenant } = await import('@/lib/tenant-branding');
       const empName = `${(review as any).employee?.firstName || ''} ${(review as any).employee?.lastName || ''}`.trim();
       const tenantId = (decoded as any).tenantId as string;
       const appOrigin = new URL(request.url).origin;
@@ -478,8 +478,9 @@ export async function POST(request: Request) {
 
       // Notify the employee
       if (employee && employee.id) {
+        let empNotif: { id: string } | null = null;
         if (employee.userId) {
-          await createNotification({
+          empNotif = await createNotification({
             tenantId,
             userId: employee.userId,
             title: 'Probation Review Submitted',
@@ -489,12 +490,17 @@ export async function POST(request: Request) {
             link: '/employees/probation',
           }).catch(() => null);
         }
-        const employeeEmailResult = employee.email ? await sendTenantEmail(db, tenantId, {
-          to: employee.email,
-          subject: 'Probation Review Submitted',
-          html: `<p>Your probation review has been submitted and is pending HR review.</p>`,
-        }).catch((error) => ({ success: false, error: error instanceof Error ? error.message : 'Email delivery failed' })) : null;
-        deliveryHistory.push({ event: 'probation_submitted_employee', recipientUserId: employee.userId, recipientEmail: employee.email, inAppStatus: employee.userId ? 'sent' : 'skipped', emailStatus: employeeEmailResult?.success ? 'sent' : employee.email ? 'failed' : 'skipped', emailError: employeeEmailResult?.error || null, at: new Date().toISOString() });
+        let employeeEmailSent = false;
+        if (employee.email && empNotif?.id) {
+          try {
+            const html = await buildBrandedEmailForTenant(tenantId, {
+              title: 'Probation Review Submitted',
+              bodyText: 'Your probation review has been submitted and is pending HR review.',
+            });
+            employeeEmailSent = await sendNotificationEmail(db, tenantId, empNotif, employee.email!, 'Probation Review Submitted', html);
+          } catch { employeeEmailSent = false; }
+        }
+        deliveryHistory.push({ event: 'probation_submitted_employee', recipientUserId: employee.userId, recipientEmail: employee.email, inAppStatus: employee.userId ? 'sent' : 'skipped', emailStatus: employeeEmailSent ? 'sent' : employee.email ? 'failed' : 'skipped', at: new Date().toISOString() });
       }
 
       // Notify the configured first-tier HR approver(s). Fall back to active
@@ -503,14 +509,14 @@ export async function POST(request: Request) {
       const assigned = workflow?.tiers?.[0]
         ? await resolveTierApprovers(db as Record<string, any>, workflow.tiers[0], employeeId).catch(() => null)
         : null;
-      const submitterIsHr = ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin', 'super_admin'].includes(String(decoded.role || '').toLowerCase());
+      const submitterIsHr = ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin', 'ceo', 'super_admin'].includes(String(decoded.role || '').toLowerCase());
       const hrRecipients = submitterIsHr
         ? [String(decoded.userId)]
         : assigned?.userIds?.length
           ? assigned.userIds
-          : await resolveRoleRecipients(db, ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin']);
+          : await resolveRoleRecipients(db, ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin', 'ceo']);
       for (const userId of hrRecipients) {
-        await createNotification({
+        const hrNotif = await createNotification({
           tenantId,
           userId,
           title: 'Action Required – Probation Review Pending',
@@ -520,12 +526,18 @@ export async function POST(request: Request) {
           link: '/employees/probation',
         }).catch(() => null);
         const hrUser = await db.user.findUnique({ where: { id: userId }, select: { email: true } }).catch(() => null);
-        const hrEmailResult = hrUser?.email ? await sendTenantEmail(db, tenantId, {
-          to: hrUser.email,
-          subject: userId === String(decoded.userId) ? `Probation Review Submitted — ${empName}` : `Action Required – Probation Review Pending`,
-          html: `<p>Hi,</p><p>A probation review has been submitted${userId === String(decoded.userId) ? ' successfully' : ' and requires your review'}.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${employee.employeeId}<br/><strong>Department:</strong> ${employee.department?.name || '—'}<br/><strong>Probation End Date:</strong> ${probationEnd.toLocaleDateString('en-IN')}<br/><strong>Submitted By:</strong> ${submittingUser?.name || 'HR'}<br/><strong>Submitted On:</strong> ${new Date().toLocaleString('en-IN')}<br/><strong>Status:</strong> Pending HR Review</p><p><a href="${appOrigin}/employees/probation">View Probation Review</a></p>`,
-        }).catch((error) => ({ success: false, error: error instanceof Error ? error.message : 'Email delivery failed' })) : null;
-        deliveryHistory.push({ event: 'probation_submitted_hr', recipientUserId: userId, recipientEmail: hrUser?.email || null, inAppStatus: 'sent', emailStatus: hrEmailResult?.success ? 'sent' : hrUser?.email ? 'failed' : 'skipped', emailError: hrEmailResult?.error || null, at: new Date().toISOString() });
+        let hrEmailSent = false;
+        if (hrUser?.email && hrNotif?.id) {
+          try {
+            const innerHtml = `<p>Hi,</p><p>A probation review has been submitted${userId === String(decoded.userId) ? ' successfully' : ' and requires your review'}.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${employee.employeeId}<br/><strong>Department:</strong> ${employee.department?.name || '—'}<br/><strong>Probation End Date:</strong> ${probationEnd.toLocaleDateString('en-IN')}<br/><strong>Submitted By:</strong> ${submittingUser?.name || 'HR'}<br/><strong>Submitted On:</strong> ${new Date().toLocaleString('en-IN')}<br/><strong>Status:</strong> Pending HR Review</p><p><a href="${appOrigin}/employees/probation">View Probation Review</a></p>`;
+            const html = await buildBrandedEmailForTenant(tenantId, {
+              title: userId === String(decoded.userId) ? `Probation Review Submitted — ${empName}` : 'Action Required – Probation Review Pending',
+              bodyHtml: innerHtml,
+            });
+            hrEmailSent = await sendNotificationEmail(db, tenantId, hrNotif, hrUser.email, userId === String(decoded.userId) ? `Probation Review Submitted — ${empName}` : `Action Required – Probation Review Pending`, html);
+          } catch { hrEmailSent = false; }
+        }
+        deliveryHistory.push({ event: 'probation_submitted_hr', recipientUserId: userId, recipientEmail: hrUser?.email || null, inAppStatus: 'sent', emailStatus: hrEmailSent ? 'sent' : hrUser?.email ? 'failed' : 'skipped', at: new Date().toISOString() });
       }
       probationPayload.notificationHistory = deliveryHistory;
       await db.performanceReview.update({ where: { id: (review as any).id }, data: { comments: JSON.stringify(probationPayload) } }).catch(() => null);

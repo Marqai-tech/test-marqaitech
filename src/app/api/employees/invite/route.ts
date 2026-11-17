@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPasswordFast, getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 import { sendTenantEmail } from '@/lib/notification-channels';
+import { getTenantBranding } from '@/lib/tenant-branding';
 
 // Vercel serverless function timeout safeguard (see credentials route for details).
 export const maxDuration = 60;
@@ -47,8 +48,19 @@ function buildInviteEmailHtml(params: {
   tenantName: string;
   tenantLogo: string | null;
   adminName: string;
+  /** REQ 5: tenant brand colors. When supplied, the header gradient uses
+   *  these instead of the default 3Boxes green. Falls back gracefully. */
+  primaryColor?: string | null;
+  accentColor?: string | null;
 }): string {
   const { employeeName, email, password, loginUrl, tenantName, tenantLogo, adminName } = params;
+  // REQ 5: brand colors with safe fallback to the 3Boxes default gradient.
+  const primary = (params.primaryColor && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(params.primaryColor.trim()))
+    ? params.primaryColor.trim()
+    : '#065f46';
+  const accent = (params.accentColor && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(params.accentColor.trim()))
+    ? params.accentColor.trim()
+    : '#10b981';
 
   return `
 <!DOCTYPE html>
@@ -62,7 +74,7 @@ function buildInviteEmailHtml(params: {
 
         <!-- ═══ Top Banner — Green Gradient with Confetti-style Dots ═══ -->
         <tr>
-          <td style="background:linear-gradient(135deg,#065f46 0%,#10b981 50%,#34d399 100%);padding:40px 40px 32px;text-align:center;position:relative;">
+          <td style="background:linear-gradient(135deg,${primary} 0%,${accent} 50%,#34d399 100%);padding:40px 40px 32px;text-align:center;position:relative;">
             <!-- Decorative dots -->
             <div style="position:absolute;top:12px;left:20px;width:8px;height:8px;background:rgba(255,255,255,0.3);border-radius:50%;"></div>
             <div style="position:absolute;top:24px;left:40px;width:6px;height:6px;background:rgba(255,255,255,0.2);border-radius:50%;"></div>
@@ -333,14 +345,19 @@ export async function POST(request: Request) {
         }
 
         // Build and send the invite email
+        // REQ 5: fetch tenant branding (logo + colors) so the invite email
+        // uses the tenant's brand colors instead of the default green.
+        const tenantBranding = await getTenantBranding(admin.tenantId || null);
         const emailHtml = buildInviteEmailHtml({
           employeeName: `${emp.firstName} ${emp.lastName}`,
           email: emp.email,
           password: pwd || '••••••••',
           loginUrl,
           tenantName: admin.tenant?.name || '3Boxes HRMS',
-          tenantLogo: admin.tenant?.logo || null,
+          tenantLogo: admin.tenant?.logo || tenantBranding.logo || null,
           adminName: admin.name,
+          primaryColor: tenantBranding.primaryColor,
+          accentColor: tenantBranding.accentColor,
         });
 
         const emailResult = await sendTenantEmail(db, admin.tenantId!, {

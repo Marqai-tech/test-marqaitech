@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   FiX, FiSearch, FiRefreshCw, FiFileText, FiList,
   FiUser, FiDollarSign, FiPrinter, FiDownload,
+  FiLock, FiUnlock, FiDownloadCloud, FiUploadCloud,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -46,6 +47,8 @@ interface PayslipRecord {
   paidDate: string | null;
   paySlip: string | null;
   createdAt: string;
+  // Task 130: release gate — employees can download only after release
+  releasedAt?: string | null;
   employee?: {
     employeeId: string;
     firstName: string;
@@ -90,15 +93,25 @@ interface PayslipDetail {
     tax: number;
     professionalTax: number;
     otherDeductions: number;
+    lop?: number; // Task 125: Loss of Pay as an explicit deduction line
     totalDeductions: number;
   };
   netPay: number;
   currency: string;
   status: string;
   paidDate: string | null;
+  // Task 123: attendance integration
+  totalDays?: number;
+  paidDays?: number;
+  lopDays?: number;
+  attendance?: { present?: number; late?: number; halfDay?: number; onLeave?: number; holiday?: number; weekend?: number; absent?: number; noData?: boolean } | null;
+  processingMode?: string | null;
 }
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Task 130 — who may release/pull back payslips (payroll-head roles).
+const PAYROLL_MANAGER_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
 
 const MONTH_OPTIONS = monthNames.map((name, i) => ({ value: String(i + 1), label: name }));
 const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
@@ -118,6 +131,8 @@ function getStatusBadge(status: string) {
 
 export default function PayslipsPage() {
   useAuthStore();
+  const { user } = useAuthStore();
+  const isPayrollManager = !!user?.role && PAYROLL_MANAGER_ROLES.includes(user.role);
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const [records, setRecords] = useState<PayslipRecord[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
@@ -129,6 +144,7 @@ export default function PayslipsPage() {
 
   const [selectedPayslip, setSelectedPayslip] = useState<PayslipDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [releasing, setReleasing] = useState(false);
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -245,6 +261,68 @@ export default function PayslipsPage() {
     window.print();
   };
 
+  // ── Task 130: payslip release gate ──
+  // Releases (or pulls back) every processed/paid payslip of the filtered
+  // month+year. Employees can download payslips only once released.
+  const handleReleasePayslips = async (action: 'release' | 'revoke') => {
+    if (!monthFilter || !yearFilter) {
+      toast.error('Select a month and year filter first — release applies to that period');
+      return;
+    }
+    const verb = action === 'release' ? 'Release' : 'Pull back';
+    if (!window.confirm(`${verb} payslips for ${monthNames[parseInt(monthFilter, 10) - 1]} ${yearFilter}? ${action === 'release' ? 'Employees will be able to download them.' : 'Employees will no longer be able to download them.'}`)) return;
+    setReleasing(true);
+    try {
+      const res = await fetch(`/api/payroll/payslips/release?${scopeQuery}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ month: parseInt(monthFilter, 10), year: parseInt(yearFilter, 10), action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(data.message || 'Payslips updated');
+        await fetchData();
+      } else {
+        toast.error(data.error || 'Failed to update payslip release');
+      }
+    } catch {
+      toast.error('Failed to update payslip release');
+    } finally {
+      setReleasing(false);
+    }
+  };
+
+  // ── Task 130: official payslip PDF (released format with company logo) ──
+  const handleDownloadPdf = async (item: PayslipRecord) => {
+    if (!isPayrollManager && !item.releasedAt) {
+      toast.error('Locked — this payslip can be downloaded once the payroll manager releases it');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/payroll/payslips/${item.id}/pdf?${scopeQuery}`, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to download payslip PDF');
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      const fileName = match?.[1] || `Payslip-${monthNames[item.month - 1]}-${item.year}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Payslip PDF downloaded');
+    } catch {
+      toast.error('Failed to download payslip PDF');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -257,6 +335,25 @@ export default function PayslipsPage() {
           <p className="text-thb-text-secondary mt-1">View and generate employee payslips</p>
         </div>
         <div className="flex items-center gap-2">
+          {isPayrollManager && (
+            <div className="flex items-center rounded-lg border border-thb-border overflow-hidden" title="Release makes payslips downloadable for employees">
+              <button
+                onClick={() => handleReleasePayslips('release')}
+                disabled={releasing}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+              >
+                <FiUploadCloud className="w-4 h-4" /> Release Payslips
+              </button>
+              <button
+                onClick={() => handleReleasePayslips('revoke')}
+                disabled={releasing}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 border-l border-thb-border transition-colors disabled:opacity-50"
+                title="Pull back the release — downloads get locked again"
+              >
+                <FiUnlock className="w-4 h-4" /> Revoke
+              </button>
+            </div>
+          )}
           <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh">
             <FiRefreshCw className="w-4 h-4" />
           </button>
@@ -347,6 +444,9 @@ export default function PayslipsPage() {
             <div className="flex items-center justify-between mb-6 print:hidden">
               <h2 className="text-lg font-semibold text-thb-text-primary">Payslip Detail</h2>
               <div className="flex items-center gap-2">
+                <button onClick={() => handleDownloadPdf({ ...selectedPayslip, month: selectedPayslip.period.month, year: selectedPayslip.period.year } as unknown as PayslipRecord)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-200 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                  <FiDownloadCloud className="w-4 h-4" /> Download PDF
+                </button>
                 <button onClick={handlePrint} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm text-thb-text-secondary hover:bg-slate-50 transition-colors">
                   <FiPrinter className="w-4 h-4" /> Print
                 </button>
@@ -377,6 +477,35 @@ export default function PayslipsPage() {
               <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-thb-text-secondary">PAN Number</span><span className="font-medium text-thb-text-primary">{selectedPayslip.employee.panNumber || '—'}</span></div>
               <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-thb-text-secondary">Bank Name</span><span className="font-medium text-thb-text-primary">{selectedPayslip.employee.bankName || '—'}</span></div>
               <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-thb-text-secondary">Bank Account</span><span className="font-medium text-thb-text-primary">{selectedPayslip.employee.bankAccountNo || '—'}</span></div>
+              {/* Task 123: attendance-integrated pay period */}
+              <div className="mt-3 rounded-lg bg-sky-50 border border-sky-100 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-sky-700 mb-2">Attendance & Pay Days</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-thb-text-primary">{selectedPayslip.paidDays ?? '—'}</p>
+                    <p className="text-[10px] text-thb-text-secondary">Paid Days</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-thb-text-primary">{selectedPayslip.lopDays ?? 0}</p>
+                    <p className="text-[10px] text-thb-text-secondary">LOP Days</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-thb-text-primary">{selectedPayslip.totalDays ?? '—'}</p>
+                    <p className="text-[10px] text-thb-text-secondary">Total Days</p>
+                  </div>
+                </div>
+                {selectedPayslip.attendance && !selectedPayslip.attendance.noData && (
+                  <p className="text-[10px] text-thb-text-muted mt-2 text-center">
+                    Present {selectedPayslip.attendance.present || 0} · Late {selectedPayslip.attendance.late || 0} · Half-day {selectedPayslip.attendance.halfDay || 0} · Leave {selectedPayslip.attendance.onLeave || 0} · Holiday {selectedPayslip.attendance.holiday || 0} · WeekOff {selectedPayslip.attendance.weekend || 0} · Absent {selectedPayslip.attendance.absent || 0}
+                  </p>
+                )}
+                {selectedPayslip.attendance?.noData && (
+                  <p className="text-[10px] text-thb-text-muted mt-2 text-center">No attendance records for this period — full paid days applied</p>
+                )}
+                {selectedPayslip.processingMode && (
+                  <p className="text-[10px] text-sky-600 mt-1.5 text-center font-semibold">Processed via {selectedPayslip.processingMode === 'auto' ? 'AUTO' : 'MANUAL'} payroll</p>
+                )}
+              </div>
             </div>
 
             {/* Earnings & Deductions Tables */}
@@ -394,14 +523,14 @@ export default function PayslipsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
+                    {([
                       { label: 'Basic Salary', value: selectedPayslip.earnings.basicSalary },
                       { label: 'HRA', value: selectedPayslip.earnings.hra },
                       { label: 'DA', value: selectedPayslip.earnings.da },
                       { label: 'Conveyance', value: selectedPayslip.earnings.conveyance },
                       { label: 'Medical', value: selectedPayslip.earnings.medical },
                       { label: 'Other Allowances', value: selectedPayslip.earnings.otherAllowances },
-                    ].map(({ label, value }) => (
+                    ]).map(({ label, value }) => (
                       <tr key={label} className="border-b border-slate-100">
                         <td className="py-2 text-thb-text-secondary">{label}</td>
                         <td className="py-2 text-right font-medium text-thb-text-primary">{formatCurrency(value, selectedPayslip.currency)}</td>
@@ -428,13 +557,14 @@ export default function PayslipsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
+                    {([
                       { label: 'Provident Fund', value: selectedPayslip.deductions.pf },
                       { label: 'ESI', value: selectedPayslip.deductions.esi },
                       { label: 'Income Tax', value: selectedPayslip.deductions.tax },
                       { label: 'Professional Tax', value: selectedPayslip.deductions.professionalTax },
+                      { label: 'Loss of Pay', value: selectedPayslip.deductions.lop ?? 0 },
                       { label: 'Other Deductions', value: selectedPayslip.deductions.otherDeductions },
-                    ].map(({ label, value }) => (
+                    ]).map(({ label, value }) => (
                       <tr key={label} className="border-b border-slate-100">
                         <td className="py-2 text-thb-text-secondary">{label}</td>
                         <td className="py-2 text-right font-medium text-red-600">{formatCurrency(value, selectedPayslip.currency)}</td>
@@ -514,7 +644,18 @@ export default function PayslipsPage() {
                       <span className="text-sm font-bold text-emerald-700">{formatCurrency(item.netSalary, item.currency)}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={getStatusBadge(item.status)}>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
+                      <div className="flex flex-col items-start gap-1">
+                        <span className={getStatusBadge(item.status)}>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
+                        {item.releasedAt ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                            <FiUnlock className="w-2.5 h-2.5" /> Released
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">
+                            <FiLock className="w-2.5 h-2.5" /> Unreleased
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm text-thb-text-secondary">{formatDate(item.paidDate)}</span>
@@ -537,6 +678,16 @@ export default function PayslipsPage() {
                             <FiFileText className="w-3.5 h-3.5" />
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDownloadPdf(item)}
+                          disabled={loadingDetail}
+                          className={item.releasedAt || isPayrollManager
+                            ? 'p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors'
+                            : 'p-1.5 rounded-lg text-slate-300 cursor-not-allowed'}
+                          title={item.releasedAt || isPayrollManager ? 'Download official PDF (released format)' : 'Locked until the payroll manager releases payslips'}
+                        >
+                          {item.releasedAt || isPayrollManager ? <FiDownloadCloud className="w-3.5 h-3.5" /> : <FiLock className="w-3.5 h-3.5" />}
+                        </button>
                       </div>
                     </td>
                   </tr>

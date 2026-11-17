@@ -118,7 +118,7 @@ const categoryBadge: Record<string, string> = {
 export default function TenantConfigurationPage() {
   const { user } = useAuthStore();
   const isSuperAdmin = user?.role === 'super_admin';
-  const isTenantAdmin = user?.role === 'tenant_admin';
+  const isTenantAdmin = (user?.role === 'tenant_admin' || user?.role === 'ceo');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

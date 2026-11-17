@@ -71,6 +71,36 @@ interface Company {
   code: string | null;
 }
 
+// --- Task 126 fix: normalize validation rows defensively -------------------
+// Rows can arrive with the JSON fields as strings (list endpoint / legacy
+// fallback path) or already parsed (detail endpoint). `.map` on a string
+// crashed the whole page ("Something went wrong").
+function parseJsonArray(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeValidation(v: Record<string, unknown>): ValidationRecord {
+  return {
+    ...(v as unknown as ValidationRecord),
+    missingPaymentMethods: parseJsonArray(v.missingPaymentMethods) as ValidationEmployee[],
+    missingSalaryBasis: parseJsonArray(v.missingSalaryBasis) as ValidationEmployee[],
+    heldEmployees: parseJsonArray(v.heldEmployees) as ValidationEmployee[],
+    newJoiners: parseJsonArray(v.newJoiners) as ValidationEmployee[],
+    terminations: parseJsonArray(v.terminations) as ValidationEmployee[],
+    errors: parseJsonArray(v.errors) as ValidationError[],
+    warnings: parseJsonArray(v.warnings) as ValidationWarning[],
+  };
+}
+
 // --- Badge Helpers ---
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
@@ -208,7 +238,8 @@ export default function PayrollValidationsPage() {
       const res = await fetch(`/api/payroll/validations${qs ? `?${qs}${sq ? `&${sq}` : ''}` : (sq ? `?${sq}` : '')}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setValidations(Array.isArray(data) ? data : data.data || []);
+        const rows: unknown[] = Array.isArray(data) ? data : data.data || [];
+        setValidations(rows.map(r => normalizeValidation(r as Record<string, unknown>)));
       }
     } catch {
       toast.error('Failed to load validations');
@@ -255,16 +286,7 @@ export default function PayrollValidationsPage() {
 
       // Auto-select the new validation
       if (data.data) {
-        setSelectedValidation({
-          ...data.data,
-          missingPaymentMethods: JSON.parse(data.data.missingPaymentMethods || '[]'),
-          missingSalaryBasis: JSON.parse(data.data.missingSalaryBasis || '[]'),
-          heldEmployees: JSON.parse(data.data.heldEmployees || '[]'),
-          newJoiners: JSON.parse(data.data.newJoiners || '[]'),
-          terminations: JSON.parse(data.data.terminations || '[]'),
-          errors: JSON.parse(data.data.errors || '[]'),
-          warnings: JSON.parse(data.data.warnings || '[]'),
-        });
+        setSelectedValidation(normalizeValidation(data.data));
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Validation failed');
@@ -284,12 +306,12 @@ export default function PayrollValidationsPage() {
       const res = await fetch(`/api/payroll/validations/${validation.id}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setSelectedValidation(data.data);
+        setSelectedValidation(data.data ? normalizeValidation(data.data) : normalizeValidation(validation as unknown as Record<string, unknown>));
       } else {
-        setSelectedValidation(validation);
+        setSelectedValidation(normalizeValidation(validation as unknown as Record<string, unknown>));
       }
     } catch {
-      setSelectedValidation(validation);
+      setSelectedValidation(normalizeValidation(validation as unknown as Record<string, unknown>));
     } finally {
       setLoadingDetail(false);
     }

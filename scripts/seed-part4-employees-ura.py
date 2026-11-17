@@ -152,7 +152,7 @@ def seed_marqai_employees():
     user_id_map = {
         'superadmin@3boxeshrms.com': 'cmrmr3ntfqw14da35c099aca4cd',
         'admin@marqaitechgroup.com': 'cmrmr3ntfxd76084e0ece18a003',
-        'hr@marqaitech.com': 'cmrhykbuu000004jub8zgby5n',
+        'hr@gmail.com': 'cmrhykbuu000004jub8zgby5n',
         'FINANCE@MARQAITECH.COM': 'cmrtzowrd000204ju6t28e2qz',
     }
 
@@ -160,7 +160,7 @@ def seed_marqai_employees():
         # (empId, first, last, email, phone, gender, marital, nat, city, state, zip, country, blood, doj, dob, salary, deptKey, desigTitle, branchId, companyId)
         ('MARQ-001', '3Boxes', 'Super Admin', 'superadmin@3boxeshrms.com', '+91-9876543210', 'male', 'single', 'Indian', 'Hyderabad', 'Telangana', '500081', 'IN', 'O+', '2023-01-01', '1985-06-15', 200000, 'hr', 'CEO', 'cmrmr3ntgzd745b63c6003b1622', 'cmrmr3ntga2ecb95cccbe4a3e2d'),
         ('MARQ-002', 'Marq AI', 'Admin', 'admin@marqaitechgroup.com', '+91-9876543211', 'male', 'married', 'Indian', 'Hyderabad', 'Telangana', '500081', 'IN', 'A+', '2023-01-01', '1982-03-20', 180000, 'hr', 'CEO', 'cmrmr3ntgzd745b63c6003b1622', 'cmrmr3ntga2ecb95cccbe4a3e2d'),
-        ('MARQ-003', 'Vardhani Reddy', 'Busireddy', 'hr@marqaitech.com', '+91-9876543212', 'female', 'single', 'Indian', 'Hyderabad', 'Telangana', '500081', 'IN', 'B+', '2023-06-15', '1992-08-10', 85000, 'hr', 'HR Manager', 'cmrmr3ntgzd745b63c6003b1622', 'cmrmr3ntga2ecb95cccbe4a3e2d'),
+        ('MARQ-003', 'Vardhani Reddy', 'Busireddy', 'hr@gmail.com', '+91-9876543212', 'female', 'single', 'Indian', 'Hyderabad', 'Telangana', '500081', 'IN', 'B+', '2023-06-15', '1992-08-10', 85000, 'hr', 'HR Manager', 'cmrmr3ntgzd745b63c6003b1622', 'cmrmr3ntga2ecb95cccbe4a3e2d'),
         ('MARQ-004', 'Divya Rani', 'M', 'FINANCE@MARQAITECH.COM', '+91-9876543213', 'female', 'married', 'Indian', 'Hyderabad', 'Telangana', '500081', 'IN', 'O-', '2023-09-01', '1990-12-05', 90000, 'finance', 'Finance Manager', 'cmrmr3ntgzd745b63c6003b1622', 'cmrmr3ntga2ecb95cccbe4a3e2d'),
         ('MARQ-005', 'Rajesh', 'Kumar', 'rajesh.kumar@marqaitech.com', '+91-9876543214', 'male', 'married', 'Indian', 'Hyderabad', 'Telangana', '500081', 'IN', 'A-', '2023-03-10', '1988-04-25', 75000, 'operations', 'Operations Manager', 'cmrmr3ntgzd745b63c6003b1622', 'cmrmr3ntga2ecb95cccbe4a3e2d'),
         ('MARQ-006', 'Priya', 'Sharma', 'priya.sharma@marqaitech.com', '+91-9876543215', 'female', 'single', 'Indian', 'Hyderabad', 'Telangana', '500081', 'IN', 'B+', '2023-07-20', '1994-11-18', 65000, 'hr', 'HR Manager', 'cmrmr3nth5q8bd7a633c4dd28ce', 'cmrmr3ntggiaef373e0086cd965'),

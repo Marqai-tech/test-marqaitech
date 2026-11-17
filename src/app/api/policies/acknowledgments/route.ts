@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     const policyId = url.searchParams.get('policyId');
     if (!policyId) return NextResponse.json({ error: 'policyId is required' }, { status: 400, headers: corsHeaders() });
 
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
 
     const policy = await db.policy.findUnique({ where: { id: policyId }, select: { id: true, title: true, version: true } });
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ acknowledgment: existing, message: 'Policy already acknowledged' }, { headers: corsHeaders() });
     }
 
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
     const method = isAdmin ? 'admin_marked' : 'self_service';
 
     const acknowledgment = existing

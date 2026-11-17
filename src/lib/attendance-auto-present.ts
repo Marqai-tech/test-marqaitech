@@ -29,8 +29,10 @@
  *     them apart from real punches.
  */
 
+import { canonicalAttendanceDate } from '@/lib/attendance-day';
+
 const DEFAULT_TZ_OFFSET_MINUTES = -330; // IST — matches the app's India-centric default
-const MGMT_ROLES = ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'];
+const MGMT_ROLES = ['manager', 'admin', 'tenant_admin', 'ceo', 'hr_admin', 'super_admin'];
 
 // ─── Self-healing DDL (Task 82) ────────────────────────────────────────────
 // Vercel's runtime DATABASE_URL can point at a different Neon stack than the
@@ -84,14 +86,6 @@ const ATTENDANCE_POLICY_CONFIG_DDL = [
   `CREATE INDEX IF NOT EXISTS "AttendancePolicyConfig_companyId_idx" ON "AttendancePolicyConfig"("companyId")`,
   // Older copies of the table may pre-date the new flag.
   `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "autoPresentManagementEnabled" BOOLEAN NOT NULL DEFAULT false`,
-  // Keep older tenant databases compatible with the policy screen and rule loader.
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "breakStartTime" TEXT NOT NULL DEFAULT '13:30'`,
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "breakEndTime" TEXT NOT NULL DEFAULT '14:30'`,
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "mandatoryBreakEnabled" BOOLEAN NOT NULL DEFAULT false`,
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "attendanceRuleScope" TEXT NOT NULL DEFAULT 'all_tenants'`,
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "shiftStartDefault" TEXT NOT NULL DEFAULT '09:30'`,
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "shiftEndDefault" TEXT NOT NULL DEFAULT '18:30'`,
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "breakDurationMinutes" INTEGER NOT NULL DEFAULT 60`,
 ];
 
 export async function ensureAutoPresentColumn(db: any): Promise<void> {
@@ -242,7 +236,7 @@ function resolveShiftWindow(
   return { startMinutes, endMinutes, breakMinutes: policy.breakDurationMinutes, source: 'policy-default' };
 }
 
-function dateKeyOf(value: Date | string | unknown): string | null {
+export function dateKeyOf(value: Date | string | unknown): string | null {
   if (!value) return null;
   if (value instanceof Date && !isNaN(value.getTime())) return value.toISOString().slice(0, 10);
   const s = String(value);
@@ -491,7 +485,9 @@ export async function runManagementAutoPresent(
           await db.attendance.create({
             data: {
               employeeId: empIdStr,
-              date: new Date(`${dateKey}T00:00:00.000Z`),
+              // Task 162: IST-midnight day key — same convention as the
+              // biometric sync, so one row per business day across channels.
+              date: canonicalAttendanceDate(dateKey),
               checkIn,
               checkOut,
               breakIn,

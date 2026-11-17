@@ -1,3 +1,4 @@
+// Build: task152-152fix-cachebust-2026-10-25 (fresh build cache for missing API routes)
 // Build: 3boxes-hrms-favicon-fix-2026-08-06
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';
@@ -8,6 +9,15 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // BUG FIX: allow dev origins — Next.js 16 blocks requests from unknown
+  // origins in dev mode. Add all Vercel deployment URLs + localhost.
+  allowedDevOrigins: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://test-marqaitech.vercel.app',
+    'https://test-marqaitech-marshshaik-5449s-projects.vercel.app',
+    'https://test-marqaitech-git-main-marshshaik-5449s-projects.vercel.app',
+  ],
   // Allow all subdomains of 3boxeshrms.com for image optimization and links
   images: {
     remotePatterns: [

@@ -30,7 +30,7 @@ export default function PermissionPage() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);

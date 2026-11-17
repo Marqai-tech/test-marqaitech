@@ -1,5 +1,6 @@
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { resolveCompanyScope } from '@/lib/companyScope';
 import { NextRequest } from 'next/server';
 
 const corsHeaders = {
@@ -20,12 +21,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
+    // Task 130: scope + release gating — employees see their own payslip only,
+    // and only after the payroll manager released it.
+    const scope = await resolveCompanyScope(request);
+    if (!scope) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+
     const payroll = await db.payroll.findUnique({
       where: { id },
       include: {
         employee: {
           select: {
             id: true,
+            userId: true,
             employeeId: true,
             firstName: true,
             lastName: true,
@@ -38,6 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             bankAccountNo: true,
             bankIfscCode: true,
             salary: true,
+            companyId: true,
             department: { select: { name: true } },
             designation: { select: { title: true } },
           },
@@ -46,6 +54,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (!payroll) return Response.json({ error: 'Payroll record not found' }, { status: 404, headers: corsHeaders });
+
+    // ── Visibility gate (mirrors the payslip list scoping) ──
+    if (scope.scope === 'self') {
+      if (payroll.employee.userId !== scope.userId) {
+        return Response.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders });
+      }
+    } else if (scope.scope === 'team') {
+      if (!scope.visibleEmployeeIds.includes(payroll.employeeId)) {
+        return Response.json({ error: 'Access denied: not your direct report' }, { status: 403, headers: corsHeaders });
+      }
+    }
+
+    // ── Release gate: staff/manager views require a released payslip ──
+    if (scope.scope !== 'all' && !payroll.releasedAt) {
+      return Response.json(
+        { error: 'Payslip not released yet — it will be available once the payroll manager releases it' },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+
+    // Real company header for the payslip (falls back to defaults)
+    const company = payroll.employee.companyId
+      ? await db.company.findUnique({ where: { id: payroll.employee.companyId }, select: { name: true, address: true, city: true, state: true, country: true, phone: true, email: true } })
+      : null;
+    const companyAddress = company
+      ? [company.address, company.city, company.state, company.country].filter(Boolean).join(', ')
+      : '';
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -58,10 +93,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         monthName: monthNames[payroll.month - 1],
       },
       company: {
-        name: '3Boxes HRMS',
-        address: '123 Business Park, Tech City',
-        phone: '+1-800-3BOXES-HR',
-        email: 'hr@3boxes-hrms.com',
+        name: company?.name || '3Boxes HRMS',
+        address: companyAddress,
+        phone: company?.phone || '',
+        email: company?.email || '',
       },
       employee: {
         employeeId: payroll.employee.employeeId,
@@ -99,6 +134,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       status: payroll.status,
       paidDate: payroll.paidDate,
       paySlip: payroll.paySlip,
+      // Task 130: release state surfaced to the clients
+      releasedAt: payroll.releasedAt,
+      released: !!payroll.releasedAt,
+      // Task 123: attendance integration (days + LOP + processing mode)
+      totalDays: payroll.totalDays || 0,
+      paidDays: payroll.paidDays || 0,
+      lopDays: payroll.lopDays || 0,
+      attendance: (() => { try { return payroll.attendanceJson ? JSON.parse(payroll.attendanceJson) : null; } catch { return null; } })(),
+      processingMode: payroll.processingMode,
+      processedAt: payroll.processedAt,
       createdAt: payroll.createdAt,
       updatedAt: payroll.updatedAt,
     };

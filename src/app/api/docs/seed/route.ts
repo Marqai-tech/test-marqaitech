@@ -2139,12 +2139,12 @@ For quick answers, use the AI chatbot:
 
     // Create access rules for some restricted articles
     const restrictedArticles = [
-      { slug: 'employee-module-technical', roles: ['tenant_admin', 'super_admin'] },
-      { slug: 'rbac-reference', roles: ['tenant_admin', 'super_admin'] },
+      { slug: 'employee-module-technical', roles: ['tenant_admin', 'ceo', 'super_admin'] },
+      { slug: 'rbac-reference', roles: ['tenant_admin', 'ceo', 'super_admin'] },
       { slug: 'data-backup-recovery', roles: ['super_admin'] },
-      { slug: 'ai-interview-setup', roles: ['tenant_admin', 'super_admin'] },
-      { slug: 'ai-assistant-chatbot', roles: ['tenant_admin', 'super_admin'] },
-      { slug: 'getting-started-manager-training', roles: ['manager', 'tenant_admin', 'super_admin'] },
+      { slug: 'ai-interview-setup', roles: ['tenant_admin', 'ceo', 'super_admin'] },
+      { slug: 'ai-assistant-chatbot', roles: ['tenant_admin', 'ceo', 'super_admin'] },
+      { slug: 'getting-started-manager-training', roles: ['manager', 'tenant_admin', 'ceo', 'super_admin'] },
     ];
 
     let rulesCreated = 0;

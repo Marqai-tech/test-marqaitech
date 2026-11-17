@@ -1,0 +1,70 @@
+{
+  "rooms": [
+    {
+      "id": "cmvgukpgw000208jski329mdl",
+      "name": "Mobile Probe Group",
+      "roomType": "group",
+      "companyId": null,
+      "projectId": null,
+      "teamId": null,
+      "createdBy": "cmtsczno9003c04jsngxp8747",
+      "avatarUrl": null,
+      "description": null,
+      "isE2EE": false,
+      "isAnnouncement": false,
+      "retentionDays": null,
+      "lastMessageAt": "2026-10-20T15:37:59.136Z",
+      "isActive": true,
+      "createdAt": "2026-10-20T15:37:55.952Z",
+      "updatedAt": "2026-10-20T15:37:59.138Z",
+      "members": [
+        {
+          "id": "cmvgukpni000308jsbjggyslt",
+          "roomId": "cmvgukpgw000208jski329mdl",
+          "userId": "cmtsczno9003c04jsngxp8747",
+          "role": "admin",
+          "joinedAt": "2026-10-20T15:37:55.952Z",
+          "lastReadAt": "2026-10-20T15:38:00.695Z",
+          "mutedUntil": null,
+          "createdAt": "2026-10-20T15:37:55.952Z",
+          "updatedAt": "2026-10-20T15:38:00.696Z",
+          "room": {
+            "id": "cmvgukpgw000208jski329mdl",
+            "name": "Mobile Probe Group",
+            "avatarUrl": null,
+            "roomType": "group"
+          }
+        },
+        {
+          "id": "cmvgukpni000408jsfwkqzkzo",
+          "roomId": "cmvgukpgw000208jski329mdl",
+          "userId": "cmvcat73e000l07ld2zs093fx",
+          "role": "member",
+          "joinedAt": "2026-10-20T15:37:55.952Z",
+          "lastReadAt": null,
+          "mutedUntil": null,
+          "createdAt": "2026-10-20T15:37:55.952Z",
+          "updatedAt": "2026-10-20T15:37:55.952Z",
+          "room": {
+            "id": "cmvgukpgw000208jski329mdl",
+            "name": "Mobile Probe Group",
+            "avatarUrl": null,
+            "roomType": "group"
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "cmvgukr7a000508jslylud21l",
+          "body": "Hello from the mobile probe — Task 117 fixture capture.",
+          "createdAt": "2026-10-20T15:37:58.198Z",
+          "senderId": "cmtsczno9003c04jsngxp8747"
+        }
+      ],
+      "_count": {
+        "messages": 1
+      },
+      "unreadCount": 0
+    }
+  ]
+}

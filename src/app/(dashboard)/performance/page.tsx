@@ -18,6 +18,9 @@ import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+/* Task 156-b — shared SmartHR widgets (white Panels); the shell now renders
+   the SmartHR gradient banner itself. */
+import { Panel } from '@/components/dashboard/smarthr-widgets';
 
 /* ── Types ── */
 interface PerformanceReview {
@@ -165,6 +168,8 @@ function PerformancePageContent() {
     <ModuleDashboardShell
       moduleKey="appraisal"
       moduleLabel="Appraisal & Performance"
+      title="Appraisal Dashboard"
+      trail={['Performance', 'Dashboard']}
       moduleIcon={<FiTrendingUp className="w-5 h-5 text-white" />}
       gradientColor="from-amber-500 to-yellow-600"
       tabs={appraisalTabs}
@@ -189,7 +194,7 @@ export default function PerformancePage() {
 function PerformanceContent() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [reviews, setReviews] = useState<PerformanceReview[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -370,22 +375,21 @@ function PerformanceContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiTrendingUp className="w-6 h-6 text-amber-500" />
-            Performance
-          </h1>
-          <p className="text-thb-text-secondary mt-1">Track performance reviews and ratings</p>
+      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
+      {isAdmin && (
+        <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
+          <div className="flex items-center gap-2 flex-wrap" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleShowAddForm}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FFC107] text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-all"
+            >
+              <FiPlus className="w-4 h-4" />
+              Create Review
+            </button>
+          </div>
         </div>
-        {isAdmin && (
-          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
-            <FiPlus className="w-4 h-4" />
-            Create Review
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Module Tips */}
       <ModuleTips
@@ -573,8 +577,13 @@ function PerformanceContent() {
         </div>
       )}
 
-      {/* Reviews Table */}
-      <div className="thb-card overflow-hidden">
+      {/* Reviews Table — SmartHR Panel (Task 156-b) */}
+      <Panel
+        title="Performance Reviews"
+        icon={<FiTrendingUp className="w-4 h-4" />}
+        accent="text-[#3A57C4]"
+        action={<span className="text-[11px] text-slate-400 font-medium">{filteredReviews.length} of {reviews.length} reviews</span>}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -664,7 +673,7 @@ function PerformanceContent() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

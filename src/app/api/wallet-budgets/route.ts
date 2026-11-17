@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    if (!['super_admin', 'tenant_admin'].includes((decoded.role as string) || '')) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes((decoded.role as string) || '')) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     const body = await request.json();
     const { companyId, departmentId, employeeId, bucketCategory, monthlyAmount, currency, activeFrom, activeUntil } = body;
     if (!companyId || !bucketCategory || !monthlyAmount) return NextResponse.json({ error: 'Missing fields' }, { status: 400, headers: corsHeaders() });

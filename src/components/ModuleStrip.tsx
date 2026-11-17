@@ -63,15 +63,15 @@ const navSections: NavSection[] = [
     sectionIcon: FiServer,
     label: 'Tenant Admin',
     items: [
-      { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Tenant Console', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Sub-Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Group Companies', href: '/tenant-admin/group-companies', icon: <FiFolder className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiShield className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Profile Config', href: '/tenant-admin/profile-config', icon: <FiSettings className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Storage Analytics', href: '/tenant-admin/storage-analytics', icon: <FiPackage className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Comm Governance', href: '/tenant-admin/comm-governance', icon: <FiMessageCircle className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'AI Admin Console', href: '/ai-admin', icon: <FiSettings className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'Tenant Console', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'Sub-Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'Group Companies', href: '/tenant-admin/group-companies', icon: <FiFolder className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiShield className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'Profile Config', href: '/tenant-admin/profile-config', icon: <FiSettings className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'Storage Analytics', href: '/tenant-admin/storage-analytics', icon: <FiPackage className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'Comm Governance', href: '/tenant-admin/comm-governance', icon: <FiMessageCircle className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
+      { label: 'AI Admin Console', href: '/ai-admin', icon: <FiSettings className="w-5 h-5" />, roles: ['tenant_admin', 'ceo'], isNew: true },
     ],
   },
   {
@@ -194,7 +194,7 @@ const navSections: NavSection[] = [
       { label: 'OKR Cascade', href: '/okrs', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'performance', isNew: true },
       { label: 'Training', href: '/training', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'training' },
       { label: 'Engagement', href: '/engagement', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'engagement', isNew: true },
-      { label: 'Succession', href: '/succession', icon: <FiTrendingUp className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Succession', href: '/succession', icon: <FiTrendingUp className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'ceo', 'admin'], isNew: true },
     ],
   },
   {
@@ -237,9 +237,11 @@ const navSections: NavSection[] = [
     sectionIcon: FiFolder,
     label: 'Projects',
     items: [
+      // Task 150 — slimmed: PM Dashboard · Projects · Task Board · Clients
       { label: 'PM Dashboard', href: '/project-management', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects', isNew: true },
       { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects' },
-      { label: 'Utilization', href: '/projects/utilization', icon: <FiFolder className="w-5 h-5" />, isNew: true },
+      { label: 'Task Board', href: '/project-management/tasks', icon: <FiFolder className="w-5 h-5" />, isNew: true },
+      { label: 'Clients', href: '/project-management/clients', icon: <FiFolder className="w-5 h-5" />, isNew: true },
     ],
   },
   {
@@ -420,7 +422,7 @@ export default function ModuleStrip({ currentModuleKey, onModuleSelect }: Module
             }
             // 3. No moduleKey and no roles → admin-only for safety
             if (!item.moduleKey && !item.roles) {
-              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
+              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(r));
             }
             return true;
           }),

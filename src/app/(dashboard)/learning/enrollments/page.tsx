@@ -27,7 +27,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default function AssignmentsPage() {
   const user = useAuthStore((s) => s.user);
-  const isApprover = ['super_admin', 'tenant_admin', 'admin', 'hr_manager', 'manager'].includes(user?.role || '');
+  const isApprover = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager', 'manager'].includes(user?.role || '');
   const [rows, setRows] = useState<Enrollment[]>([]);
   const [stats, setStats] = useState<{ total: number; byStatus: Record<string, number>; overdue: number } | null>(null);
   const [status, setStatus] = useState('all');

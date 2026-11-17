@@ -23,13 +23,11 @@ function formatCurrency(v: number) {
 type BudgetVsActual = { id?: string; name: string; type: string; budget: number; actual: number; progress: number };
 type RevenueEntry = { name: string; value: number; color: string };
 type MonthlyStart = { month: string; projects: number };
-type ResourceUtil = { name: string; allocated: number; available: number; headcount: number };
 
 interface ReportData {
   revenueByType: RevenueEntry[];
   monthlyStarts: MonthlyStart[];
   budgetVsActual: BudgetVsActual[];
-  resourceUtilization: ResourceUtil[];
   summaryStats: {
     total: number;
     active: number;
@@ -38,6 +36,7 @@ interface ReportData {
     avgProgress: number;
   };
   taskDistribution: Record<string, number>;
+  taskSourceSplit?: { internal: number; external: number };
   overdueTasks: { id: string; name: string; priority: string; project: { name: string } }[];
 }
 
@@ -81,7 +80,30 @@ export default function ReportsPage() {
   const projects = reportData?.budgetVsActual ?? [];
   const revenueData = reportData?.revenueByType ?? [];
   const monthlyStarts = reportData?.monthlyStarts ?? [];
-  const resourceUtilization = reportData?.resourceUtilization ?? [];
+  const taskDist = reportData?.taskDistribution ?? {};
+  const sourceSplit = reportData?.taskSourceSplit ?? { internal: 0, external: 0 };
+  const overdueTasks = reportData?.overdueTasks ?? [];
+
+  /* Task 152 — revised reports: resource-utilization (removed capacity module)
+     replaced by Task Delivery Analytics aligned with the slimmed PM scope. */
+  const taskStatusData = useMemo(() => {
+    const order: Array<[string, string, string]> = [
+      ['todo', 'To Do', '#64748B'],
+      ['in_progress', 'In Progress', '#3B82F6'],
+      ['review', 'Review', '#F59E0B'],
+      ['done', 'Done', '#10B981'],
+      ['cancelled', 'Cancelled', '#EF4444'],
+    ];
+    return order
+      .map(([key, label, color]) => ({ key, label, color, value: taskDist[key] || 0 }))
+      .filter((d) => d.value > 0 || taskDist[d.key] !== undefined);
+  }, [taskDist]);
+
+  const totalTasks = Object.values(taskDist).reduce((a, b) => a + b, 0);
+  const sourceData = [
+    { name: 'Internal', value: sourceSplit.internal, color: '#3B82F6' },
+    { name: 'External (client)', value: sourceSplit.external, color: '#F59E0B' },
+  ].filter((d) => d.value > 0);
 
   const summaryStats = useMemo(() => {
     if (reportData?.summaryStats) return reportData.summaryStats;
@@ -154,13 +176,13 @@ export default function ReportsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={revenueData} cx="50%" cy="50%" innerRadius={60} outerRadius={95}
-                    paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                     {revenueData.map((entry, idx) => (
                       <Cell key={idx} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E8F0' }}
-                    formatter={(value: number) => formatCurrency(value)} />
+                    formatter={((value: number) => formatCurrency(value)) as never} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -251,41 +273,105 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {/* Resource Utilization */}
-      <div className="thb-card p-5">
-        <h3 className="font-semibold text-thb-text-primary mb-4">Resource Utilization Summary</h3>
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="animate-pulse h-8 bg-slate-100 rounded" />
-            ))}
-          </div>
-        ) : resourceUtilization.length > 0 ? (
-          <div className="space-y-4">
-            {resourceUtilization.map(dept => (
-              <div key={dept.name} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <div className="w-32 flex-shrink-0">
-                  <p className="text-sm font-medium text-thb-text-primary">{dept.name}</p>
-                  <p className="text-xs text-thb-text-muted">{dept.headcount} people</p>
+      {/* Task Delivery Analytics (revised) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Task status distribution */}
+        <div className="thb-card p-5">
+          <h3 className="font-semibold text-thb-text-primary mb-4">Task Status Distribution</h3>
+          {loading ? (
+            <div className="h-56 animate-pulse bg-slate-100 rounded" />
+          ) : taskStatusData.length > 0 ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={taskStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={85}
+                    paddingAngle={3} dataKey="value"
+                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
+                    {taskStatusData.map((entry) => (
+                      <Cell key={entry.key} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E8F0' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyChartState message="No tasks created yet" />
+          )}
+        </div>
+
+        {/* Internal vs External split */}
+        <div className="thb-card p-5">
+          <h3 className="font-semibold text-thb-text-primary mb-4">Task Source</h3>
+          {loading ? (
+            <div className="h-56 animate-pulse bg-slate-100 rounded" />
+          ) : sourceData.length > 0 ? (
+            <>
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={sourceData} cx="50%" cy="50%" innerRadius={45} outerRadius={75}
+                      paddingAngle={3} dataKey="value"
+                      label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
+                      {sourceData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E8F0' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="rounded-lg bg-blue-50 px-3 py-2">
+                  <p className="text-xs text-blue-700 font-medium">Internal</p>
+                  <p className="text-lg font-bold text-blue-800">{sourceSplit.internal}</p>
+                  <p className="text-[10px] text-blue-600">raised by the team</p>
                 </div>
-                <div className="flex-1 flex items-center gap-3">
-                  <div className="flex-1 bg-slate-100 rounded-full h-6 relative overflow-hidden">
-                    <div className="bg-thb-primary h-full rounded-full transition-all flex items-center justify-end pr-2"
-                      style={{ width: `${dept.allocated}%` }}>
-                      {dept.allocated > 15 && <span className="text-xs text-white font-medium">{dept.allocated}%</span>}
-                    </div>
-                  </div>
-                  <span className="text-xs text-thb-text-muted w-20 text-right">{dept.allocated}% allocated</span>
+                <div className="rounded-lg bg-amber-50 px-3 py-2">
+                  <p className="text-xs text-amber-700 font-medium">External</p>
+                  <p className="text-lg font-bold text-amber-800">{sourceSplit.external}</p>
+                  <p className="text-[10px] text-amber-600">client-raised issues</p>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="py-8 text-center text-slate-400">
-            <FiBarChart2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm">No resource allocation data available</p>
-          </div>
-        )}
+            </>
+          ) : (
+            <EmptyChartState message="No tasks created yet" />
+          )}
+          {totalTasks > 0 && (
+            <p className="text-[11px] text-thb-text-muted mt-3">{totalTasks} tasks across all projects</p>
+          )}
+        </div>
+
+        {/* Overdue tasks */}
+        <div className="thb-card p-5">
+          <h3 className="font-semibold text-thb-text-primary mb-4">Overdue Tasks</h3>
+          {loading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <div key={i} className="animate-pulse h-8 bg-slate-100 rounded" />)}
+            </div>
+          ) : overdueTasks.length > 0 ? (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {overdueTasks.map((t) => (
+                <div key={t.id} className="flex items-start justify-between gap-2 border border-thb-border rounded-lg px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-thb-text-primary truncate">{t.name}</p>
+                    <p className="text-xs text-thb-text-muted truncate">{t.project?.name || '—'}</p>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ${
+                    t.priority === 'critical' || t.priority === 'high' ? 'bg-red-50 text-red-600' :
+                    t.priority === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
+                    {t.priority}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-slate-400">
+              <FiCheckCircle className="w-8 h-8 mx-auto mb-2 text-emerald-300" />
+              <p className="text-sm">No overdue tasks — all on track</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

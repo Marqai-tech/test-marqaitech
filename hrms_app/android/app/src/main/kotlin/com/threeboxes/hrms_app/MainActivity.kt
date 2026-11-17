@@ -1,5 +1,7 @@
 package com.threeboxes.hrms_app
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// Task 113 — FlutterFragmentActivity (was FlutterActivity): required by
+// local_auth so the biometric prompt (BiometricPrompt API) can attach.
+class MainActivity : FlutterFragmentActivity()

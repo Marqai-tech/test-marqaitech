@@ -119,11 +119,40 @@ export async function POST(request: Request) {
       startDate, endDate, description,
     } = body;
 
+    // ─── GOLDEN RULE (Task 115): a super admin WITHOUT a switched workspace
+    // must not create projects into an arbitrary tenant — same policy as GET.
+    if (isSuperAdminWithoutScope(decoded, companyId, null, request)) {
+      return NextResponse.json(
+        { error: 'Switch into a workspace before creating projects (golden rule)' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     if (!name || !companyId || !startDate) {
       return NextResponse.json(
         { error: 'Missing required fields: name, companyId, startDate' },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // ─── Task 115 FIX (creator access) — stamp the creator as project
+    // manager when the caller didn't pick one. resolveProjectAccess()
+    // grants 'manager' to projectManagerId/deliveryManagerId, so whoever
+    // creates a project can ALWAYS open it and add tasks afterwards —
+    // on mobile AND web. Previously the field stayed null for app-created
+    // projects and non-admin creators got 403 "You do not have access"
+    // the moment they tried to open their OWN project.
+    let effectivePmId = projectManagerId || null;
+    if (!effectivePmId && decoded.userId) {
+      try {
+        const creator = await db.employee.findUnique({
+          where: { userId: decoded.userId as string },
+          select: { id: true },
+        });
+        if (creator) effectivePmId = creator.id;
+      } catch {
+        // employee lookup is best-effort (super admins have no employee row)
+      }
     }
 
     const project = await db.project.create({
@@ -133,7 +162,7 @@ export async function POST(request: Request) {
         companyId,
         clientId,
         departmentId,
-        projectManagerId,
+        projectManagerId: effectivePmId,
         deliveryManagerId,
         projectType: projectType || 'internal',
         billingType: billingType || 'non_billable',

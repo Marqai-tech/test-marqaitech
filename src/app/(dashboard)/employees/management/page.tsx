@@ -46,16 +46,22 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin',
   tenant_admin: 'Tenant Admin',
   admin: 'Admin',
+  ceo: 'CEO',
   hr_admin: 'HR Admin',
+  company_hr_admin: 'Company HR Admin',
   manager: 'Manager',
   employee: 'Employee',
   finance_admin: 'Finance Admin',
+  it_admin: 'IT Admin',
+  travel_admin: 'Travel Admin',
+  crm_admin: 'CRM Admin',
+  payroll_manager: 'Payroll Manager',
 };
 
 export default function ManagementListPage() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
 
   const [allEmployees, setAllEmployees] = useState<MgmtEmployee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +106,7 @@ export default function ManagementListPage() {
   );
 
   const managementEmployees = useMemo(() => {
-    const mgmtRoles = ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'];
+    const mgmtRoles = ['manager', 'admin', 'tenant_admin', 'ceo', 'hr_admin', 'super_admin'];
 
     // Build a set of reporting manager IDs (employees who have direct reports)
     // from CURRENT employees only — terminated reportees no longer make someone
@@ -163,7 +169,7 @@ export default function ManagementListPage() {
     total: filtered.length,
     designated: filtered.filter(e => e.isManagement === true).length,
     managers: filtered.filter(e => e.user?.role === 'manager').length,
-    admins: filtered.filter(e => ['admin', 'tenant_admin', 'hr_admin', 'super_admin'].includes(e.user?.role || '')).length,
+    admins: filtered.filter(e => ['admin', 'tenant_admin', 'ceo', 'hr_admin', 'super_admin'].includes(e.user?.role || '')).length,
   };
 
   /* ─── CSV Export ─── */
@@ -306,7 +312,7 @@ export default function ManagementListPage() {
                   const fullName = `${e.firstName} ${e.lastName}`.trim();
                   const role = e.user?.role || 'employee';
                   const roleLabel = ROLE_LABEL[role] || 'Employee';
-                  const isMgmtRole = ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'].includes(role);
+                  const isMgmtRole = ['manager', 'admin', 'tenant_admin', 'ceo', 'hr_admin', 'super_admin'].includes(role);
                   const isReportingMgr = reports.length > 0;
                   return (
                     <tr key={e.id} className="border-b border-slate-50 hover:bg-slate-50/50">

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/lib/onboarding-milestones.ts",
+    "src/app/api/cron/onboarding-reminders/route.ts",
+    "src/app/api/cron/daily-tasks/route.ts",
+    "src/app/api/onboarding/progress/route.ts",
+    "src/app/(dashboard)/onboarding/page.tsx"
+  ]
+}

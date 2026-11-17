@@ -210,7 +210,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // TTFB (measured two overlapping GETs 999ms + 1924ms) and kept the
       // dashboard shell waiting. Background refresh happens on next load.
       get().fetchPermissions();
-      if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+      if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
         void get().fetchUser();
       }
 
@@ -454,16 +454,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 if (typeof window !== 'undefined') {
   const token = readAuthToken();
   if (token) {
-    let cachedUser: AuthState['user'] = null;
-    try {
-      const raw = sessionStorage.getItem('tb_user');
-      if (raw) cachedUser = JSON.parse(raw);
-    } catch { /* ignore */ }
-    if (cachedUser) {
-      useAuthStore.setState({ token, user: cachedUser, isAuthenticated: true, isLoading: false });
-    } else {
-      useAuthStore.setState({ token, isLoading: true });
-    }
+    // SECURITY FIX (2026-10-29): Do NOT immediately show the cached
+    // tb_user from sessionStorage. The cached user may belong to a
+    // DIFFERENT account (e.g. if a previous user logged out and a new
+    // user logged in on the same tab, or if "remember me" persisted an
+    // old token in localStorage). Showing the stale cached user causes
+    // the wrong role to appear initially (e.g. "CEO" instead of the
+    // actual "Employee" role), and may grant unauthorized admin access
+    // for the brief window before fetchUser() completes.
+    //
+    // Instead, always show a loading state and wait for fetchUser() to
+    // return the fresh user data from /api/auth/me (which validates the
+    // token server-side). The cached tb_user is still kept in
+    // sessionStorage as a fallback for offline/quick-refresh scenarios,
+    // but it is no longer set as the initial authStore.user.
+    useAuthStore.setState({ token, isLoading: true });
   }
   useAuthStore.getState().fetchUser();
 }

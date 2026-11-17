@@ -16,6 +16,7 @@ import {
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
   FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward, FiCheckCircle,
+  FiPlus, FiDownload, FiPenTool, FiInbox, FiColumns,
 } from 'react-icons/fi';
 
 export interface NavItem {
@@ -247,25 +248,17 @@ export const navSections: NavSection[] = [
     items: [
       // Self-service: employee can apply for leave and view their own balance/applications
       { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
-      { label: 'Apply Leave', href: '/leave?action=apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
-      { label: 'My Leave Applications', href: '/leave?view=self', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       // HR-only: Apply leave on behalf of employees
       { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
-
-      // ── Leave Balance ──
-      { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },
-      { label: 'My Leave Balance', href: '/leave/balance', icon: <FiPieChart className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Team Leave Calendar', href: '/leave/team-calendar', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
 
       // ── Settings (admin-only) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
       { label: 'Leave Setup', href: '/leave/setup', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Leave Settings', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Policy', href: '/leave/leave-policy?tab=documents', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Leave Configuration', href: '/leave/configuration', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Approval Workflows', href: '/leave/approval-workflows', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
       // ── Leave Adjustment (CR-03) ──
       { label: 'Leave Adjustment', href: '#adjustment-divider', icon: <FiLayers className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },
@@ -395,6 +388,8 @@ export const navSections: NavSection[] = [
 
   // ─── 7. RECRUITMENT MODULE ───
   // Reports / Settings → dashboardTabs
+  // Note: "Recruitment" sidebar item restored. "Submissions" remains removed
+  // (it duplicated Resumes).
   {
     key: 'recruitment',
     label: 'Recruitment',
@@ -411,11 +406,27 @@ export const navSections: NavSection[] = [
 
       // ── Pipeline ──
       { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Jobs', href: '/recruitment?tab=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Find Candidates', href: '/recruitment?tab=candidates&single=candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Pipeline (Kanban)', href: '/recruitment?tab=candidates&view=kanban&single=candidates', icon: <FiColumns className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
+      { label: 'Schedule Interview', href: '/interviews', icon: <FiClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Offers', href: '/offers', icon: <FiStar className="w-4 h-4" />, moduleKey: 'recruitment' },
+
+      // ── Talent Tools ──
+      { label: 'Talent Tools', href: '#talent-divider', icon: <FiUserCheck className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Talent Pool', href: '/recruitment/talent-pool', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Resumes', href: '/recruitment?tab=candidates&view=resumes&single=candidates', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+
+      // ── Offer Management ──
+      { label: 'Offer Management', href: '#offer-divider', icon: <FiStar className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Offer Dashboard', href: '/offers', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Create Offer', href: '/offers', icon: <FiPlus className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Offer Templates', href: '/offers/templates', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment' },
+      { label: 'Offer Rules', href: '/recruitment/workflow-config', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
       // ── Analytics ──
       { label: 'Analytics', href: '#analytics-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
@@ -448,6 +459,11 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Onboarding Dashboard', href: '/onboarding', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
 
+      // ── Candidate Onboarding ──
+      { label: 'Candidate Onboarding', href: '#candidate-onboarding-divider', icon: <FiUserPlus className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'Onboarding Review', href: '/onboarding-review', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'BGV Dashboard', href: '/bgv-dashboard', icon: <FiShield className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
       // ── Tasks ──
       { label: 'Tasks', href: '#tasks-divider', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
       { label: 'Onboarding Tasks', href: '/onboarding/tasks', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
@@ -476,8 +492,15 @@ export const navSections: NavSection[] = [
       { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
     ],
     items: [
+      // BRD Section 4 — Preboarding sidebar structure (9 recommended screens)
       { label: 'Preboarding Dashboard', href: '/preboarding', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
-      { label: 'Preboarding Tasks', href: '/preboarding/tasks', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Preboarding Candidates', href: '/preboarding/candidates', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Initiation', href: '/preboarding/initiation', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Documents', href: '/preboarding/documents', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Joining Readiness', href: '/preboarding/readiness', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Joining Formalities', href: '/preboarding/joining-formalities', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Activity & History', href: '/preboarding/activity', icon: <FiClock className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Employee Creation', href: '/preboarding/employee-creation', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
@@ -486,6 +509,25 @@ export const navSections: NavSection[] = [
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
       { label: 'Preboarding Reports', href: '/preboarding/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+    ],
+  },
+
+  // ─── 9b. VENDOR MANAGEMENT MODULE (BGV vendors — separate module per BRD) ───
+  // HR-side management of background-verification vendor companies,
+  // their portal users (invites/passwords) and BGV request tracking.
+  {
+    key: 'vendor-management',
+    label: 'Vendor Management',
+    sectionIcon: FiShield,
+    sectionColor: C.onboarding,
+    description: 'BGV vendor partners, portal users & verification tracking',
+    items: [
+      { label: 'Vendor Management Dashboard', href: '/vendor-management', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
+      // ── Vendors ──
+      { label: 'Vendors', href: '#vm-vendors-divider', icon: <FiShield className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'BGV Vendors', href: '/vendor-management/vendors', icon: <FiShield className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'BGV Requests', href: '/vendor-management/requests', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
     ],
   },
 
@@ -753,7 +795,7 @@ export const navSections: NavSection[] = [
 
       // ── Vendors ──
       { label: 'Vendors', href: '#vendors-divider', icon: <FiTruck className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
-      { label: 'Vendors', href: '/vendors', icon: <FiTruck className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'BGV Vendors', href: '/vendor-management/vendors', icon: <FiShield className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Vendor Compliance', href: '/vendors/compliance', icon: <FiShield className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Purchase Orders', href: '/purchase-orders', icon: <FiCreditCard className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Vendor Invoices', href: '/vendor-invoices', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'company', isNew: true },
@@ -957,9 +999,9 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   },
   {
     groupLabel: 'Talent',
-    groupDescription: 'Recruitment, onboarding, preboarding & learning',
+    groupDescription: 'Recruitment, onboarding, preboarding, vendor mgmt & learning',
     groupIcon: FiUserPlus,
-    sections: navSections.filter(s => ['recruitment', 'onboarding', 'preboarding', 'learning'].includes(s.key)),
+    sections: navSections.filter(s => ['recruitment', 'onboarding', 'preboarding', 'vendor-management', 'learning'].includes(s.key)),
   },
   {
     groupLabel: 'Operations',

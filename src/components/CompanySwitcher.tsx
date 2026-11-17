@@ -145,14 +145,14 @@ export default function CompanySwitcher() {
     const userRole = (user?.role || role || 'employee').toLowerCase();
     if (userRole === 'super_admin' && safeAvailableTenants.length === 0 && !hydrating) {
       refreshContext();
-    } else if (userRole === 'tenant_admin' && safeAvailableCompanies.length === 0 && !hydrating) {
+    } else if ((userRole === 'tenant_admin' || userRole === 'ceo') && safeAvailableCompanies.length === 0 && !hydrating) {
       // Only auto-refresh if we also have no groups — otherwise the tenant
       // legitimately has groups but no companies yet, and auto-refresh would
       // cause an unnecessary flicker every time they open the dropdown.
       if (safeAvailableCompanyGroups.length === 0) {
         refreshContext();
       }
-    } else if (!['super_admin', 'tenant_admin'].includes(userRole) && mappedCompanies.length === 0 && !hydrating) {
+    } else if (!['super_admin', 'tenant_admin', 'ceo'].includes(userRole) && mappedCompanies.length === 0 && !hydrating) {
       // Employee with mapped companies: auto-refresh if no mappings loaded yet
       refreshContext();
     }
@@ -174,7 +174,7 @@ export default function CompanySwitcher() {
   // behind by one render cycle. This prevents the "Not yet assigned" flash.
   const userRole = (user?.role || role || 'employee').toLowerCase();
   const isSuperAdmin = userRole === 'super_admin';
-  const isTenantAdmin = userRole === 'tenant_admin';
+  const isTenantAdmin = (userRole === 'tenant_admin' || userRole === 'ceo');
   const isAdmin = isSuperAdmin || isTenantAdmin;
   const hasMappedCompanies = mappedCompanies.length > 1;
   const allowSwitch = isAdmin || hasMappedCompanies;

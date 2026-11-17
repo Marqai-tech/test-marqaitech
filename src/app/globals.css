@@ -466,3 +466,12 @@ select[required]:invalid,
 textarea[required]:not(:placeholder-shown):invalid {
   border-color: #ef4444; /* red-500 */
 }
+
+/* Candidate portal nav: horizontal scroll without a visible scrollbar */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

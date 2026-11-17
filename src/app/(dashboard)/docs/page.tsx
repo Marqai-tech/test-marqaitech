@@ -91,7 +91,7 @@ const moduleKeys = [
   { value: 'helpdesk', label: 'Helpdesk' },
 ];
 
-const roles = ['super_admin', 'tenant_admin', 'manager', 'employee'];
+const roles = ['super_admin', 'tenant_admin', 'ceo', 'manager', 'employee'];
 
 // Simple Markdown renderer
 function renderMarkdown(markdown: string): string {
@@ -524,7 +524,7 @@ function DocsContent() {
   const handleMakeRestricted = async () => {
     if (!token || !selectedArticle) return;
     // Add rules for hr_admin and above
-    const rulesToAdd = ['tenant_admin', 'super_admin'];
+    const rulesToAdd = ['tenant_admin', 'ceo', 'super_admin'];
     for (const role of rulesToAdd) {
       try {
         await fetch('/api/docs/access', {

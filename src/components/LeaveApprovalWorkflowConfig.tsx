@@ -410,7 +410,7 @@ export default function LeaveApprovalWorkflowConfig() {
         </div>
 
         <div className="space-y-4">
-          {config.tiers.sort((a, b) => a.tier - b.tier).map((tier, idx) => (
+          {[...config.tiers].sort((a, b) => a.tier - b.tier).map((tier, idx) => (
             <div key={tier.tier} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
               <div className="flex items-start gap-3">
                 {/* Tier number circle */}
@@ -679,8 +679,9 @@ export default function LeaveApprovalWorkflowConfig() {
         <button
           onClick={loadConfig}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all"
+          title="Reload the saved workflow from the server (discards unsaved changes)"
         >
-          <FiRefreshCw className="w-4 h-4" /> Reset
+          <FiRefreshCw className="w-4 h-4" /> Reload
         </button>
         <button
           onClick={handleSave}

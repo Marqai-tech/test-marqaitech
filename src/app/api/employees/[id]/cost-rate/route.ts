@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params;
 
     const role = (decoded as any).role;
-    const canSeeRates = ['tenant_admin', 'super_admin', 'admin', 'finance'].includes(role);
+    const canSeeRates = ['tenant_admin', 'ceo', 'super_admin', 'admin', 'finance'].includes(role);
 
     const row = await db.employeeCostRate.findFirst({
       where: { employeeId: id, isActive: true },
@@ -75,7 +75,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const decoded = token ? await verifyToken(token) : null;
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const role = (decoded as any).role;
-    if (!['tenant_admin', 'super_admin', 'admin', 'finance'].includes(role)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin', 'finance'].includes(role)) {
       return NextResponse.json({ error: 'Only administrators/finance can modify cost rates' }, { status: 403, headers: corsHeaders() });
     }
     const { id } = await params;
@@ -138,7 +138,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const isSelf = (decoded as any).userId
       ? (await db.employee.findUnique({ where: { userId: (decoded as any).userId }, select: { id: true } }))?.id === id
       : false;
-    if (!['tenant_admin', 'super_admin', 'admin', 'manager'].includes(role) && !isSelf) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin', 'manager'].includes(role) && !isSelf) {
       return NextResponse.json({ error: 'Not authorized to update this profile data' }, { status: 403, headers: corsHeaders() });
     }
 

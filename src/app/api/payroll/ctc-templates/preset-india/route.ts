@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const userRole = (decoded as Record<string, unknown>).role as string;
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(userRole)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(userRole)) {
       return Response.json({ error: 'Only admins can create CTC templates' }, { status: 403, headers: corsHeaders });
     }
 

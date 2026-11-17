@@ -40,6 +40,12 @@ export function AIChatbot() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Task 158 — the API requires { message, sessionId } AND an explicit Bearer
+  // token (no cookie fallback). This page previously sent neither, so every
+  // message failed with 401 / "Message and sessionId are required". The FIRST
+  // message omits sessionId — the API generates and returns one — and every
+  // later message reuses it for conversation continuity.
+  const sessionIdRef = useRef<string>('');
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -63,13 +69,22 @@ export function AIChatbot() {
 
     try {
       const context = `User: ${userName}, Role: ${userRole}, Company: ${currentCompany?.name || 'Unknown'}`;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
       const response = await fetch('/api/ai-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content.trim(), context }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          message: content.trim(),
+          ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}),
+          context,
+        }),
       });
 
       const data = await response.json();
+      // Server issues the session id on the first message — keep it.
+      if (!sessionIdRef.current && data?.sessionId) {
+        sessionIdRef.current = String(data.sessionId);
+      }
       
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),

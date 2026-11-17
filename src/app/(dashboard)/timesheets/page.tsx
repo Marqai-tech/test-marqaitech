@@ -123,7 +123,7 @@ const timesheetWorkflowSteps = [
 /* ── Component ── */
 export default function TimesheetsPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

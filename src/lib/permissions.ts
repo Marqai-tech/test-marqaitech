@@ -29,7 +29,7 @@
 // super_admin to model sub-clusters inside the same parent company.
 // ============================================================================
 
-export type AdminRole = 'super_admin' | 'tenant_admin' | 'admin';
+export type AdminRole = 'super_admin' | 'tenant_admin' | 'ceo' | 'admin';
 
 export interface PermissionRule {
   /** SRS requirement ID, e.g. 'REQ-SA-01'. */
@@ -122,46 +122,46 @@ export const TENANT_ADMIN_PERMISSIONS = {
   CREATE_SUB_COMPANY: {
     srsId: 'REQ-TA-01',
     description: 'Create new Sub-Companies (child entities) under their Parent Company.',
-    allowedRoles: ['super_admin', 'tenant_admin'] as AdminRole[],
+    allowedRoles: ['super_admin', 'tenant_admin', 'ceo'] as AdminRole[],
     scope: 'own_tenant' as const,
   },
   DEFINE_SUB_COMPANY_ATTRS: {
     srsId: 'REQ-TA-02',
     description: 'Define Country, Time Zone, Default Currency, and Local Language for Sub-Companies.',
-    allowedRoles: ['super_admin', 'tenant_admin'] as AdminRole[],
+    allowedRoles: ['super_admin', 'tenant_admin', 'ceo'] as AdminRole[],
     scope: 'own_tenant' as const,
   },
   ASSIGN_SUB_COMPANY_ADMINS: {
     srsId: 'REQ-TA-03',
     description: 'Assign local administrators (Managers) to specific Sub-Companies.',
-    allowedRoles: ['super_admin', 'tenant_admin'] as AdminRole[],
+    allowedRoles: ['super_admin', 'tenant_admin', 'ceo'] as AdminRole[],
     scope: 'own_tenant' as const,
   },
   // §4.2 Group Dashboard
   VIEW_GROUP_DASHBOARD: {
     srsId: 'REQ-TA-04',
     description: 'View consolidated dashboard for their specific group (headcount, financials, talent density, attrition).',
-    allowedRoles: ['super_admin', 'tenant_admin'] as AdminRole[],
+    allowedRoles: ['super_admin', 'tenant_admin', 'ceo'] as AdminRole[],
     scope: 'own_tenant' as const,
   },
   // §4.3 Context Swapping (Tenant Level)
   SWAP_OWN_CONTEXT: {
     srsId: 'REQ-TA-06',
     description: 'Company swap: dropdown containing the Parent Company and all Sub-Companies they created.',
-    allowedRoles: ['super_admin', 'tenant_admin'] as AdminRole[],
+    allowedRoles: ['super_admin', 'tenant_admin', 'ceo'] as AdminRole[],
     scope: 'own_tenant' as const,
   },
   // §4.4 Localization Configuration
   SET_TENANT_LANGUAGE: {
     srsId: 'REQ-TA-09',
     description: 'Set the Default Language for the Parent Company interface (cascades to sub-companies).',
-    allowedRoles: ['super_admin', 'tenant_admin'] as AdminRole[],
+    allowedRoles: ['super_admin', 'tenant_admin', 'ceo'] as AdminRole[],
     scope: 'own_tenant' as const,
   },
   MAP_SUB_COMPANY_CURRENCIES: {
     srsId: 'REQ-TA-10',
     description: 'Map currencies for Sub-Companies in different countries for financial reporting.',
-    allowedRoles: ['super_admin', 'tenant_admin'] as AdminRole[],
+    allowedRoles: ['super_admin', 'tenant_admin', 'ceo'] as AdminRole[],
     scope: 'own_tenant' as const,
   },
 } as const;
@@ -215,7 +215,7 @@ export function can(
 ): boolean {
   if (!role) return false;
   if (role === 'super_admin') return RBAC_MATRIX[action].super_admin;
-  if (role === 'tenant_admin') return RBAC_MATRIX[action].tenant_admin;
+  if ((role === 'tenant_admin' || role === 'ceo')) return RBAC_MATRIX[action].tenant_admin;
   if (role === 'admin') return (RBAC_MATRIX[action] as any).admin ?? false;
   return false;
 }
@@ -232,7 +232,7 @@ export function canActOnTenant(
 ): boolean {
   if (!role) return false;
   if (role === 'super_admin') return true;
-  if (role === 'tenant_admin' || role === 'admin') {
+  if ((role === 'tenant_admin' || role === 'ceo') || role === 'admin') {
     return !!callerTenantId && !!targetTenantId && callerTenantId === targetTenantId;
   }
   return false;
@@ -270,7 +270,7 @@ export function listCapabilitiesForRole(role: string): string[] {
   if (role === 'super_admin') {
     return Object.values(SUPER_ADMIN_PERMISSIONS).map((p) => p.srsId);
   }
-  if (role === 'tenant_admin') {
+  if ((role === 'tenant_admin' || role === 'ceo')) {
     return Object.values(TENANT_ADMIN_PERMISSIONS).map((p) => p.srsId);
   }
   if (role === 'admin') {

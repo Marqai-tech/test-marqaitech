@@ -48,6 +48,8 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { Prisma } from '@/generated/prisma/client';
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
+import { detectAndAlertSuspiciousPunch } from '@/lib/suspicious-punch';
+import { attendanceDayKeyOf, dayKeyToIstStart, localDayStartFor, parseDeviceTimestamp } from '@/lib/timezone-utils';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -132,21 +134,78 @@ export async function POST(request: Request) {
     },
   });
 
-  // 2. Resolve employee
+  // 2. Resolve employee — Task 161: a reader code that does not match any
+  // HRMS employeeId is retried against the roster by exact normalized name
+  // (unique hit only). If it still cannot be resolved, the punch is STORED
+  // as an 'unmatched' row (visible in Biometric Punches and rematchable by
+  // the sync pipeline's self-healing rematch) instead of being dropped with
+  // a 404 the device keeps retrying forever.
   const employeeCode = String(body.employeeCode || '').trim();
   if (!employeeCode) return fail('Missing employeeCode in body');
-  const employee = await db.employee.findUnique({
+  const employeeSelect = { id: true, firstName: true, lastName: true, branchId: true, employeeId: true, email: true } as const;
+  let employee = await db.employee.findUnique({
     where: { employeeId: employeeCode },
-    select: { id: true, firstName: true, lastName: true, branchId: true },
+    select: employeeSelect,
   });
-  if (!employee) return fail(`No employee with code ${employeeCode}`, 404);
+  if (!employee) {
+    const rawName = String(body.employeeName || body.name || '').trim();
+    if (rawName) {
+      const target = rawName.toLowerCase().replace(/[^a-z]/g, '');
+      if (target) {
+        const roster = await db.employee.findMany({
+          select: { id: true, employeeId: true, firstName: true, lastName: true, branchId: true, email: true },
+          take: 2000,
+        });
+        const hits = roster.filter(
+          (e) => `${e.firstName || ''} ${e.lastName || ''}`.toLowerCase().replace(/[^a-z]/g, '') === target,
+        );
+        if (hits.length === 1) employee = {
+          id: hits[0].id,
+          employeeId: hits[0].employeeId,
+          firstName: hits[0].firstName,
+          lastName: hits[0].lastName,
+          branchId: hits[0].branchId,
+          email: hits[0].email,
+        };
+      }
+    }
+  }
+  if (!employee) {
+    // Task 162: parse the device timestamp through the IST-aware parser —
+    // naive payloads ("2026-10-26 09:14") must NOT be read as server-UTC.
+    const unmatchedTime = body.punchTime ? (parseDeviceTimestamp(body.punchTime) || new Date()) : new Date();
+    if (isNaN(unmatchedTime.getTime())) return fail('Invalid punchTime');
+    await db.biometricPunch.create({
+      data: {
+        deviceId: device.id,
+        employeeId: null,
+        punchType: 'unmatched',
+        punchTime: unmatchedTime,
+        rawPayload: body as object,
+        flagged: true,
+        flagReasons: ['unmatched_employee_code'],
+      },
+    });
+    return NextResponse.json(
+      {
+        ok: true,
+        matched: false,
+        message: `No employee with code ${employeeCode}; punch stored as unmatched for HR rematch.`,
+      },
+      { status: 202, headers: CORS },
+    );
+  }
 
   // 3. Punch type + time
   const punchType = String(body.punchType || '').trim();
   if (!['check_in', 'check_out'].includes(punchType)) {
     return fail('punchType must be "check_in" or "check_out"');
   }
-  const punchTime = body.punchTime ? new Date(body.punchTime as string) : new Date();
+  // Task 162: IST-aware device timestamp parsing. Devices frequently push
+  // naive local timestamps; `new Date(naive)` used the server's timezone
+  // (UTC on Vercel) and shifted every punch by +5h30m — wrong times, wrong
+  // late/shift validation, wrong business day.
+  const punchTime = body.punchTime ? (parseDeviceTimestamp(body.punchTime) || new Date()) : new Date();
   if (isNaN(punchTime.getTime())) return fail('Invalid punchTime');
 
   // 4. AI thresholds
@@ -217,8 +276,11 @@ export async function POST(request: Request) {
   if (buddyPunchRisk > thresholds.buddyPunchRiskThreshold) flagReasons.push('buddy_punch_risk_high');
 
   // 7. Idempotent Attendance upsert (employee + date unique)
-  const dayStart = new Date(punchTime);
-  dayStart.setHours(0, 0, 0, 0);
+  // Task 161: use the IST business-day key (the same convention as the Team
+  // Office sync pipeline) instead of the server-local midnight, so punches
+  // land on the correct local day regardless of the runtime timezone and a
+  // single business day can no longer split into two attendance rows.
+  const dayStart = localDayStartFor(punchTime, 'Asia/Kolkata');
 
   const existing = await db.attendance.findUnique({
     where: { employeeId_date: { employeeId: employee.id, date: dayStart } },
@@ -285,6 +347,9 @@ export async function POST(request: Request) {
     console.warn('[biometric/punch] Audit log failed (non-fatal):', e);
   }
 
+  // Task 109: recorded on a holiday/weekend? Alert admins (non-fatal, non-blocking).
+  await alertHolidayBiometricPunch(db, employee, punchTime);
+
   return NextResponse.json(
     {
       ok: true,
@@ -297,4 +362,48 @@ export async function POST(request: Request) {
     },
     { status: 201, headers: CORS }
   );
+}
+
+/** Task 109: biometric punches on holidays/weekends are ALWAYS recorded (the
+ * business rule only blocks the mobile/web channels), but admins must be
+ * alerted so they can confirm the work was authorized. Best-effort. */
+async function alertHolidayBiometricPunch(db: any, employee: { id: string; firstName: string; lastName?: string | null; employeeId?: string; email?: string | null }, punchTime: Date) {
+  try {
+    // Task 162: IST business-day window (the server runs in UTC; the old
+    // setHours(0,0,0,0) window started the day at 05:30 IST).
+    const dayKey = attendanceDayKeyOf(punchTime);
+    const dayStart = dayKeyToIstStart(dayKey);
+    const dayEnd = new Date(dayStart.getTime() + 86400000);
+    const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(punchTime);
+    const dow = weekday === 'Sun' ? 0 : weekday === 'Sat' ? 6 : 1;
+    const isWeekend = dow === 0 || dow === 6;
+    let holidayName: string | null = null;
+    const holiday = await db.holiday.findFirst({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      select: { name: true },
+    }).catch(() => null);
+    if (holiday) holidayName = holiday.name;
+    if (!isWeekend && !holidayName) return;
+    const dateStr = dayKey;
+    await detectAndAlertSuspiciousPunch({
+      db,
+      tenantId: null,
+      employee: {
+        id: employee.id,
+        employeeId: (employee as any).employeeId || employee.id,
+        firstName: employee.firstName,
+        lastName: String(employee.lastName || ''),
+        email: (employee as any).email || '',
+      },
+      dateStr,
+      action: 'biometric_punch',
+      method: 'biometric',
+      gpsLat: null,
+      gpsLng: null,
+      holidayName,
+      isWeekend,
+    });
+  } catch (e) {
+    console.warn('[biometric/punch] holiday alert failed (non-fatal):', e);
+  }
 }

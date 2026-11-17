@@ -200,7 +200,7 @@ async function seedRBACData(userId?: string) {
     }
     if (!existingRole) {
       let roleTenantId = roleDef.tenantId;
-      if (roleTenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin') {
+      if (roleTenantId === null && roleDef.key !== 'super_admin' && (roleDef.key !== 'tenant_admin' && roleDef.key !== 'ceo')) {
         const tenants = await getPlatformDb().tenant.findMany({ take: 1 });
         roleTenantId = tenants.length > 0 ? tenants[0].id : null;
       }
@@ -403,7 +403,7 @@ async function seedRBACData(userId?: string) {
         data: {
           userId: user.id,
           roleId: createdRoles[newRoleKey],
-          companyId: companies.length > 0 && newRoleKey !== 'super_admin' && newRoleKey !== 'tenant_admin' ? companies[0].id : null,
+          companyId: companies.length > 0 && newRoleKey !== 'super_admin' && (newRoleKey !== 'tenant_admin' && newRoleKey !== 'ceo') ? companies[0].id : null,
           assignedBy: userId || null
         }
       });
@@ -440,7 +440,7 @@ export async function POST(request: Request) {
   const db = await getDb(request);
   try {
     const { user } = await resolveAuthenticatedUser(request);
-    if (!user || (user.role !== 'super_admin' && user.role !== 'tenant_admin')) return NextResponse.json({ error: 'Only administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
+    if (!user || (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo'))) return NextResponse.json({ error: 'Only administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
     
     const result = await seedRBACData(user.id);
     return NextResponse.json({ success: true, message: 'RBAC data seeded successfully with 8 predefined roles', data: result }, { headers: corsHeaders() });

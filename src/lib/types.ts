@@ -4,9 +4,22 @@ export type UserRole =
   | 'admin'
   | 'job_seeker';
 
-export type ModuleKey = 
+export type ModuleKey =
   | 'dashboard'
   | 'recruitment'
+  | 'recruitment_dashboard'
+  | 'find_candidates'
+  | 'pipeline_kanban'
+  | 'schedule_interview'
+  | 'talent_pool'
+  | 'resumes'
+  | 'submissions'
+  | 'offer_dashboard'
+  | 'offer_create'
+  | 'offer_approvals'
+  | 'offer_branding'
+  | 'offer_workflow'
+  | 'offer_permissions'
   | 'employees'
   | 'attendance'
   | 'leave'

@@ -97,6 +97,39 @@ async function main() {
     // ─── Company: new SRS column (REQ-TA-02 / REQ-GL-01) ───
     `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "language" TEXT NOT NULL DEFAULT 'en'`,
 
+    // ─── BGV: one active case per candidate (partial unique index; NOT expressible in Prisma) ───
+    `CREATE UNIQUE INDEX IF NOT EXISTS "BgvRequest_active_candidateEmail_key"
+       ON "BgvRequest" ("candidateEmail")
+       WHERE "status" NOT IN ('approved_by_hr','rejected_by_hr','cancelled')`,
+
+    // ─── VendorUser: secure invite columns (hash + expiry + status) ───
+    `ALTER TABLE "VendorUser" ADD COLUMN IF NOT EXISTS "inviteTokenHash" TEXT`,
+    `ALTER TABLE "VendorUser" ADD COLUMN IF NOT EXISTS "inviteExpiresAt" TIMESTAMP(3)`,
+    `ALTER TABLE "VendorUser" ADD COLUMN IF NOT EXISTS "inviteStatus" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "VendorUser_inviteTokenHash_idx" ON "VendorUser"("inviteTokenHash")`,
+
+    // ─── BgvRequest: caseNumber + rework + optimistic version ───
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "caseNumber" TEXT`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "reworkReason" TEXT`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "reworkChecks" TEXT`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "reworkDueDate" TIMESTAMP(3)`,
+    `ALTER TABLE "BgvRequest" ADD COLUMN IF NOT EXISTS "version" INTEGER NOT NULL DEFAULT 0`,
+
+    // ─── BgvCheck: verification date (standard form) ───
+    `ALTER TABLE "BgvCheck" ADD COLUMN IF NOT EXISTS "verificationDate" TIMESTAMP(3)`,
+
+    // ─── BgvReport: snapshot + generated/vendor PDFs + HR notes ───
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "snapshot" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "standardPdfName" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "standardPdfMime" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "standardPdfData" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "pdfStatus" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "pdfError" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "vendorPdfName" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "vendorPdfMime" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "vendorPdfData" TEXT`,
+    `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "hrDecisionNotes" TEXT`,
+
     // ─── Employee: backfill ALL missing columns (the 0_init migration is older
     //     than the current schema.prisma — many fields were added later but
     //     CREATE TABLE IF NOT EXISTS won't add them to the existing table).
@@ -125,6 +158,7 @@ async function main() {
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "workMode" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
@@ -307,6 +341,263 @@ async function main() {
     )`,
     `CREATE INDEX IF NOT EXISTS "PreboardingCandidate_status_idx" ON "PreboardingCandidate"("status")`,
     `CREATE INDEX IF NOT EXISTS "PreboardingCandidate_candidateEmail_idx" ON "PreboardingCandidate"("candidateEmail")`,
+
+    // ─── Onboarding module: new columns on PreboardingCandidate ───
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "onboardingStatus" TEXT DEFAULT 'pending'`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "employmentType" TEXT DEFAULT 'full-time'`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "ctc" DOUBLE PRECISION`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "workLocation" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP(3)`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "companyEmail" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "candidatePortalUserId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "convertedById" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "activatedAt" TIMESTAMP(3)`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "bgvNotes" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "employeeId" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "PreboardingCandidate_onboardingStatus_idx" ON "PreboardingCandidate"("onboardingStatus")`,
+
+    // ─── OnboardingDocument table ───
+    `CREATE TABLE IF NOT EXISTS "OnboardingDocument" (
+      "id" TEXT NOT NULL,
+      "preboardingCandidateId" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "documentType" TEXT NOT NULL,
+      "documentLabel" TEXT NOT NULL,
+      "fileUrl" TEXT,
+      "fileName" TEXT,
+      "fileSize" INTEGER,
+      "mimeType" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "reviewedById" TEXT,
+      "reviewedAt" TIMESTAMP(3),
+      "reviewNotes" TEXT,
+      "uploadedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "OnboardingDocument_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "OnboardingDocument_preboardingCandidateId_idx" ON "OnboardingDocument"("preboardingCandidateId")`,
+    `CREATE INDEX IF NOT EXISTS "OnboardingDocument_candidateEmail_idx" ON "OnboardingDocument"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "OnboardingDocument_status_idx" ON "OnboardingDocument"("status")`,
+
+    // ─── BRD 6.2 Employee-creation approval workflow ───
+    `CREATE TABLE IF NOT EXISTS "EmployeeCreationRequest" (
+      "id" TEXT NOT NULL,
+      "tenantId" TEXT,
+      "preboardingCandidateId" TEXT NOT NULL,
+      "preboardingId" TEXT,
+      "candidateName" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "employment" JSONB,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "payrollRequired" BOOLEAN NOT NULL DEFAULT false,
+      "createdById" TEXT,
+      "submittedById" TEXT,
+      "submittedAt" TIMESTAMP(3),
+      "payrollReviewedById" TEXT,
+      "payrollReviewedAt" TIMESTAMP(3),
+      "authorizedById" TEXT,
+      "authorizedAt" TIMESTAMP(3),
+      "rejectedById" TEXT,
+      "rejectedAt" TIMESTAMP(3),
+      "rejectReason" TEXT,
+      "employeeRowId" TEXT,
+      "provisionalEmployeeId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "EmployeeCreationRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_preboardingCandidateId_idx" ON "EmployeeCreationRequest"("preboardingCandidateId")`,
+    `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_status_idx" ON "EmployeeCreationRequest"("status")`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedApplicationId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedOfferId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
+
+    // ─── BRD 5.3 Preboarding Initiation ───
+    `CREATE TABLE IF NOT EXISTS "PreboardingInitiation" (
+      "id" TEXT NOT NULL,
+      "tenantId" TEXT,
+      "offerId" TEXT NOT NULL,
+      "applicationId" TEXT,
+      "candidateName" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "jobTitle" TEXT,
+      "hrDetails" JSONB,
+      "checklist" JSONB,
+      "communication" JSONB,
+      "remarks" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "createdById" TEXT,
+      "invitedById" TEXT,
+      "invitedAt" TIMESTAMP(3),
+      "cancelledById" TEXT,
+      "cancelledAt" TIMESTAMP(3),
+      "cancelReason" TEXT,
+      "preboardingCandidateId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "PreboardingInitiation_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "PreboardingInitiation_offerId_idx" ON "PreboardingInitiation"("offerId")`,
+    `CREATE INDEX IF NOT EXISTS "PreboardingInitiation_status_idx" ON "PreboardingInitiation"("status")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "PreboardingInitiation_active_offer_key"
+       ON "PreboardingInitiation"("offerId") WHERE "status" IN ('draft','invited')`,
+    `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "required" BOOLEAN DEFAULT true`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+    `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "branchId" TEXT`,
+
+    // ─── BRD 5.8 document hardening ───
+    `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "documentNumber" TEXT`,
+    `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "issueDate" TIMESTAMP(3)`,
+    `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "expiryDate" TIMESTAMP(3)`,
+    `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "version" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileHash" TEXT`,
+    `CREATE TABLE IF NOT EXISTS "OnboardingDocumentVersion" (
+      "id" TEXT NOT NULL,
+      "onboardingDocumentId" TEXT NOT NULL,
+      "version" INTEGER NOT NULL,
+      "fileName" TEXT,
+      "fileData" TEXT,
+      "fileMimeType" TEXT,
+      "fileSize" INTEGER,
+      "fileHash" TEXT,
+      "status" TEXT,
+      "uploadedAt" TIMESTAMP(3),
+      "archivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "OnboardingDocumentVersion_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "OnboardingDocumentVersion_doc_idx" ON "OnboardingDocumentVersion"("onboardingDocumentId")`,
+
+    // ─── VendorCompany table ───
+    `CREATE TABLE IF NOT EXISTS "VendorCompany" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "email" TEXT,
+      "phone" TEXT,
+      "website" TEXT,
+      "address" TEXT,
+      "supportedChecks" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'active',
+      "createdById" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "VendorCompany_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "VendorCompany_status_idx" ON "VendorCompany"("status")`,
+
+    // ─── VendorUser table ───
+    `CREATE TABLE IF NOT EXISTS "VendorUser" (
+      "id" TEXT NOT NULL,
+      "vendorCompanyId" TEXT NOT NULL,
+      "email" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "role" TEXT NOT NULL DEFAULT 'vendor_employee',
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "passwordHash" TEXT,
+      "inviteToken" TEXT,
+      "invitedAt" TIMESTAMP(3),
+      "invitedById" TEXT,
+      "passwordSetAt" TIMESTAMP(3),
+      "userId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "VendorUser_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "VendorUser_vendorCompanyId_idx" ON "VendorUser"("vendorCompanyId")`,
+    `CREATE INDEX IF NOT EXISTS "VendorUser_email_idx" ON "VendorUser"("email")`,
+
+    // ─── BgvRequest table ───
+    `CREATE TABLE IF NOT EXISTS "BgvRequest" (
+      "id" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "candidateName" TEXT,
+      "preboardingCandidateId" TEXT,
+      "vendorCompanyId" TEXT NOT NULL,
+      "initiatedByHRId" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'awaiting_assignment',
+      "dueDate" TIMESTAMP(3),
+      "instructions" TEXT,
+      "checks" TEXT,
+      "assignedVendorUserId" TEXT,
+      "assignedById" TEXT,
+      "assignedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_vendorCompanyId_idx" ON "BgvRequest"("vendorCompanyId")`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_candidateEmail_idx" ON "BgvRequest"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_status_idx" ON "BgvRequest"("status")`,
+    `CREATE INDEX IF NOT EXISTS "BgvRequest_assignedVendorUserId_idx" ON "BgvRequest"("assignedVendorUserId")`,
+
+    // ─── BgvCheck table ───
+    `CREATE TABLE IF NOT EXISTS "BgvCheck" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "checkType" TEXT NOT NULL,
+      "checkLabel" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "result" TEXT,
+      "findings" TEXT,
+      "evidenceUrl" TEXT,
+      "completedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvCheck_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvCheck_bgvRequestId_idx" ON "BgvCheck"("bgvRequestId")`,
+
+    // ─── BgvDocumentShare table ───
+    `CREATE TABLE IF NOT EXISTS "BgvDocumentShare" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "onboardingDocumentId" TEXT,
+      "documentType" TEXT,
+      "documentLabel" TEXT,
+      "fileUrl" TEXT,
+      "sharedById" TEXT NOT NULL,
+      "sharedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvDocumentShare_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvDocumentShare_bgvRequestId_idx" ON "BgvDocumentShare"("bgvRequestId")`,
+
+    // ─── BgvReport table ───
+    `CREATE TABLE IF NOT EXISTS "BgvReport" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "version" INTEGER NOT NULL DEFAULT 1,
+      "submittedById" TEXT NOT NULL,
+      "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "summary" TEXT,
+      "overallResult" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'submitted',
+      "hrDecision" TEXT,
+      "hrDecisionById" TEXT,
+      "hrDecisionAt" TIMESTAMP(3),
+      "hrDecisionReason" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BgvReport_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvReport_bgvRequestId_idx" ON "BgvReport"("bgvRequestId")`,
+
+    // ─── BgvAssignment table (history) ───
+    `CREATE TABLE IF NOT EXISTS "BgvAssignment" (
+      "id" TEXT NOT NULL,
+      "bgvRequestId" TEXT NOT NULL,
+      "vendorUserId" TEXT NOT NULL,
+      "assignedById" TEXT NOT NULL,
+      "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "unassignedAt" TIMESTAMP(3),
+      "unassignedById" TEXT,
+      "reason" TEXT,
+      CONSTRAINT "BgvAssignment_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BgvAssignment_bgvRequestId_idx" ON "BgvAssignment"("bgvRequestId")`,
 
     // ExitRequest
     `CREATE TABLE IF NOT EXISTS "ExitRequest" (
@@ -1029,6 +1320,22 @@ async function main() {
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "approvedBy" TEXT`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3)`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "comments" TEXT`,
+    // ─── Regularization Spec v1.0 audit-trail columns (06 Oct 2026) — re-run v2 ───
+    // Spec §3, §4: separate "Submitted By" (who submitted) from "Requested For"
+    // (employeeId above). `source` distinguishes HR-proxy from self-submission.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedById" TEXT`,
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "submittedByRole" TEXT`,
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL DEFAULT 'employee'`,
+    // Spec §3: "Existing Punch-in/out" snapshot at submission time.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchIn" TIMESTAMP(3)`,
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "existingPunchOut" TIMESTAMP(3)`,
+    // Spec §3: "Requested Punch-out" for the "Both" request type.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "requestedPunchOut" TIMESTAMP(3)`,
+    // Spec §3: separate "Action Date & Time" for approve vs reject.
+    `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "rejectedAt" TIMESTAMP(3)`,
+    // Spec §3: indexes for provenance queries.
+    `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_source_idx" ON "AttendanceRegularization"("source")`,
+    `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_submittedById_idx" ON "AttendanceRegularization"("submittedById")`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AttendanceRegularization" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AttendanceRegularization" DROP CONSTRAINT IF EXISTS "AttendanceRegularization_employeeId_fkey"`,
@@ -1469,6 +1776,92 @@ async function main() {
   // the migration). Safe to re-run — `ALTER COLUMN TYPE` is a no-op if the
   // column is already TIMESTAMP(3).
   // MUST run AFTER the CREATE TABLE statements above so all tables exist.
+
+  // ─── Offer Management module (2026-11): per-tenant branding, approval
+  // trail, role permissions, and workflow config. All CREATE TABLE IF NOT
+  // EXISTS so this is idempotent and safe to re-run. ───
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferBranding" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL UNIQUE,
+    "logo" TEXT,
+    "companyName" TEXT,
+    "address" TEXT,
+    "email" TEXT,
+    "phone" TEXT,
+    "website" TEXT,
+    "colors" TEXT,
+    "signature" TEXT,
+    "signatoryName" TEXT,
+    "signatoryDesignation" TEXT,
+    "defaultFooterText" TEXT,
+    "legalNotice" TEXT,
+    "version" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferBranding_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferBranding_tenantId_idx" ON "OfferBranding"("tenantId")`);
+
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferApproval" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "offerId" TEXT NOT NULL,
+    "level" INTEGER NOT NULL,
+    "approverRole" TEXT NOT NULL,
+    "approverUserId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "comments" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "rejectedAt" TIMESTAMP(3),
+    "dueDate" TIMESTAMP(3),
+    "actedByUserId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferApproval_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferApproval_tenantId_offerId_idx" ON "OfferApproval"("tenantId", "offerId")`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferApproval_tenantId_status_idx" ON "OfferApproval"("tenantId", "status")`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferApproval_approverUserId_idx" ON "OfferApproval"("approverUserId")`);
+
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferPermission" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "permission" TEXT NOT NULL,
+    "allowed" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferPermission_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE UNIQUE INDEX IF NOT EXISTS "OfferPermission_tenantId_role_permission_key" ON "OfferPermission"("tenantId", "role", "permission")`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferPermission_tenantId_idx" ON "OfferPermission"("tenantId")`);
+
+  statements.push(`CREATE TABLE IF NOT EXISTS "OfferWorkflowConfig" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL UNIQUE,
+    "workflowType" TEXT NOT NULL DEFAULT 'recruitment',
+    "approvalRequired" BOOLEAN NOT NULL DEFAULT true,
+    "levels" TEXT,
+    "rules" TEXT,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "OfferWorkflowConfig_pkey" PRIMARY KEY ("id")
+  )`);
+  statements.push(`CREATE INDEX IF NOT EXISTS "OfferWorkflowConfig_tenantId_idx" ON "OfferWorkflowConfig"("tenantId")`);
+
+  // ─── JobPosting.interviewPlan (dc0eb46 dynamic interview plans) ───
+  // JobPosting predates 0_init-fixes coverage (created via _generated-tables
+  // CREATE IF NOT EXISTS — a no-op on the existing table), so the new column
+  // must be added explicitly. Nullable TEXT, idempotent, additive-only.
+  statements.push(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT`);
+
+  // ─── Requisition.interviewPlan (bda0fa0 plan source moves to requisition) ───
+  // Same coverage gap as JobPosting (not in 0_init, CREATE IF NOT EXISTS is a
+  // no-op). Required at build time: requisition create INSERT writes the column
+  // explicitly and the generated Prisma client selects it on every read.
+  statements.push(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT`);
+
   statements.push(timestampFixSql);
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
@@ -2203,6 +2596,26 @@ async function main() {
     )`,
     `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewId_idx" ON "InterviewFeedback"("interviewId")`,
     `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewerId_idx" ON "InterviewFeedback"("interviewerId")`,
+    // BUG-8 fix: legacy NOT NULL constraints ("interviewerName", "sentiment", "body")
+    // predate the structured feedback writer, which never supplied them — every
+    // structured feedback INSERT failed with 23502. The API now fills them, but
+    // dropping the constraints is still safer for mixed old/new clients. DROP NOT NULL is
+    // additive-safe (cannot lose data) and idempotent.
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='InterviewFeedback' AND column_name='interviewerName' AND is_nullable='NO') THEN
+         ALTER TABLE "InterviewFeedback" ALTER COLUMN "interviewerName" DROP NOT NULL;
+       END IF;
+     END $$`,
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='InterviewFeedback' AND column_name='sentiment' AND is_nullable='NO') THEN
+         ALTER TABLE "InterviewFeedback" ALTER COLUMN "sentiment" DROP NOT NULL;
+       END IF;
+     END $$`,
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='InterviewFeedback' AND column_name='body' AND is_nullable='NO') THEN
+         ALTER TABLE "InterviewFeedback" ALTER COLUMN "body" DROP NOT NULL;
+       END IF;
+     END $$`,
 
     // ─── REQ-SRC-01/02/03: Job board multi-posting + auto-close on hire (added 2026-07-21, WAVE2-E)
     `CREATE TABLE IF NOT EXISTS "JobBoardPosting" (

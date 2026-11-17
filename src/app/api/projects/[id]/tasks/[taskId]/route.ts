@@ -3,6 +3,7 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { logProjectActivity, notifyEmployee } from '@/lib/project-events';
 import { resolveProjectAccess } from '@/lib/project-rbac';
+import { isTaskType, isWorkflowStep, isReTesting, notifyTaskStepChange, WORKFLOW_STEP_LABELS } from '@/lib/task-workflow';
 
 function corsHeaders() {
   return {
@@ -52,11 +53,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 // PUT/PATCH /api/projects/[id]/tasks/[taskId]
 // Editable: name, category, assignedToId, milestoneId, sprintId, plannedStart, plannedEnd,
-//           estimatedHours, actualHours, priority, status, isBillable, description, storyPoints, dependsOnId
+//           estimatedHours, actualHours, priority, status, isBillable, description, storyPoints, dependsOnId,
+//           taskType, workflowStep (Task 128)
 // Special behavior:
 //   - status → in_progress blocked when dependsOn task is not done (finish-to-start dependency)
 //   - status → done stamps completedAt + progress recalculation + kanban card sync
 //   - assignee change notifies the new assignee
+//   - workflowStep → re_testing sends the task BACK to the current assignee;
+//     any other step REQUIRES the assignee to be picked again (400 without it)
+//   - every workflowStep change alerts assignee + project manager + admins
+//     (in-app bell + email)
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; taskId: string }> }) {
   const db = await getDb(request);
   try {
@@ -65,7 +71,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id, taskId } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canEdit && !access.canLogTime) {
       return NextResponse.json({ error: 'You do not have edit access to this project' }, { status: 403, headers: corsHeaders() });
     }
@@ -94,6 +100,42 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     if (body.isBillable !== undefined) data.isBillable = !!body.isBillable;
     if (body.assignedToId !== undefined) data.assignedToId = body.assignedToId || null;
+    if (body.taskType !== undefined) {
+      if (body.taskType !== null && body.taskType !== '' && !isTaskType(body.taskType)) {
+        return NextResponse.json({ error: 'taskType must be customisation | rework | development | bug' }, { status: 400, headers: corsHeaders() });
+      }
+      data.taskType = body.taskType === '' ? null : body.taskType;
+    }
+
+    // ── Task 128: workflow-step transition with the assignee routing rule
+    let stepChanged = false;
+    if (body.workflowStep !== undefined) {
+      if (body.workflowStep !== null && body.workflowStep !== '' && !isWorkflowStep(body.workflowStep)) {
+        return NextResponse.json({ error: 'workflowStep must be testing | re_testing | production | delivery' }, { status: 400, headers: corsHeaders() });
+      }
+      const newStep = body.workflowStep === '' ? null : body.workflowStep;
+      if (newStep && newStep !== task.workflowStep) {
+        stepChanged = true;
+        if (isReTesting(newStep)) {
+          // Re-testing → the task goes BACK to the assignee itself. Only an
+          // EXPLICIT assignee in the body can override (it defaults to the
+          // current one anyway in the UI).
+          if (body.assignedToId === undefined) data.assignedToId = task.assignedToId;
+        } else {
+          // Any other step → ask the assignee again (enforced server-side).
+          const chosen = body.assignedToId !== undefined ? body.assignedToId : task.assignedToId;
+          if (!chosen) {
+            return NextResponse.json(
+              { error: `Select the assignee for the "${WORKFLOW_STEP_LABELS[newStep]}" step — the assignee is asked again on every step change except re-testing.` },
+              { status: 400, headers: corsHeaders() }
+            );
+          }
+          if (body.assignedToId === undefined) data.assignedToId = chosen;
+        }
+      }
+      data.workflowStep = newStep;
+    }
+
     if (body.dependsOnId !== undefined) {
       if (body.dependsOnId === taskId) {
         return NextResponse.json({ error: 'A task cannot depend on itself' }, { status: 400, headers: corsHeaders() });
@@ -150,6 +192,39 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
     }
 
+    // ── Task 128: step-change alert → assignee + project manager + admins
+    // (in-app bell + email). The effective assignee is re-read from `updated`.
+    let stepAlert: Awaited<ReturnType<typeof notifyTaskStepChange>> | null = null;
+    if (stepChanged) {
+      const projectRow = await db.project.findUnique({
+        where: { id },
+        select: { name: true, projectManagerId: true },
+      }).catch(() => null);
+      const actorEmp = await db.employee.findUnique({
+        where: { userId: (decoded as any).userId },
+        select: { firstName: true, lastName: true },
+      }).catch(() => null);
+      const alertResult = await notifyTaskStepChange({
+        db,
+        tenantId: (decoded as any).tenantId,
+        projectId: id,
+        projectName: projectRow?.name || 'Project',
+        taskName: updated.name,
+        taskId: updated.id,
+        fromStep: task.workflowStep,
+        toStep: updated.workflowStep as string,
+        assigneeEmployeeId: updated.assignedToId,
+        managerEmployeeId: projectRow?.projectManagerId || null,
+        actorName: actorEmp ? `${actorEmp.firstName || ''} ${actorEmp.lastName || ''}`.trim() : null,
+      });
+      await logProjectActivity(db, id, {
+        type: 'task_update',
+        employeeId: actor,
+        message: `Task "${updated.name}" workflow step: ${task.workflowStep ? (WORKFLOW_STEP_LABELS[task.workflowStep] || task.workflowStep) : '—'} → ${WORKFLOW_STEP_LABELS[updated.workflowStep as string] || updated.workflowStep}.`,
+      });
+      stepAlert = alertResult;
+    }
+
     // ── Kanban sync: move the linked collaboration card
     if (body.status !== undefined) {
       await syncKanbanCard(db, taskId, updated.status).catch(() => null);
@@ -173,7 +248,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       await recalcProjectProgress(db, id).catch(() => null);
     }
 
-    return NextResponse.json({ task: updated }, { headers: corsHeaders() });
+    return NextResponse.json({ task: updated, ...(stepAlert ? { stepAlert } : {}) }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update task error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -189,7 +264,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id, taskId } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canEdit) {
       return NextResponse.json({ error: 'You do not have edit access to this project' }, { status: 403, headers: corsHeaders() });
     }

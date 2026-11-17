@@ -9,6 +9,8 @@ import { isServerLiveSite } from '@/lib/tenant-filter';
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail, validateUAN, validatePFNumber, validateNomineeName, validateLWFNumber } from '@/lib/validators';
 import { profilePhotoPayloadError, employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 import { ensureEmployeeWriteColumns } from '@/lib/employee-profile-columns';
+import { computeExperienceYearsFromRows } from '@/lib/employee-experience';
+import { replaceEmployeeExperience, replaceEmployeeSkills, replaceEmployeeDependents, replaceEmployeeAchievements } from '@/lib/employee-row-collections';
 import { loadEmployeeSetting } from '@/lib/employee-config';
 
 function generateRandomPassword(length = 12): string {
@@ -62,6 +64,18 @@ export async function GET(request: Request) {
   const db = await getDb(request);
 
   try {
+    // Task 110 SECURITY: this route previously served the full employee
+    // directory (names, emails, phones, salary-adjacent fields) with NO
+    // token, a garbage token, or even a cross-tenant token. Every other
+    // module route 401s — this one must too. The web app always attaches
+    // its Bearer token via the shared fetch wrapper, and the mobile app
+    // sends Authorization on every call, so this is transparent to both.
+    const __gateToken = getTokenFromHeaders(request);
+    const __gateDecoded = __gateToken ? await verifyToken(__gateToken).catch(() => null) : null;
+    if (!__gateDecoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const rawLimit = parseInt(searchParams.get('limit') || '20');
@@ -88,6 +102,22 @@ export async function GET(request: Request) {
     // export then reported "No data to export". on_leave keeps its own filter
     // option and is deliberately NOT part of this set.
     const INACTIVE_STATUSES = ['inactive', 'terminated', 'resigned'];
+    // Task 120: pickers/directories in the Leave / Attendance / Projects / Chat
+    // modules pass ?excludeInactive=true so separated employees (terminated,
+    // resigned, inactive) never appear as selectable people. The Employees
+    // module itself does NOT send this — HR still manages separated staff
+    // there. Explicit ?status= always wins when both are provided.
+    const excludeInactive = searchParams.get('excludeInactive') === 'true';
+    // Task 140: selected-row export — the Employee List sends its checkbox
+    // selection as ?ids=<csv of employee ids>. When present, ONLY those
+    // employees are returned (still tenant/company scoped below): the user
+    // explicitly picked exact rows, so list filters (search / department /
+    // status) are deliberately ignored — previously clicking Export with one
+    // employee ticked downloaded the whole filtered list instead.
+    const idsParam = searchParams.get('ids') || '';
+    const selectedExportIds = idsParam
+      ? Array.from(new Set(idsParam.split(',').map((s) => s.trim()).filter(Boolean))).slice(0, 500)
+      : [];
     // Tenant scope — only meaningful for super_admin (tenant_admin is already
     // scoped to their own tenantId in the JWT).
     const tenantId = searchParams.get('tenantId');
@@ -115,7 +145,11 @@ export async function GET(request: Request) {
     // nested includes for a count-only call was extra Neon work (~2.6s).
     if (includeStats && !exportMode && limit <= 1 && !search && !departmentId) {
       const where: Record<string, unknown> = {};
-      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      if (status) {
+        where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      } else if (excludeInactive) {
+        where.status = { notIn: INACTIVE_STATUSES };
+      }
       if (queryCompanyId) where.companyId = queryCompanyId;
       const monthAgo = new Date();
       monthAgo.setMonth(monthAgo.getMonth() - 1);
@@ -132,7 +166,7 @@ export async function GET(request: Request) {
           employees: [],
           pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 0 },
           stats: { total, active, inactive, newJoiners },
-          dataScope: jwtRole === 'super_admin' || jwtRole === 'tenant_admin' ? 'all' : 'self',
+          dataScope: jwtRole === 'super_admin' || (jwtRole === 'tenant_admin' || jwtRole === 'ceo') ? 'all' : 'self',
         },
         { headers: { ...corsHeaders(), 'Server-Timing': `counts;dur=${Date.now() - tQ}` } },
       );
@@ -236,7 +270,13 @@ export async function GET(request: Request) {
             onLeaveEmployees += tenantEmps.filter((e: any) => e.status === 'on_leave').length;
             inactiveEmployees += tenantEmps.filter((e: any) => e.status !== 'active' && e.status !== 'on_leave').length;
             // Add tenant info to each employee for display
-            employees.push(...tenantEmps.map((e: any) => ({ ...e, tenantName: tenant.name, tenantSlug: tenant.slug })));
+            // Task 137 — EXP column support in the cross-tenant aggregation path
+            const tenantEmpsWithExp = tenantEmps.map((e: any) => ({
+              ...e,
+              experienceYears: computeExperienceYearsFromRows(e.experiences),
+              experiences: undefined,
+            }));
+            employees.push(...tenantEmpsWithExp.map((e: any) => ({ ...e, tenantName: tenant.name, tenantSlug: tenant.slug })));
             console.log(`[employees] Tenant "${tenant.slug}": found ${tenantEmps.length} employees`);
             tenantDebug.push({ slug: tenant.slug, name: tenant.name, hasDedicatedDb: !!hasDedicatedDb, empCount: tenantEmps.length, filter: empFilter });
           } catch (e) {
@@ -324,27 +364,39 @@ export async function GET(request: Request) {
     // Try database query
     try {
       const where: Record<string, unknown> = {};
-      if (departmentId) where.departmentId = departmentId;
-      if (designationId) where.designationId = designationId;
-      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      // Task 140: an explicit ?ids= selection wins over every list filter —
+      // the user picked exact rows to export. Scoping (company / tenant /
+      // self / management-exclusion) below still applies, so hand-crafted
+      // ids can never widen what the caller is allowed to see.
+      if (selectedExportIds.length > 0) {
+        where.id = { in: selectedExportIds };
+      } else {
+        if (departmentId) where.departmentId = departmentId;
+        if (designationId) where.designationId = designationId;
+        if (status) {
+          where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+        } else if (excludeInactive) {
+          where.status = { notIn: INACTIVE_STATUSES };
+        }
+        if (search) {
+          where.OR = [
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { employeeId: { contains: search, mode: 'insensitive' } },
+          ];
+        }
+      }
       // The Employee List explicitly excludes management members for every
       // caller. This keeps management in its dedicated directory even when
       // the current account is itself a management/HR account.
       if (excludeManagement) {
         where.NOT = {
           OR: [
-            { user: { role: { in: ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'] } } },
+            { user: { role: { in: ['manager', 'admin', 'tenant_admin', 'ceo', 'hr_admin', 'super_admin'] } } },
             { directReports: { some: { status: { in: ['active', 'on_leave'] } } } },
           ],
         };
-      }
-      if (search) {
-        where.OR = [
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-          { employeeId: { contains: search, mode: 'insensitive' } },
-        ];
       }
 
       // ─── Company scope filter ───
@@ -407,8 +459,23 @@ export async function GET(request: Request) {
       // ─── Self / team / admin scope enforcement ───
       if (isAuthed) {
         if (scope === 'self' && userId) {
-          // Employee: only see their own employee record
-          where.userId = userId;
+          // Task 113 — Employee directory scope: an employee sees THEIR OWN
+          // record + all ACTIVE colleagues in the SAME DEPARTMENT (user ask:
+          // "employee login should show the respective employee's department
+          // employees' details in the directory"). Falls back to self-only
+          // when the employee has no department (or no employee row).
+          const ownEmp = await db.employee.findFirst({
+            where: { userId, status: 'active' },
+            select: { id: true, departmentId: true },
+          }).catch(() => null);
+          if (ownEmp?.departmentId) {
+            where.OR = [
+              { userId },
+              { departmentId: ownEmp.departmentId, status: 'active' },
+            ];
+          } else {
+            where.userId = userId;
+          }
         } else if (scope === 'team' && userId) {
           // Manager: see own + direct reports (resolved via reportingManagerId + DottedLineManager)
           const ownEmp = await db.employee.findFirst({
@@ -464,11 +531,15 @@ export async function GET(request: Request) {
             companyId: true, phone: true, status: true, employeeStatus: true,
             employeeType: true, dateOfJoining: true, reportingManagerId: true,
             createdAt: true, updatedAt: true,
+            // Bug 2 fix: include gender + maritalStatus so dashboard Gender Distribution widget works
+            gender: true, maritalStatus: true,
             department: { select: { id: true, name: true } },
             designation: { select: { id: true, title: true } },
             branch: { select: { id: true, name: true } },
-            user: { select: { id: true, email: true, role: true } },
+            user: { select: { id: true, email: true, role: true } }, isManagement: true,
             reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+            // Task 137 — spans only (stripped after experienceYears is computed)
+            experiences: { select: { startDate: true, endDate: true, isCurrent: true } },
           },
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * limit,
@@ -477,6 +548,14 @@ export async function GET(request: Request) {
         queryDb.employee.count({ where }),
       ]);
       const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url, getTokenFromHeaders(request));
+      // Task 137 — per-employee total experience (EXP column). Computed from
+      // the Experience rows carried by the select below; the rows themselves
+      // are stripped from the response to keep the payload slim.
+      for (const emp of employees) {
+        const spans = (emp as Record<string, unknown>).experiences as Array<{ startDate?: string | null; endDate?: string | null; isCurrent?: boolean | null }> | undefined;
+        (emp as Record<string, unknown>).experienceYears = computeExperienceYearsFromRows(spans);
+        delete (emp as Record<string, unknown>).experiences;
+      }
 
       let stats: { total: number; active: number; inactive: number; newJoiners: number } | undefined;
       if (includeStats) {
@@ -601,6 +680,7 @@ export async function POST(request: Request) {
       companyId,
       dateOfJoining,
       dateOfBirth,
+      originalBirthday,
       gender,
       maritalStatus,
       nationality,
@@ -840,6 +920,12 @@ export async function POST(request: Request) {
         companyId: companyId || null,
         dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : new Date(),
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        // Task 136 — REAL birth date for birthday celebrations (dateOfBirth
+        // stays the official 'as per records' date).
+        // Task 136/138 — Original Birthday (real birth date for wishes); when
+        // the admin didn't fill it, take the Date of Birth automatically —
+        // HR/Employee can still edit it any time later.
+        originalBirthday: originalBirthday ? new Date(originalBirthday) : (dateOfBirth ? new Date(dateOfBirth) : null),
         gender: gender || null,
         maritalStatus: maritalStatus || null,
         nationality: nationality || null,
@@ -882,6 +968,16 @@ export async function POST(request: Request) {
       };
 
       let employee;
+      // Bug 10 fix: ensure ALL Prisma-schema columns exist BEFORE the Prisma
+      // create (which fails with P2022 if any are missing). Use
+      // ensureEmployeeWriteColumns (not ensureEmployeeProfileColumns) because
+      // it has the full DDL list with proper types (BOOLEAN, INTEGER, etc.).
+      try {
+        const { ensureEmployeeWriteColumns } = await import('@/lib/employee-profile-columns');
+        await ensureEmployeeWriteColumns(db);
+      } catch (e) {
+        console.warn('[Employees POST] ensureEmployeeWriteColumns failed (non-fatal):', e);
+      }
       try {
         // First attempt: include optional relationship fields
         employee = await db.employee.create({
@@ -890,19 +986,26 @@ export async function POST(request: Request) {
         });
       } catch (firstErr) {
         const firstErrObj = firstErr as { code?: string; message?: string };
-        // If the error is about an unknown argument (P2009) or missing column,
-        // retry WITHOUT the optional relationship fields. This handles the case
-        // where the DB schema hasn't been synced yet.
+        // Bug 10: also catch P2022 (column missing) and retry without isManagement
         if (
           firstErrObj.code === 'P2009' ||
+          firstErrObj.code === 'P2022' ||
           (firstErrObj.message && firstErrObj.message.includes('Unknown argument')) ||
           (firstErrObj.message && firstErrObj.message.includes('does not exist'))
         ) {
-          console.warn('[Employees POST] First attempt failed, retrying without optional relation fields:', firstErrObj.message);
+          console.warn('[Employees POST] First attempt failed, retrying without optional fields:', firstErrObj.message);
+          const { isManagement: _strip, ...createDataStripped } = createData;
           employee = await db.employee.create({
-            data: createData,
+            data: createDataStripped,
             include: { department: true, designation: true, branch: true },
           });
+          // Set isManagement via raw SQL after create
+          if (isManagement === true) {
+            try {
+              await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "isManagement" BOOLEAN NOT NULL DEFAULT false`);
+              await db.$executeRawUnsafe(`UPDATE "Employee" SET "isManagement" = true WHERE "id" = $1`, employee.id);
+            } catch (e) { console.warn('[Employees POST] isManagement post-update failed:', e); }
+          }
         } else {
           // Re-throw other errors
           throw firstErr;
@@ -939,14 +1042,17 @@ export async function POST(request: Request) {
           ['previousDesignation1', body.previousDesignation1],
           ['previousDuration1', body.previousDuration1],
           ['previousReason1', body.previousReason1],
+          ['previousEmployer1Logo', body.previousEmployer1Logo],
           ['previousEmployer2', body.previousEmployer2],
           ['previousDesignation2', body.previousDesignation2],
           ['previousDuration2', body.previousDuration2],
           ['previousReason2', body.previousReason2],
+          ['previousEmployer2Logo', body.previousEmployer2Logo],
           ['previousEmployer3', body.previousEmployer3],
           ['previousDesignation3', body.previousDesignation3],
           ['previousDuration3', body.previousDuration3],
           ['previousReason3', body.previousReason3],
+          ['previousEmployer3Logo', body.previousEmployer3Logo],
           ['totalExperience', body.totalExperience],
           ['pfNumber', body.pfNumber],
           ['pfUAN', body.pfUAN],
@@ -959,6 +1065,7 @@ export async function POST(request: Request) {
           ['esiNomineeRelation', body.esiNomineeRelation],
           ['professionalTaxNumber', body.professionalTaxNumber],
           ['lwfNumber', body.lwfNumber],
+          ['interests', body.interests],
         ];
         for (const [col, val] of extraMap) {
           if (val !== undefined && val !== '') {
@@ -972,6 +1079,24 @@ export async function POST(request: Request) {
         }
       } catch (extraErr) {
         console.warn('[Employees POST] extra profile columns update failed:', extraErr);
+      }
+
+      // Task 137 — structured row collections for the NEW employee
+      try {
+        if (Array.isArray(body.experiences) && body.experiences.length) {
+          await replaceEmployeeExperience(db as unknown as Record<string, any>, employee.id, body.experiences);
+        }
+        if (Array.isArray(body.skills) && body.skills.length) {
+          await replaceEmployeeSkills(db as unknown as Record<string, any>, employee.id, body.skills);
+        }
+        if (Array.isArray(body.dependents) && body.dependents.length) {
+          await replaceEmployeeDependents(db as unknown as Record<string, any>, employee.id, body.dependents);
+        }
+        if (Array.isArray(body.achievements) && body.achievements.length) {
+          await replaceEmployeeAchievements(db as unknown as Record<string, any>, employee.id, body.achievements);
+        }
+      } catch (rowsErr) {
+        console.warn('[Employees POST] experience/skill/dependent/achievement rows update failed:', rowsErr);
       }
 
       if (isAuthed && decodedUserId) {

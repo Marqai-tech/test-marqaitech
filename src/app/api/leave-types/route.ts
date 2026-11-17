@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
+import { resolveLeavePolicy } from '@/lib/leave-policy-resolver';
+import { validateCompanyOwnership } from '@/lib/company-ownership';
+import { getLeaveCategory } from '@/lib/leave-balance-rules';
+import { ensureLeaveSetupSchema } from '@/lib/leave-setup-schema';
 
 function corsHeaders() {
   return {
@@ -18,6 +22,9 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // Ensure the Leave Setup columns (category, smallestUnit, displayOrder, …)
+    // exist before Prisma selects them — tenant DBs may not be migrated yet.
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -39,12 +46,229 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const leaveTypes = await db.leaveType.findMany({
+    const allLeaveTypes = await db.leaveType.findMany({
       where: { status: 'active', ...companyFilter },
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({ data: leaveTypes }, { headers: corsHeaders() });
+    // ─── Mapping enforcement: filter leave types by LeaveTypePolicyMapping ───
+    // For employees (scope='self'), only show leave types that have an active
+    // mapping matching the employee's scope (branch, dept, gender, employeeIds, etc.).
+    // Admins see all types (for configuration purposes).
+    //
+    // RULE:
+    //   • If NO mappings exist at all for this company → show ALL types (backward-compat
+    //     for companies that haven't set up mappings yet).
+    //   • If mappings DO exist → only show types where the resolver finds a match
+    //     for THIS employee. If an employee-specific mapping exists (employeeIds set),
+    //     only employees in that list see the type. Other employees don't see it.
+    //   • If the resolver fails for a type → include it (don't block on resolver errors).
+    //   • If mappings exist but the employee matches NONE → show empty (this is the
+    //     intended behavior — the admin configured mappings, and this employee isn't
+    //     in any of them). The admin can add a mapping for them or use "all employees".
+    let filteredTypes = allLeaveTypes;
+
+    if (scope && scope.scope === 'self') {
+      // Find the employee's record
+      const emp = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { id: true, companyId: true },
+      }).catch(() => null);
+
+      if (emp?.id) {
+        // Check if ANY mappings exist — across ALL companies (not just the
+        // employee's company). The admin might have created the mapping under
+        // a different company than the employee's (due to the company-switcher
+        // selection at mapping-creation time). If we only checked the employee's
+        // company, we'd miss the mapping → no enforcement → employee sees all types.
+        let mappingsExist = false;
+        let mappingCompanyIds: string[] = [];
+        try {
+          const rows: any[] = await db.$queryRawUnsafe(
+            `SELECT DISTINCT "companyId" FROM "LeaveTypePolicyMapping" WHERE status = 'active'`
+          );
+          mappingCompanyIds = rows.map((r: any) => r.companyId).filter(Boolean);
+          mappingsExist = mappingCompanyIds.length > 0;
+        } catch { /* table might not exist yet — no filtering */ }
+
+        if (mappingsExist) {
+          // Mapping enforcement is ACTIVE — only show types where the resolver
+          // finds a match for THIS employee. Try the employee's company first,
+          // then every other company that has mappings (handles cross-company
+          // scenarios where the leave type / mapping is in a different company).
+          const companiesToCheck = [emp.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
+          const uniqueCompanies = [...new Set(companiesToCheck)];
+
+          const visibleTypes = [];
+          for (const lt of allLeaveTypes) {
+            let matched = false;
+            for (const cId of uniqueCompanies) {
+              try {
+                const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: cId });
+                if (policy.source !== 'none') { matched = true; break; }
+              } catch {
+                // If resolver fails for one company, try the next
+              }
+            }
+            if (matched) {
+              visibleTypes.push(lt);
+            }
+          }
+          // Respect the mapping enforcement result — even if it's empty.
+          // The admin configured mappings; if this employee doesn't match any,
+          // they don't see those leave types. This is the intended behavior.
+          filteredTypes = visibleTypes;
+          console.log(
+            `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (checked ${uniqueCompanies.length} companies for mappings).`
+          );
+        }
+        // If no mappings exist → filteredTypes stays = allLeaveTypes (backward-compat)
+      }
+    }
+
+    // ─── FALLBACK (2026-11-06) ───
+    // If the company-scoped query returned 0 leave types (the company has no
+    // types at all — e.g. they were all created under a different company due
+    // to the previous misfiled-records bug), fall back to ALL active leave types
+    // across the tenant.
+    //
+    // CRITICAL: after fetching the fallback types, we MUST re-run mapping
+    // enforcement on them. Otherwise the fallback bypasses the employee-specific
+    // filtering and the employee sees types that were mapped to OTHER employees.
+    if (allLeaveTypes.length === 0) {
+      const auth = await getAuthInfo(req).catch(() => null);
+      const fallback = await db.leaveType.findMany({
+        where: { status: 'active' },
+        orderBy: { name: 'asc' },
+      });
+      if (fallback.length > 0) {
+        console.warn(
+          `[leave-types] Company-scoped query returned 0 types for filter ${JSON.stringify(companyFilter)} (role=${auth?.role || 'unknown'}); falling back to ${fallback.length} types across the tenant.`
+        );
+
+        // Re-run mapping enforcement on the fallback types for employees.
+        // Admins see all fallback types (no enforcement for admins).
+        if (scope && scope.scope === 'self') {
+          const emp = await db.employee.findFirst({
+            where: { userId: scope.userId, status: 'active' },
+            select: { id: true, companyId: true },
+          }).catch(() => null);
+
+          if (emp?.id) {
+            // Get all companies that have mappings
+            let mappingCompanyIds: string[] = [];
+            let mappingsExist = false;
+            try {
+              const rows: any[] = await db.$queryRawUnsafe(
+                `SELECT DISTINCT "companyId" FROM "LeaveTypePolicyMapping" WHERE status = 'active'`
+              );
+              mappingCompanyIds = rows.map((r: any) => r.companyId).filter(Boolean);
+              mappingsExist = mappingCompanyIds.length > 0;
+            } catch { /* table might not exist */ }
+
+            if (mappingsExist) {
+              const companiesToCheck = [emp.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
+              const uniqueCompanies = [...new Set(companiesToCheck)];
+              const enforcedTypes = [];
+              for (const lt of fallback) {
+                let matched = false;
+                for (const cId of uniqueCompanies) {
+                  try {
+                    const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: cId });
+                    if (policy.source !== 'none') { matched = true; break; }
+                  } catch { /* try next */ }
+                }
+                if (matched) enforcedTypes.push(lt);
+              }
+              filteredTypes = enforcedTypes;
+              console.log(
+                `[leave-types] Fallback + mapping enforcement: employee=${emp.id} sees ${enforcedTypes.length} of ${fallback.length} fallback type(s).`
+              );
+            } else {
+              // No mappings exist → show all fallback types (backward-compat)
+              filteredTypes = fallback;
+            }
+          } else {
+            filteredTypes = fallback;
+          }
+        } else {
+          // Admin → show all fallback types
+          filteredTypes = fallback;
+        }
+      }
+    }
+
+    // ─── GENDER-BASED FILTERING ───
+    // BUG FIX: maternity leave should only show for female employees, paternity
+    // only for male. Filter out gender-incompatible leave types from the final list.
+    // This runs AFTER all other filtering so it always applies.
+    if (scope && scope.scope === 'self') {
+      const emp = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { gender: true },
+      }).catch(() => null);
+
+      if (emp) {
+        const empGender = (emp.gender || '').toLowerCase();
+        const beforeGenderFilter = filteredTypes.length;
+        filteredTypes = filteredTypes.filter((lt: any) => {
+          const category = getLeaveCategory({ name: lt.name, code: lt.code });
+          if (category === 'maternity') return empGender === 'female';
+          if (category === 'paternity') return empGender === 'male';
+          if (category === 'parental') {
+            // Parental is gender-neutral — keep it (the resolver renames it)
+            return true;
+          }
+          return true; // non-gendered types always visible
+        });
+        if (filteredTypes.length < beforeGenderFilter) {
+          console.log(
+            `[leave-types] Gender filter: removed ${beforeGenderFilter - filteredTypes.length} type(s) for employee gender='${empGender || 'unknown'}'.`
+          );
+        }
+      }
+    }
+
+    // ─── FINAL FALLBACK ───
+    // If after all the above (company scope + mapping enforcement + cross-company
+    // fallback + re-enforcement) the employee still has 0 leave types, show ALL
+    // active types. An empty dropdown blocks the employee from applying for leave
+    // entirely — that's never acceptable. The POST handler does its own validation,
+    // so showing types here is safe.
+    if (filteredTypes.length === 0) {
+      const allTypes = await db.leaveType.findMany({
+        where: { status: 'active' },
+        orderBy: { name: 'asc' },
+      });
+      if (allTypes.length > 0) {
+        console.warn(
+          `[leave-types] Final fallback: showing all ${allTypes.length} active type(s) — mapping enforcement returned 0 for this employee.`
+        );
+        filteredTypes = allTypes;
+      }
+    }
+
+    // ─── DEBUG support: ?debug=1 shows the enforcement breakdown ───
+    // Usage: GET /api/leave-types?debug=1
+    // Returns the same data PLUS a _debug object showing how many types exist,
+    // how many mappings exist, and how many the employee is allowed to see.
+    const { searchParams } = new URL(req.url);
+    const isDebug = searchParams.get('debug') === '1';
+    if (isDebug) {
+      return NextResponse.json({
+        data: filteredTypes,
+        _debug: {
+          scope: scope?.scope,
+          role: (await getAuthInfo(req).catch(() => null))?.role,
+          companyFilter,
+          totalTypesInCompany: allLeaveTypes.length,
+          visibleAfterMapping: filteredTypes.length,
+          fallbackUsed: allLeaveTypes.length === 0 && filteredTypes.length > 0,
+        },
+      }, { headers: corsHeaders() });
+    }
+
+    return NextResponse.json({ data: filteredTypes }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Leave types GET error:', error);
     return NextResponse.json({ data: [] }, { headers: corsHeaders() });
@@ -56,13 +280,14 @@ export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    }
+    if (!auth) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() }); }
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(auth.role)) { return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() }); }
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
 
     const body = await req.json();
     const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward, companyId,
-            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled } = body;
+            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled,
+            category, smallestUnit, calendarColor, displayOrder } = body;
 
     if (!name || !code) {
       return NextResponse.json({ error: 'Name and code are required' }, { status: 400, headers: corsHeaders() });
@@ -102,8 +327,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!resolvedCompanyId) {
-      return NextResponse.json({ error: 'Company ID is required. Please select a company from the switcher.' }, { status: 400, headers: corsHeaders() });
+    if (!resolvedCompanyId) { try { const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } }); if (fc) resolvedCompanyId = fc.id; } catch {} }
+    if (!resolvedCompanyId) { return NextResponse.json({ error: 'Company ID required. Ensure a company exists.' }, { status: 400, headers: corsHeaders() }); }
+
+    // ─── COMPANY OWNERSHIP VALIDATION ───
+    // Verify the authenticated admin can manage this company (prevents
+    // cross-tenant data leakage via direct API requests with a foreign companyId).
+    const ownership = await validateCompanyOwnership(req, resolvedCompanyId);
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error || 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
     // ─── Check for duplicate code within the same company ───
@@ -154,6 +386,15 @@ export async function POST(req: NextRequest) {
           ? String(employeeStatus) : 'all',
         probationRestricted: probationRestricted ?? false,
         sandwichRuleEnabled: sandwichRuleEnabled ?? true,
+        // ─── Leave Setup wizard fields ───
+        category: ['paid', 'unpaid', 'statutory', 'special'].includes(String(category || '').toLowerCase())
+          ? String(category).toLowerCase() : 'paid',
+        smallestUnit: ['full_day', 'half_day', 'hourly'].includes(String(smallestUnit || '').toLowerCase())
+          ? String(smallestUnit).toLowerCase() : 'full_day',
+        calendarColor: (typeof calendarColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(calendarColor))
+          ? calendarColor : null,
+        displayOrder: Number.isFinite(Number(displayOrder))
+          ? Math.max(0, Math.trunc(Number(displayOrder))) : 0,
       },
     });
 

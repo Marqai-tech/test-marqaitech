@@ -43,7 +43,7 @@ export default function GovernanceSettingsPage() {
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const fetchSettings = async () => {
     try {

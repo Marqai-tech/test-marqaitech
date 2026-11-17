@@ -11,7 +11,7 @@ const BASES = {
   DEMO: 'https://nexus-hrms-mu.vercel.app',
 };
 const CREDS = {
-  LIVE: { email: 'hr@marqaitech.com', password: 'MarqAI@2026' },
+  LIVE: { email: 'hr@gmail.com', password: 'MarqAI@2026' },
   DEMO: { email: 'admin@3boxeshrms.com', password: 'MarqAI@2026' },
 };
 const SLUGS = { LIVE: 'marqaitechgroup', DEMO: '3boxes-hrms-demo' };

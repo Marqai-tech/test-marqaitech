@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink,
+  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink, FiSend, FiUpload, FiExternalLink,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -17,6 +17,8 @@ function getAuthHeaders() {
 
 interface Offer {
   id: string; candidateName: string; candidateEmail: string; position: string; department: string | null; offeredSalary: number; offeredCurrency: string; joiningDate: string; probationPeriod: number; status: string; createdAt: string; accessToken?: string | null;
+  offerLetterUrl?: string | null;
+  signedPdfUrl?: string | null;
 }
 
 const offersTips = [
@@ -37,8 +39,15 @@ const offersWorkflowSteps = [
   { step: 7, title: 'Initiate Onboarding', description: 'Start the onboarding process on acceptance' },
 ];
 
+// FIX(offer): numeric form fields are stored as strings so the user can
+// actually clear them. The previous implementation used
+//   onChange={e => parseFloat(e.target.value) || 0}
+// which meant every keystroke that produced NaN (i.e. clearing the field)
+// was replaced with 0 — making it impossible to empty the field.
+// Numbers are coerced back at submit time in handleSubmit().
 const initialForm = {
-  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'INR', joiningDate: '', probationPeriod: 90,
+  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: '' as string | number, offeredCurrency: 'INR',
+  offeredCTC: '' as string | number, salaryBreakdown: '', joiningDate: '', probationPeriod: '' as string | number, reportingTo: '',
 };
 
 function getStatusBadge(status: string) {
@@ -69,6 +78,8 @@ export default function OffersPage() {
   const [deleting, setDeleting] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
+  // GAP FIX #6: Store jobApplicationId from URL params (when navigated from recruitment pipeline)
+  const [jobApplicationId, setJobApplicationId] = useState<string | null>(null);
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -79,26 +90,54 @@ export default function OffersPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { queueMicrotask(() => fetchOffers()); }, [fetchOffers]);
+  useEffect(() => {
+    queueMicrotask(() => fetchOffers());
+    // GAP FIX #6: Check URL params for pre-filled offer data (from "Extend Offer" button)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const candidateName = params.get('candidateName');
+      const candidateEmail = params.get('candidateEmail');
+      const jobAppId = params.get('jobApplicationId');
+      const position = params.get('position');
+      if (candidateName || candidateEmail || jobAppId) {
+        setForm({
+          ...initialForm,
+          candidateName: candidateName || '',
+          candidateEmail: candidateEmail || '',
+          position: position || '',
+        });
+        setJobApplicationId(jobAppId || null);
+        setShowForm(true);
+      }
+    }
+  }, [fetchOffers]);
 
   const handleAddNew = () => {
     setForm(initialForm);
     setEditingId(null);
+    // Phase 13 fix: Clear jobApplicationId when opening a fresh offer form
+    // (previously it could retain the previous candidate's application link)
+    setJobApplicationId(null);
     setShowForm(true);
     setViewingId(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
   const handleEdit = (item: Offer) => {
+    // FIX(offer): coerce stored numbers back to strings for the input
+    // value so the field can be cleared without reverting to 0/90.
     setForm({
       candidateName: item.candidateName || '',
       candidateEmail: item.candidateEmail || '',
       position: item.position || '',
       department: item.department || '',
-      offeredSalary: item.offeredSalary || 0,
+      offeredSalary: item.offeredSalary != null && item.offeredSalary !== 0 ? String(item.offeredSalary) : '',
       offeredCurrency: item.offeredCurrency || 'USD',
+      offeredCTC: (item as any).offeredCTC != null && (item as any).offeredCTC !== 0 ? String((item as any).offeredCTC) : '',
+      salaryBreakdown: (item as any).salaryBreakdown || '',
+      reportingTo: (item as any).reportingTo || '',
       joiningDate: item.joiningDate ? new Date(item.joiningDate).toISOString().split('T')[0] : '',
-      probationPeriod: item.probationPeriod || 90,
+      probationPeriod: item.probationPeriod != null && item.probationPeriod !== 0 ? String(item.probationPeriod) : '',
     });
     setEditingId(item.id);
     setShowForm(true);
@@ -114,14 +153,33 @@ export default function OffersPage() {
 
   const handleSubmit = async () => {
     if (!form.candidateName || !form.position) { toast.error('Name and position are required'); return; }
+    // FIX(offer): coerce the string-backed numeric fields back to numbers
+    // before sending to the API. Empty string → 0 (or 90 for probation).
+    const payload = {
+      ...form,
+      offeredSalary: form.offeredSalary === '' ? 0 : Number(form.offeredSalary),
+      offeredCTC: form.offeredCTC === '' ? 0 : Number(form.offeredCTC),
+      probationPeriod: form.probationPeriod === '' ? 90 : Number(form.probationPeriod),
+    };
+    // Validation: salary must be a non-negative number when provided.
+    if (payload.offeredSalary !== 0 && (!Number.isFinite(payload.offeredSalary) || payload.offeredSalary < 0)) {
+      toast.error('Salary must be a non-negative number'); return;
+    }
+    if (payload.offeredCTC !== 0 && (!Number.isFinite(payload.offeredCTC) || payload.offeredCTC < 0)) {
+      toast.error('Annual CTC must be a non-negative number'); return;
+    }
+    if (payload.probationPeriod !== 0 && (!Number.isFinite(payload.probationPeriod) || payload.probationPeriod < 0)) {
+      toast.error('Probation period must be a non-negative number'); return;
+    }
     setSubmitting(true);
     try {
       if (editingId) {
-        const res = await fetch(`/api/offers/${editingId}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(form) });
+        const res = await fetch(`/api/offers/${editingId}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Offer updated');
       } else {
-        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...form, candidateId: `candidate-${Date.now()}` }) });
+        // GAP FIX #6: Pass jobApplicationId when creating offer (links to recruitment pipeline)
+        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...payload, candidateId: jobApplicationId || `candidate-${Date.now()}`, jobApplicationId: jobApplicationId || undefined }) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Offer created');
       }
@@ -147,10 +205,62 @@ export default function OffersPage() {
   const handleStatusChange = async (id: string, status: string) => {
     try {
       const res = await fetch(`/api/offers/${id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) {
+        // BUG-3 fix: surface the server-side error message (e.g. "Approval
+        // blocked: tier 2 of 3 requires \"HR Approval\" to approve") so the
+        // user knows exactly why the action was rejected.
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Action failed (HTTP ${res.status})`);
+      }
       toast.success(`Offer ${status.replace('_', ' ')}`);
       fetchOffers();
-    } catch { toast.error('Action failed'); }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Action failed');
+    }
+  };
+
+  // C-21: Upload an HR-side offer-letter softcopy (PDF). The file is read as a
+  // base64 data URL and stored on offer.offerLetterUrl via the PATCH endpoint.
+  // Candidates download it from the candidate-portal offers page or the
+  // public /offer/[token] acceptance page after they e-sign.
+  const [uploadingOfferId, setUploadingOfferId] = useState<string | null>(null);
+  const handleUploadOfferLetter = async (offerId: string, file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Offer letter must be under 10 MB');
+      return;
+    }
+    setUploadingOfferId(offerId);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        try {
+          const res = await fetch(`/api/offers/${offerId}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ offerLetterUrl: dataUrl }),
+          });
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d.error || `Upload failed (HTTP ${res.status})`);
+          }
+          toast.success('Offer letter uploaded. Candidates will see the Download button.');
+          fetchOffers();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Upload failed');
+        } finally {
+          setUploadingOfferId(null);
+        }
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read the file');
+        setUploadingOfferId(null);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+      setUploadingOfferId(null);
+    }
   };
 
   const nextStatus = (current: string) => {
@@ -237,7 +347,9 @@ export default function OffersPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary <span className="text-red-500 font-bold">*</span></label>
-                <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0" />
+                {/* FIX(offer): raw string value so the field can be cleared.
+                    Validation + coercion happens at submit. */}
+                <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
@@ -253,7 +365,19 @@ export default function OffersPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation (days)</label>
-                <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: parseInt(e.target.value) || 90 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="90" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Annual CTC</label>
+                <input type="number" value={form.offeredCTC} onChange={(e) => setForm({ ...form, offeredCTC: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0 (optional)" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Breakdown</label>
+                <input type="text" value={form.salaryBreakdown} onChange={(e) => setForm({ ...form, salaryBreakdown: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. Basic: 50%, HRA: 20%..." />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Manager</label>
+                <input type="text" value={form.reportingTo} onChange={(e) => setForm({ ...form, reportingTo: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Manager name (optional)" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
@@ -317,19 +441,77 @@ export default function OffersPage() {
                         <td className="px-4 py-3 text-sm text-thb-text-primary">{o.position}</td>
                         <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{o.offeredCurrency} {o.offeredSalary?.toLocaleString()}</td>
                         <td className="px-4 py-3 text-sm text-thb-text-secondary">{o.joiningDate ? new Date(o.joiningDate).toLocaleDateString() : '—'}</td>
-                        <td className="px-4 py-3"><span className={getStatusBadge(o.status)}>{formatStatus(o.status)}</span></td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            {nextStatus(o.status) && (
-                              <button onClick={() => handleStatusChange(o.id, nextStatus(o.status))} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1"><FiCheck className="w-3 h-3" />Advance</button>
+                          <span className={getStatusBadge(o.status)}>{formatStatus(o.status)}</span>
+                          {/* BUG-4 fix: show tier progression when offer is in pending_approval */}
+                          {o.status === 'pending_approval' && o.approvalTiers && (() => {
+                            try {
+                              const tiers = typeof o.approvalTiers === 'string' ? JSON.parse(o.approvalTiers) : o.approvalTiers;
+                              if (Array.isArray(tiers) && tiers.length > 0) {
+                                const signed = tiers.filter((t: { signedAt?: string }) => t.signedAt).length;
+                                return <span className="ml-1 text-[10px] text-amber-600 font-medium">({signed}/{tiers.length} tiers)</span>;
+                              }
+                            } catch { /* ignore parse errors */ }
+                            return null;
+                          })()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {/* C-21: Upload offer-letter softcopy (PDF).
+                                HR uploads the company's pre-prepared offer letter PDF; the
+                                candidate sees a Download button on the candidate portal + the
+                                /offer/[token] acceptance page after they e-sign. Hidden once
+                                the offer is accepted (no further edits accepted). */}
+                            {o.status !== 'accepted' && o.status !== 'rejected' && (
+                              <label
+                                className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 cursor-pointer ${o.offerLetterUrl ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 bg-slate-50 hover:bg-slate-100'} ${uploadingOfferId === o.id ? 'opacity-50 pointer-events-none' : ''}`}
+                                title={o.offerLetterUrl ? 'Offer letter uploaded — click to replace' : 'Upload the offer letter PDF (candidate will be able to download it)'}
+                              >
+                                <FiUpload className="w-3 h-3" />
+                                {uploadingOfferId === o.id ? 'Uploading…' : o.offerLetterUrl ? 'Replace PDF' : 'Upload PDF'}
+                                <input
+                                  type="file"
+                                  accept="application/pdf,image/*,.doc,.docx"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadOfferLetter(o.id, file);
+                                    e.target.value = ''; // reset so the same file can be re-selected
+                                  }}
+                                  disabled={uploadingOfferId === o.id}
+                                />
+                              </label>
                             )}
-                            {(o.status === 'sent' || o.status === 'approved') && (
-                              <>
-                                <button onClick={() => handleStatusChange(o.id, 'accepted')} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100">Accept</button>
-                                <button onClick={() => handleStatusChange(o.id, 'rejected')} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100">Reject</button>
-                              </>
+                            {o.offerLetterUrl && o.status !== 'accepted' && o.status !== 'rejected' && (
+                              <a
+                                href={o.offerLetterUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded hover:bg-sky-100 flex items-center gap-1"
+                                title="Preview the uploaded offer letter"
+                              >
+                                <FiFileText className="w-3 h-3" /> View
+                              </a>
                             )}
-                            {o.accessToken && ['sent', 'approved', 'accepted'].includes(o.status) && (
+                            {/* ─── Approval chain (draft → pending_approval → approved) ───
+                                After 'approved', the next action is to SEND the offer letter to
+                                the candidate — not just "Advance". We relabel the post-approval
+                                button to "Send Offer Letter" so HR understands what happens. */}
+                            {nextStatus(o.status) && o.status !== 'approved' && (
+                              <button onClick={() => handleStatusChange(o.id, nextStatus(o.status))} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1"><FiCheck className="w-3 h-3" />{o.status === 'draft' ? 'Submit for Approval' : 'Approve'}</button>
+                            )}
+                            {o.status === 'approved' && (
+                              <button onClick={() => handleStatusChange(o.id, 'sent')} className="px-2 py-1 text-xs font-medium text-teal-700 bg-teal-100 rounded hover:bg-teal-200 flex items-center gap-1" title="Send the offer letter to the candidate's email with the secure accept/decline link">
+                                <FiSend className="w-3 h-3" />Send Offer Letter
+                              </button>
+                            )}
+                            {/* Accept/Reject are CANDIDATE-side decisions, not HR-side.
+                                The candidate records their decision via the secure /offer/[token]
+                                link (sent in the offer email) OR via the candidate-portal offers
+                                page when logged in. HR should NOT be making the accept/reject
+                                call on the candidate's behalf.
+                                Old behavior (HR clicks Accept/Reject) removed per spec. */}
+                            {o.accessToken && ['sent', 'approved', 'accepted', 'rejected'].includes(o.status) && (
                               <button
                                 onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/offer/${o.accessToken}`).then(() => toast.success('Candidate link copied — share it with the candidate')).catch(() => toast.error('Copy failed')); }}
                                 className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded hover:bg-sky-100 flex items-center gap-1"
@@ -339,13 +521,22 @@ export default function OffersPage() {
                               </button>
                             )}
                             {o.status === 'accepted' && (
-                              <ConvertCandidateButton
-                                offerId={o.id}
-                                defaultJoiningDate={o.joiningDate}
-                                defaultProbationDays={o.probationPeriod}
-                                className="px-2 py-1 text-xs font-medium text-white bg-teal-600 rounded hover:bg-teal-700 inline-flex items-center gap-1"
-                                label="Convert"
-                              />
+                              <>
+                                <ConvertCandidateButton
+                                  offerId={o.id}
+                                  defaultJoiningDate={o.joiningDate}
+                                  defaultProbationDays={o.probationPeriod}
+                                  className="px-2 py-1 text-xs font-medium text-white bg-teal-600 rounded hover:bg-teal-700 inline-flex items-center gap-1"
+                                  label="Convert"
+                                />
+                                <button
+                                  onClick={() => { window.location.href = `/preboarding/initiation?offerId=${o.id}`; }}
+                                  className="px-2 py-1 text-xs font-medium text-teal-700 bg-teal-50 rounded hover:bg-teal-100 flex items-center gap-1 border border-teal-200"
+                                  title="Open the dedicated BRD 5.3 initiation screen (Save as Draft / Send Invitation)"
+                                >
+                                  <FiExternalLink className="w-3 h-3" /> Initiate
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>

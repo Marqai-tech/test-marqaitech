@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    if (decoded.role !== 'super_admin' && decoded.role !== 'tenant_admin') {
+    if (decoded.role !== 'super_admin' && (decoded.role !== 'tenant_admin' && decoded.role !== 'ceo')) {
       return NextResponse.json({ error: 'Only admins can run diagnostics' }, { status: 403, headers: corsHeaders() });
     }
 

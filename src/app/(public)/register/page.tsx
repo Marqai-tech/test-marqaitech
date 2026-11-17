@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { validateEmail, validatePhone, validateName } from '@/lib/validators';
+import toast from 'react-hot-toast';
 
 // BUG_010–013: allowed logo MIME types + extensions + max size.
 const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
@@ -53,6 +54,8 @@ export default function TrialRegisterPage() {
   const [autoApproved, setAutoApproved] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
   const [error, setError] = useState('');
+  const [logoFileName, setLogoFileName] = useState('');
+  const [empFileName, setEmpFileName] = useState('');
 
   const [form, setForm] = useState({
     companyName: '',
@@ -104,18 +107,19 @@ export default function TrialRegisterPage() {
     if (!file) return;
     // BUG_010–013: validate logo file type AND content (magic bytes) so that
     // PDFs, Excels, docx, exe, txt, zip — and renamed files (PDF → .png) — are
-    // all rejected with a clear error message. Also enforce the 2MB size cap
-    // stated in the helper text below the upload button.
+    // all rejected with a clear error message. Also enforce the 2MB size cap.
+    // BUG_010–012 fix: validation messages now appear as a pop-up toast
+    // notification near the upload field (not at the top of the form).
     const lowerName = file.name.toLowerCase();
     const extOk = ALLOWED_LOGO_EXTS.some(ext => lowerName.endsWith(ext));
     const typeOk = ALLOWED_LOGO_TYPES.includes(file.type);
     if (!extOk || !typeOk) {
-      setError('Only PNG, JPG or SVG files are allowed for the company logo.');
+      toast.error('Only PNG, JPG or SVG files are allowed for the company logo.');
       e.target.value = '';
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      setError('Logo file is too large. Maximum allowed size is 2MB.');
+      toast.error('Logo file is too large. Maximum allowed size is 2MB.');
       e.target.value = '';
       return;
     }
@@ -132,7 +136,7 @@ export default function TrialRegisterPage() {
       const isSvg = head.includes('<svg') || head.includes('<?xml');
       const looksLikeSvg = file.type === 'image/svg+xml' && isSvg;
       if (!isPng && !isJpg && !looksLikeSvg) {
-        setError('The selected file does not appear to be a valid image. File content validation failed — only real PNG, JPG or SVG files are accepted.');
+        toast.error('The selected file does not appear to be a valid image. File content validation failed — only real PNG, JPG or SVG files are accepted.');
         e.target.value = '';
         return;
       }
@@ -140,16 +144,18 @@ export default function TrialRegisterPage() {
       const reader = new FileReader();
       reader.onload = () => {
         setForm({ ...form, companyLogo: reader.result as string });
+        setLogoFileName(file.name);
         setError('');
+        toast.success('Logo uploaded successfully.');
       };
       reader.onerror = () => {
-        setError('Failed to read the logo file. Please try a different file.');
+        toast.error('Failed to read the logo file. Please try a different file.');
         e.target.value = '';
       };
       reader.readAsDataURL(file);
     };
     magicReader.onerror = () => {
-      setError('Failed to validate the logo file.');
+      toast.error('Failed to validate the logo file.');
       e.target.value = '';
     };
     magicReader.readAsArrayBuffer(file.slice(0, 512));
@@ -161,61 +167,52 @@ export default function TrialRegisterPage() {
     // BUG_016: validate file type. Only .csv, .xlsx, .xls are allowed. PDFs,
     // docs, images etc. are rejected with the message expected by the test
     // case ("Choose your Excel/CSV file").
+    // BUG_016 fix: validation messages now appear as a pop-up toast near the
+    // upload field (not at the top of the form).
     const lowerName = file.name.toLowerCase();
     const isCsv = lowerName.endsWith('.csv') || file.type === 'text/csv';
     const isXlsx = lowerName.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     const isXls = lowerName.endsWith('.xls') || file.type === 'application/vnd.ms-excel';
     if (!isCsv && !isXlsx && !isXls) {
-      setError('Choose your Excel/CSV file. Only .csv, .xlsx or .xls files are accepted.');
+      toast.error('Choose your Excel/CSV file. Only .csv, .xlsx or .xls files are accepted.');
       e.target.value = '';
-      // BUG_014/015: clear any previously parsed employee data so the form
-      // state is consistent with the rejected file.
       setForm(prev => ({ ...prev, employeeDataJson: '' }));
+      setEmpFileName('');
       return;
     }
     // BUG_014/015: support real Excel files (.xlsx/.xls) — not just CSV.
-    // For .xlsx/.xls we use the SheetJS-style approach: read as ArrayBuffer
-    // and parse via a lightweight inline reader. To avoid pulling a heavy
-    // dependency at runtime, we delegate Excel parsing to a small in-page
-    // helper that handles the common XLSX (zip + xml) layout for simple
-    // templates. CSV is parsed inline as before.
     if (isCsv) {
       const reader = new FileReader();
       reader.onload = () => {
         const data = reader.result as string;
         const lines = data.split('\n').filter(l => l.trim());
         if (lines.length < 2) {
-          setError('CSV file appears to be empty or has no data rows. Please use the Excel template.');
+          toast.error('CSV file appears to be empty or has no data rows. Please use the Excel template.');
           e.target.value = '';
           return;
         }
-        const headers = lines[0].split(',').map(h => h.trim());
-        // BUG_017: cap at 5 employees as stated in the helper text.
-        const employeeRows = lines.slice(1, 6);
+        // BUG_017: cap at 5 employees — reject if more than 5.
         if (lines.length - 1 > 5) {
+          toast.error(`Maximum 5 employees allowed in the sample. Your file has ${lines.length - 1} rows. Please remove the extra rows and try again.`);
+          e.target.value = '';
           setForm(prev => ({ ...prev, employeeDataJson: '' }));
-          setError(`Maximum 5 employees allowed in the sample. Your file has ${lines.length - 1} rows — only the first 5 will be imported.`);
-          // Still parse the first 5 — the user explicitly chose to upload.
-          const employees = employeeRows.map(line => {
-            const values = line.split(',').map(v => v.trim());
-            const emp: Record<string, string> = {};
-            headers.forEach((h, i) => { emp[h] = values[i] || ''; });
-            return emp;
-          });
-          setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
+          setEmpFileName('');
           return;
         }
-        const employees = employeeRows.map(line => {
+        const headers = lines[0].split(',').map(h => h.trim());
+        const employees = lines.slice(1).map(line => {
           const values = line.split(',').map(v => v.trim());
           const emp: Record<string, string> = {};
           headers.forEach((h, i) => { emp[h] = values[i] || ''; });
           return emp;
         });
         setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
+        setEmpFileName(file.name);
         setError('');
+        toast.success(`File uploaded: ${file.name} (${employees.length} employee${employees.length === 1 ? '' : 's'})`);
       };
       reader.onerror = () => {
-        setError('Failed to read the CSV file. Please try again or use the Excel template.');
+        toast.error('Failed to read the CSV file. Please try again or use the Excel template.');
         e.target.value = '';
       };
       reader.readAsText(file);
@@ -228,29 +225,32 @@ export default function TrialRegisterPage() {
       try {
         const XLSX = await import('xlsx').catch(() => null as any);
         if (!XLSX) {
-          // Library not available — fall back to telling the user to use CSV.
-          setError('Excel parsing is not available right now. Please save your file as .csv and try again.');
+          toast.error('Excel parsing is not available right now. Please save your file as .csv and try again.');
           e.target.value = '';
           return;
         }
         const wb = XLSX.read(xlsxReader.result, { type: 'array' });
         const firstSheet = wb.SheetNames[0];
         if (!firstSheet) {
-          setError('Excel file appears to be empty. Please use the provided template.');
+          toast.error('Excel file appears to be empty. Please use the provided template.');
           e.target.value = '';
           return;
         }
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[firstSheet], { defval: '' });
         if (rows.length === 0) {
-          setError('Excel file has no data rows. Please use the provided template.');
+          toast.error('Excel file has no data rows. Please use the provided template.');
           e.target.value = '';
           return;
         }
-        // BUG_017: cap at 5 employees
+        // BUG_017: cap at 5 employees — reject if more than 5.
         if (rows.length > 5) {
-          setError(`Maximum 5 employees allowed in the sample. Your file has ${rows.length} rows — only the first 5 will be imported.`);
+          toast.error(`Maximum 5 employees allowed in the sample. Your file has ${rows.length} rows. Please remove the extra rows and try again.`);
+          e.target.value = '';
+          setForm(prev => ({ ...prev, employeeDataJson: '' }));
+          setEmpFileName('');
+          return;
         }
-        const employees = rows.slice(0, 5).map(r => {
+        const employees = rows.map(r => {
           const emp: Record<string, string> = {};
           for (const k of Object.keys(r)) {
             emp[k] = String(r[k] ?? '').trim();
@@ -258,14 +258,16 @@ export default function TrialRegisterPage() {
           return emp;
         });
         setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
-        if (rows.length <= 5) setError('');
+        setEmpFileName(file.name);
+        setError('');
+        toast.success(`File uploaded: ${file.name} (${employees.length} employee${employees.length === 1 ? '' : 's'})`);
       } catch (err) {
-        setError('Failed to parse the Excel file. Please use the provided template (save as .xlsx or .csv).');
+        toast.error('Failed to parse the Excel file. Please use the provided template (save as .xlsx or .csv).');
         e.target.value = '';
       }
     };
     xlsxReader.onerror = () => {
-      setError('Failed to read the Excel file. Please try again or use CSV.');
+      toast.error('Failed to read the Excel file. Please try again or use CSV.');
       e.target.value = '';
     };
     xlsxReader.readAsArrayBuffer(file);
@@ -428,7 +430,11 @@ export default function TrialRegisterPage() {
                   </div>
                   <div className="flex items-center gap-2 bg-white p-3 rounded-lg border">
                     <span className="text-gray-500 w-24">Login URL:</span>
-                    <span className="font-mono text-sm text-emerald-700">https://{registrationCode}.3boxeshrms.com/login</span>
+                    <span className="font-mono text-sm text-emerald-700 break-all">
+                      {typeof window !== 'undefined' && window.location.hostname.endsWith('3boxeshrms.com') && !window.location.hostname.endsWith('test.3boxeshrms.com')
+                        ? `https://${registrationCode}.3boxeshrms.com/login`
+                        : `${window.location.protocol}//${window.location.host}/login?tenant=${registrationCode}`}
+                    </span>
                   </div>
                 </div>
                 <p className="text-xs text-emerald-600 mt-3">
@@ -487,16 +493,21 @@ export default function TrialRegisterPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => {
-                  // BUG_018 fix: router.push() with an external URL (https://...)
-                  // confuses Next.js's client-side router — it tries to treat the
-                  // external URL as an internal route, fails, and the page ends
-                  // up in a broken state that says "Hmm, this page cannot be
-                  // refreshed". For external cross-origin navigations (the trial
-                  // subdomain is a different host), we MUST use a hard browser
-                  // navigation via window.location.href so the browser performs
-                  // a fresh load of the trial subdomain's /login page.
-                  const trialLoginUrl = `https://${registrationCode}.3boxeshrms.com/login`;
+                  // BUG_018 fix: use window.location.href for hard navigation.
+                  //
+                  // BUG_018 (test-env fix): on the test deployment (*.vercel.app),
+                  // wildcard subdomains (*.3boxeshrms.com) don't resolve. The
+                  // middleware resolves the tenant from the ?tenant= query param
+                  // (highest priority — see src/middleware.ts). So we build the
+                  // trial login URL using the CURRENT host + ?tenant= param,
+                  // which works on both test and production.
                   if (typeof window !== 'undefined') {
+                    const currentHost = window.location.hostname;
+                    const protocol = window.location.protocol;
+                    const isProdDomain = currentHost.endsWith('3boxeshrms.com') && !currentHost.endsWith('test.3boxeshrms.com');
+                    const trialLoginUrl = isProdDomain
+                      ? `https://${registrationCode}.3boxeshrms.com/login`
+                      : `${protocol}//${currentHost}/login?tenant=${encodeURIComponent(registrationCode)}`;
                     window.location.href = trialLoginUrl;
                   }
                 }}
@@ -720,6 +731,12 @@ export default function TrialRegisterPage() {
                     className="hidden"
                   />
                 </label>
+                {logoFileName && (
+                  <p className="text-xs text-green-600 font-medium mt-1.5 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    {logoFileName}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">PNG, JPG or SVG. Max 2MB. Will appear in your HRMS portal.</p>
               </div>
             </div>
@@ -754,6 +771,14 @@ export default function TrialRegisterPage() {
                   className="hidden"
                 />
               </label>
+              {empFileName ? (
+                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  <span className="text-sm text-green-700 font-medium">{empFileName}</span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 mt-2">No file selected</p>
+              )}
               <p className="text-xs text-gray-500 mt-2">
                 Columns: EmployeeId, FirstName, LastName, Email, Phone, Department, Designation, DateOfJoining
               </p>

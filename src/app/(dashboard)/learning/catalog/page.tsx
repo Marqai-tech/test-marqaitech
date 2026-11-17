@@ -28,7 +28,7 @@ const MODE_ICON = (m: string) => m === 'document' ? <FiFileText /> : m === 'exte
 
 export default function CourseCatalogPage() {
   const user = useAuthStore((s) => s.user);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager'].includes(user?.role || '');
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');

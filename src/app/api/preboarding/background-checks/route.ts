@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
 
     const body = await req.json();
@@ -108,7 +108,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
 
     const url = new URL(req.url);
@@ -123,6 +123,18 @@ export async function PATCH(req: NextRequest) {
 
     const updateData: Record<string, unknown> = {};
     if (status) {
+      // C-009 fix: Enforce state machine transitions
+      const validTransitions: Record<string, string[]> = {
+        'initiated': ['in_progress', 'cancelled'],
+        'in_progress': ['cleared', 'failed', 'cancelled'],
+        'cleared': [],
+        'failed': [],
+        'cancelled': [],
+      };
+      const existingCheck = await (db as any).backgroundCheck?.findUnique({ where: { id } });
+      if (existingCheck && validTransitions[existingCheck.status] && !validTransitions[existingCheck.status].includes(status)) {
+        return NextResponse.json({ error: `Cannot transition from '${existingCheck.status}' to '${status}'` }, { status: 400, headers: corsHeaders() });
+      }
       updateData.status = status;
       if (['cleared', 'failed', 'cancelled'].includes(status)) updateData.completedAt = new Date();
     }
@@ -143,6 +155,25 @@ export async function PATCH(req: NextRequest) {
         where: { id: check.preboardingCandidateId },
         data: { backgroundCheckStatus: mapped },
       }).catch(() => null);
+
+      const pbRows = await db.$queryRawUnsafe(
+        `SELECT "jobApplicationId", "candidateEmail", "candidateName" FROM "PreboardingCandidate" WHERE "id"=$1 LIMIT 1`,
+        check.preboardingCandidateId,
+      ).catch(() => []) as any[];
+      const pb = pbRows[0];
+      if (pb?.jobApplicationId && status === 'cleared') {
+        await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='bgv_passed', "updatedAt"=NOW() WHERE "id"=$1`, pb.jobApplicationId).catch(() => null);
+      } else if (pb?.jobApplicationId && status === 'in_progress') {
+        await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='bgv_in_progress', "updatedAt"=NOW() WHERE "id"=$1 AND "status" IN ('preboarding','bgv_in_progress')`).catch(() => null);
+      }
+      if (pb?.candidateEmail && ['in_progress', 'cleared', 'failed'].includes(status)) {
+        const label = status === 'cleared' ? 'BGV Passed' : status === 'failed' ? 'BGV Failed' : 'BGV In Progress';
+        await import('@/lib/email').then(({ sendEmail }) => sendEmail({
+          to: pb.candidateEmail,
+          subject: `Background verification update: ${label}`,
+          html: `<p>Dear ${pb.candidateName || 'Candidate'},</p><p>Your background verification status is now <strong>${label}</strong>.</p>${status === 'cleared' ? '<p>HR will now complete your employee conversion and share your employee access details.</p>' : ''}`,
+        })).catch(() => null);
+      }
     }
 
     return NextResponse.json({ check, message: 'Background check updated' }, { headers: corsHeaders() });

@@ -7,11 +7,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiRefreshCw, FiDollarSign, FiAlertTriangle, FiLock, FiActivity,
-  FiGlobe, FiTrendingUp, FiCheckCircle, FiGrid,
+  FiRefreshCw, FiAlertTriangle, FiLock, FiActivity,
+  FiTrendingUp, FiCheckCircle, FiGrid,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+/* Task 156-a — shared SmartHR widgets: same gradient banner + white stat
+   cards / panels as the Employee module dashboard restyle (Task 155). */
+import { PageBreadcrumbs, DateChip, Panel, StatCard } from '@/components/dashboard/smarthr-widgets';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -110,23 +113,25 @@ export default function GroupPayrollDashboardPage() {
     RED: { bg: 'bg-red-100 text-red-700 border-red-200', label: 'Overdue' },
   } as Record<string, { bg: string; label: string }>)[t] || { bg: 'bg-slate-100 text-slate-700 border-slate-200', label: t };
 
+  // SmartHR banner date chip
+  const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiGlobe className="w-6 h-6 text-green-500" />
-            Group Payroll Dashboard
-          </h1>
-          <p className="text-thb-text-secondary mt-1">Consolidated payroll liability across all sub-companies (normalized to base currency)</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input type="text" value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-06 (blank = latest)" className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary w-44" />
-          <button onClick={fetchAll} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+      {/* ── Header — SmartHR gradient breadcrumb banner (Task 156-a) ── */}
+      <PageBreadcrumbs
+        title="Group Dashboard"
+        trail={['Payroll', 'Group Dashboard']}
+        right={
+          <>
+            <DateChip value={todayChip} />
+            <input type="text" value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-06 (blank = latest)" className="px-3 py-2 text-sm rounded-lg bg-white/15 border border-white/25 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 w-44" />
+            <button onClick={fetchAll} className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors" title="Refresh">
+              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </>
+        }
+      />
 
       {data ? (
         <>
@@ -145,21 +150,23 @@ export default function GroupPayrollDashboardPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 lg:col-span-2">
-              <AlertCard icon={<FiCheckCircle className="w-5 h-5" />} label="Companies" value={data.companyCount} color="blue" />
-              <AlertCard icon={<FiActivity className="w-5 h-5" />} label="Runs Executed" value={data.runsExecuted} color="emerald" />
-              <AlertCard icon={<FiAlertTriangle className="w-5 h-5" />} label="Pending Approvals" value={data.pendingApprovals} color="amber" />
-              <AlertCard icon={<FiLock className="w-5 h-5" />} label="Open Lock Requests" value={data.openLockRequests} color="violet" />
-              <AlertCard icon={<FiAlertTriangle className="w-5 h-5" />} label="Open Anomalies" value={data.openAnomalies} color="red" />
-              <AlertCard icon={<FiActivity className="w-5 h-5" />} label="Missing Runs" value={data.runsMissing} color="slate" />
+              {/* Alert tiles — shared SmartHR StatCard (Task 156-a) */}
+              <StatCard label="Companies" value={data.companyCount} sub="Active sub-companies" icon={<FiCheckCircle className="w-5 h-5" />} bg="bg-[#3A57C4]/10 text-[#3A57C4]" ring="ring-[#3A57C4]/20" />
+              <StatCard label="Runs Executed" value={data.runsExecuted} sub="Payroll runs completed" icon={<FiActivity className="w-5 h-5" />} bg="bg-[#10B981]/10 text-[#10B981]" ring="ring-[#10B981]/20" />
+              <StatCard label="Pending Approvals" value={data.pendingApprovals} sub="Awaiting sign-off" icon={<FiAlertTriangle className="w-5 h-5" />} bg="bg-[#FF9B44]/10 text-[#FF9B44]" ring="ring-[#FF9B44]/20" />
+              <StatCard label="Open Lock Requests" value={data.openLockRequests} sub="Period lock queue" icon={<FiLock className="w-5 h-5" />} bg="bg-[#6C4FD6]/10 text-[#6C4FD6]" ring="ring-[#6C4FD6]/20" />
+              <StatCard label="Open Anomalies" value={data.openAnomalies} sub="Records to review" icon={<FiAlertTriangle className="w-5 h-5" />} bg="bg-[#F43F5E]/10 text-[#F43F5E]" ring="ring-[#F43F5E]/20" />
+              <StatCard label="Missing Runs" value={data.runsMissing} sub="Periods without a run" icon={<FiActivity className="w-5 h-5" />} bg="bg-slate-100 text-slate-600" ring="ring-slate-200" />
             </div>
           </div>
 
-          {/* Per-company table */}
-          <div className="thb-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-thb-text-primary">Per-Company Breakdown</h3>
-              <span className="text-xs text-thb-text-secondary">Base currency: {data.tenant.baseCurrency}</span>
-            </div>
+          {/* Per-company table — SmartHR Panel (Task 156-a) */}
+          <Panel
+            title="Per-Company Breakdown"
+            icon={<FiGrid className="w-4 h-4" />}
+            accent="text-[#3A57C4]"
+            action={<span className="text-xs text-slate-500">Base currency: {data.tenant.baseCurrency}</span>}
+          >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50">
@@ -214,7 +221,7 @@ export default function GroupPayrollDashboardPage() {
                 </tfoot>
               </table>
             </div>
-          </div>
+          </Panel>
         </>
       ) : loading ? (
         <div className="thb-card p-12 text-center text-thb-text-secondary">Loading…</div>
@@ -226,21 +233,21 @@ export default function GroupPayrollDashboardPage() {
         </div>
       )}
 
-      {/* Statutory Filing Oversight (Red/Amber/Green) */}
+      {/* Statutory Filing Oversight (Red/Amber/Green) — SmartHR Panel (Task 156-a) */}
       {filing && (
-        <div className="thb-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
-              <FiActivity className="w-4 h-4 text-amber-500" />
-              Statutory Filing Oversight — {filing.period}
-            </h3>
+        <Panel
+          title={`Statutory Filing Oversight — ${filing.period}`}
+          icon={<FiActivity className="w-4 h-4" />}
+          accent="text-[#FF9B44]"
+          action={
             <div className="flex items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500"></span> {filing.groupSummary.totalGreen} Green</span>
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-500"></span> {filing.groupSummary.totalAmber} Amber</span>
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500"></span> {filing.groupSummary.totalRed} Red</span>
             </div>
-          </div>
-          <div className="divide-y divide-thb-border">
+          }
+        >
+          <div className="divide-y divide-slate-100">
             {filing.perCompany.length === 0 ? (
               <div className="p-8 text-center text-sm text-thb-text-secondary">No statutory filings tracked for this period.</div>
             ) : filing.perCompany.map((co) => (
@@ -286,25 +293,11 @@ export default function GroupPayrollDashboardPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
       )}
     </div>
   );
 }
 
-function AlertCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-green-50 text-green-700',
-    emerald: 'bg-emerald-50 text-emerald-700',
-    amber: 'bg-amber-50 text-amber-700',
-    violet: 'bg-teal-50 text-teal-700',
-    red: 'bg-red-50 text-red-700',
-    slate: 'bg-slate-50 text-slate-700',
-  };
-  return (
-    <div className={`thb-card p-4 ${colorMap[color] || colorMap.slate}`}>
-      <div className="flex items-center gap-2 mb-1 opacity-70">{icon}<p className="text-xs font-medium">{label}</p></div>
-      <p className="text-2xl font-bold">{value}</p>
-    </div>
-  );
-}
+/* Task 156-a — the local AlertCard tiles were replaced by the shared SmartHR
+   StatCard from '@/components/dashboard/smarthr-widgets'. */

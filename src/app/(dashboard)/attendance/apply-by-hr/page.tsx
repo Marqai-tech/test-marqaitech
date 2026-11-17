@@ -33,6 +33,32 @@ interface Employee {
 
 type AttendanceRequestType = 'regularize' | 'permission' | 'gatepass' | 'overtime' | 'comp-off' | 'wfh';
 
+/* ── Task 135: employee context shown to HR when applying on behalf ── */
+interface EmpAttendanceContext {
+  shift: { start: string; end: string } | null;
+  recentPunches: Array<{ id: string; date: string; checkIn: string | null; checkOut: string | null; status: string; workHours: unknown }>;
+  regularizations: Array<{ id: string; date: string; punchType: string; status: string }>;
+  pendingByType: Array<{ type: string; count: number; latestDate?: string }>;
+  balances: Array<{ name: string; total: number; used: number; remaining: number }>;
+}
+
+const emptyContext: EmpAttendanceContext = { shift: null, recentPunches: [], regularizations: [], pendingByType: [], balances: [] };
+
+/** "2026-10-23T13:42:00.000Z" → "13:42" (best-effort HH:mm for ISO datetimes). */
+function hmOf(v: unknown): string {
+  if (!v) return '—';
+  const s = String(v);
+  return s.length >= 16 && s[10] === 'T' ? s.slice(11, 16) : s;
+}
+
+function ctxStatusChipCls(status: string): string {
+  const s = (status || '').toLowerCase();
+  if (s === 'approved') return 'bg-emerald-100 text-emerald-700';
+  if (s === 'rejected') return 'bg-red-100 text-red-600';
+  if (s === 'pending') return 'bg-amber-100 text-amber-700';
+  return 'bg-slate-100 text-slate-600';
+}
+
 interface RequestTypeOption {
   key: AttendanceRequestType;
   label: string;
@@ -84,12 +110,17 @@ export default function ApplyAttendanceByHRPage() {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // ─── Task 135: employee context (punch history, regularizations, pending
+  // requests, leave balances) loaded whenever HR picks an employee ──────
+  const [empContext, setEmpContext] = useState<EmpAttendanceContext | null>(null);
+  const [loadingContext, setLoadingContext] = useState(false);
+
   // ─── Fetch Employees ───────────────────────────
   const fetchEmployees = useCallback(async (search = '') => {
     setLoadingEmployees(true);
     try {
       const sq = scopeQuery();
-      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const r = await fetch(`/api/employees?limit=50&excludeInactive=true&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setEmployees(d.employees || []);
@@ -103,10 +134,85 @@ export default function ApplyAttendanceByHRPage() {
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
   // ─── Handle Employee Selection ─────────────────
+  const fetchEmployeeContext = useCallback(async (emp: Employee) => {
+    setLoadingContext(true);
+    setEmpContext(null);
+    try {
+      const today = new Date();
+      const iso = (d: Date) => d.toISOString().split('T')[0];
+      const from = iso(new Date(today.getTime() - 13 * 86400000));
+      const headers = getAuthHeaders();
+      const [punchRes, regRes, reqRes, balRes] = await Promise.all([
+        fetch(`/api/attendance?employeeId=${emp.id}&startDate=${from}&endDate=${iso(today)}&limit=15`, { headers }).catch(() => null),
+        fetch(`/api/attendance/regularize?employeeId=${emp.id}&limit=50`, { headers }).catch(() => null),
+        fetch(`/api/attendance/requests?scope=all&status=pending&limit=200`, { headers }).catch(() => null),
+        fetch(`/api/leave/balance?employeeId=${emp.id}`, { headers }).catch(() => null),
+      ]);
+      const ctx: EmpAttendanceContext = { ...emptyContext, recentPunches: [], regularizations: [], pendingByType: [], balances: [] };
+      if (punchRes && punchRes.ok) {
+        const d = await punchRes.json();
+        const rows = Array.isArray(d?.attendance) ? d.attendance : [];
+        ctx.recentPunches = rows.slice(0, 5).map((r: Record<string, unknown>) => ({
+          id: String(r.id || ''),
+          date: String(r.date || '').slice(0, 10),
+          checkIn: (r.checkIn as string) || null,
+          checkOut: (r.checkOut as string) || null,
+          status: String(r.status || '—'),
+          workHours: r.workHours ?? null,
+        }));
+        const win = d?.shiftWindows?.[emp.id];
+        if (win?.start && win?.end) ctx.shift = { start: String(win.start), end: String(win.end) };
+      }
+      if (regRes && regRes.ok) {
+        const d = await regRes.json();
+        const regs = Array.isArray(d?.regularizations) ? d.regularizations : [];
+        ctx.regularizations = regs.slice(0, 6).map((r: Record<string, unknown>) => ({
+          id: String(r.id || ''),
+          date: String(r.date || '').slice(0, 10),
+          punchType: String(r.punchType || '—').replace(/_/g, ' '),
+          status: String(r.status || 'pending'),
+        }));
+      }
+      if (reqRes && reqRes.ok) {
+        const d = await reqRes.json();
+        const reqs = (Array.isArray(d?.requests) ? d.requests : []).filter((r: Record<string, unknown>) => r.employeeId === emp.id || (r.employee as Record<string, unknown> | undefined)?.id === emp.id);
+        const byType = new Map<string, { count: number; latest?: string }>();
+        for (const r of reqs) {
+          const key = String(r.requestType || 'OTHER').replace(/_/g, ' ');
+          const cur = byType.get(key) || { count: 0 };
+          cur.count += 1;
+          const sd = r.startDate ? String(r.startDate).slice(0, 10) : '';
+          if (sd && (!cur.latest || sd > cur.latest)) cur.latest = sd;
+          byType.set(key, cur);
+        }
+        ctx.pendingByType = Array.from(byType.entries()).map(([type, v]) => ({ type, count: v.count, latestDate: v.latest }));
+      }
+      if (balRes && balRes.ok) {
+        const d = await balRes.json();
+        const bals = Array.isArray(d?.balances) ? d.balances : [];
+        ctx.balances = bals
+          .filter((b: Record<string, unknown>) => Number(b.remaining || 0) > 0 || Number(b.used || 0) > 0)
+          .slice(0, 8)
+          .map((b: Record<string, unknown>) => ({
+            name: String((b.leaveType as Record<string, unknown> | undefined)?.name || (b.leaveType as Record<string, unknown> | undefined)?.code || 'Leave'),
+            total: Number(b.total || 0),
+            used: Number(b.used || 0),
+            remaining: Number(b.remaining || 0),
+          }));
+      }
+      setEmpContext(ctx);
+    } catch {
+      /* context is best-effort — never block the apply flow */
+    } finally {
+      setLoadingContext(false);
+    }
+  }, []);
+
   const handleSelectEmployee = (emp: Employee) => {
     setSelectedEmployee(emp);
     setShowEmployeeDropdown(false);
     setEmployeeSearch('');
+    fetchEmployeeContext(emp);
   };
 
   // ─── Submit Attendance Request on Behalf ───────
@@ -149,7 +255,7 @@ export default function ApplyAttendanceByHRPage() {
             return;
           }
           const dt = new Date(`${regularizeForm.date}T${regularizeForm.requestedTime}`);
-          body = { employeeId: selectedEmployee.id, date: regularizeForm.date, punchType: regularizeForm.punchType, requestedTime: dt, reason: `[HR] ${regularizeForm.reason.trim()}`, clientToday: new Date().toLocaleDateString('en-CA') };
+          body = { employeeId: selectedEmployee.id, date: regularizeForm.date, punchType: regularizeForm.punchType, requestedTime: dt, reason: `[HR] ${regularizeForm.reason.trim()}`, source: 'hr_proxy', clientToday: new Date().toLocaleDateString('en-CA') };
           break;
         }
         case 'permission': {
@@ -363,9 +469,102 @@ export default function ApplyAttendanceByHRPage() {
             </button>
           </div>
         )}
+
+        {/* ── Task 135: employee context for HR decisions ── */}
+        {selectedEmployee && loadingContext && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+            <FiRefreshCw className="w-4 h-4 animate-spin" /> Loading employee context…
+          </div>
+        )}
+        {selectedEmployee && !loadingContext && empContext && (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <FiFileText className="w-4 h-4 text-cyan-500" /> Employee Context
+              </h3>
+              {empContext.shift && (
+                <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-medium">
+                  Shift {empContext.shift.start} – {empContext.shift.end}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Recent punches */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recent Punches (last 14 days)</p>
+                {empContext.recentPunches.length === 0 ? (
+                  <p className="text-xs text-slate-400">No attendance rows in the last 14 days.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {empContext.recentPunches.map(p => (
+                      <div key={p.id} className="flex items-center justify-between text-xs bg-white rounded border border-slate-100 px-2 py-1.5">
+                        <span className="text-slate-600 font-medium w-24">{p.date}</span>
+                        <span className="text-slate-500">{hmOf(p.checkIn)} → {hmOf(p.checkOut)}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full font-medium ${ctxStatusChipCls(p.status)}`}>{p.status.replace(/_/g, ' ')}</span>
+                        <span className="text-slate-400 w-12 text-right">{p.workHours ? `${p.workHours}h` : '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Regularization dates */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Regularization Dates (latest)</p>
+                {empContext.regularizations.length === 0 ? (
+                  <p className="text-xs text-slate-400">No regularizations on record.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {empContext.regularizations.map(r => (
+                      <div key={r.id} className="flex items-center justify-between text-xs bg-white rounded border border-slate-100 px-2 py-1.5">
+                        <span className="text-slate-600 font-medium w-24">{r.date}</span>
+                        <span className="text-slate-500 capitalize flex-1 px-2">{r.punchType}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full font-medium ${ctxStatusChipCls(r.status)}`}>{r.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pending requests */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Pending Requests</p>
+                {empContext.pendingByType.length === 0 ? (
+                  <p className="text-xs text-slate-400">No pending attendance requests.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {empContext.pendingByType.map(p => (
+                      <span key={p.type} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded-full">
+                        {p.type}: {p.count} pending{p.latestDate ? ` · latest ${p.latestDate}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Leave balances */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Leave Balances</p>
+                {empContext.balances.length === 0 ? (
+                  <p className="text-xs text-slate-400">No leave balance data.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {empContext.balances.map(b => (
+                      <span key={b.name} className="text-xs bg-white border border-slate-200 text-slate-700 px-2 py-1 rounded-full">
+                        {b.name}: <strong className="text-emerald-600">{b.remaining}</strong>/{b.total} left
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Request Type Selection & Form — shown only after employee selection */}
+
       {selectedEmployee && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Request Type Cards */}

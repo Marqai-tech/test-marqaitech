@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiLogOut,
@@ -26,6 +26,8 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, currentModuleKey, onModuleSelect }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const userRole = navRoleOrLeastPrivilege(user?.role);
@@ -101,7 +103,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
             }
             // 3. No moduleKey and no roles → default to admin-only for safety
             if (!item.moduleKey && !item.roles) {
-              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
+              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(r));
             }
             return true;
           }
@@ -122,7 +124,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
       }
       if (isSelfServiceRole(userRole) && !item.roles && !isSelfServicePathAllowed(item.href)) return false;
       if (!item.moduleKey && !item.roles) {
-        return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
+        return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(r));
       }
       return true;
     });
@@ -133,20 +135,37 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
     ? filteredSections.find((s) => s.key === currentModuleKey)
     : null;
 
-  // Auto-detect active item (exact match preferred over prefix match)
+  // Build the full current URL (pathname + query string) for active-item matching.
+  // Many nav items now have query strings (e.g. '/recruitment?tab=jobs&single=jobs'),
+  // so we need to compare both the path AND the query to highlight the right item.
+  const currentFullPath = searchParams && searchParams.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname || '';
+
+  // Auto-detect active item — match either the full URL (path+query) or path-only
   const isItemActive = (href: string) => {
     if (href.startsWith('#')) return false; // dividers are never active
-    return pathname === href || pathname?.startsWith(href + '/');
+    // Full match (path + query)
+    if (currentFullPath === href) return true;
+    // Path-only match (for items without query strings)
+    const hrefPath = href.split('?')[0];
+    return pathname === hrefPath || (pathname?.startsWith(hrefPath + '/') || false);
   };
 
-  // Check if an item is the BEST match (exact match wins over prefix match)
+  // Check if an item is the BEST match (exact full-URL match wins over prefix match)
   const isBestMatch = (href: string, items: import('@/lib/navData').NavItem[]) => {
     if (href.startsWith('#')) return false;
-    // Exact match always wins
-    if (pathname === href) return true;
+    // Full URL match (path + query) always wins
+    if (currentFullPath === href) return true;
+    // Path-only exact match (for items without query strings)
+    const hrefPath = href.split('?')[0];
+    if (pathname === hrefPath && !href.includes('?')) return true;
     // For prefix matches, only active if no other item is an exact match
-    if (!pathname?.startsWith(href + '/')) return false;
-    const hasExactMatch = items.some(item => !item.isDivider && !item.href.startsWith('#') && pathname === item.href);
+    if (!pathname?.startsWith(hrefPath + '/')) return false;
+    const hasExactMatch = items.some(item => {
+      if (item.isDivider || item.href.startsWith('#')) return false;
+      return currentFullPath === item.href || pathname === item.href.split('?')[0];
+    });
     return !hasExactMatch;
   };
 
@@ -188,9 +207,9 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
             </div>
           )}
           {!collapsed && (
-            <div className="overflow-hidden">
-              <h1 className="text-base font-bold text-white tracking-tight whitespace-nowrap">
-                {safeTenantName} <span className="text-[10px] font-semibold text-green-400 tracking-wider">{user?.role === 'super_admin' ? 'Platform' : 'HRMS'}</span>
+            <div className="overflow-hidden min-w-0">
+              <h1 className="text-base font-bold text-white tracking-tight truncate" title={safeTenantName}>
+                <span className="truncate">{safeTenantName}</span> <span className="text-[10px] font-semibold text-green-400 tracking-wider">{user?.role === 'super_admin' ? 'Platform' : 'HRMS'}</span>
               </h1>
               <p className="text-[9px] text-thb-sidebar-text leading-none -mt-0.5">{user?.role === 'super_admin' ? 'Super Admin · Platform Control' : 'People · Process · Technology'}</p>
             </div>
@@ -281,7 +300,22 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
                     <Link
                       href={item.href}
                       prefetch={false}
-                      onClick={() => { if (isMobileMenu) onToggle(); }}
+                      scroll={true}
+                      onClick={() => {
+                        // BUG FIX: when clicking a nav item whose pathname matches
+                        // the current page but has a different query string (e.g.
+                        // /leave → /leave?action=apply), Next.js Link doesn't
+                        // trigger a navigation. Force it with router.push + a
+                        // unique timestamp to bust the cache.
+                        const hrefPath = item.href.split('?')[0];
+                        const hrefQuery = item.href.includes('?') ? item.href.split('?')[1] : '';
+                        if (pathname === hrefPath && hrefQuery) {
+                          // Same path, different query — force navigation
+                          const sep = hrefQuery ? '?' : '';
+                          router.push(`${hrefPath}${sep}${hrefQuery}`);
+                        }
+                        if (isMobileMenu) onToggle();
+                      }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
                         isActive
                           ? 'bg-green-500/15 text-green-400'

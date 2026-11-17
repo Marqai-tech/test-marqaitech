@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
+import { ensureLeaveSetupSchema } from '@/lib/leave-setup-schema';
 
 function corsHeaders() {
   return {
@@ -23,13 +24,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
     const { id } = await params;
     const body = await req.json();
     const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward,
-            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled, status } = body;
+            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled, status,
+            category, smallestUnit, calendarColor, displayOrder } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) {
@@ -79,6 +81,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (probationRestricted !== undefined) data.probationRestricted = !!probationRestricted;
     if (sandwichRuleEnabled !== undefined) data.sandwichRuleEnabled = !!sandwichRuleEnabled;
+    // ─── Leave Setup wizard fields ───
+    if (category !== undefined) {
+      data.category = ['paid', 'unpaid', 'statutory', 'special'].includes(String(category).toLowerCase())
+        ? String(category).toLowerCase() : 'paid';
+    }
+    if (smallestUnit !== undefined) {
+      data.smallestUnit = ['full_day', 'half_day', 'hourly'].includes(String(smallestUnit).toLowerCase())
+        ? String(smallestUnit).toLowerCase() : 'full_day';
+    }
+    if (calendarColor !== undefined) {
+      data.calendarColor = (typeof calendarColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(calendarColor))
+        ? calendarColor : null;
+    }
+    if (displayOrder !== undefined) {
+      data.displayOrder = Number.isFinite(Number(displayOrder))
+        ? Math.max(0, Math.trunc(Number(displayOrder))) : 0;
+    }
+
+    // Ensure new columns exist
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
+    const newCols = [
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "maxConsecutiveDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "minAdvanceDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "accrualFrequency" TEXT DEFAULT 'yearly'`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "accrualAmount" DOUBLE PRECISION DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "maxBalance" DOUBLE PRECISION DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "leaveExpiryDays" INTEGER DEFAULT 0`,
+      `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "negativeBalanceAllowed" BOOLEAN DEFAULT false`,
+    ];
+    for (const sql of newCols) {
+      try { await db.$executeRawUnsafe(sql); } catch { /* ignore */ }
+    }
 
     const updated = await db.leaveType.update({ where: { id }, data });
     return NextResponse.json({ leaveType: updated }, { headers: corsHeaders() });
@@ -88,11 +122,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
+// The Leave Setup wizard saves edits with PUT (method: 'PUT') — alias it to
+// PATCH so both verbs work. PATCH/PUT semantics are identical here.
+export const PUT = PATCH;
+
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
-    if (!auth || !['super_admin', 'tenant_admin', 'admin'].includes(auth.role)) {
+    if (!auth || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }
     const { id } = await params;
@@ -105,58 +143,67 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'Leave type not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    // ─── BUG FIX: dependency / in-use check before deactivation ───
-    // Previously any leave type could be deactivated with no warning even
-    // when it was mapped to balances, rules or workflow configs. Now the
-    // delete is rejected with a clear breakdown when the type is in use.
-    const safeCount = async (fn: () => Promise<number>): Promise<number> => {
-      try { return await fn(); } catch { return 0; }
-    };
-    const [requestCount, balanceCount, encashmentCount, workflowCount] = await Promise.all([
-      safeCount(() => db.leaveRequest.count({ where: { leaveTypeId: id } })),
-      safeCount(() => db.leaveBalance.count({ where: { leaveTypeId: id } })),
-      safeCount(() => db.leaveEncashmentRequest?.count?.({ where: { leaveTypeId: id } }) ?? 0),
-      safeCount(() => db.leaveWorkflowConfig?.count?.({ where: { leaveTypeId: id } }) ?? 0),
-    ]);
+    // ─── HARD DELETE: remove all related records first, then delete the type ───
+    // Delete in dependency order to avoid FK constraint violations.
+    const safeDelete = async (fn: () => Promise<any>) => { try { return await fn(); } catch { return null; } };
 
-    // LeavePolicyRule.leaveTypeAllocations is a denormalized JSON array —
-    // scan rules that mention this leave type id.
-    let ruleMappingCount = 0;
+    // 1. Delete LeaveTypePolicyMapping rows referencing this type
+    await safeDelete(() => db.$executeRawUnsafe(`DELETE FROM "LeaveTypePolicyMapping" WHERE "leaveTypeId" = $1`, id));
+
+    // 2. Delete LeaveLedger entries
+    await safeDelete(() => db.$executeRawUnsafe(`DELETE FROM "LeaveLedger" WHERE "leaveTypeId" = $1`, id));
+
+    // 3. Delete LeaveApprovalStep rows for requests of this type
+    await safeDelete(() => db.$executeRawUnsafe(`DELETE FROM "LeaveApprovalStep" WHERE "leaveRequestId" IN (SELECT id FROM "LeaveRequest" WHERE "leaveTypeId" = $1)`, id));
+
+    // 4. Delete LeaveAttachment rows for requests of this type
+    await safeDelete(() => db.$executeRawUnsafe(`DELETE FROM "LeaveAttachment" WHERE "leaveRequestId" IN (SELECT id FROM "LeaveRequest" WHERE "leaveTypeId" = $1)`, id));
+
+    // 5. Delete LeaveRequest rows
+    await safeDelete(() => db.leaveRequest.deleteMany({ where: { leaveTypeId: id } }));
+
+    // 6. Delete LeaveBalance rows
+    await safeDelete(() => db.leaveBalance.deleteMany({ where: { leaveTypeId: id } }));
+
+    // 7. Delete LeaveEncashmentRequest rows
+    await safeDelete(() => db.leaveEncashmentRequest?.deleteMany?.({ where: { leaveTypeId: id } }));
+
+    // 8. Delete LeaveWorkflowConfig rows referencing this type
+    await safeDelete(() => db.leaveWorkflowConfig?.deleteMany?.({ where: { leaveTypeId: id } }));
+
+    // 9. Remove from LeavePolicyRule.leaveTypeAllocations JSON
     try {
-      const allocRules = await db.leavePolicyRule.findMany({
+      const rules = await db.leavePolicyRule.findMany({
         where: { leaveTypeAllocations: { contains: id } },
         select: { id: true, leaveTypeAllocations: true },
       });
-      ruleMappingCount = (allocRules || []).filter((r: { leaveTypeAllocations: string }) => {
+      for (const rule of rules) {
         try {
-          return ((JSON.parse(r.leaveTypeAllocations) || []) as Array<{ leaveTypeId?: string }>)
-            .some((a) => a?.leaveTypeId === id);
-        } catch { return false; }
-      }).length;
-    } catch { /* table may not exist in older DBs */ }
+          const allocs = JSON.parse(rule.leaveTypeAllocations || '[]');
+          const filtered = allocs.filter((a: any) => a?.leaveTypeId !== id);
+          await db.leavePolicyRule.update({
+            where: { id: rule.id },
+            data: { leaveTypeAllocations: JSON.stringify(filtered) },
+          });
+        } catch { /* skip if JSON parse fails */ }
+      }
+    } catch { /* table may not exist */ }
 
-    const usages: string[] = [];
-    if (requestCount > 0) usages.push(`${requestCount} leave request(s)`);
-    if (balanceCount > 0) usages.push(`${balanceCount} employee leave balance(s)`);
-    if (encashmentCount > 0) usages.push(`${encashmentCount} encashment request(s)`);
-    if (workflowCount > 0) usages.push(`${workflowCount} approval workflow config(s)`);
-    if (ruleMappingCount > 0) usages.push(`${ruleMappingCount} policy rule mapping(s)`);
+    // 10. Delete LeaveCarryForwardRule rows referencing this type
+    await safeDelete(() => db.$executeRawUnsafe(`DELETE FROM "LeaveCarryForwardRule" WHERE "leaveTypeId" = $1`, id));
 
-    if (usages.length > 0) {
-      return NextResponse.json({
-        error: `Cannot delete leave type "${leaveType.name}" (${leaveType.code}): it is currently in use by ${usages.join(', ')}. Remove its usages or deactivate the related records first.`,
-        usages,
-      }, { status: 409, headers: corsHeaders() });
-    }
+    // Finally — hard delete the leave type itself
+    await db.leaveType.delete({ where: { id } });
 
-    // Not in use — safe to soft-delete (deactivate).
-    await db.leaveType.update({ where: { id }, data: { status: 'inactive' } });
-    return NextResponse.json({ message: 'Leave type deactivated' }, { headers: corsHeaders() });
+    return NextResponse.json({ message: `Leave type "${leaveType.name}" deleted successfully` }, { headers: corsHeaders() });
   } catch (error: any) {
     console.error('Leave type DELETE error:', error);
-    if (error?.code === 'P2002') {
-      return NextResponse.json({ error: 'Cannot delete this leave type due to existing references.' }, { status: 409, headers: corsHeaders() });
+    // If hard delete fails (e.g. FK constraint), fall back to soft-delete
+    try {
+      await db.leaveType.update({ where: { id: (await params).id }, data: { status: 'inactive' } }).catch(() => {});
+      return NextResponse.json({ message: 'Leave type deactivated (hard delete failed, soft-deleted instead)' }, { headers: corsHeaders() });
+    } catch {
+      return NextResponse.json({ error: 'Failed to delete leave type' }, { status: 500, headers: corsHeaders() });
     }
-    return NextResponse.json({ error: 'Failed to delete leave type' }, { status: 500, headers: corsHeaders() });
   }
 }

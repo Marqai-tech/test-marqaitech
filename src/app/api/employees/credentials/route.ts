@@ -596,7 +596,8 @@ export async function POST(request: Request) {
               email: emp.email,
               password: hashedPwd,
               name: `${emp.firstName} ${emp.lastName}`,
-              role: 'employee',
+              // Task 129 — Management designees default to the CEO role
+              role: (emp as { isManagement?: boolean }).isManagement ? 'ceo' : 'employee',
               tenantId: userTenantId,
               status: 'active',
             },
@@ -895,7 +896,8 @@ export async function PUT(request: Request) {
             email: employee.email,
             password: hashedPwd,
             name: `${employee.firstName} ${employee.lastName}`,
-            role: 'employee',
+            // Task 129 — Management designees default to the CEO role
+            role: (employee as { isManagement?: boolean }).isManagement ? 'ceo' : 'employee',
             tenantId: userTenantId,
             status: 'active',
           },

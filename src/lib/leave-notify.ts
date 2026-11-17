@@ -56,7 +56,7 @@ export async function dispatchLeaveEvent(
     } else {
       try {
         const roleUsers = await db.user.findMany({
-          where: { role: { in: ['hr_admin', 'admin', 'tenant_admin', 'company_hr_admin'] }, status: 'active' },
+          where: { role: { in: ['hr_admin', 'admin', 'tenant_admin', 'ceo', 'company_hr_admin'] }, status: 'active' },
           select: { id: true },
           take: 10,
         });

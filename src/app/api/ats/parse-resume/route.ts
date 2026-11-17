@@ -46,10 +46,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify the application exists
+    // Verify the application exists — also fetch the job posting's requirements
+    // so we can compute a match score against the parsed resume.
     const application = await db.jobApplication.findUnique({
       where: { id: jobApplicationId },
-      select: { id: true, candidateName: true },
+      select: {
+        id: true,
+        candidateName: true,
+        jobPosting: {
+          select: { id: true, title: true, requirements: true, description: true, position: true },
+        },
+      },
     });
     if (!application) {
       return NextResponse.json(
@@ -60,6 +67,79 @@ export async function POST(request: Request) {
 
     // Run the parser pipeline
     const result = await parseResumeFromDataUrl(resumeDataUrl);
+
+    // ── Compute match score: parsed resume skills vs job requirements ──
+    // Extract skill keywords from the parsed resume (lowercase, trimmed).
+    const parsedSkills = (result.parsed.skills || [])
+      .map(s => String(s || '').toLowerCase().trim())
+      .filter(Boolean);
+
+    // Build a haystack of requirement keywords from the job posting.
+    // The job's `requirements` field is free text (e.g. "Required skills:
+    // React, Node.js, PostgreSQL"). We also include the title, position,
+    // and description so the match covers the full job spec.
+    const jobText = [
+      application.jobPosting?.requirements || '',
+      application.jobPosting?.title || '',
+      application.jobPosting?.position || '',
+      application.jobPosting?.description || '',
+    ].join(' ').toLowerCase();
+
+    // Tokenize the job text: split on non-alphanumeric, filter short tokens.
+    const jobTokens = new Set(
+      jobText
+        .split(/[^a-z0-9+#.]+/i)
+        .map(t => t.trim())
+        .filter(t => t.length >= 3)
+    );
+
+    // For each parsed skill, check if it (or any of its tokens) appears in
+    // the job text. This handles "Testing skills" matching "testing" etc.
+    let matchedSkills: string[] = [];
+    let unmatchedSkills: string[] = [];
+    for (const skill of parsedSkills) {
+      const skillTokens = skill.split(/[^a-z0-9+#.]+/i).filter(t => t.length >= 3);
+      const isMatch = skillTokens.some(tok => jobText.includes(tok));
+      if (isMatch) {
+        matchedSkills.push(skill);
+      } else {
+        unmatchedSkills.push(skill);
+      }
+    }
+
+    // Match score = (matched skills / max(total parsed skills, 1)) * 100
+    // Boost: if the job text has very few skill tokens, fall back to a
+    // keyword-overlap ratio so we don't punish candidates for sparse job specs.
+    let matchScore = 0;
+    if (parsedSkills.length > 0) {
+      matchScore = Math.round((matchedSkills.length / parsedSkills.length) * 100);
+    } else if (result.parsed.summary) {
+      // No structured skills — fall back to summary keyword overlap
+      const summaryLower = (result.parsed.summary || '').toLowerCase();
+      let overlapCount = 0;
+      for (const tok of jobTokens) {
+        if (summaryLower.includes(tok)) overlapCount++;
+      }
+      matchScore = jobTokens.size > 0
+        ? Math.round((overlapCount / jobTokens.size) * 100)
+        : 0;
+    }
+    // Clamp 0-100
+    matchScore = Math.max(0, Math.min(100, matchScore));
+
+    // Persist the match score on the ResumeParse row (via raw SQL — the
+    // matchScore column is added by schema-sync.ts at runtime).
+    try {
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "ResumeParse" ADD COLUMN IF NOT EXISTS "matchScore" INTEGER DEFAULT 0`
+      );
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "ResumeParse" ADD COLUMN IF NOT EXISTS "matchedSkills" TEXT`
+      );
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "ResumeParse" ADD COLUMN IF NOT EXISTS "unmatchedSkills" TEXT`
+      );
+    } catch { /* non-fatal — column may already exist */ }
 
     // Persist the ResumeParse row
     const saved = await db.resumeParse.create({
@@ -74,12 +154,25 @@ export async function POST(request: Request) {
       },
     });
 
+    // Save the match score on the newly created ResumeParse row.
+    // (Uses raw SQL because matchScore/matchedSkills/unmatchedSkills columns
+    //  are added at runtime above and not yet in the Prisma schema.)
+    try {
+      await db.$executeRawUnsafe(
+        `UPDATE "ResumeParse" SET "matchScore" = $1, "matchedSkills" = $2, "unmatchedSkills" = $3 WHERE "id" = $4`,
+        matchScore,
+        JSON.stringify(matchedSkills),
+        JSON.stringify(unmatchedSkills),
+        saved.id,
+      );
+    } catch { /* non-fatal — match score is best-effort */ }
+
     await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'PARSE_RESUME',
         module: 'ats',
-        details: `Parsed resume for application ${jobApplicationId} (${result.sourceFormat}, conf=${result.confidence.toFixed(2)}, lang=${result.language})`,
+        details: `Parsed resume for application ${jobApplicationId} (${result.sourceFormat}, conf=${result.confidence.toFixed(2)}, lang=${result.language}, match=${matchScore}%)`,
       },
     }).catch(() => { /* non-critical */ });
 
@@ -91,6 +184,10 @@ export async function POST(request: Request) {
         confidence: result.confidence,
         sourceFormat: result.sourceFormat,
         parseError: result.parseError || null,
+        matchScore,
+        matchedSkills,
+        unmatchedSkills,
+        jobRequirements: application.jobPosting?.requirements || '',
       },
       { status: 201, headers: corsHeaders() },
     );
@@ -129,10 +226,27 @@ export async function GET(request: Request) {
       );
     }
 
-    const latest = await db.resumeParse.findFirst({
+    // Fetch the latest ResumeParse row + match score columns via raw SQL
+    // (matchScore/matchedSkills/unmatchedSkills are added at runtime).
+    let latest: any = await db.resumeParse.findFirst({
       where: { jobApplicationId },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Augment with match score fields if available
+    if (latest) {
+      try {
+        const matchRow = await db.$queryRawUnsafe(
+          `SELECT "matchScore", "matchedSkills", "unmatchedSkills" FROM "ResumeParse" WHERE "id" = $1`,
+          latest.id,
+        ) as any[];
+        if (matchRow && matchRow[0]) {
+          latest.matchScore = matchRow[0].matchScore ?? 0;
+          try { latest.matchedSkills = JSON.parse(matchRow[0].matchedSkills || '[]'); } catch { latest.matchedSkills = []; }
+          try { latest.unmatchedSkills = JSON.parse(matchRow[0].unmatchedSkills || '[]'); } catch { latest.unmatchedSkills = []; }
+        }
+      } catch { /* non-fatal */ }
+    }
 
     if (!latest) {
       return NextResponse.json(
@@ -152,6 +266,9 @@ export async function GET(request: Request) {
       {
         parse: latest,
         parsedData,
+        matchScore: latest.matchScore ?? 0,
+        matchedSkills: latest.matchedSkills || [],
+        unmatchedSkills: latest.unmatchedSkills || [],
       },
       { headers: corsHeaders() },
     );

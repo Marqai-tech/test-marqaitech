@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!decoded) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role as string)) {
       return NextResponse.json({ error: 'Only admins can reset demo passwords' }, { status: 403 });
     }
 

@@ -94,7 +94,7 @@ function getReadinessDotColor(readiness: string) {
 
 export function Succession() {
   const { user } = useAppStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [plans, setPlans] = useState<PlanItem[]>([]);
   const [stats, setStats] = useState<SuccessionStats>({ criticalRoles: 0, successorsIdentified: 0, readyNow: 0, developmentNeeded: 0 });

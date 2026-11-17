@@ -273,9 +273,12 @@ def render_model_ddl(name: str, fields, block_attrs) -> tuple[list[str], list[st
 
 
 def main():
-    text = SCHEMA.read_text()
-    init_text = INIT_SQL.read_text() if INIT_SQL.exists() else ""
-    sync_text = SYNC_JS.read_text() if SYNC_JS.exists() else ""
+    # BUG FIX: on Windows, read_text() uses cp1252 encoding by default,
+    # which fails on non-ASCII characters in the schema (e.g. em-dash —,
+    # curly quotes, etc.). Force UTF-8 encoding.
+    text = SCHEMA.read_text(encoding='utf-8')
+    init_text = INIT_SQL.read_text(encoding='utf-8') if INIT_SQL.exists() else ""
+    sync_text = SYNC_JS.read_text(encoding='utf-8') if SYNC_JS.exists() else ""
 
     # Existing tables (from 0_init + schema-sync.js)
     init_tables = set(re.findall(r'CREATE TABLE "([A-Za-z]+)"', init_text))
@@ -302,7 +305,7 @@ def main():
         escaped = s.replace("`", "\\`").replace("${", "\\${")
         js_lines.append(f"  `{escaped}`,")
     js_lines.append("];")
-    OUT_JS.write_text("\n".join(js_lines) + "\n")
+    OUT_JS.write_text("\n".join(js_lines) + "\n", encoding='utf-8')
 
     print(f"Generated {len(generated)} models, {len(all_stmts)} statements → {OUT_JS}")
     print(f"Skipped (already exist): {len(skipped)}")

@@ -50,7 +50,7 @@ export default function OvertimeRequestPage() {
   const userRole = user?.role;
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'company_hr_admin', 'hr_admin', 'hrhead', 'recruitmenthead'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'company_hr_admin', 'hr_admin', 'hrhead', 'recruitmenthead'].includes(user?.role || '');
 
   const [items, setItems] = useState<OTRequest[]>([]);
   const [loading, setLoading] = useState(true);

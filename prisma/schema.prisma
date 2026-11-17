@@ -296,6 +296,7 @@ model Company {
   attendancePolicyRules   AttendancePolicyRule[]
   attendanceWorkflowConfigs AttendanceWorkflowConfig[]
   attendanceRequests      AttendanceRequest[]
+  leaveTypePolicyMappings   LeaveTypePolicyMapping[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -495,6 +496,7 @@ model Employee {
   // employeeType: The employment type
   //   full_time, part_time, contract, temporary, consultant
   employeeType   String? @default("full_time") // full_time, part_time, contract, temporary, consultant
+  workMode       String?  // office, hybrid, remote (BRD 6.2 employee creation)
 
   // ─── Management designation (Task 76) ───
   // Explicit flag set by HR/admin from the employee add/edit form
@@ -523,6 +525,7 @@ model Employee {
   // Relations
   leaveBalances     LeaveBalance[]
   leaveRequests     LeaveRequest[]
+  leaveLedgerEntries LeaveLedger[]
   attendance        Attendance[]
   punchEvents       PunchEvent[]  // Task 57: per-event punch activity log (check-in/out/break-in/out + GPS)
   payrolls          Payroll[]
@@ -751,6 +754,9 @@ model JobPosting {
   postedDate  DateTime @default(now())
   closingDate DateTime?
   vacancies   Int @default(1)
+  // JSON array defining the required interview sequence for this specific job posting.
+  // Example: [{"name":"Technical Interview Round 1","type":"technical"}, ...]
+  interviewPlan String?
 
   applications JobApplication[]
   referrals    Referral[]
@@ -820,10 +826,50 @@ model Interview {
   aiScore    Int?
   aiFeedback String?
 
+  // ─── Multi-round scheduling (used by /api/interviews raw SQL) ───
+  round               Int?      // auto-computed per job application (1, 2, 3…)
+  mode                String?   // online, onsite, phone
+  confirmationDeadline DateTime?
+  feedbackDeadline    DateTime?
+  instructions        String?
+  evaluationAreas     String?   // JSON-encoded string array
+  panelLeadId         String?
+  scheduledById       String?
+  cancelReason        String?
+  cancelledById       String?
+  cancelledAt         DateTime?
+  candidateAttendance String?   // present, absent, reschedule_requested
+  panelAttendance     String?
+  hrDecision             String?  // strong_hire, hire, hold, next_round, shortlist, reject, offer, schedule_another
+  hrDecisionReason       String?
+  hrDecisionById         String?
+  hrDecisionAt           DateTime?
+  panelLeadRecommendation String?
+  panelLeadNotes         String?
+
+  panelMembers InterviewPanelMember[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([jobApplicationId])
+}
+
+// ─── Interview panel members (multi-interviewer scheduling) ───
+model InterviewPanelMember {
+  id          String @id @default(cuid())
+  interviewId String
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  userId      String
+  status      String  @default("pending") // pending, confirmed, declined, tentative
+  reason      String?
+  respondedAt DateTime?
+  attendance  String? // present, absent
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([interviewId])
+  @@index([userId])
 }
 
 // ============ ONBOARDING ============
@@ -901,9 +947,25 @@ model LeaveType {
   // Sandwich rule: if true, holidays/weekends between leave days count as leave
   sandwichRuleEnabled Boolean @default(true)
 
+  // ─── Leave Module Spec Enhancement (§2.1) ───
+  // Calendar color for team-calendar visual identification (hex string, e.g. '#3b82f6')
+  calendarColor        String?
+  // Whether half-day requests are supported for this leave type (on the type itself, not just policy)
+  halfDayAllowed       Boolean @default(true)
+  // Document requirement mode: never | always | conditional (conditional uses attachmentMandatoryAfterDays)
+  documentRequirement  String  @default("never") // never | always | conditional
+
+  // ─── Leave Setup (4-step wizard) ───
+  // Columns also ensured at runtime by src/lib/leave-setup-schema.ts (LEAVE_TYPE_COLS)
+  category             String  @default("paid") // paid | unpaid | statutory | special
+  smallestUnit         String  @default("full_day") // full_day | half_day | hourly
+  displayOrder         Int     @default(0)
+
   leaveBalances  LeaveBalance[]
   leaveRequests  LeaveRequest[]
   encashmentRequests LeaveEncashmentRequest[]
+  policyMappings LeaveTypePolicyMapping[]
+  ledgerEntries LeaveLedger[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -968,8 +1030,19 @@ model LeaveRequest {
   // (so historical requests retain their original chain even if config changes)
   workflowConfigSnapshot String?
 
+  // ─── Leave Module Spec Enhancement (§7) ───
+  // Persisted chargeable days (working days minus weekends/holidays, with half-day).
+  // Computed server-side at submission; stored so it's not recomputed each time.
+  chargeableDays     Float?
+  // When an approved leave is cancelled, this records the reversal timestamp.
+  // The LeaveLedger gets a 'reverse' entry and the balance is restored.
+  reversedAt         DateTime?
+  // Reason for cancellation (if applicable)
+  cancellationReason String?
+
   attachments LeaveAttachment[]
   approvalSteps LeaveApprovalStep[]
+  ledgerEntries LeaveLedger[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -978,6 +1051,39 @@ model LeaveRequest {
   @@index([status])
   @@index([currentApproverId])
   @@index([workflowStage])
+}
+
+// ─── Leave Ledger — immutable transaction history (§7 spec) ───
+// Every balance mutation appends a row here. This provides a full audit trail
+// for grants, accruals, consumption, reversals, carry-forward, expiry, and
+// manual adjustments. The LeaveBalance table holds the running totals; this
+// table holds the history of how they got there.
+model LeaveLedger {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId     String
+  leaveType       LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year            Int
+  // Transaction type: grant | accrue | consume | reverse | carry_forward | expire | encash | manual_adjust
+  transactionType String
+  // Days: positive = credit (grant/accrue/reverse), negative = debit (consume/expire/encash)
+  days            Float
+  // Balance snapshot before/after this transaction (for audit)
+  balanceBefore   Float   @default(0)
+  balanceAfter    Float   @default(0)
+  // Source: what caused this transaction
+  sourceType      String? // leave_request | encashment_request | year_end | manual | accrual_cron | employee_creation
+  sourceId        String? // the LeaveRequest/EncashmentRequest ID
+  reason          String?
+  createdBy       String?
+  leaveRequestId  String?
+  leaveRequest    LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+
+  @@index([employeeId, leaveTypeId, year])
+  @@index([sourceType, sourceId])
+  @@index([employeeId])
 }
 
 // ─── Leave Approval Workflow Config (per-tenant, per-leave-type) ───
@@ -2614,6 +2720,7 @@ model Requisition {
   clientId          String?
   priority          String @default("medium") // low, medium, high, critical
   expectedJoiningDate DateTime?
+  interviewPlan      String?
 
   approvalStatus    String @default("pending") // pending, manager_approved, hr_approved, budget_approved, rejected
   approvedBy        String?
@@ -2919,6 +3026,46 @@ model PreboardingCandidate {
   buddyEmployeeId    String?
   // Welcome series tracking
   welcomeSeriesInitiated Boolean @default(false)
+
+  // ─── BRD Preboarding Portal Wizard (9-step candidate journey) ───
+  // portalDetails: JSON of section data — personal, address, family,
+  // education/experience, bank/statutory. Each section: { ...fields, savedAt }.
+  portalDetails          Json?
+  // Set when candidate completes Review & Declaration + Submit to HR (step 8-9)
+  portalSubmittedAt      DateTime?
+  declarationAcceptedAt  DateTime?
+  declarationName        String?
+  // When HR returns details for correction: note shown to the candidate,
+  // portal reopens for editing (portalSubmittedAt cleared).
+  correctionNote         String?
+  correctionSetAt        DateTime?
+
+  // ─── BRD Preboarding Module (screens, stages, readiness, formalities) ───
+  // Human-friendly preboarding identifier, e.g. PRE-2026-0001
+  preboardingId          String?
+  // BRD stage: initiated | details_pending | verification | ready_to_join | joined | did_not_join | cancelled
+  preboardingStage       String?
+  // Joining readiness checklist: map requirement → { status, updatedBy, updatedAt }
+  readinessChecklist     Json?
+  readyToJoinAt          DateTime?
+  // Joining confirmation & formalities (BRD 5.11)
+  joiningConfirmed       Boolean  @default(false)
+  joiningConfirmedAt     DateTime?
+  actualJoiningDate      DateTime?
+  reportingTime          String?
+  reportingLocation      String?
+  noShowReason           String?
+  didNotJoinAt           DateTime?
+  postponedJoiningDate   DateTime?
+  postponementReason     String?
+  cancelledAt            DateTime?
+  cancellationReason     String?
+  // Handover + logistics
+  hrAssignedTo           String?
+  recruiterName          String?
+  workMode               String?
+  branch                 String?
+  reminderSentAt         DateTime?
 
   // Background checks (REQ-ONB-03)
   backgroundChecks   BackgroundCheck[]
@@ -5547,6 +5694,219 @@ model CandidateMessage {
   @@index([senderUserId])
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// BGV VENDOR MODELS (Vendor Management module)
+// These tables pre-exist in production tenant DBs (created via raw SQL);
+// declared here so scripts/tenant-schema-sync.js can create them in any
+// tenant DB that lacks them, and so Prisma Client is schema-consistent.
+// All access in code is via raw SQL ($queryRawUnsafe) — these declarations
+// must match the live table shapes EXACTLY (names, types, nullability).
+// ══════════════════════════════════════════════════════════════════════
+
+// BGV vendor company — the verification partner HR initiates BGV with.
+model VendorCompany {
+  id              String   @id @default(cuid())
+  name            String
+  email           String?
+  phone           String?
+  website         String?
+  address         String?
+  // JSON array of check types this vendor supports (identity, address, education, employment, criminal, ...)
+  supportedChecks String?
+  status          String   @default("active") // active | inactive
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+}
+
+// BGV vendor portal user — vendor_admin or vendor_employee.
+model VendorUser {
+  id              String   @id @default(cuid())
+  vendorCompanyId String
+  email           String
+  name            String
+  role            String   @default("vendor_employee") // vendor_admin | vendor_employee
+  status          String   @default("pending") // pending (invite out) | active | inactive (disabled)
+  passwordHash    String?
+  // invite flow: RAW token is emailed as /vendor/set-password?token=...;
+  // the DB stores ONLY a SHA-256 hash (inviteTokenHash) with an expiry.
+  // inviteToken (legacy plaintext) is kept for backward compatibility only.
+  inviteToken     String?
+  inviteTokenHash String?
+  inviteExpiresAt DateTime?
+  inviteStatus    String?  // sent | used | revoked
+  invitedAt       DateTime?
+  invitedById     String?
+  passwordSetAt   DateTime?
+  // self-service password recovery: RAW token is emailed as
+  // /vendor/reset-password?token=... ; the DB stores ONLY a SHA-256 hash
+  // (passwordResetHash) with a 60-minute expiry, single-use consumption.
+  passwordResetHash       String?
+  passwordResetExpiresAt  DateTime?
+  // vendor portal Notification Center: last time this user viewed their
+  // in-app notification list (drives the unread badge).
+  notificationsSeenAt     DateTime?
+  userId          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([email])
+  @@index([vendorCompanyId])
+  @@index([inviteTokenHash])
+}
+
+// One BGV request per candidate per initiation (HR → vendor).
+model BgvRequest {
+  id                     String   @id @default(cuid())
+  candidateEmail         String
+  candidateName          String?
+  preboardingCandidateId String?
+  vendorCompanyId        String
+  initiatedByHRId        String
+  // awaiting_assignment → assigned → in_progress → submitted_for_hr_review → (approved_by_hr | rejected_by_hr) / cancelled
+  status                 String   @default("awaiting_assignment")
+  // Human-readable case reference shown in the UI, e.g. BGV-2026-0042.
+  caseNumber             String?
+  dueDate                DateTime?
+  instructions           String?
+  // JSON array of requested checks [{type,label}]
+  checks                 String?
+  assignedVendorUserId   String?
+  assignedById           String?
+  assignedAt             DateTime?
+  // Optimistic-concurrency guard for assignment/reassignment conflicts.
+  version                Int      @default(0)
+  // HR rework request (set by /api/bgv/requests/[id]/review with action=rework_required)
+  reworkReason           String?
+  reworkChecks           String?   // JSON array of check ids the vendor must correct (null = all)
+  reworkDueDate          DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([candidateEmail])
+  @@index([vendorCompanyId])
+  @@index([status])
+  @@index([assignedVendorUserId])
+}
+
+// Individual verification check inside a BGV request.
+model BgvCheck {
+  id               String   @id @default(cuid())
+  bgvRequestId     String
+  checkType        String
+  checkLabel       String?
+  status           String   @default("pending") // pending | in_progress | completed
+  result           String?  // Clear | Discrepancy Found | Unable to Verify
+  findings         String?
+  verificationDate DateTime?
+  evidenceUrl      String?
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([bgvRequestId])
+}
+
+// Evidence file attached to a single check (stored base64 in tenant DB,
+// streamed via /api/bgv/evidence/[id]/file with role-checked access).
+model BgvEvidence {
+  id            String   @id @default(cuid())
+  bgvCheckId    String
+  bgvRequestId  String
+  fileName      String
+  mimeType      String
+  fileSize      Int      @default(0)
+  fileData      String?  // base64 payload (data URL prefix optional)
+  uploadedById  String?
+  uploadedAt    DateTime @default(now())
+
+  @@index([bgvCheckId])
+  @@index([bgvRequestId])
+}
+
+// Notification delivery log for every BGV/invite event (email/in-app), so
+// failures are recorded and retried instead of silently swallowed.
+model BgvNotification {
+  id                String   @id @default(cuid())
+  event             String   // invite_admin | invite_employee | bgv_initiated | assigned | reassigned | report_submitted | rework | approved | rejected | ...
+  channel           String   @default("email") // email | in_app
+  recipient         String
+  bgvRequestId      String?
+  vendorCompanyId   String?
+  vendorUserId      String?
+  status            String   @default("queued") // queued | sent | failed
+  providerMessageId String?
+  error             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([bgvRequestId])
+  @@index([event])
+}
+
+// Vendor-submitted verification report (versioned, immutable snapshot).
+model BgvReport {
+  id                String   @id @default(cuid())
+  bgvRequestId      String
+  version           Int      @default(1)
+  submittedById     String
+  submittedAt       DateTime @default(now())
+  summary           String?  // overall findings text
+  overallResult     String?  // Clear | Discrepancy Found | Unable to Verify (overall)
+  // Immutable JSON snapshot of every check (result/findings/date/evidence ids)
+  // + submission metadata. HR reads THIS, never the live draft check rows.
+  snapshot          String?
+  // Generated Marqaitech standard PDF (immutable submitted snapshot).
+  standardPdfName   String?
+  standardPdfMime   String?
+  standardPdfData   String?  // base64
+  pdfStatus         String?  // ready | failed
+  pdfError          String?
+  // Optional vendor-company PDF report (clearly separated from the standard one).
+  vendorPdfName     String?
+  vendorPdfMime     String?
+  vendorPdfData     String?  // base64
+  status            String   @default("submitted") // submitted | approved | rejected
+  hrDecision        String?  // approved | rejected | rework_required | awaiting_information
+  hrDecisionById    String?
+  hrDecisionAt      DateTime?
+  hrDecisionReason  String?
+  hrDecisionNotes   String?
+  createdAt         DateTime @default(now())
+
+  @@index([bgvRequestId])
+}
+
+// Assignment history (who had the case, when it moved, why).
+model BgvAssignment {
+  id             String    @id @default(cuid())
+  bgvRequestId   String
+  vendorUserId   String
+  assignedById   String
+  assignedAt     DateTime  @default(now())
+  unassignedAt   DateTime?
+  unassignedById String?
+  reason         String?
+
+  @@index([bgvRequestId])
+}
+
+// Documents shared with the vendor for a BGV request.
+model BgvDocumentShare {
+  id                   String   @id @default(cuid())
+  bgvRequestId         String
+  onboardingDocumentId String?
+  documentType         String?
+  documentLabel        String?
+  fileUrl              String?
+  sharedById           String
+  sharedAt             DateTime @default(now())
+
+  @@index([bgvRequestId])
+}
+
 // ─── REQ-AI-INT-02: Candidate sentiment & engagement scoring ───
 model CandidateSentimentScore {
   id              String   @id @default(cuid())
@@ -5630,6 +5990,100 @@ model OfferDeclineSurvey {
   createdAt       DateTime @default(now())
 
   @@index([offerId])
+}
+
+// ─── Offer Management module (2026-11): per-tenant branding, approval
+// workflow, role permissions, and per-offer approval trail. ───
+
+model OfferBranding {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  // logo stored as data URL or external URL
+  logo            String?
+  companyName     String?
+  address         String?
+  email           String?
+  phone           String?
+  website         String?
+  // JSON { primary, secondary } hex colors
+  colors          String?
+  // HR signature image (data URL)
+  signature       String?
+  signatoryName        String?
+  signatoryDesignation String?
+  defaultFooterText String?
+  legalNotice      String?
+  // bumped whenever branding changes — stored on Offer to detect stale PDFs
+  version         Int      @default(1)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model OfferApproval {
+  id              String   @id @default(cuid())
+  tenantId        String
+  offerId         String
+  // 1-based level number from the workflow config
+  level           Int
+  // role that should approve this level: hr_admin | finance | ceo | etc.
+  approverRole    String
+  // specific user assigned (optional — null means any user with the role)
+  approverUserId  String?
+  // pending | approved | rejected | sent_back
+  status          String   @default("pending")
+  comments        String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  dueDate         DateTime?
+  // who actually acted (filled when status changes)
+  actedByUserId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, offerId])
+  @@index([tenantId, status])
+  @@index([approverUserId])
+}
+
+model OfferPermission {
+  id              String   @id @default(cuid())
+  tenantId        String
+  // role: hr_admin | tenant_admin | manager | finance | dept_head | ceo | hr_head | candidate
+  role            String
+  // permission key: view_offers | create_offer | edit_offer | delete_draft |
+  //   select_template | generate_preview | download_pdf | submit_for_approval |
+  //   approve_offer | reject_offer | send_offer | cancel_offer |
+  //   view_offer_history | convert_employee
+  permission      String
+  allowed         Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([tenantId, role, permission])
+  @@index([tenantId])
+}
+
+model OfferWorkflowConfig {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  // workflow type — currently only 'recruitment'
+  workflowType    String   @default("recruitment")
+  approvalRequired Boolean  @default(true)
+  // JSON array of { tier, approverType, approverUserId?, label? }
+  levels          String?
+  // JSON object with rule settings:
+  //   salaryThreshold, requiredApproverRoles, rejectionBehavior,
+  //   candidateNotification, approvalReminderDays, offerExpiryDays,
+  //   esignatureRequired, autoConvertAfterAcceptance, bgvRequired,
+  //   preboardingAfterAcceptance, employeeIdFormat
+  rules           String?
+  updatedBy       String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 // ─── REQ-ONB-01/05/08: Onboarding task templates + cascade wiring ───
@@ -6121,6 +6575,55 @@ model LeavePolicyRule {
   carryForwardGlobal   Boolean @default(true) // global carry-forward toggle for this rule
   maxCarryForwardDays  Int @default(5) // max days that can be carried forward
 
+  // ─── Leave Configuration Enhancement: extended policy rules ───
+  // Quota & Accrual
+  description           String?
+  annualQuota           Int     @default(0)
+  accrualFrequency      String  @default("yearly") // none | monthly | yearly | fixed
+  accrualAmount         Float   @default(0)
+  maxBalance            Float   @default(0)
+  openingBalance        Float   @default(0)
+  prorateNewJoiners     Boolean @default(true)
+  accrualStartDate      String?
+
+  // Leave Restrictions
+  minAdvanceNotice           Int     @default(0)
+  maxFutureDays              Int     @default(0)
+  backdatedAllowed           Boolean @default(false)
+  backdatedMaxDays           Int     @default(0)
+  minConsecutiveDays         Int     @default(0)
+  maxConsecutiveDays         Int     @default(0)
+  halfDayEligible            Boolean @default(true)
+  requireAttachment          Boolean @default(false)
+  requireAttachmentAfterDays Int     @default(0)
+  overlappingLeaveAllowed    Boolean @default(false)
+
+  // Policy Applicability (extended)
+  genderApplicability   String  @default("all") // all | male | female | other
+  employeeIds           String?
+  effectiveFromDate     DateTime?
+  effectiveToDate       DateTime?
+
+  // Year-End Processing
+  yearEndProcessingMode String  @default("carry_forward") // expire | payout_all | pay_n_carry_rest | carry_n_pay_rest | carry_forward
+  yearEndMaxCarryForward Int    @default(0)
+  yearEndMaxEncashment  Int     @default(0)
+  yearEndExpiryDays     Int     @default(0)
+
+  // Encashment details (per-policy)
+  encashmentBasis              String  @default("basic") // basic | gross | monthly_salary
+  encashmentMaxDays            Int     @default(0)
+  encashmentAutoYearEnd        Boolean @default(false)
+  encashmentEmployeeInitiated  Boolean @default(true)
+
+  // Audit
+  createdBy String?
+  updatedBy String?
+
+  // Relations
+  carryForwardRules LeaveCarryForwardRule[]
+  typeMappings      LeaveTypePolicyMapping[]
+
   priority        Int @default(0) // higher = more specific, takes precedence
   status          String @default("active") // active | inactive
 
@@ -6130,6 +6633,68 @@ model LeavePolicyRule {
   @@index([companyId])
   @@index([employmentType])
   @@index([branchId])
+}
+
+// ── Leave Type – Policy Mapping (first-class mapping with priority) ──
+model LeaveTypePolicyMapping {
+  id            String  @id @default(cuid())
+  leaveTypeId   String
+  leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  policyRuleId  String
+  policyRule    LeavePolicyRule @relation(fields: [policyRuleId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  priority      Int     @default(50)
+
+  branchId      String?
+  departmentId  String?
+  designationId String?
+  employmentType String @default("all")
+  genderApplicability String @default("all")
+  employeeIds   String?
+
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+
+  status        String  @default("active")
+
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leaveTypeId, policyRuleId, companyId])
+  @@index([leaveTypeId])
+  @@index([policyRuleId])
+  @@index([companyId])
+}
+
+// ── Leave Carry-Forward Rule (conditional carry-forward / encashment) ──
+model LeaveCarryForwardRule {
+  id              String  @id @default(cuid())
+  policyRuleId    String
+  policyRule      LeavePolicyRule @relation(fields: [policyRuleId], references: [id], onDelete: Cascade)
+  leaveTypeId     String?
+
+  conditionField    String  @default("balance") // balance | tenure | used
+  conditionOperator String  @default("gte")     // gte | gt | lte | lt | eq
+  conditionValue    Float   @default(0)
+
+  carryForwardDays  Float   @default(0)
+  encashmentDays    Float   @default(0)
+  remainingTreatment String @default("expire") // expire | carry_forward | encash
+
+  priority        Int      @default(0)
+  status          String   @default("active")
+
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([policyRuleId])
+  @@index([leaveTypeId])
 }
 
 // ── Attendance Policy Rule (scoped by employee type, branch) ──

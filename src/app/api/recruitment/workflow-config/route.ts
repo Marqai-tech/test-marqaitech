@@ -21,7 +21,7 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-const MANAGE_ROLES = ['tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'super_admin'];
+const MANAGE_ROLES = ['tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'super_admin'];
 
 function parseType(raw: string | null): WorkflowType | null {
   if (!raw) return null;

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
 
     // Non-admin users can only see their own declarations
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'admin') {
       const userId = (decoded as Record<string, unknown>).userId || (decoded as Record<string, unknown>).sub;
       const emp = await db.employee.findFirst({ where: { userId: userId as string } });
       if (emp) where.employeeId = emp.id;
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       const empUser = await db.employee.findUnique({ where: { id: employeeId }, select: { firstName: true, lastName: true } });
       if (decTenantId && (body.status || 'DRAFT') === 'SUBMITTED') {
         const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
-        const payrollIds = await resolveRoleRecipients(db, ['payroll_admin', 'payroll_manager', 'admin', 'hr_admin', 'tenant_admin'], 10);
+        const payrollIds = await resolveRoleRecipients(db, ['payroll_admin', 'payroll_manager', 'admin', 'hr_admin', 'tenant_admin', 'ceo'], 10);
         if (payrollIds.length) {
           await dispatchNotification({
             tenantId: decTenantId,

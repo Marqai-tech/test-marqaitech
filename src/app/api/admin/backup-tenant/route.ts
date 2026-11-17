@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401 });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role as string)) {
       return NextResponse.json({ error: 'Only admins can backup' }, { status: 403 });
     }
 
@@ -126,7 +126,7 @@ export async function GET(request: Request) {
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401 });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role as string)) {
       return NextResponse.json({ error: 'Only admins can view backups' }, { status: 403 });
     }
 

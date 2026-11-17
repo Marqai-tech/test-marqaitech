@@ -87,11 +87,41 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const total = await db.department.count({ where });
+    // C-28/C-29 FIX (revised): Deduplicate departments by NAME only.
+    // The previous logic deduped by (name+code), but the requisition
+    // dropdown only displays the department name — so two departments
+    // sharing the same NAME (even with different codes, e.g. "Engineering"
+    // with code "ENG" in one company and "ENG2" in another) appeared as
+    // visually duplicated entries in the dropdown.
+    // We now dedup by the lowercase+trimmed NAME, keeping the first
+    // occurrence. The company name is still attached to each department
+    // in the `company` field for downstream use (e.g. audit / tooltips).
+    //
+    // C-31 OPT-OUT: callers that display the company name in their
+    // dropdown label (e.g. the interview-scheduling modal, which shows
+    // "Software Development — Acme Global") can pass `?noDedupe=1` to
+    // bypass dedup. This is needed because, without a companyId scope,
+    // dedup would otherwise hide every duplicate-named department from
+    // a different company — including the one HR is trying to select
+    // panel members for. When `noDedupe=1` is set, ALL departments from
+    // ALL in-scope companies are returned (each carrying its company
+    // relation), so the UI can show "DepartmentName — CompanyName" and
+    // the user can disambiguate manually.
+    const noDedupe = url.searchParams.get('noDedupe') === '1';
+    let deduped = departments;
+    if (!noDedupe) {
+      const seen = new Set<string>();
+      deduped = departments.filter((d) => {
+        const key = `${(d.name || '').toLowerCase().trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
 
     return NextResponse.json({
-      data: departments,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      data: deduped,
+      pagination: { page, limit, total: deduped.length, totalPages: Math.ceil(deduped.length / limit) || 0 },
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Departments GET error:', error);

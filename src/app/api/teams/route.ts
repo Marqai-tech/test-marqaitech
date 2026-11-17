@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (companyId) where.companyId = companyId;
 
     // Non-admins: only teams they're a member of (or teams they lead)
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(decoded.role)) {
       const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
       if (employee) {
         where.OR = [

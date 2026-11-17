@@ -58,7 +58,10 @@ export async function GET(request: Request) {
 
     // Apply company scope filter via employee relation
     if (scope.scope === 'self' && scope.userId) {
+      // Task 130: employees only see their own payslips AFTER the payroll
+      // manager releases them (mobile payroll module included).
       where.employee = { userId: scope.userId, status: 'active' };
+      where.releasedAt = { not: null };
     } else if (scope.companyId) {
       where.employee = { companyId: scope.companyId, status: 'active' };
     }

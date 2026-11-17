@@ -43,6 +43,10 @@ export async function PUT(request: Request) {
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    // RBAC FIX: only admins can update the global leave config (was: any authenticated user)
+    if (!authInfo || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(authInfo.role)) {
+      return NextResponse.json({ error: 'Admin only — you do not have permission to update leave policy config' }, { status: 403 });
+    }
 
     const body = await request.json();
     const {

@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/app/api/auth/otp/route.ts",
+    "src/app/api/helpdesk/contact/route.ts",
+    "src/lib/email.ts",
+    "src/lib/notification-events.ts",
+    "src/lib/notification-center.ts",
+    "src/lib/app-version.ts"
+  ]
+}

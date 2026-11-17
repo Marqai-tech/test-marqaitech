@@ -1,0 +1,33 @@
+{
+  "messages": [
+    {
+      "id": "cmvgukr7a000508jslylud21l",
+      "roomId": "cmvgukpgw000208jski329mdl",
+      "senderId": "cmtsczno9003c04jsngxp8747",
+      "parentMessageId": null,
+      "body": "Hello from the mobile probe — Task 117 fixture capture.",
+      "attachments": null,
+      "originalLanguage": null,
+      "translatedBody": null,
+      "translatedTo": null,
+      "detectedActions": null,
+      "dlpStatus": "clean",
+      "dlpReason": null,
+      "isEdited": false,
+      "editedAt": null,
+      "isDeleted": false,
+      "deletedAt": null,
+      "createdAt": "2026-10-20T15:37:58.198Z",
+      "updatedAt": "2026-10-20T15:37:58.198Z",
+      "sender": {
+        "id": "cmtsczno9003c04jsngxp8747",
+        "firstName": "Vivaan",
+        "lastName": "Reddy",
+        "avatar": null,
+        "email": "admin@acme-global.com"
+      },
+      "replies": []
+    }
+  ],
+  "nextCursor": null
+}

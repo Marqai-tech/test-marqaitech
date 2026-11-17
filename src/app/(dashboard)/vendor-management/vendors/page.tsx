@@ -217,8 +217,7 @@ export default function VendorManagementVendorsPage() {
     if (!inviteForm.email.trim() || !inviteForm.name.trim()) { toast.error('Name and email are required'); return; }
     setInviting(true);
     try {
-      const inviteEndpoint = inviteForm.role === 'vendor_admin' ? 'invite-admin' : 'invite-employee';
-      const res = await fetch(`/api/vendors/${vendorId}/${inviteEndpoint}`, {
+      const res = await fetch(`/api/vendors/${vendorId}/invite-employee`, {
         method: 'POST', headers: getAuthHeaders(),
         body: JSON.stringify({ email: inviteForm.email.trim(), name: inviteForm.name.trim(), role: inviteForm.role }),
       });
@@ -441,9 +440,9 @@ export default function VendorManagementVendorsPage() {
                                     <div className="flex items-center gap-1">
                                       <button onClick={() => { setResetTarget(u); setResetPassword('Welcome@123'); }} disabled={userActionLoading === u.id} className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-600 hover:bg-violet-50" title="Reset password"><FiKey className="w-3.5 h-3.5" /></button>
                                       {u.status === 'active' ? (
-                                        <button onClick={() => userAction(v.id, u, 'disable')} disabled={userActionLoading === u.id} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50" title="Deactivate"><FiXCircle className="w-3.5 h-3.5" /></button>
+                                        <button onClick={() => userAction(v.id, u, 'deactivate')} disabled={userActionLoading === u.id} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50" title="Deactivate"><FiXCircle className="w-3.5 h-3.5" /></button>
                                       ) : (
-                                        <button onClick={() => userAction(v.id, u, 'reactivate')} disabled={userActionLoading === u.id} className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50" title="Reactivate"><FiCheckCircle className="w-3.5 h-3.5" /></button>
+                                        <button onClick={() => userAction(v.id, u, 'activate')} disabled={userActionLoading === u.id} className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50" title="Activate"><FiCheckCircle className="w-3.5 h-3.5" /></button>
                                       )}
                                       <button onClick={() => userAction(v.id, u, 'resend_invite')} disabled={userActionLoading === u.id} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50" title="Regenerate invite link"><FiSend className="w-3.5 h-3.5" /></button>
                                     </div>

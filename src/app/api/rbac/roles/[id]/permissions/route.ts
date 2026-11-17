@@ -196,7 +196,7 @@ export async function PUT(
     }
 
     // Only super_admin and tenant_admin can modify permissions
-    if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+    if (user.role !== 'super_admin' && (user.role !== 'tenant_admin' && user.role !== 'ceo')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to modify role permissions' },
         { status: 403, headers: corsHeaders() }
@@ -217,7 +217,7 @@ export async function PUT(
     }
 
     // Tenant admin can only modify permissions for roles within their tenant
-    if (user.role === 'tenant_admin') {
+    if ((user.role === 'tenant_admin' || user.role === 'ceo')) {
       if (role.tenantId !== user.tenantId && role.tenantId !== null) {
         return NextResponse.json(
           { error: 'Cannot modify permissions for roles outside your tenant' },

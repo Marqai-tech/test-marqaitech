@@ -250,7 +250,7 @@ export async function getDesignationCompanyFilter(request: Request): Promise<Rec
  * Quick auth check - returns user info or null.
  * Useful for routes that need authentication but not company scoping.
  */
-export async function getAuthInfo(request: Request): Promise<{ userId: string; role: string; tenantId: string | null } | null> {
+export async function getAuthInfo(request: Request): Promise<{ userId: string; role: string; tenantId: string | null; email?: string; vendorCompanyId?: string } | null> {
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return null;
@@ -260,6 +260,8 @@ export async function getAuthInfo(request: Request): Promise<{ userId: string; r
       userId: decoded.userId as string,
       role: (decoded.role as string) || 'employee',
       tenantId: (decoded.tenantId as string) || null,
+      email: decoded.email as string | undefined,
+      vendorCompanyId: decoded.vendorCompanyId as string | undefined,
     };
   } catch {
     return null;

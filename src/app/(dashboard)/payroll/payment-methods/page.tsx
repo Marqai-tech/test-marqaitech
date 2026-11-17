@@ -129,7 +129,7 @@ const emptyForm = {
 export default function EmployeePaymentMethodsPage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [paymentMethods, setPaymentMethods] = useState<EmployeePaymentMethod[]>([]);
   const [employees, setEmployees] = useState<EmployeeInfo[]>([]);

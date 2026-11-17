@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { normalizeLeaveBalances } from '@/lib/leave-balance-rules';
+import { resolveLeavePolicy } from '@/lib/leave-policy-resolver';
 
 function corsHeaders() {
   return {
@@ -256,12 +257,59 @@ export async function GET(request: Request) {
     // Always expose every active leave type, even when an employee has no
     // balance row yet. This keeps ESS/Home cards complete (including Personal
     // Leave and LOP) for new or probationary employees.
-    const activeLeaveTypes = await db.leaveType.findMany({
+    // ─── Mapping enforcement: only show types that are mapped to this employee ───
+    let activeLeaveTypes = await db.leaveType.findMany({
       where: { status: 'active' },
       select: { id: true, name: true, code: true, defaultDays: true, probationRestricted: true },
       orderBy: { name: 'asc' },
     }).catch(() => []);
+
+    // Filter by mapping (same logic as /api/leave-types GET)
+    if (targetEmployee?.id) {
+      let mappingsExist = false;
+      try {
+        const rows: any[] = await db.$queryRawUnsafe(
+          `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
+          targetEmployee.companyId
+        );
+        mappingsExist = rows[0]?.cnt > 0;
+      } catch { /* table might not exist — no filtering */ }
+
+      if (mappingsExist) {
+        const visibleTypes = [];
+        for (const lt of activeLeaveTypes) {
+          try {
+            const policy = await resolveLeavePolicy(db, { employeeId: targetEmployee.id, leaveTypeId: lt.id, companyId: targetEmployee.companyId });
+            if (policy.source !== 'none') visibleTypes.push(lt);
+          } catch { visibleTypes.push(lt); /* don't block on resolver error */ }
+        }
+        activeLeaveTypes = visibleTypes;
+      }
+    }
+
     const existingLeaveTypeIds = new Set(result.map((b) => b.leaveTypeId));
+    // Also filter existing balance rows to only mapped types
+    if (targetEmployee?.id) {
+      let mappingsExist = false;
+      try {
+        const rows: any[] = await db.$queryRawUnsafe(
+          `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
+          targetEmployee.companyId
+        );
+        mappingsExist = rows[0]?.cnt > 0;
+      } catch {}
+      if (mappingsExist) {
+        const filteredResult = [];
+        for (const b of result) {
+          try {
+            const policy = await resolveLeavePolicy(db, { employeeId: targetEmployee.id, leaveTypeId: b.leaveTypeId, companyId: targetEmployee.companyId });
+            if (policy.source !== 'none') filteredResult.push(b);
+          } catch { filteredResult.push(b); }
+        }
+        result = filteredResult as typeof result;
+      }
+    }
+
     for (const leaveType of activeLeaveTypes) {
       if (existingLeaveTypeIds.has(leaveType.id)) continue;
       result.push({

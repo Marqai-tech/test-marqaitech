@@ -11,20 +11,20 @@ class ThemeProvider extends ChangeNotifier {
   }
 
   Future<void> _loadTheme() async {
-    final saved = StorageService.getString('theme_mode');
+    final saved = StorageService.prefs.getString('theme_mode');
     _isDarkMode = saved == 'dark';
     notifyListeners();
   }
 
   Future<void> toggleTheme() async {
     _isDarkMode = !_isDarkMode;
-    await StorageService.setString('theme_mode', _isDarkMode ? 'dark' : 'light');
+    await StorageService.prefs.setString('theme_mode', _isDarkMode ? 'dark' : 'light');
     notifyListeners();
   }
 
   Future<void> setDarkMode(bool value) async {
     _isDarkMode = value;
-    await StorageService.setString('theme_mode', _isDarkMode ? 'dark' : 'light');
+    await StorageService.prefs.setString('theme_mode', _isDarkMode ? 'dark' : 'light');
     notifyListeners();
   }
 }

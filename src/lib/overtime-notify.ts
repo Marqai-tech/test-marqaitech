@@ -33,7 +33,7 @@ export async function dispatchOvertimeEvent(
     } else {
       if (employee.userId) recipients.push({ userId: employee.userId, name: employeeName });
       const hrUsers = await db.user.findMany({
-        where: { role: { in: ['tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'] }, status: 'active' },
+        where: { role: { in: ['tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'] }, status: 'active' },
         select: { id: true }, take: 25,
       }).catch(() => []);
       for (const hr of hrUsers) if (!recipients.some(r => r.userId === hr.id)) recipients.push({ userId: hr.id });

@@ -98,11 +98,26 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const total = await db.designation.count({ where });
+    // C-29 FIX: Deduplicate designations by TITLE only.
+    // When an admin (scope='all') doesn't specify a companyId, designations
+    // across ALL companies are returned — many companies share the same
+    // title (e.g. "Software Engineer", "Manager"). These appear as
+    // visually duplicated entries in the requisition dropdown, because
+    // the dropdown only displays the title (not the company or department).
+    // We dedup by lowercase+trimmed TITLE, keeping the first occurrence.
+    // The department name is still attached in the `department` field for
+    // downstream use (e.g. audit / tooltips).
+    const seen = new Set<string>();
+    const deduped = designations.filter((d) => {
+      const key = `${(d.title || '').toLowerCase().trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
     return NextResponse.json({
-      data: designations,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      data: deduped,
+      pagination: { page, limit, total: deduped.length, totalPages: Math.ceil(deduped.length / limit) || 0 },
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Designations GET error:', error);

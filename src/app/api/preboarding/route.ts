@@ -144,6 +144,30 @@ export async function POST(request: Request) {
       status,
     } = body;
 
+    // C-007 fix: Enforce HR/Admin role for preboarding creation
+    const HR_ROLES_PRE_CREATE = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES_PRE_CREATE.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can create preboarding records' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // C-007 fix: Verify offer is accepted before creating preboarding
+    if (offerId) {
+      try {
+        const offerRow = await db.$queryRawUnsafe(
+          `SELECT "status", "candidateEmail" FROM "Offer" WHERE "id" = $1 LIMIT 1`, offerId,
+        ) as any[];
+        if (!offerRow[0]) {
+          return NextResponse.json({ error: 'Referenced offer not found' }, { status: 404, headers: corsHeaders() });
+        }
+        if (offerRow[0].status !== 'accepted') {
+          return NextResponse.json({ error: 'Preboarding can only start from an accepted offer. Current offer status: ' + offerRow[0].status }, { status: 400, headers: corsHeaders() });
+        }
+        if (offerRow[0].candidateEmail && candidateEmail && offerRow[0].candidateEmail.toLowerCase() !== String(candidateEmail).toLowerCase()) {
+          return NextResponse.json({ error: 'Candidate email does not match the accepted offer' }, { status: 400, headers: corsHeaders() });
+        }
+      } catch { /* Offer table may not exist — allow */ }
+    }
+
     if (!candidateName || !candidateEmail) {
       return NextResponse.json(
         { error: 'Missing required fields: candidateName, candidateEmail' },

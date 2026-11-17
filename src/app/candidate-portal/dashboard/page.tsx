@@ -7,9 +7,11 @@ import {
   FiBriefcase, FiCheckCircle, FiClock, FiXCircle, FiAward, FiTrendingUp,
   FiCalendar, FiTarget, FiZap, FiBookOpen, FiAlertCircle, FiActivity,
   FiArrowRight, FiStar, FiMapPin, FiRefreshCw, FiLogOut, FiBarChart2,
-  FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch, FiGlobe,
+  FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch, FiGlobe, FiShield,
+  FiFileText, FiHelpCircle, FiCheck,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
 
 interface DashboardData {
   profile: { name: string; email: string };
@@ -153,6 +155,7 @@ export default function CandidateDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [portalState, setPortalState] = useState<PortalState | null>(null);
   const [matchingJobs, setMatchingJobs] = useState<MatchingJobsData | null>(null);
   const [matchingJobsLoading, setMatchingJobsLoading] = useState(false);
   const [reuploadingAppId, setReuploadingAppId] = useState<string | null>(null);
@@ -227,10 +230,12 @@ export default function CandidateDashboardPage() {
       router.push('/candidate-portal/login');
       return;
     }
-    fetchData();
+    queueMicrotask(() => { fetchData(); });
+    // Portal shell state (drives the Preboarding tab + awaiting-HR card).
+    queueMicrotask(() => { fetchPortalState().then(setPortalState); });
     // Load matching jobs + scraped jobs in parallel
-    fetchMatchingJobs();
-    fetchScrapedJobs();
+    queueMicrotask(() => { fetchMatchingJobs(); });
+    queueMicrotask(() => { fetchScrapedJobs(); });
   }, [fetchData, fetchMatchingJobs, fetchScrapedJobs, router]);
 
   // ─── Auto-apply handler ───
@@ -391,59 +396,89 @@ export default function CandidateDashboardPage() {
         className="hidden"
         onChange={handleResumeFileChange}
       />
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/careers"
-              className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-500 hover:text-teal-700 px-2 py-1 rounded-lg hover:bg-teal-50 transition-colors"
-              title="Back to careers page"
-            >
-              <FiArrowLeft className="w-3.5 h-3.5" /> Careers
-            </Link>
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-sky-500 text-white flex items-center justify-center">
-              <FiBriefcase className="w-5 h-5" />
+      {/* Shared portal navigation (mock screens: navy top bar, state-driven tabs) */}
+      <CandidatePortalNav state={portalState} active="applications" />
+
+      {/* State banners */}
+      {portalState?.preboarding && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <Link href="/candidate-portal/preboarding" className="block rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-sm font-bold text-emerald-800">Your preboarding has been initiated{portalState.preboarding.jobTitle ? ` — ${portalState.preboarding.jobTitle}` : ''}</p>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  {portalState.preboarding.submittedAt
+                    ? 'Submitted — awaiting HR review. You can track the status in the Preboarding tab.'
+                    : portalState.preboarding.correctionPending
+                      ? 'HR requested a correction. Please open the Preboarding tab to update the requested details.'
+                      : `Complete your joining details${portalState.preboarding.joiningDate ? ` before ${new Date(portalState.preboarding.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.`}
+                </p>
+              </div>
+              <span className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold whitespace-nowrap">
+                {portalState.preboarding.submittedAt ? 'View status →' : 'Continue preboarding →'}
+              </span>
             </div>
-            <div>
-              <h1 className="text-base font-bold text-slate-800">Candidate Portal</h1>
-              <p className="text-[11px] text-slate-500">Welcome, {profile.name}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/candidate-portal/resume-builder"
-              className="hidden md:inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
-              title="AI Resume Builder"
-            >
-              <FiZap className="w-3.5 h-3.5" /> Resume Builder
-            </Link>
-            <Link
-              href="/careers"
-              className="hidden md:inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 transition-colors"
-              title="Browse open positions"
-            >
-              <FiSearch className="w-3.5 h-3.5" /> Browse Jobs
-            </Link>
-            <Link
-              href="/login"
-              className="hidden md:inline-flex items-center gap-1 text-xs text-slate-500 hover:text-sky-700 px-2.5 py-1.5 rounded-lg hover:bg-sky-50 transition-colors"
-              title="HR / Admin login"
-            >
-              <FiGrid className="w-3.5 h-3.5" /> HRMS
-            </Link>
-            <a href="/candidate-portal/settings" className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Settings & Privacy">
-              <FiActivity className="w-4 h-4" />
-            </a>
-            <button onClick={fetchData} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Refresh">
-              <FiRefreshCw className="w-4 h-4" />
-            </button>
-            <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-rose-600 px-2 py-1.5 rounded-lg hover:bg-rose-50">
-              <FiLogOut className="w-3.5 h-3.5" /> Logout
-            </button>
-          </div>
+          </Link>
         </div>
-      </header>
+      )}
+      {!portalState?.preboarding && (portalState?.awaitingHR?.length ?? 0) > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          {portalState.awaitingHR.map((aw) => (
+            <div key={aw.applicationId} className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 mb-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Left: accepted offer summary (mock 03) */}
+                <div className="flex items-start gap-4">
+                  <span className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <FiCheckCircle className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Offer accepted</p>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">{aw.jobTitle || aw.position}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {aw.acceptedAt ? `Accepted ${new Date(aw.acceptedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Offer accepted'}
+                      {' · '}<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium"><FiClock className="w-3 h-3" /> Awaiting HR initiation</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1.5">HR will notify you when preboarding is ready.</p>
+                    <Link href="/candidate-portal/offers" className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
+                      <FiFileText className="w-3.5 h-3.5" /> View accepted offer
+                    </Link>
+                  </div>
+                </div>
+                {/* Right: What's next stepper (mock 03) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold text-slate-700 mb-3">What&apos;s next?</p>
+                  <ol className="space-y-3">
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0"><FiCheck className="w-3 h-3" /></span>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-slate-800">Offer accepted</p>
+                        <p className="text-[11px] text-slate-500">You have accepted the offer for {aw.jobTitle || aw.position}.</p>
+                      </div>
+                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold shrink-0">Complete</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full border-2 border-slate-300 bg-white shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-slate-800">HR initiates preboarding</p>
+                        <p className="text-[11px] text-slate-500">Our HR team will set up your preboarding and share the next steps.</p>
+                      </div>
+                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold shrink-0">Pending</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full border-2 border-slate-300 bg-white shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-slate-800">Complete joining information</p>
+                        <p className="text-[11px] text-slate-500">Provide your joining details (employment information, documents, and other required details).</p>
+                      </div>
+                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold shrink-0">Pending</span>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {data?.pendingOffer && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <a href={`/offer/${data.pendingOffer.accessToken}`} className="block rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-4 hover:shadow-md transition-shadow">
@@ -459,6 +494,25 @@ export default function CandidateDashboardPage() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Welcome band (mock 01) — name + most-relevant application reference */}
+        <section className="flex items-center gap-4 flex-wrap">
+          <span className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-bold shrink-0">
+            {profile.name.split(/\s+/).map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'C'}
+          </span>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Welcome, {profile.name}.</h1>
+            <p className="text-sm text-slate-500">
+              {(() => {
+                const active = applications.find((a) => ['interview', 'offered'].includes(a.status))
+                  || applications.find((a) => a.status === 'applied')
+                  || applications[0];
+                if (!active) return 'Track your applications, interviews, and next steps.';
+                return `${active.jobTitle} (${active.id.slice(-8).toUpperCase()})`;
+              })()}
+            </p>
+          </div>
+        </section>
+
         {/* Stats Grid */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3">Application Overview</h2>
@@ -530,7 +584,8 @@ export default function CandidateDashboardPage() {
                 <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
                   <FiBriefcase className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm text-slate-500">You haven't applied to any jobs yet.</p>
-                  <Link href="/recruitment" className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 mt-2">
+                  {/* Phase 10 fix: Empty-state should link to public /careers, not internal /recruitment */}
+                  <Link href="/careers" className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 mt-2">
                     Browse open positions <FiArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
@@ -1076,7 +1131,7 @@ export default function CandidateDashboardPage() {
         {/* Footer */}
         <footer className="pt-4 pb-2 text-center">
           <p className="text-[11px] text-slate-400">
-            Candidate Portal · Powered by 3Boxes HRMS · <Link href="/recruitment/pii-policy" className="underline">Privacy Policy</Link>
+            Candidate Portal · Powered by 3Boxes HRMS · <Link href="/privacy-policy" className="underline">Privacy Policy</Link>
           </p>
         </footer>
       </main>

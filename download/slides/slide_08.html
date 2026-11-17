@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payroll &amp; Payslips — 3Boxes HRMS Mobile App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html,body{margin:0;padding:0;background:#f7faf8;overflow:hidden;}
+  .h-title{font-family:var(--font-heading);font-size:34px;line-height:1.14;font-weight:800;letter-spacing:-0.9px;color:var(--primary);}
+  .lead{display:block;font-size:16px;font-weight:800;letter-spacing:-0.2px;color:var(--primary);}
+  .body-txt{font-size:14.5px;line-height:1.55;color:var(--muted);}
+  .body-txt b{color:var(--primary);font-weight:700;}
+  .card-title{font-size:16px;font-weight:800;letter-spacing:-0.2px;color:var(--primary);}
+  .icon-chip{width:34px;height:34px;border-radius:10px;background:var(--accent-tint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .icon-chip .material-icons{font-size:19px;color:var(--accent);}
+  .mini-chip{width:30px;height:30px;border-radius:9px;background:var(--accent-tint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .mini-chip .material-icons{font-size:17px;color:var(--accent);}
+  .row-item{display:flex;align-items:center;gap:12px;border-top:1px solid #e6efe9;}
+  .row-item:first-child{border-top:none;}
+  .row-label{margin:0;font-size:13.5px;font-weight:600;color:var(--primary);line-height:1.4;}
+  .dotgrid{background-image:radial-gradient(rgba(18,53,39,0.10) 1.3px, transparent 1.3px);background-size:18px 18px;}
+</style>
+</head>
+<body>
+<div class="slide" style="padding:50px 64px 48px;display:flex;flex-direction:column;">
+
+  <div data-decor aria-hidden="true" class="dotgrid" style="position:absolute;top:52px;right:64px;width:190px;height:60px;opacity:.55;"></div>
+  <div data-decor aria-hidden="true" style="position:absolute;bottom:-130px;right:-130px;width:320px;height:320px;border-radius:50%;border:44px solid rgba(74,154,106,0.09);"></div>
+
+  <header style="position:relative;z-index:1;">
+    <div class="kicker">Payroll</div>
+    <h1 class="h-title" style="margin:10px 0 0;">Payslips on the go — no more asking HR</h1>
+  </header>
+
+  <main style="flex:1;min-height:0;display:grid;grid-template-columns:55fr 45fr;gap:22px;margin-top:20px;position:relative;z-index:1;">
+
+    <!-- LEFT: 3 numbered steps -->
+    <section style="display:flex;flex-direction:column;gap:12px;min-height:0;">
+      <div style="font-size:10.5px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);">How to view a payslip</div>
+
+      <div class="card" style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;padding:18px 20px;">
+        <div data-decor aria-hidden="true" style="position:absolute;top:2px;right:14px;font-family:var(--font-heading);font-size:64px;font-weight:900;letter-spacing:-2px;color:rgba(18,53,39,0.06);">1</div>
+        <div class="stepnum" style="width:36px;height:36px;font-size:16px;">1</div>
+        <p class="body-txt" style="margin:0;position:relative;">
+          <span class="lead">Open Payroll</span>
+          <span>— the <b>Payslips list</b> shows each processed month with its <b>net salary</b>.</span>
+        </p>
+      </div>
+
+      <div class="card" style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;padding:18px 20px;">
+        <div data-decor aria-hidden="true" style="position:absolute;top:2px;right:14px;font-family:var(--font-heading);font-size:64px;font-weight:900;letter-spacing:-2px;color:rgba(18,53,39,0.06);">2</div>
+        <div class="stepnum" style="width:36px;height:36px;font-size:16px;">2</div>
+        <p class="body-txt" style="margin:0;position:relative;">
+          <span class="lead">Filter</span>
+          <span>by <b>month</b>, <b>employee</b> (HR/Admin and payroll managers) or <b>status</b> from the filter bar.</span>
+        </p>
+      </div>
+
+      <div class="card" style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;padding:18px 20px;">
+        <div data-decor aria-hidden="true" style="position:absolute;top:2px;right:14px;font-family:var(--font-heading);font-size:64px;font-weight:900;letter-spacing:-2px;color:rgba(18,53,39,0.06);">3</div>
+        <div class="stepnum" style="width:36px;height:36px;font-size:16px;">3</div>
+        <p class="body-txt" style="margin:0;position:relative;">
+          <span class="lead">Tap a payslip for the detail sheet</span>
+          <span>— <b>earnings, deductions and net pay</b> for that month; raise a <b>ticket</b> immediately if figures look wrong.</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- RIGHT: what you see + good to know -->
+    <aside style="display:flex;flex-direction:column;gap:14px;min-height:0;">
+
+      <div class="card" style="padding:16px 20px;display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;gap:11px;">
+          <div class="icon-chip"><i class="material-icons">visibility</i></div>
+          <div class="card-title">What you see</div>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;">
+          <div class="row-item" style="padding:11px 0;">
+            <div class="mini-chip"><i class="material-icons">event_note</i></div>
+            <p class="row-label">Month-wise payslip history</p>
+          </div>
+          <div class="row-item" style="padding:11px 0;">
+            <div class="mini-chip"><i class="material-icons">receipt_long</i></div>
+            <p class="row-label">Gross / deductions / net breakdown</p>
+          </div>
+          <div class="row-item" style="padding:11px 0 2px;">
+            <div class="mini-chip"><i class="material-icons">web</i></div>
+            <p class="row-label">The official company payslip format as on web</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1;padding:16px 20px;display:flex;flex-direction:column;min-height:0;">
+        <div style="display:flex;align-items:center;gap:11px;">
+          <div class="icon-chip"><i class="material-icons">info</i></div>
+          <div class="card-title">Good to know</div>
+        </div>
+        <div style="margin-top:8px;flex:1;display:flex;flex-direction:column;min-height:0;">
+          <div class="row-item" style="flex:1;padding:8px 0;">
+            <div class="mini-chip"><i class="material-icons">task_alt</i></div>
+            <p class="body-txt" style="margin:0;font-size:13.5px;">Payslips appear once the payroll run is processed and <b>RELEASED</b> by the payroll manager.</p>
+          </div>
+          <div class="row-item" style="flex:1;padding:8px 0;">
+            <div class="mini-chip"><i class="material-icons">sync_alt</i></div>
+            <p class="body-txt" style="margin:0;font-size:13.5px;">Mobile follows the <b>same release rules and permissions</b> as web.</p>
+          </div>
+          <div class="row-item" style="flex:1;padding:8px 0 2px;">
+            <div class="mini-chip"><i class="material-icons">search</i></div>
+            <p class="body-txt" style="margin:0;font-size:13.5px;"><b>Missing payslip</b> → check the month's payroll run was released.</p>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+</div>
+</body>
+</html>

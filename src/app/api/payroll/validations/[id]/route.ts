@@ -21,6 +21,11 @@ export async function GET(
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
+    // Task 126 fix: the handler previously referenced `db` without ever
+    // resolving it — every detail lookup threw a ReferenceError and surfaced
+    // as a 404, which crashed the web page (`.map` on a JSON string).
+    const db = await getDb(_request);
+
     const { id } = await params;
 
     try {

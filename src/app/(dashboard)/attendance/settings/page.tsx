@@ -121,7 +121,7 @@ const selectCls = 'w-full px-3 py-2 border border-thb-border rounded-lg text-sm 
 // ─── Main Page ──────────────────────────────────────────────────────
 function AttendanceSettingsContent() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   if (!isAdmin) {
     return (

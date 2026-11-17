@@ -122,7 +122,7 @@ export async function PUT(request: NextRequest) {
 
     // Role check: only admins can update settings
     const role = (decoded as any).role ?? user.role;
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role);
     if (!isAdmin) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
     }

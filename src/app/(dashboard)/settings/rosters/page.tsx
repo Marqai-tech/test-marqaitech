@@ -30,7 +30,7 @@ interface Roster {
 
 export default function RostersPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);

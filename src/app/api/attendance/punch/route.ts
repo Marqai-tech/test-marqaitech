@@ -6,6 +6,11 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
 import { sendEmail } from '@/lib/email';
 import { attendanceLocalMinutes, effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
+import { loadEmployeeShiftWindows, shiftFullDayHours } from '@/lib/attendance-shift';
+import { detectAndAlertSuspiciousPunch } from '@/lib/suspicious-punch';
+import { ensureEmployeeRemoteColumns } from '@/lib/employee-remote-columns';
+import { canonicalAttendanceDate, findAttendanceForLocalDay } from '@/lib/attendance-day';
+import { attendanceDayKeyOf, dayKeyToIstStart, parseDeviceTimestamp } from '@/lib/timezone-utils';
 
 /**
  * POST /api/attendance/punch
@@ -22,9 +27,25 @@ import { attendanceLocalMinutes, effectiveBreakMinutes, loadAttendanceBreakPolic
  *     date: 'YYYY-MM-DD' (employee LOCAL calendar date),
  *     localTime: 'HH:mm' (employee LOCAL time, 24h format),
  *     gps?: { lat: number, lng: number, accuracy?: number, label?: string } | null,
- *     method?: 'mobile' | 'web' | 'biometric' | 'manual_edit' (default 'mobile' when gps is present, else 'web'),
+ *     method?: 'mobile' | 'web' (default 'mobile' when gps is present, else 'web').
+ *              Task 108: 'biometric' and 'manual_edit' are REJECTED on this
+ *              route — device punches use /api/attendance/biometric (with its
+ *              own device token) and manual edits use the admin routes. This
+ *              prevents anyone from bypassing the remote check-in permission
+ *              gate by declaring a different method.
  *     notes?: string
  *   }
+ *
+ * Task 108 — REMOTE CHECK-IN GATING (WFH pre-approval):
+ *   Mobile/web punches (check-in, check-out, break-in, break-out) are only
+ *   accepted when an admin has enabled the matching per-employee flag
+ *   (Employee.mobileCheckInEnabled / Employee.webCheckInEnabled) from
+ *   Attendance → Remote Check-In. Everyone else must use the office
+ *   biometric device. Authorized remote punches keep full GPS recording;
+ *   geofence radius no longer REJECTS them (WFH employees are legitimately
+ *   outside the office) but the inside/outside distance is stored for audit.
+ *   Punches whose coordinates exactly match the geofence center are flagged
+ *   "[GeoAudit]" — real GPS never reproduces the office pin to 6 decimals.
  *
  * Returns: { ok: true, event: { type, timestamp, gps? }, attendance: {...} }
  */
@@ -98,11 +119,13 @@ export async function OPTIONS() {
  * `new Date().toISOString()` in the browser, which is the correct UTC
  * representation of the current instant). The server prefers this field.
  * For backward compatibility, if `utcTimestamp` is not present, we fall
- * back to `buildLocalTimestamp(date, localTime)` — but this path has the
- * timezone bug and should be avoided.
+ * back to `buildLocalTimestamp(date, localTime)` — Task 162: the fallback
+ * now interprets the client wall time as IST (the business timezone)
+ * instead of the server's timezone, so the legacy path is finally correct.
  */
 function buildLocalTimestamp(dateStr: string, timeStr: string): Date {
-  return new Date(`${dateStr}T${timeStr}:00`);
+  const parsed = parseDeviceTimestamp(`${dateStr}T${timeStr}:00`);
+  return parsed || new Date(`${dateStr}T${timeStr}:00Z`);
 }
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -202,7 +225,7 @@ export async function POST(request: NextRequest) {
     if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    let { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
+    let { employeeId, action, date, localTime, utcTimestamp, gps, notes, mode } = body;
 
     if (!employeeId || !action || !date || (!localTime && !utcTimestamp)) {
       return NextResponse.json(
@@ -221,15 +244,123 @@ export async function POST(request: NextRequest) {
     // Ensure schema is up-to-date (idempotent ALTERs)
     await ensureAttendanceColumns(db);
     await ensurePunchEventTable(db);
+    // Task 108: tenant DBs may lack the Employee remote check-in columns —
+    // create them before the employee lookup reads the flags.
+    await ensureEmployeeRemoteColumns(db);
 
     // Verify employee exists + scope-permit
     const employee = await db.employee.findUnique({
       where: { id: employeeId },
-      select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true },
+      select: {
+        id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true,
+        // Task 108: remote check-in pre-approval flags
+        wfhPreApproved: true, mobileCheckInEnabled: true, webCheckInEnabled: true,
+        // Task 109: holiday/weekend punch policy flag
+        holidayWeekendPunchEnabled: true,
+      },
+    }).catch(async () => {
+      // Columns may not exist yet on a cold DB — retry without them so the
+      // punch route degrades to legacy behavior instead of 500ing.
+      return db.employee.findUnique({
+        where: { id: employeeId },
+        select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true },
+      });
     });
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
     }
+
+    // ─── Task 108: method whitelist ───
+    // Only the two remote channels may punch through this route. Anything
+    // else (biometric / manual_edit / spoofed values) is rejected so the
+    // permission gate below cannot be bypassed by renaming the method.
+    const rawMethod = typeof body.method === 'string' ? body.method.toLowerCase() : '';
+    if (rawMethod && rawMethod !== 'mobile' && rawMethod !== 'web') {
+      return NextResponse.json(
+        { error: `Method '${body.method}' is not allowed on the punch endpoint. Use the office biometric device for attendance.`, code: 'INVALID_PUNCH_METHOD' },
+        { status: 400, headers: corsHeaders() },
+      );
+    }
+
+    // ─── Task 108: REMOTE CHECK-IN PERMISSION GATE ───
+    // Mobile app punches = 'mobile', browser punches = 'web'. Both are
+    // remote channels that require an explicit employee-wise WFH
+    // pre-approval from admin/management (Attendance → Remote Check-In).
+    // Applies to check-in, check-out, break-in AND break-out.
+    const method = rawMethod || (gps && gps.lat != null ? 'mobile' : 'web');
+    const punchActions = ['checkin', 'checkout', 'breakin', 'breakout', 'entry'];
+    if (punchActions.includes(action)) {
+      // Columns may be missing on a lagging DB (legacy select fallback) —
+      // treat undefined as NOT enabled (fail-closed).
+      const channelAllowed = method === 'mobile'
+        ? (employee as Record<string, unknown>).mobileCheckInEnabled === true
+        : (employee as Record<string, unknown>).webCheckInEnabled === true;
+      if (!channelAllowed) {
+        const channel = method === 'mobile' ? 'Mobile check-in' : 'Web check-in';
+        return NextResponse.json(
+          {
+            error: `${channel} is not enabled for your account. Mobile/Web check-in requires work-from-home pre-approval from admin/management. Please mark attendance using the office biometric device or contact your administrator.`,
+            code: 'REMOTE_CHECKIN_NOT_ENABLED',
+            permission: method,
+          },
+          { status: 403, headers: corsHeaders() },
+        );
+      }
+    }
+    // ─── Task 109: HOLIDAY / WEEKEND PUNCH GATE ───
+    // Business rule: working on a holiday or a weekend requires prior
+    // approval from the admin or the immediate approver. Biometric punches
+    // on holidays are ALWAYS recorded (separate device webhook — never
+    // blocked); this gate governs the remote channels only (mobile app +
+    // web check-in / breaks). Admins can open holidays & weekends free for
+    // a specific employee from Attendance → Remote Check-In
+    // (holidayWeekendPunchEnabled) — that toggle bypasses the request
+    // requirement. Otherwise an APPROVED HOLIDAY_WORK request covering the
+    // date unlocks the punch.
+    let holidayName: string | null = null;
+    let isWeekendDay = false;
+    if (punchActions.includes(action)) {
+      const gateDate = new Date(`${date}T00:00:00`);
+      if (!Number.isNaN(gateDate.getTime())) {
+        const dow = gateDate.getDay(); // 0 = Sunday, 6 = Saturday
+        isWeekendDay = dow === 0 || dow === 6;
+        try {
+          const holidayWhere: Record<string, unknown> = {
+            date: { gte: gateDate, lt: new Date(gateDate.getTime() + 86400000) },
+          };
+          if (employee.companyId) holidayWhere.companyId = employee.companyId;
+          const holiday = await db.holiday.findFirst({ where: holidayWhere, select: { name: true } }).catch(() => null);
+          if (holiday) holidayName = holiday.name;
+        } catch { holidayName = null; }
+        if (isWeekendDay || holidayName) {
+          const freePunch = (employee as Record<string, unknown>).holidayWeekendPunchEnabled === true;
+          let holidayApproved = false;
+          if (!freePunch) {
+            const approvedRequest = await db.attendanceRequest.findFirst({
+              where: {
+                employeeId,
+                requestType: 'HOLIDAY_WORK',
+                status: 'approved',
+                startDate: { lte: gateDate },
+                OR: [{ endDate: null }, { endDate: { gte: gateDate } }],
+              },
+              select: { id: true },
+            }).catch(() => null);
+            holidayApproved = !!approvedRequest;
+          }
+          if (!freePunch && !holidayApproved) {
+            return NextResponse.json({
+              error: `Working on ${holidayName ? `the holiday "${holidayName}"` : 'a weekend'} requires prior approval. Please raise a Holiday / Weekend Work request to your admin or immediate approver (Attendance → Requests). Biometric punches on holidays are always recorded.`,
+              code: 'HOLIDAY_WORK_APPROVAL_REQUIRED',
+              date,
+              holiday: holidayName,
+              weekend: isWeekendDay,
+            }, { status: 403, headers: corsHeaders() });
+          }
+        }
+      }
+    }
+
     // Self-scope users can only punch for themselves
     if (scope.scope === 'self' && employee.userId !== scope.userId) {
       return NextResponse.json({ error: 'You can only punch for yourself' }, { status: 403, headers: corsHeaders() });
@@ -243,23 +374,21 @@ export async function POST(request: NextRequest) {
     if (Number.isNaN(timestamp.getTime())) {
       return NextResponse.json({ error: 'Invalid date/time' }, { status: 400, headers: corsHeaders() });
     }
-    const dateObj = new Date(`${date}T00:00:00`); // calendar date at local midnight
+    const dateObj = canonicalAttendanceDate(date); // Task 162: IST-midnight day key (matches the biometric sync)
     const [localHour, localMinute] = String(localTime || '').split(':').map(Number);
     const localMinutes = Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour * 60 + localMinute : null;
 
-    const method = body.method || (gps && gps.lat != null ? 'mobile' : 'web');
     const gpsLat = gps && gps.lat != null ? Number(gps.lat) : null;
     const gpsLng = gps && gps.lng != null ? Number(gps.lng) : null;
     const gpsAccuracy = gps && gps.accuracy != null ? Number(gps.accuracy) : null;
     const gpsLabel = gps && gps.label ? String(gps.label) : null;
 
-    const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
+    // Task 162: dual-convention lookup — finds the row whether it was keyed
+    // at IST midnight (biometric) or UTC midnight (legacy manual writers).
+    const existingBeforeRules = await findAttendanceForLocalDay(db, employeeId, date);
     const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
     const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
-    // Break punches are explicit actions and remain valid after Check-Out so
-    // an employee can complete a missed break record before regularization.
-    // Only generic biometric/entry punches are normalized to entry/checkout.
-    if (action !== 'checkin' && action !== 'set_early_logout' && action !== 'breakin' && action !== 'breakout') {
+    if (action !== 'checkin' && action !== 'set_early_logout') {
       if (beforeLunch || (afterLunchBeforeClose && existingBeforeRules?.breakIn && action !== 'breakout')) action = 'entry';
       else if (localMinutes !== null && localMinutes >= 18 * 60 + 30) action = 'checkout';
     }
@@ -290,7 +419,16 @@ export async function POST(request: NextRequest) {
     }
 
     // GPS is mandatory for employee check-in/out. Validate before creating or
-    // updating Attendance so denied/unavailable/outside punches never persist.
+    // updating Attendance so denied/unavailable punches never persist.
+    //
+    // Task 108 geofence semantics: employees reaching this point ARE
+    // remote-check-in authorized (WFH pre-approved), so the office radius no
+    // longer REJECTS the punch — a WFH employee is legitimately outside the
+    // radius. Instead the exact distance to the nearest geofence is computed
+    // and recorded: inside → office presence evidence; outside → explicit
+    // "[Remote WFH]" audit note; distance < 1m → "[GeoAudit]" mock-location
+    // flag (real GPS never reproduces the office pin to 6 decimals).
+    let geofenceAuditNote: string | null = null;
     if (action === 'checkin' || action === 'checkout') {
       if (!Number.isFinite(gpsLat) || !Number.isFinite(gpsLng)) {
         return NextResponse.json(
@@ -305,14 +443,28 @@ export async function POST(request: NextRequest) {
           { status: 409, headers: corsHeaders() },
         );
       }
-      const inside = geofences.some((geofence: { centerLat: number; centerLng: number; radiusMeters: number }) =>
-        haversineMeters(gpsLat, gpsLng, Number(geofence.centerLat), Number(geofence.centerLng)) <= Number(geofence.radiusMeters),
-      );
+      const distances = geofences.map((geofence: { centerLat: number; centerLng: number; radiusMeters: number }) => ({
+        distance: haversineMeters(gpsLat!, gpsLng!, Number(geofence.centerLat), Number(geofence.centerLng)),
+        radius: Number(geofence.radiusMeters),
+      }));
+      const nearest = distances.reduce((a, b) => (a.distance <= b.distance ? a : b));
+      const inside = nearest.distance <= nearest.radius;
       if (!inside) {
-        return NextResponse.json(
-          { error: 'You are outside the permitted office location. Check-in/Check-out is allowed only within the office radius.' },
-          { status: 403, headers: corsHeaders() },
-        );
+        geofenceAuditNote = `[Remote WFH] Punch recorded ${Math.round(nearest.distance)}m outside the office geofence (${nearest.radius}m radius) — authorized remote check-in.`;
+      } else if (nearest.distance < 1) {
+        // Physically implausible for real GPS: consumer devices carry 3-30m
+        // jitter, so a coordinate IDENTICAL to the fence center (two punches
+        // from different employees matching the pin to 6 decimals, accuracy
+        // exactly 10m) indicates a declared/mock location. Recorded, not
+        // rejected — HR decides; visible in notes + punch log.
+        geofenceAuditNote = '[GeoAudit] Coordinates exactly match the office geofence center — flagged for verification (possible mock/declared location).';
+      }
+      // Task 113 — attendance mode declared in the app (design #12: Office /
+      // Out Side toggle). Audit-only: recorded in the notes trail so HR can
+      // see the user's declared context next to the geofence evidence.
+      if (mode === 'outside' || mode === 'office') {
+        const modeTag = `[Mode: ${mode === 'outside' ? 'Outside' : 'Office'} — user-declared in app]`;
+        geofenceAuditNote = geofenceAuditNote ? `${modeTag} ${geofenceAuditNote}` : modeTag;
       }
     }
 
@@ -321,6 +473,15 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
       punchMethod: method,
     };
+    // Task 133: per-employee shift window (roster-assigned shifts, e.g.
+    // MARQ004 on 11:00–17:00) — null for employees without an assignment,
+    // who keep the tenant-wide 10:00 late cutoff / 18:30 finalize rules.
+    const empShift = (await loadEmployeeShiftWindows(db as any, [employeeId])).get(employeeId);
+    if (geofenceAuditNote) {
+      attUpdate.notes = existingBeforeRules?.notes
+        ? `${existingBeforeRules.notes} ${geofenceAuditNote}`
+        : geofenceAuditNote;
+    }
     if (action === 'checkin') {
       attUpdate.checkIn = timestamp;
       attUpdate.checkInGpsLat = gpsLat;
@@ -328,14 +489,15 @@ export async function POST(request: NextRequest) {
       attUpdate.checkInGpsAccuracy = gpsAccuracy;
       attUpdate.checkInGpsLabel = gpsLabel;
       attUpdate.location = gpsLabel || (gpsLat != null ? `${gpsLat.toFixed(6)},${gpsLng!.toFixed(6)}` : null);
-      const graceCutoff = 10 * 60;
+      // Task 133: late cutoff = employee shift start + grace when a shift is
+      // assigned; tenant default 10:00 otherwise.
+      const graceCutoff = empShift ? empShift.startMinutes + empShift.graceMinutes : 10 * 60;
       const late = localMinutes !== null && localMinutes > graceCutoff;
       let monthlyLateCount = 0;
       if (late) {
-        const monthStart = new Date(`${date.slice(0, 7)}-01T00:00:00`);
-        const nextMonth = new Date(monthStart);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        monthlyLateCount = await db.attendance.count({ where: { employeeId, date: { gte: monthStart, lt: nextMonth }, status: 'late' } }).catch(() => 0);
+        const monthStart = dayKeyToIstStart(`${date.slice(0, 7)}-01`);
+        const nextMonthStart = dayKeyToIstStart(attendanceDayKeyOf(new Date(monthStart.getTime() + 31 * 24 * 60 * 60 * 1000)).slice(0, 7) + '-01');
+        monthlyLateCount = await db.attendance.count({ where: { employeeId, date: { gte: monthStart, lt: nextMonthStart }, status: 'late' } }).catch(() => 0);
       }
       attUpdate.status = late && monthlyLateCount >= 3 ? 'half_day' : late ? 'late' : 'present';
       if (late && monthlyLateCount >= 3) attUpdate.notes = 'Fourth late arrival this month: attendance automatically marked Half-Day.';
@@ -361,11 +523,10 @@ export async function POST(request: NextRequest) {
       attUpdate.breakOutGpsLabel = gpsLabel;
     }
 
-    // Upsert by (employeeId, date) — the unique constraint
-    // First, see if a row exists
-    const existing = await db.attendance.findFirst({
-      where: { employeeId, date: dateObj },
-    });
+    // Upsert by business day — Task 162: reuse ANY existing row for this
+    // business day (either day-key convention) instead of exact-date matching
+    // that silently created a second row and split the punches.
+    const existing = existingBeforeRules;
 
     let attendance: any;
     if (existing) {
@@ -389,12 +550,11 @@ export async function POST(request: NextRequest) {
     // On checkout or breakout: recompute derived fields (workHours, breakMinutes, overtime)
     if (action === 'checkout' || action === 'breakout') {
       const refreshed = await db.attendance.findUnique({ where: { id: attendance.id } });
-      if (refreshed?.checkIn && refreshed?.checkOut && refreshed.breakIn && refreshed.breakOut) {
+      if (refreshed?.checkIn && refreshed?.checkOut) {
         const breakPolicy = await loadAttendanceBreakPolicy(db);
-        // Finalization begins when the 6:30 PM shift boundary is reached,
-        // even if the employee checked out earlier and later completed a
-        // missing break punch or performed another face scan.
-        const canFinalize = attendanceLocalMinutes(new Date()) >= breakPolicy.shiftEndMinutes;
+        // Task 133: finalize at the employee's own shift end; full-day hours
+        // scale with the shift instead of the flat 8h rule.
+        const canFinalize = attendanceLocalMinutes(refreshed.checkOut) >= (empShift ? empShift.endMinutes : breakPolicy.shiftEndMinutes);
         const spanMs = refreshed.checkOut.getTime() - refreshed.checkIn.getTime();
         const spanMinutes = Math.max(0, Math.round(spanMs / 60000));
         const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut, breakPolicy);
@@ -405,20 +565,17 @@ export async function POST(request: NextRequest) {
         const otMinutes = Math.max(0, workMinutes - 480);
         const overtime = Math.round((otMinutes / 60) * 100) / 100;
         const preservedHalfDay = attendance.status === 'half_day';
-        const fourthLate = (attendance.notes || '').includes('Fourth late arrival');
-        const lowProduction = canFinalize && workHours < 8;
-        const combinedNotes = [
-          fourthLate ? 'Fourth late arrival this month: attendance automatically marked Half-Day.' : '',
-          lowProduction ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.' : '',
-        ].filter(Boolean).join(' ');
+        const fullDayHours = empShift ? shiftFullDayHours(empShift) : 8;
         await db.attendance.update({
           where: { id: attendance.id },
           data: {
             workHours: canFinalize ? workHours : null,
             breakMinutes,
             overtime: canFinalize ? overtime : 0,
-            status: canFinalize && workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
-            notes: combinedNotes || attendance.notes,
+            status: canFinalize && workHours < fullDayHours ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
+            notes: canFinalize && workHours < fullDayHours
+              ? `Net working time is below the required ${fullDayHours.toFixed(2)} hours. Apply Attendance Regularization for full-day correction.`
+              : attendance.notes,
           },
         });
         attendance = { ...attendance, workHours: canFinalize ? workHours : null, breakMinutes, overtime: canFinalize ? overtime : 0 };
@@ -433,7 +590,7 @@ export async function POST(request: NextRequest) {
       if (automaticHalfDay && scope.tenantId) {
         try {
           const hrUsers = await db.user.findMany({
-            where: { tenantId: scope.tenantId, role: { in: ['admin', 'tenant_admin', 'hr_admin', 'hr'] } },
+            where: { tenantId: scope.tenantId, role: { in: ['admin', 'tenant_admin', 'ceo', 'hr_admin', 'hr'] } },
             select: { id: true, email: true },
           });
           const recipientIds = Array.from(new Set([employee.userId, ...hrUsers.map((u: { id: string }) => u.id)].filter(Boolean)));
@@ -465,6 +622,31 @@ export async function POST(request: NextRequest) {
           console.warn('[punch] automatic half-day notification failed (non-fatal):', notificationError);
         }
       }
+    }
+
+    // ─── Task 109: suspicious-punch detection + admin alerts (non-fatal) ───
+    // Exact-pin mock signatures, coordinates shared between employees, and
+    // holiday/weekend punches are flagged to admins in-app + by email.
+    if (['checkin', 'checkout', 'breakin', 'breakout'].includes(action)) {
+      await detectAndAlertSuspiciousPunch({
+        db,
+        tenantId: scope.tenantId || null,
+        employee: {
+          id: employee.id,
+          employeeId: employee.employeeId,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          email: employee.email,
+          userId: employee.userId,
+        },
+        dateStr: date,
+        action,
+        method,
+        gpsLat,
+        gpsLng,
+        holidayName,
+        isWeekend: isWeekendDay,
+      }).catch(() => null);
     }
 
     // Mirror HRMS button actions into the Biometric Punches audit. This gives

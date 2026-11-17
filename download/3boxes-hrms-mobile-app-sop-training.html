@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3Boxes HRMS Mobile App&nbsp;— SOP &amp; Training Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+@page { size: 720px 1020px; margin: 0; }
+:root {
+  --c-primary: #123527;
+  --c-accent: #1f7a4d;
+  --c-accent-2: #4a9a6a;
+  --c-stripe: #f0f7f2;
+  --c-border: #cfe0d6;
+  --c-bg: #f7faf8;
+  --c-text: #22312a;
+  --c-muted: #5c6f66;
+  --c-header: #35604a;
+}
+html, body {
+  margin: 0; padding: 0; width: 720px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
+  font-size: 13px; line-height: 1.65;
+  line-break: strict; word-break: normal; overflow-wrap: break-word;
+}
+@media screen {
+  html { height: auto; display: flex; justify-content: center; background: #e3e9e5; }
+  body { margin: 20px auto; box-shadow: 0 4px 30px rgba(18,53,39,.18); }
+}
+p { margin: 0 0 9px 0; text-align: justify; }
+p, td, li { line-break: strict; }
+
+/* ───────── COVER ───────── */
+.cover {
+  width: 720px; height: 1020px; box-sizing: border-box;
+  break-after: page; overflow: hidden; position: relative;
+  background: var(--c-primary);
+  color: #f2f8f4;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 64px;
+}
+.cover-bg { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+.cover-bg .ghost {
+  position: absolute; right: 18px; bottom: 24px;
+  font-size: 172px; font-weight: 900; line-height: 1; color: rgba(255,255,255,0.045);
+  letter-spacing: -8px;
+}
+.cover-bg .ring {
+  position: absolute; top: -120px; right: -120px; width: 340px; height: 340px;
+  border-radius: 50%; border: 44px solid rgba(74,154,106,0.16);
+}
+.cover-bg .dotgrid {
+  position: absolute; left: 64px; top: 60px; width: 180px; height: 90px;
+  background-image: radial-gradient(rgba(255,255,255,0.22) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+.cover-line { position: absolute; left: 64px; top: 0; bottom: 0; width: 5px; background: var(--c-accent-2); z-index: 2; }
+.cover-content { position: relative; z-index: 3; padding-left: 50px; }
+.cover-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 3.5px;
+  text-transform: uppercase; color: #bfe3cd; border: 1px solid rgba(191,227,205,0.4);
+  padding: 7px 14px; border-radius: 3px; margin-bottom: 30px;
+}
+.cover-title { font-size: 62px; font-weight: 900; line-height: 1.08; letter-spacing: -1.5px; margin-bottom: 10px; }
+.cover-title .accent { color: #7fc79b; }
+.cover-sub { font-size: 21px; font-weight: 300; color: #cfe6d8; margin-bottom: 26px; line-height: 1.4; }
+.cover-summary {
+  font-size: 14px; font-weight: 400; line-height: 1.7; color: rgba(242,248,244,0.85);
+  max-width: 430px; margin-bottom: 34px; text-align: left;
+}
+.cover-chips { display: flex; flex-wrap: wrap; gap: 8px; max-width: 460px; margin-bottom: 40px; }
+.cover-chips span {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  padding: 6px 12px; border-radius: 20px; background: rgba(74,154,106,0.22); color: #d8efe1;
+  border: 1px solid rgba(74,154,106,0.45);
+}
+.cover-meta { font-size: 12px; color: rgba(242,248,244,0.75); line-height: 1.9; }
+.cover-meta b { color: #fff; font-weight: 700; }
+.cover-edition {
+  position: absolute; left: 112px; bottom: 56px; z-index: 3;
+  font-size: 10px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(242,248,244,0.55);
+}
+
+/* ───────── CONTENT ───────── */
+.main-content { padding: 52px 60px 40px 60px; }
+.chapter-header { break-after: avoid; break-inside: avoid; margin-top: 26px; }
+.chapter-header:first-child { margin-top: 0; }
+.section-tag {
+  display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--c-accent); margin-bottom: 6px;
+}
+.section-title { font-size: 23px; font-weight: 800; color: var(--c-primary); line-height: 1.22; margin-bottom: 4px; letter-spacing: -0.3px; }
+.divider { width: 46px; height: 4px; background: var(--c-accent-2); border-radius: 2px; margin: 10px 0 14px 0; }
+h3.sub { font-size: 14.5px; font-weight: 700; color: var(--c-primary); margin: 16px 0 7px 0; break-after: avoid; }
+
+.card {
+  break-inside: avoid; background: #fff; border: 1px solid var(--c-border);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+}
+.card.accent-left { border-left: 4px solid var(--c-accent-2); }
+.card-title { font-size: 13px; font-weight: 800; color: var(--c-primary); margin-bottom: 5px; }
+.card p:last-child { margin-bottom: 0; }
+
+.steps { counter-reset: step; margin: 10px 0 12px 0; }
+.step {
+  break-inside: avoid; display: flex; gap: 12px; align-items: flex-start;
+  padding: 9px 0; border-bottom: 1px dashed var(--c-border);
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  counter-increment: step; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%; background: var(--c-accent);
+  color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.step-num::before { content: counter(step); }
+.step-body { font-size: 12.5px; }
+.step-body b { color: var(--c-primary); }
+
+ul.tick { list-style: none; margin: 8px 0 10px 0; padding: 0; }
+ul.tick li {
+  break-inside: avoid; position: relative; padding: 3px 0 3px 24px; text-align: left; font-size: 12.5px;
+}
+ul.tick li::before {
+  content: ''; position: absolute; left: 4px; top: 9px; width: 8px; height: 8px;
+  border-radius: 2px; background: var(--c-accent-2);
+}
+
+table { width: 100%; border-collapse: collapse; margin: 10px 0 14px 0; font-size: 12px; }
+thead { display: table-header-group; }
+th {
+  background: var(--c-header); color: #fff; font-weight: 700; text-align: left;
+  padding: 8px 11px; font-size: 11.5px; letter-spacing: 0.4px;
+}
+td { padding: 7.5px 11px; border-bottom: 1px solid var(--c-border); vertical-align: top; text-align: left; }
+tbody tr:nth-child(odd) { background: var(--c-stripe); }
+tbody tr:nth-child(even) { background: #fff; }
+td b { color: var(--c-primary); }
+tr { break-inside: avoid; }
+
+.pill { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; padding: 3px 9px; border-radius: 12px; }
+.pill.yes { background: #e2f2e8; color: #1f7a4d; }
+.pill.no { background: #f6e8e8; color: #a04a4a; }
+.pill.rev { background: #fdf3e3; color: #a06a1a; }
+
+.callout {
+  break-inside: avoid; background: #eaf4ee; border: 1px solid #cfe4d8; border-left: 4px solid var(--c-accent);
+  border-radius: 8px; padding: 12px 15px; margin: 10px 0 12px 0; font-size: 12.5px;
+}
+.callout b { color: var(--c-primary); }
+
+.two-col { display: flex; flex-wrap: wrap; gap: 12px; max-width: 100%; }
+.two-col .card { flex: 1 1 280px; min-width: 260px; max-width: 100%; margin-bottom: 0; }
+.two-col { margin-bottom: 12px; }
+
+/* ───────── ENDING ───────── */
+.ending {
+  width: 720px; height: 1020px; box-sizing: border-box;
+  break-before: page; overflow: hidden; position: relative;
+  background: var(--c-primary); color: #f2f8f4;
+  display: flex; flex-direction: column; justify-content: center; padding: 64px;
+}
+.ending .ring { position: absolute; bottom: 24px; left: -140px; width: 360px; height: 360px; border-radius: 50%; border: 44px solid rgba(74,154,106,0.16); }
+.ending-content { position: relative; z-index: 3; }
+.ending-title { font-size: 40px; font-weight: 900; letter-spacing: -1px; line-height: 1.15; margin-bottom: 18px; }
+.ending-title .accent { color: #7fc79b; }
+.ending-list { list-style: none; padding: 0; margin: 0 0 26px 0; }
+.ending-list li { position: relative; padding: 7px 0 7px 32px; font-size: 14px; color: #dcefe3; }
+.ending-list li::before {
+  content: '\2713'; position: absolute; left: 0; top: 6px; width: 21px; height: 21px;
+  border-radius: 50%; background: rgba(74,154,106,0.3); color: #bfe3cd;
+  font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.ending-meta { font-size: 12px; color: rgba(242,248,244,0.7); line-height: 2.0; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 18px; }
+.ending-meta b { color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ COVER ═══════════ -->
+<div class="cover">
+  <div class="cover-bg">
+    <div class="ghost">HRMS</div>
+    <div class="ring"></div>
+    <div class="dotgrid"></div>
+  </div>
+  <div class="cover-line"></div>
+  <div class="cover-content">
+    <div class="cover-tag">Standard Operating Procedure &middot; Training Guide</div>
+    <div class="cover-title">3Boxes HRMS<br><span class="accent">Mobile App</span></div>
+    <div class="cover-sub">Everyday operations for HR, Admin and Employees&nbsp;— on the go</div>
+    <div class="cover-summary">
+      This guide is the single source of truth for using the 3Boxes HRMS mobile application.
+      It walks every user through installation and the brand-new sign-in experience (starry
+      welcome, mobile-number or employee-ID sign-in with one-time-code verification and
+      fingerprint unlock), daily attendance punching, leave applications, payslips, the HR Help
+      Desk that is connected to the web support ticketing system, project chat, and explains
+      exactly what employees may change themselves, what goes to HR/Admin for approval, and what
+      stays locked. HR/Admin users get dedicated chapters on employee management, approvals,
+      ticket operations, reports and team attendance.
+    </div>
+    <div class="cover-chips">
+      <span>HR / Admin</span><span>Employees</span><span>CEO</span><span>Managers</span>
+    </div>
+    <div class="cover-meta">
+      <b>App version</b> &nbsp;v1.7.0 (build 34) &nbsp;&middot;&nbsp; <b>Released</b> &nbsp;October 2026<br>
+      <b>Platform</b> &nbsp;Android APK &nbsp;&middot;&nbsp; <b>Distribution</b> &nbsp;Web login page download only
+    </div>
+  </div>
+  <div class="cover-edition">3Boxes HRMS &middot; Edition 2026.10</div>
+</div>
+
+<!-- ═══════════ CONTENT ═══════════ -->
+<div class="main-content">
+
+<!-- CHAPTER 1 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 1</div>
+  <div class="section-title">About This Guide &amp; Installing the App</div>
+  <div class="divider"></div>
+</div>
+<p>
+  This Standard Operating Procedure (SOP) and training guide describes how to use the 3Boxes HRMS
+  mobile application in day-to-day work. It is written for two audiences at once: <b>employees</b>,
+  who use the app to punch attendance, apply for leave, check payslips, work on project tasks,
+  respond in chat and keep their own profile up to date; and <b>HR / Admin users</b> (including the
+  CEO and managers with admin rights), who additionally manage employee records, approve requests,
+  review reports and monitor team attendance from the same app. Everything in this guide reflects
+  app version <b>v1.7.0 (build 34)</b>&nbsp;— if your app shows an older version on the login or profile
+  screen, please update first using the steps below. Version 1.7.0 ships the redesigned login
+  experience, the HR Help Desk, the announcements banner, <b>dual-channel OTP delivery (SMS +
+  email)</b>, a <b>Contact&nbsp;HR ticket form</b> right on the login screen, and a <b>compact
+  one-screen Home dashboard</b> with a colourful Quick Access grid.
+</p>
+<div class="callout">
+  <b>Download policy:</b> the 3Boxes HRMS mobile app is distributed as an Android APK file,
+  downloadable <b>only from the web login page</b> of your company workspace. There is no Play Store
+  listing and no PWA/website shortcut&nbsp;— installing from anywhere else is not supported.
+</div>
+<h3 class="sub">Install the app (one time)</h3>
+<div class="steps">
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Open your company workspace in the phone browser</b>&nbsp;— for example <b>marqaitechgroup.3boxeshrms.com</b>&nbsp;— or simply open <b>3boxeshrms.com</b>. Do this before logging in; the download section sits on the login page itself.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Tap the Android app download button</b> in the login page's download section. The current release APK (v1.7.0) downloads to your device.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Allow the install.</b> Android asks for permission to install from your browser ("Install unknown apps"). Grant it once, then confirm the installation prompt.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Upgrades are in-place.</b> The app is signed with a permanent release key, so every new version installs directly over the old one&nbsp;— no uninstall needed. When HR announces an update, repeat steps 1–3 to fetch the latest APK.</div></div>
+</div>
+<div class="card accent-left">
+  <div class="card-title">First launch</div>
+  <p>On first launch the app shows the splash screen and asks you to accept the terms of use. Accept
+  them once and you move straight to the sign-in screen described in Chapter 2. If your company
+  uses a dedicated workspace link, prefer opening that tenant link in the browser for the download&nbsp;—
+  it guarantees you get the build configured for your organisation.</p>
+</div>
+
+<!-- CHAPTER 2 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 2</div>
+  <div class="section-title">Getting Started&nbsp;— Login &amp; Workspace</div>
+  <div class="divider"></div>
+</div>
+<p>
+  Version 1.7.0 keeps the redesigned sign-in experience and polishes every rough edge reported by
+  the field: the <b>Employee ID tab always opens the full alphanumeric keyboard</b> (letters and
+  numbers, no more stuck numeric pad), <b>Remember me</b> now works on <b>both</b> tabs and
+  pre-fills your details on the next launch, the one-time code reaches you by <b>SMS and email</b>,
+  and <b>Contact&nbsp;HR raises a real help-desk ticket</b> that instantly alerts HR / Admin / IT
+  Admin by app notification and email&nbsp;— all before you have managed to sign in. The app connects to the same accounts as the web
+  application, and the workspace detection ladder (demo workspace → central hub → your company's
+  dedicated workspace) still runs automatically and transparently underneath.
+</p>
+<h3 class="sub">The sign-in flow, step by step</h3>
+<div class="steps">
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Welcome screen.</b> The app opens on a deep-navy starry sky with the 3Boxes HRMS logo card and the tagline "Your workplace, in one place". Tap the <b>arrow button</b> to continue to sign-in.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Choose a sign-in method.</b> The sign-in screen has a violet gradient header with the logo and two tabs: <b>Mobile Number</b> and <b>Employee ID</b>. Pick whichever is easier for you&nbsp;— both lead to the same account.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Mobile Number tab:</b> select your country code (+91 by default), enter your registered mobile number, optionally leave <b>Remember me</b> on so the number is pre-filled next time, and tap <b>Continue&nbsp;→</b>. The app sends a 6-digit one-time code <b>by SMS to your phone and by email</b> to the registered address, then opens the verification screen.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Employee ID tab:</b> tap the tab and the full alphanumeric keyboard opens immediately&nbsp;— type your Employee ID or work email plus your password, keep <b>Remember me</b> on to auto-save your identity on this device, and tap <b>Sign In</b>. <b>Forgot password?</b> sits right next to it&nbsp;— tap it and contact your HR team for a reset, exactly as on web.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Verify your number (OTP).</b> The verification screen shows the masked destinations, six code boxes, a <b>resend countdown</b> and a <b>Change number</b> link. A status chip under the headline tells you exactly <b>which channel carried the code&nbsp;— SMS, email or both</b>. Enter the code and tap <b>Verify &amp; continue</b>.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Enable fingerprint / Face ID.</b> After the first successful sign-in the app offers biometric unlock (the same Face ID / Fingerprint row is visible on both sign-in tabs). Enable it on personal phones&nbsp;— the next launch opens with a fingerprint prompt instead of the keyboard.</div></div>
+</div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">OTP tips&nbsp;— dual-channel delivery</div>
+    <p>The code now goes out on <b>two channels at once</b>: SMS to your registered mobile number and
+    email to your registered inbox (check spam). The chip on the verification screen reports what
+    actually went out, so you never wait on a message that was never sent. The code is single-use and
+    expires quickly; requesting a new one invalidates the old. If no channel could deliver&nbsp;— for
+    example before your SMS gateway is configured&nbsp;— the screen says so immediately and offers a
+    one-tap <b>Raise a ticket to HR</b> shortcut; on the demo workspace it also shows the code inline
+    so the flow stays testable.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Contact HR&nbsp;— raises a real ticket</div>
+    <p>Both sign-in tabs end with a <b>Contact HR</b> link, and it is no longer just an information
+    sheet: tapping it opens a short form (issue type&nbsp;— OTP not received, sign-in problem,
+    account locked, password reset, unknown Employee ID&nbsp;— plus optional Employee ID, name and
+    reply-to contact). Submitting creates a <b>real help-desk ticket</b> in your workspace's
+    Support&nbsp;&amp;&nbsp;AI → Help Desk queue, and every <b>HR / Admin / IT Admin</b> receives an
+    <b>in-app alert and an email</b> (plus an SMS nudge when a gateway is configured) within seconds.
+    You get the ticket number on screen&nbsp;— no colleague login needed.</p>
+  </div>
+</div>
+<div class="callout">
+  <b>Security basics:</b> never share your login or the one-time codes; biometric unlock is tied to
+  the device's own fingerprint/face store, so a colleague's finger will simply not open your app.
+  On shared devices skip biometric setup and sign out after use.
+</div>
+
+<!-- CHAPTER 3 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 3</div>
+  <div class="section-title">Home Dashboard at a Glance</div>
+  <div class="divider"></div>
+</div>
+<p>
+  The Home screen is your operations hub, and version 1.7.0 makes it <b>compact and
+  colourful</b>: everything now fits on <b>one screen without scrolling</b>. A rotating
+  <b>announcements banner</b> sits under the header, the fingerprint <b>punch tabs</b> stay front
+  and centre, a single <b>KPI strip</b> (worked today · this month · on leave) replaces three
+  separate cards, and a bright 4-column <b>Quick Access grid</b> reaches every module in one tap.
+  <b>Birthdays</b> appear as a slim card only when there is someone to celebrate. The full module
+  list still lives in the ☰ menu; the bottom navigation is <b>Home · Chat · Attendance ·
+  Profile</b> with a floating chat bubble above it for instant project and team conversations.
+</p>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Punch tabs (top of Home)</div>
+    <ul class="tick">
+      <li><b>Check / Break Time / Leave tabs</b>&nbsp;— fingerprint-style punch buttons; the label flips to Check Out while you are checked in.</li>
+      <li><b>KPI strip</b>&nbsp;— worked time today (live), this month's attended days with attendance %, and how many colleagues are on leave&nbsp;— one tappable row.</li>
+      <li><b>Tap through</b>&nbsp;— the KPI columns open Attendance, the attendance report and the Directory respectively.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">Announcements banner</div>
+    <p>A slim banner under the header auto-rotates through <b>pinned posts and HR announcements</b>
+    from the company feed (latest post as fallback). Tap it to open the full Announcements list.
+    What HR posts on the web Social Feed reaches every phone within seconds&nbsp;— no more "did
+    anyone see the memo?".</p>
+  </div>
+</div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">One screen, no scrolling</div>
+    <p>The old home stacked a time log, a weekly chart, an organisation card, a month card, a
+    quick-links rail and a module grid&nbsp;— beautiful, but it scrolled forever. Version 1.7.0
+    folds all of that into <b>one compact view</b>: banner → punch tabs → KPI strip → Quick
+    Access grid → slim birthdays. The weekly hours breakdown lives on in the Attendance
+    module's report screens, one tap away.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Birthdays &amp; Send Wishes</div>
+    <p>The birthdays card lists colleagues whose <b>original birthday</b> falls today plus the
+    <b>upcoming 45 days</b> (hidden entirely when the list is empty). Tap <b>Send Wishes</b> to
+    deliver a greeting instantly&nbsp;— the colleague receives it in-app and by email, and the
+    company posts an automatic greeting too.</p>
+  </div>
+</div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Quick Access grid</div>
+    <p>A bright 4-column tile grid merges the old Quick Links rail and the Modules grid:
+    <b>Attendance, Leaves, Payroll, Employees, Projects, Payslips, Requests, Directory, Help
+    Desk, Feeds</b>&nbsp;— plus <b>Reports</b> and <b>Team Attendance</b> for HR/Admin roles. Every
+    tile is colour-coded and one tap deep; less-used destinations (profile, notifications,
+    connection check) live in the ☰ drawer so the dashboard stays lean.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Team snapshot &amp; navigation</div>
+    <p>The KPI strip's third column shows <b>how many colleagues are on leave today</b> out of the
+    company total&nbsp;— the same live numbers the admin dashboard sees. The bottom navigation
+    carries <b>Home · Chat · Attendance · Profile</b>, and the floating <b>chat bubble</b> opens
+    project and team conversations from anywhere on the dashboard.</p>
+  </div>
+</div>
+<h3 class="sub">Quick Access grid&nbsp;— who sees what</h3>
+<table>
+  <thead><tr><th style="width:34%">Module tile</th><th>Employee</th><th>HR / Admin &amp; CEO</th></tr></thead>
+  <tbody>
+    <tr><td><b>Employee Management</b>&nbsp;— directory, add/view employees</td><td><span class="pill no">Hidden</span></td><td><span class="pill yes">Visible</span></td></tr>
+    <tr><td><b>Leave Management</b>&nbsp;— apply, balance, approve</td><td><span class="pill yes">Visible</span></td><td><span class="pill yes">Visible</span> + approvals</td></tr>
+    <tr><td><b>Attendance</b>&nbsp;— punch, breaks, regularisation</td><td><span class="pill yes">Visible</span></td><td><span class="pill yes">Visible</span></td></tr>
+    <tr><td><b>Payroll</b>&nbsp;— payslips with filters</td><td><span class="pill yes">Visible</span></td><td><span class="pill yes">Visible</span></td></tr>
+    <tr><td><b>Projects</b>&nbsp;— projects and tasks</td><td><span class="pill yes">Visible</span></td><td><span class="pill yes">Visible</span></td></tr>
+    <tr><td><b>Chat</b>&nbsp;— bottom-nav tab, project &amp; team conversations</td><td><span class="pill yes">Visible</span></td><td><span class="pill yes">Visible</span></td></tr>
+    <tr><td><b>HR Help Desk</b>&nbsp;— support tickets, web-connected</td><td><span class="pill yes">Visible</span></td><td><span class="pill yes">Visible</span> + ops view</td></tr>
+    <tr><td><b>Reports</b>&nbsp;— leave / attendance / employees / projects</td><td><span class="pill no">Hidden</span></td><td><span class="pill yes">Visible</span></td></tr>
+    <tr><td><b>Team Attendance</b>&nbsp;— team view + daily status</td><td><span class="pill no">Hidden</span></td><td><span class="pill yes">Visible</span></td></tr>
+    <tr><td><b>Notifications</b> &amp; <b>My Profile</b></td><td><span class="pill yes">Visible</span></td><td><span class="pill yes">Visible</span></td></tr>
+  </tbody>
+</table>
+
+<!-- CHAPTER 4 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 4</div>
+  <div class="section-title">HR Help Desk&nbsp;— Support Ticketing on the Go</div>
+  <div class="divider"></div>
+</div>
+<p>
+  The <b>HR Help Desk</b> (Quick Links tile, headset icon) is the mobile window into the
+  <b>same support ticketing system the web app uses under Support &amp; AI → Help Desk</b>. A ticket
+  raised on the phone appears instantly in the web queue for HR/Admin, replies flow both ways, and
+  status changes sync in real time&nbsp;— one ticketing system, two front-ends, zero duplication.
+</p>
+<h3 class="sub">Working a ticket from the phone</h3>
+<div class="steps">
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Raise a ticket.</b> Open the Help Desk tile and tap the create button. Pick a category, write a clear subject and description, and submit&nbsp;— HR/Admin are notified immediately. <b>Cannot sign in at all?</b> The login screen's Contact HR form raises the same ticket without any session, asking for your Employee ID and issue&nbsp;— HR / Admin / IT Admin get the alert by app notification and email.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Track "My tickets".</b> Employees see their own tickets with live status (open / in progress / resolved / closed)&nbsp;— the server enforces the self-scope, so nobody can read a colleague's tickets.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Reply in the thread.</b> Open a ticket to read the full conversation and add comments; every reply is visible to HR/Admin on web the moment it lands.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>HR/Admin operations view.</b> HR/Admin additionally see <b>all tenant tickets</b>, answer threads from the phone and <b>change ticket status</b> as they work through the queue&nbsp;— useful between meetings without opening a laptop.</div></div>
+</div>
+<div class="callout">
+  <b>Good ticket hygiene:</b> one issue per ticket, a descriptive subject ("Payslip September&nbsp;— HRA
+  component wrong" beats "help"), and attach context up front. Clear tickets get resolved faster
+  and the history stays searchable for both sides.
+</div>
+<!-- CHAPTER 4 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 5</div>
+  <div class="section-title">Attendance SOP&nbsp;— Punch, Break, Regularise</div>
+  <div class="divider"></div>
+</div>
+<p>
+  Attendance on mobile uses the same punch pipeline as the biometric and web channels: every
+  Check In / Check Out runs through the shared PunchFlow, which captures your GPS position and
+  validates it before recording the punch. This protects the accuracy of attendance data&nbsp;— punches
+  taken from impossible locations or with spoofed GPS are rejected. Punches recorded on mobile flow
+  straight into the same attendance records your HR team reviews on the web, so there is nothing
+  extra to submit or reconcile.
+</p>
+<h3 class="sub">Daily punching procedure</h3>
+<div class="steps">
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Enable location services</b> before punching&nbsp;— the app needs GPS to stamp the punch with a valid position. Keep the device's time automatic.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Check In</b> when your shift starts&nbsp;— from the Home quick card or the Attendance module. The card shows today's status, working hours so far and your latest punch time.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Start Break</b> when you step away and <b>End Break</b> when you return. Break windows are recorded against the day and reflected in your worked-hours total.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Check Out</b> at the end of the shift. The punch card flips back and your day is complete&nbsp;— in time, out time, breaks and total hours.</div></div>
+</div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Forgot to punch?</div>
+    <p>Do not panic and do not double-punch. Raise a <b>regularisation request</b> from the
+    Attendance module (or the Raise shortcut) stating the correct in/out times. Your manager and HR
+    receive it and, once approved, the day's attendance is corrected at the source&nbsp;— payroll then
+    reads the corrected data.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">If GPS fails</div>
+    <p>If the punch returns a location error: confirm Location is ON for the app in Android
+    settings, move near a window or open space, and retry. The app blocks mock-location providers&nbsp;—
+    removing any fake-GPS app resolves persistent rejections.</p>
+  </div>
+</div>
+<div class="card accent-left">
+  <div class="card-title">For HR / Admin&nbsp;— Team Attendance</div>
+  <p>The <b>Team Attendance</b> tile (admin, CEO and HR only) shows who is present, on leave or
+  missing punches for the day, with a daily status entry view. Combined with the <b>Reports</b>
+  module (attendance and leave reports), it replaces the old "ask around" morning routine&nbsp;—
+  open it first thing and you have the whole organisation's attendance posture on one screen.</p>
+</div>
+
+<!-- CHAPTER 5 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 6</div>
+  <div class="section-title">Leave SOP&nbsp;— Apply, Track, Approve</div>
+  <div class="divider"></div>
+</div>
+<p>
+  Leave requests raised on mobile go through exactly the same workflow as on web: the request is
+  created against your leave policy, your approver chain is resolved automatically, and every
+  decision triggers a notification (and email) to the people involved. Balances shown in the app
+  are the live balances HR maintains, so what you see is what payroll will honour.
+</p>
+<h3 class="sub">Apply for leave</h3>
+<div class="steps">
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Open Leave Management</b> (or tap <b>Request Leave</b> on Home) and tap <b>Apply Leave</b>.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Choose the leave type</b>&nbsp;— casual, sick, earned and any company-specific types configured by HR.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Pick the dates</b> and enter a short reason. Apply <b>before</b> the leave date wherever possible&nbsp;— planned leave applied in advance is approved faster and protects payroll.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Submit.</b> The request appears in your list with a status chip: <b>Pending</b>, <b>Approved</b> or <b>Rejected</b>. You are notified the moment a decision is made.</div></div>
+</div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Track balances</div>
+    <p>The Leave home shows your remaining balance per leave type alongside this year's usage.
+    Check it before applying&nbsp;— the form warns when a request exceeds the balance, but the balance
+    view is the reliable place to plan long breaks.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">For approvers&nbsp;— act on the go</div>
+    <p>HR/Admin, CEO and managers with approval rights see <b>Approve</b> and <b>Reject</b> actions
+    directly on each pending card, and can <b>apply leave on behalf of an employee</b> from the same
+    screen (useful for field staff who cannot raise it themselves). Every action is audit-logged.</p>
+  </div>
+</div>
+
+<!-- CHAPTER 6 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 7</div>
+  <div class="section-title">Payroll SOP&nbsp;— Payslips on the Go</div>
+  <div class="divider"></div>
+</div>
+<p>
+  The Payroll module brings your payslip history to the phone. Payslips appear here once payroll
+  for the month is processed and released by the payroll manager&nbsp;— the mobile list mirrors the web
+  payroll records exactly, including the official company payslip format used by the organisation.
+  Employees do not need to request payslips from HR any more; the current and historical months are
+  self-service.
+</p>
+<h3 class="sub">View a payslip</h3>
+<div class="steps">
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Open Payroll</b> from the Modules grid. The Payslips list shows each processed month with its net salary.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Filter if needed</b>&nbsp;— by month, by employee (for HR/Admin and payroll managers reviewing a specific person) or by status, using the filter bar.</div></div>
+  <div class="step"><div class="step-num"></div><div class="step-body"><b>Tap a payslip</b> to open the detail sheet: earnings, deductions and the net pay breakdown for that month. Verify the figures and raise a ticket if something looks wrong&nbsp;— do not wait for payday.</div></div>
+</div>
+<div class="callout">
+  <b>Note for HR / payroll managers:</b> mobile payroll respects the web's release rules&nbsp;— payslip
+  details follow the company payroll policy, and actions such as downloading released payslips are
+  governed by the payroll-manager permission set configured on web. If a payslip you expect is
+  missing, check that the payroll run for that month has been released.
+</div>
+
+<!-- CHAPTER 7 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 8</div>
+  <div class="section-title">Projects, Tasks &amp; Collaboration</div>
+  <div class="divider"></div>
+</div>
+<p>
+  Project work no longer requires a laptop. The Projects module mirrors the web project workspace:
+  you see the projects you are allocated to, the tasks assigned to you and their live status. When
+  a task is created for you or a task moves to a new workflow step, you receive a <b>push
+  notification on the phone and an email</b>&nbsp;— the same dual-channel alert that web users get&nbsp;— so
+  nothing sits unnoticed until the next stand-up.
+</p>
+<ul class="tick">
+  <li><b>Projects</b>&nbsp;— open the tile to see your allocated projects; tap one for its detail view with tasks, members and progress.</li>
+  <li><b>Tasks</b>&nbsp;— check what is assigned to you, review descriptions, dates and attachments posted from web or mobile, and move your work forward by updating the task as you go.</li>
+  <li><b>Chat</b>&nbsp;— Chat lives in the <b>bottom navigation</b> (and behind the floating bubble on Home and the web dashboard), now wearing a <b>SmartHR-style redesign</b>: a royal-blue gradient header, counter chips for <b>All · Direct · Channels · Unread</b>, a <b>Quick chat</b> strip of recent one-to-one partners with online dots, and red unread badges. Open company and <b>project-specific conversations</b>, see member lists, and coordinate there instead of personal messaging apps, so decisions stay inside the organisation's record. The same conversations are reachable from the <b>chat icon on the web dashboard</b>&nbsp;— start a thread on the phone, continue it on the laptop.</li>
+  <li><b>Notifications</b>&nbsp;— the bell tile (and the counter on Home) collects every alert: task assignments and step changes, leave decisions, photo approval results, payslip releases and HR announcements.</li>
+</ul>
+<div class="card accent-left">
+  <div class="card-title">Working rhythm that works</div>
+  <p>A practical cadence for most teams: check the bell first thing in the morning, punch in, work
+  from the Projects list during the day, and punch out at shift end. Because task updates notify
+  both the assignee and the manager instantly, the app effectively replaces the "any update?" follow-up
+  message&nbsp;— status flows to whoever needs it automatically.</p>
+</div>
+<!-- CHAPTER 8 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 9</div>
+  <div class="section-title">My Profile&nbsp;— Self-Service Rules</div>
+  <div class="divider"></div>
+</div>
+<p>
+  My Profile mirrors the full employee record from the web employee module. It is where you keep
+  your working information current&nbsp;— and it is also where the company's data-governance rules are
+  enforced on the phone. Every field falls into one of three tiers, and the app labels the
+  difference clearly so you always know what happens when you save.
+</p>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title"><span class="pill yes">You can edit directly</span></div>
+    <p>Phone number, personal email, current and permanent address, emergency contacts, blood group
+    and similar contact-level details save <b>immediately</b>. As a safeguard, HR/Admin automatically
+    receive an in-app notification <b>and an email</b> showing the field, the old value and the new
+    value&nbsp;— so every self-service change is transparent to HR without needing approval.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="pill rev">Goes to HR/Admin for approval</span></div>
+    <p>Your <b>profile photo</b> is gated. When you upload a new photo it enters a pending state&nbsp;—
+    you see a "submitted" badge, but other colleagues keep seeing the current photo. HR/Admin review
+    it in the Photo Approvals queue and either publish it or reject it with a reason; you are
+    notified of the decision either way.</p>
+  </div>
+</div>
+<div class="card" style="border-left: 4px solid #a04a4a;">
+  <div class="card-title"><span class="pill no">Locked&nbsp;— contact HR/Admin</span></div>
+  <p><b>Date of birth, first name and last name</b> are identity fields and cannot be edited from
+  self-service on mobile or web&nbsp;— the fields appear disabled. If one of them is wrong (for example a
+  typo from onboarding), raise it with HR/Admin, who will correct the record from the employee
+  module. The same protection applies to every update request you raise from the app.</p>
+</div>
+<h3 class="sub">Sections you will find in My Profile</h3>
+<ul class="tick">
+  <li><b>Personal</b>&nbsp;— contact details, addresses, blood group, and your <b>interests</b> chips.</li>
+  <li><b>Original Birthday</b>&nbsp;— the date used for birthday celebrations; HR/Employee can set it any time, and it may differ from the official date of birth used in records.</li>
+  <li><b>Employment</b>&nbsp;— department, designation, reporting manager (read-only), plus your <b>technical skills</b> with proficiency level and years of experience.</li>
+  <li><b>Experience</b>&nbsp;— every previous company with role, duration, the <b>domains you worked in</b> (multiple selection), company logo, category and level, and related <b>letters</b> (offer, relieving, experience, appraisal, payslip) you can attach and open.</li>
+  <li><b>Achievements</b>&nbsp;— awards and recognitions from your current or previous companies with category, issuer and date.</li>
+  <li><b>Insurance</b>&nbsp;— your medical insurance details and the <b>family details</b> used for medical cover.</li>
+  <li><b>Documents &amp; Policies</b>&nbsp;— company documents assigned to you and the policy grid, each with View and Download.</li>
+</ul>
+
+<!-- CHAPTER 9 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 10</div>
+  <div class="section-title">For HR / Admin&nbsp;— Management Operations</div>
+  <div class="divider"></div>
+</div>
+<p>
+  HR/Admin users (and the CEO) carry the organisation's operational load on the same app. The
+  management tiles&nbsp;— Employee Management, Reports and Team Attendance&nbsp;— appear in the Modules grid
+  only for these roles, and their content matches the web modules one-for-one so a task started on
+  web can be finished on mobile and vice versa.
+</p>
+<h3 class="sub">Employee Management</h3>
+<ul class="tick">
+  <li><b>Directory &amp; list</b>&nbsp;— search the workforce, view each employee's profile including their total experience computed from their career entries.</li>
+  <li><b>Add employee</b>&nbsp;— the guided multi-step form (personal, address, employment, bank, emergency) with the same mandatory-field rules as web; required fields are marked so records are complete at creation time.</li>
+  <li><b>Documents</b>&nbsp;— view an employee's documents with download; identity documents such as Aadhaar can be verified by scanning the QR code from the verification tab.</li>
+  <li><b>Photo approvals</b>&nbsp;— review employee photo submissions in the queue: approve to publish the new photo, or reject with a mandatory reason; the employee is notified automatically.</li>
+  <li><b>Help Desk operations</b>&nbsp;— open the Help Desk tile to see <b>all tenant tickets</b>, reply in any thread and <b>change ticket status</b> from the phone; the same queue your employees see under "My tickets" on mobile and on the web Support &amp; AI module.</li>
+</ul>
+<h3 class="sub">Reports &amp; Team Attendance</h3>
+<p>
+  The <b>Reports</b> tile opens leave, attendance, employee and project reports filtered for your
+  permission set&nbsp;— the same reports the web admin dashboard produces, formatted for the phone.
+  <b>Team Attendance</b> gives the day view of who is in, out or on leave with a daily status entry
+  capability for supervisors. A recommended routine: review Team Attendance every morning, clear
+  pending leave approvals before lunch, and skim the Reports module weekly to catch trends&nbsp;—
+  rising regularisations or unused leave&nbsp;— before they become payroll corrections.
+</p>
+<div class="callout">
+  <b>Birthday wishes monitoring:</b> the Home birthdays card lists this month's celebrants for the
+  whole month. HR/Admin should keep <b>original birthdays</b> filled in for every employee&nbsp;—
+  celebrations (and the automatic greeting) only fire for employees whose original birthday is
+  recorded. If it is missing, fill it from the employee module on web or mobile.
+</div>
+
+<!-- CHAPTER 10 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 11</div>
+  <div class="section-title">Roles &amp; Permissions Matrix</div>
+  <div class="divider"></div>
+</div>
+<p>
+  The table below summarises what each role can do from the mobile app. It reflects the same
+  permission model as the web application&nbsp;— the app never grants a right the web would deny, and
+  every sensitive action is validated server-side, not just hidden in the UI.
+</p>
+<table>
+  <thead><tr><th style="width:46%">Capability</th><th>Employee</th><th>HR / Admin</th><th>CEO</th></tr></thead>
+  <tbody>
+    <tr><td>Check in / out, breaks, regularisation</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Apply for leave (self)</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Approve / reject leave, apply on behalf</td><td><span class="pill no">No</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>View own payslips</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Employee directory with experience</td><td><span class="pill no">No</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Add / view employees, documents</td><td><span class="pill no">No</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill rev">View</span></td></tr>
+    <tr><td>Reports (leave / attendance / employees / projects)</td><td><span class="pill no">No</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Team attendance + daily status</td><td><span class="pill no">No</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Approve / reject profile photos</td><td><span class="pill no">No</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td></tr>
+    <tr><td>Edit own contact details (HR notified)</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Edit DOB / first / last name</td><td><span class="pill no">Locked</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill rev">Via HR</span></td></tr>
+    <tr><td>Send birthday wishes</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>Raise &amp; reply to Help Desk tickets (self-scope)</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+    <tr><td>View all tickets &amp; change ticket status</td><td><span class="pill no">No</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill rev">View</span></td></tr>
+    <tr><td>Chat on projects &amp; teams (mobile + web)</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+  </tbody>
+</table>
+
+<!-- CHAPTER 11 -->
+<div class="chapter-header">
+  <div class="section-tag">Chapter 12</div>
+  <div class="section-title">Golden Rules, Troubleshooting &amp; Support</div>
+  <div class="divider"></div>
+</div>
+<p>
+  A handful of habits keep mobile HRMS usage smooth for everyone. They take seconds to follow and
+  prevent most of the support tickets HR receives&nbsp;— read them once, apply them daily.
+</p>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Golden rules</div>
+    <ul class="tick">
+      <li>Punch in and out <b>every working day</b>, with location enabled.</li>
+      <li>Apply for leave <b>in advance</b>; use regularisation only for genuine misses.</li>
+      <li>Keep your profile <b>current</b>&nbsp;— phone, address, emergency contacts, skills, experience letters.</li>
+      <li>Never <b>share your login</b> or install the APK from unofficial sources.</li>
+      <li>Check the <b>notification bell</b> daily; act on approvals the same day.</li>
+      <li>Raise a <b>Help Desk ticket</b> instead of side-channel messages&nbsp;— tickets are tracked, searchable and answered faster.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">Escalation path</div>
+    <p><b>Step 1&nbsp;— Employee:</b> try the troubleshooting table first.<br>
+    <b>Step 2&nbsp;— HR/Admin:</b> raise the issue with your HR team (in person or via the helpdesk); they can resolve account, data and approval issues.<br>
+    <b>Step 3&nbsp;— Super admin:</b> platform-level or technical issues are escalated by HR/Admin to the 3Boxes HRMS super admin with details of the app version and the affected account.</p>
+  </div>
+</div>
+<h3 class="sub">Troubleshooting</h3>
+<table>
+  <thead><tr><th style="width:36%">Problem</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><b>APK will not install</b>&nbsp;— "blocked" message</td><td>Allow "Install unknown apps" for your browser in Android settings, then reopen the downloaded file. If upgrading, simply install over the existing app&nbsp;— no uninstall needed.</td></tr>
+    <tr><td><b>Cannot sign in</b></td><td>Confirm the email and password work on the web login of your workspace. If web works but mobile does not, update to the latest APK; if both fail, ask HR/Admin to reset the password or use <b>Contact HR</b> on the login screen to raise a ticket straight to the team. On the Mobile Number tab, make sure the number is the one registered in HRMS.</td></tr>
+    <tr><td><b>Numeric keyboard stuck on Employee ID tab</b></td><td>Fixed in v1.7.0&nbsp;— the Employee ID field now always opens the full alphanumeric keypad. If you still see numbers only, update the APK from the web login page.</td></tr>
+    <tr><td><b>Remember me not saving details</b></td><td>Fixed in v1.7.0&nbsp;— the switch now saves your identity on <b>both</b> tabs (number + country code, or Employee ID/email) and pre-fills them on the next launch. Turning it off clears the stored identity.</td></tr>
+    <tr><td><b>OTP code not received</b></td><td>Codes now travel by <b>SMS and email in parallel</b>&nbsp;— check both the phone inbox and email spam. The status chip on the verification screen shows which channels actually carried the code. If nothing arrived, tap <b>Still no code? Raise a ticket to HR</b>&nbsp;— HR / Admin / IT Admin are alerted instantly and can verify your identity, or switch to the Employee ID tab in the meantime.</td></tr>
+    <tr><td><b>Ticket stuck or misrouted</b></td><td>Open the ticket thread and add details in a reply&nbsp;— HR/Admin see it instantly on web and mobile. Only HR/Admin can change ticket status; if the category was wrong, say so in the thread rather than raising a duplicate.</td></tr>
+    <tr><td><b>Punch rejected&nbsp;— GPS error</b></td><td>Enable location permission for the app, disable any mock/fake-GPS app, retry outdoors or near a window.</td></tr>
+    <tr><td><b>Data looks stale</b> (leave balance, payslip)</td><td>Pull-to-refresh the screen; if still stale, verify on web and ask HR/Admin to confirm the record was saved and released.</td></tr>
+    <tr><td><b>Notification not received</b></td><td>Open the bell tile&nbsp;— the alert is stored there even if the push was missed. Check Android notification permission for the app.</td></tr>
+    <tr><td><b>Profile change rejected or locked</b></td><td>Identity fields (DOB, names) are locked by policy&nbsp;— contact HR/Admin. Photo rejections come with a reason; resubmit a compliant photo.</td></tr>
+  </tbody>
+</table>
+
+</div>
+
+<!-- ═══════════ ENDING ═══════════ -->
+<div class="ending">
+  <div style="position:absolute; inset:0; overflow:hidden; z-index:1;">
+    <div class="ring"></div>
+  </div>
+  <div class="ending-content">
+    <div class="ending-title">You are <span class="accent">ready to go</span>.</div>
+    <ul class="ending-list">
+      <li>Install v1.7.0 from your workspace's web login page and sign in with mobile number or employee ID.</li>
+      <li>Punch in with GPS, apply leave ahead of time, check payslips yourself.</li>
+      <li>Complete My Profile&nbsp;— skills, experience, achievements, family details.</li>
+      <li>HR/Admin: clear approvals and Help Desk tickets daily, watch Team Attendance each morning.</li>
+    </ul>
+    <div class="ending-meta">
+      <b>3Boxes HRMS Mobile App</b> &middot; SOP &amp; Training Guide &middot; App v1.7.0 (build 34)<br>
+      Download: your company workspace web login page &middot; Support: your HR/Admin team<br>
+      3Boxes HRMS &middot; Edition 2026.10
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

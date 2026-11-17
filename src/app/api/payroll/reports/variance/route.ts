@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
       const tenantId = (decoded as Record<string, unknown>).tenantId as string | undefined;
       if (tenantId) {
         const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
-        const payrollIds = await resolveRoleRecipients(db, ['payroll_admin', 'payroll_manager', 'admin', 'tenant_admin'], 10);
+        const payrollIds = await resolveRoleRecipients(db, ['payroll_admin', 'payroll_manager', 'admin', 'tenant_admin', 'ceo'], 10);
         if (payrollIds.length) {
           await dispatchNotification({
             tenantId,

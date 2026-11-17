@@ -13,6 +13,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { pickDocumentFile } from '@/lib/document-validation';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -29,6 +30,7 @@ interface Document {
   employeeId: string;
   employee?: { id: string; firstName: string; lastName: string; employeeId: string };
   description?: string | null;
+  category?: string | null;
 }
 
 interface Employee {
@@ -123,13 +125,14 @@ const initialForm = {
   expiryDate: '',
   employeeId: '',
   description: '',
+  category: '',
 };
 
 /* ── Component ── */
 export default function DocumentsPage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -211,6 +214,7 @@ export default function DocumentsPage() {
       expiryDate: doc.expiryDate ? new Date(doc.expiryDate).toISOString().split('T')[0] : '',
       employeeId: doc.employeeId || '',
       description: doc.description || '',
+      category: doc.category || '',
     });
     setEditingId(doc.id);
     setShowForm(true);
@@ -242,6 +246,7 @@ export default function DocumentsPage() {
         status: form.status,
         expiryDate: form.expiryDate || null,
         description: form.description || null,
+        category: form.category || null,
       };
 
       if (editingId) {
@@ -414,10 +419,13 @@ export default function DocumentsPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Document Name <span className="text-red-500 font-bold">*</span></label>
-                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Document name" />
-              </div>
+              {/* REQ 1: Document Tab / Document Name / File Link / Description / Expiry Date
+                  appear ONLY as placeholders inside their inputs (no <label>
+                  above). Type, Employee, and Status keep their labels because
+                  they are <select> dropdowns — placeholder semantics don't
+                  apply and removing the label would harm usability. */}
+              <input type="text" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Document Tab" />
+              <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Document Name *" />
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
@@ -433,24 +441,50 @@ export default function DocumentsPage() {
                   </select>
                 </div>
               )}
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">File URL</label>
-                <input type="text" value={form.fileUrl} onChange={e => setForm(p => ({ ...p, fileUrl: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="https://..." />
+              {/* File Link: now a PDF-only file picker (REQ 2) + optional
+                  external-link text input below it. The file picker is the
+                  primary path; the text input remains for shareable links. */}
+              <div className="flex flex-col gap-1.5">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-0.5">Upload PDF (max 3 MB)</label>
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={(e) => {
+                    const result = pickDocumentFile(e);
+                    if (result.error) {
+                      toast.error(result.error);
+                      return;
+                    }
+                    if (result.file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        const dataUrl = reader.result as string;
+                        setForm(prev => ({ ...prev, fileUrl: dataUrl, name: prev.name || (result.fileName || '') }));
+                        toast.success('PDF selected — click Upload to save.');
+                      };
+                      reader.onerror = () => toast.error('Failed to read the selected PDF. Please try again.');
+                      reader.readAsDataURL(result.file);
+                    }
+                  }}
+                  className="w-full text-sm text-thb-text-secondary file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 file:font-medium file:cursor-pointer hover:file:bg-green-100 cursor-pointer"
+                />
               </div>
+              <input type="text" value={form.fileUrl && form.fileUrl.startsWith('data:') ? '' : form.fileUrl} onChange={e => setForm(p => ({ ...p, fileUrl: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="File Link (or upload PDF above)" disabled={!!(form.fileUrl && form.fileUrl.startsWith('data:'))} />
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
                 <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {DOC_STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expiry Date</label>
-                <input type="date" value={form.expiryDate} onChange={e => setForm(p => ({ ...p, expiryDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-              </div>
-              <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
-                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Document description..." />
-              </div>
+              <input type="date" value={form.expiryDate} onChange={e => setForm(p => ({ ...p, expiryDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Expiry Date" />
+              <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none sm:col-span-2 lg:col-span-3" placeholder="Description" />
+              {/* Hint chip when a PDF has been picked so the user knows the
+                  File Link field is now disabled (data URL is set internally). */}
+              {form.fileUrl && form.fileUrl.startsWith('data:') && (
+                <div className="sm:col-span-2 lg:col-span-3 -mt-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-1.5">
+                  PDF ready to upload. To use an external link instead, click the file input again and cancel — or just clear the upload.
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>

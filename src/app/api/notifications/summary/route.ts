@@ -9,7 +9,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { NOTIFICATION_MODULES, TOTAL_EVENT_COUNT } from '@/lib/notification-events';
 
-const ADMIN_ROLES = ['admin', 'superadmin', 'super_admin', 'tenant_admin', 'hr_admin', 'company_hr_admin', 'hr_manager'];
+const ADMIN_ROLES = ['admin', 'superadmin', 'super_admin', 'tenant_admin', 'ceo', 'hr_admin', 'company_hr_admin', 'hr_manager'];
 
 function cors() {
   return {

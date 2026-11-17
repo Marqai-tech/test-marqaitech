@@ -32,7 +32,7 @@ export function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'hr_admin', 'admin', 'company_hr_admin'];
+const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'hr_admin', 'admin', 'company_hr_admin'];
 
 async function authorize(request: NextRequest) {
   const token = getTokenFromHeaders(request);
@@ -118,7 +118,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: auth.error }, { status: auth.status, headers: corsHeaders() });
     }
     // Data writes are restricted to super_admin / tenant_admin
-    if (!['super_admin', 'tenant_admin'].includes(String(auth.decoded?.role))) {
+    if (!['super_admin', 'tenant_admin', 'ceo'].includes(String(auth.decoded?.role))) {
       return NextResponse.json({ error: 'Forbidden — super_admin / tenant_admin only' }, { status: 403, headers: corsHeaders() });
     }
 

@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
 
 export default function CandidateSettingsPage() {
   const router = useRouter();
@@ -10,6 +11,9 @@ export default function CandidateSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [portalState, setPortalState] = useState<PortalState | null>(null);
+
+  useEffect(() => { fetchPortalState().then(setPortalState); }, []);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_candidate_token') : null;
 
@@ -44,7 +48,9 @@ export default function CandidateSettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="min-h-screen bg-slate-50">
+      <CandidatePortalNav state={portalState} active="settings" />
+      <div className="p-6 space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold">Settings & Privacy</h1>
         <p className="text-sm text-gray-600 mt-1">Manage your data and privacy preferences (REQ-SEC-CAND-02).</p>
@@ -140,6 +146,7 @@ export default function CandidateSettingsPage() {
         <Link href="/candidate-portal/dashboard" className="text-sm text-green-600 hover:underline">
           ← Back to Dashboard
         </Link>
+      </div>
       </div>
     </div>
   );

@@ -262,7 +262,7 @@ export async function GET(request: Request) {
     }
 
     const userRole = decoded.role as string;
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo')) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -320,7 +320,7 @@ export async function POST(request: Request) {
     const tenantId = decoded.tenantId as string;
 
     // Only super_admin and tenant_admin can seed
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo')) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -328,7 +328,7 @@ export async function POST(request: Request) {
     const targetTenantId = body.tenantId || tenantId;
 
     // tenant_admin can only seed their own tenant
-    if (userRole === 'tenant_admin' && targetTenantId !== tenantId) {
+    if ((userRole === 'tenant_admin' || userRole === 'ceo') && targetTenantId !== tenantId) {
       return NextResponse.json({ error: 'Access denied — you can only seed your own tenant' }, { status: 403, headers: corsHeaders() });
     }
 

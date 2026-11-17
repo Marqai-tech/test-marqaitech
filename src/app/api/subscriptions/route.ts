@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     }
 
     const userRole = decoded.role as string;
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && (userRole !== 'tenant_admin' && userRole !== 'ceo')) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 

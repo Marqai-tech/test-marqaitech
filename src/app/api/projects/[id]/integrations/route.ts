@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canView) return NextResponse.json({ error: 'No access to this project' }, { status: 403, headers: corsHeaders() });
 
     const integrations = await db.projectIntegration.findMany({ where: { projectId: id } });
@@ -58,7 +58,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canEdit) return NextResponse.json({ error: 'You do not have edit access to this project' }, { status: 403, headers: corsHeaders() });
 
     const body = await request.json();
@@ -124,7 +124,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canEdit) return NextResponse.json({ error: 'You do not have edit access to this project' }, { status: 403, headers: corsHeaders() });
 
     const body = await request.json();
@@ -191,7 +191,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const token = getTokenFromHeaders(request);
     const decoded = token ? await verifyToken(token) : null;
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    if (!['tenant_admin', 'super_admin', 'admin'].includes((decoded as any).role)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin'].includes((decoded as any).role)) {
       return NextResponse.json({ error: 'Only administrators can remove integrations' }, { status: 403, headers: corsHeaders() });
     }
     const { id } = await params;

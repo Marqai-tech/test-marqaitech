@@ -99,7 +99,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     // Check if user is admin
     const user = await db.user.findUnique({ where: { id: decoded.userId as string } });
-    if (!user || !['super_admin', 'tenant_admin', 'admin'].includes(user.role)) {
+    if (!user || !['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 

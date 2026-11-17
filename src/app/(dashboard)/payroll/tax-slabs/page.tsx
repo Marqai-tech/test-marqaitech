@@ -130,7 +130,7 @@ function DetailItem({ label, value, badge }: { label: string; value: string | nu
 export default function TaxSlabsPage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [slabs, setSlabs] = useState<TaxSlabTable[]>([]);
   const [loading, setLoading] = useState(true);

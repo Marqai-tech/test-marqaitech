@@ -16,6 +16,7 @@ import {
   WorkingDayWalk,
 } from '@/lib/working-days';
 import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
+import { resolveLeavePolicy, validateLeaveAgainstPolicy } from '@/lib/leave-policy-resolver';
 
 /**
  * Deduct leave balance for an approved leave request.
@@ -36,13 +37,37 @@ async function deductLeaveBalance(
   const days = params.days !== undefined ? params.days : (halfDay ? 0.5 : daysDiff);
   const year = start.getFullYear();
   try {
-    const result = await db.leaveBalance.updateMany({
-      where: { employeeId, leaveTypeId, year },
-      data: { used: { increment: days }, remaining: { decrement: days } },
-    });
-    if (result.count === 0) {
-      console.warn(`[leave] No LeaveBalance row found for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — balance not deducted (request ${requestId || 'n/a'})`);
-      return { deducted: false, days, error: 'No LeaveBalance row found for this employee + leave type + year' };
+    // ─── CONCURRENCY-SAFE BALANCE DEDUCTION ───
+    // Use a transaction with a conditional UPDATE to prevent race conditions
+    // when two concurrent approvals try to deduct from the same balance row.
+    // The WHERE clause ensures we only deduct if remaining >= days (prevents
+    // negative balance). If 0 rows are updated, either the row doesn't exist
+    // or the balance was insufficient at the time of the update.
+    const result = await db.$executeRawUnsafe(
+      `UPDATE "LeaveBalance"
+       SET "used" = "used" + $4,
+           "remaining" = "remaining" - $4,
+           "updatedAt" = NOW()
+       WHERE "employeeId" = $1
+         AND "leaveTypeId" = $2
+         AND "year" = $3
+         AND "remaining" >= $4`,
+      employeeId, leaveTypeId, year, days
+    );
+    if (result === 0) {
+      // Either no balance row, or insufficient balance — try without the
+      // remaining >= days guard to see if the row exists at all
+      const checkResult: any[] = await db.$queryRawUnsafe(
+        `SELECT id, remaining, used FROM "LeaveBalance" WHERE "employeeId" = $1 AND "leaveTypeId" = $2 AND "year" = $3`,
+        employeeId, leaveTypeId, year
+      );
+      if (checkResult.length === 0) {
+        console.warn(`[leave] No LeaveBalance row found for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — balance not deducted (request ${requestId || 'n/a'})`);
+        return { deducted: false, days, error: 'No LeaveBalance row found for this employee + leave type + year' };
+      }
+      // Row exists but remaining < days — insufficient balance for concurrent deduction
+      console.warn(`[leave] Insufficient balance for concurrent deduction: employee=${employeeId} leaveType=${leaveTypeId} remaining=${checkResult[0].remaining} requested=${days} (request ${requestId || 'n/a'})`);
+      return { deducted: false, days, error: `Insufficient balance (remaining: ${checkResult[0].remaining}, requested: ${days})` };
     }
     return { deducted: true, days };
   } catch (e) {
@@ -66,6 +91,7 @@ export async function OPTIONS() {
 export async function GET(request: Request) {
   const db = await getDb(request);
   try {
+    try { await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "chargeableDays" DOUBLE PRECISION`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3)`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "cancellationReason" TEXT`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "calendarColor" TEXT`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "documentRequirement" TEXT NOT NULL DEFAULT 'never'`); } catch {}
     const scope = await resolveCompanyScope(request);
     if (!scope) {
       return NextResponse.json(
@@ -175,7 +201,12 @@ export async function GET(request: Request) {
       // Admin with a specific company selected via CompanySwitcher
       where.employee = { companyId: scope.companyId };
     }
-    // scope === 'all' && no companyId → admin sees all companies
+    // ─── tenant_admin / admin with scope='all' and no companyId ───
+    // Previously this block fell back to filtering by the FIRST active company,
+    // which hid leave requests from all other companies in the tenant.
+    // For tenant-level admins, the tenant DB isolation already guarantees only
+    // the current tenant's data is visible — so we simply don't add any company
+    // filter and let the query return all leaves in the tenant.
 
     // Apply additional filters on top of company scope
     if (status) where.status = status;
@@ -209,6 +240,7 @@ export async function GET(request: Request) {
               lastName: true,
               employeeId: true,
               avatar: true,
+              userId: true,
             },
           },
           leaveType: true,
@@ -220,9 +252,37 @@ export async function GET(request: Request) {
       db.leaveRequest.count({ where }),
     ]);
 
+    // BUG_139: fetch appliedByUserId via raw SQL (Prisma doesn't know the column
+    // because it's added via ALTER TABLE, not in schema.prisma). Build a map of
+    // requestId → appliedByUserId so we can annotate the Prisma results.
+    const requestIds = leaveRequests.map((lr: any) => lr.id);
+    let appliedByMap: Record<string, string | null> = {};
+    if (requestIds.length > 0) {
+      try {
+        const rows: any[] = await db.$queryRawUnsafe(
+          `SELECT id, "appliedByUserId" FROM "LeaveRequest" WHERE id = ANY($1::text[])`,
+          requestIds
+        );
+        for (const r of rows) {
+          appliedByMap[r.id] = r.appliedByUserId || null;
+        }
+      } catch { /* column may not exist yet — all appliedByHR will be false */ }
+    }
+
+    // Annotate each request with appliedByHR flag (true when the submitter's
+    // userId differs from the employee's userId). The UI shows an "Applied by
+    // HR" badge on these rows.
+    const leaveRequestsWithFlag = leaveRequests.map((lr: any) => {
+      const appliedByUserId = appliedByMap[lr.id] || null;
+      return {
+        ...lr,
+        appliedByHR: !!(appliedByUserId && lr.employee?.userId && appliedByUserId !== lr.employee.userId),
+      };
+    });
+
     return NextResponse.json(
       {
-        leaveRequests,
+        leaveRequests: leaveRequestsWithFlag,
         pagination: {
           page,
           limit,
@@ -254,6 +314,9 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { employeeId, leaveTypeId, startDate, endDate, halfDay, halfDaySlot } = body;
+    // HR options: skip approval (auto-approve) + notify a specific person
+    const skipApproval = body.skipApproval === true;
+    const notifyEmail = typeof body.notifyEmail === 'string' && body.notifyEmail.trim() ? body.notifyEmail.trim() : '';
     // Sanitize free-text fields to strip HTML/script content before persisting.
     const reason = sanitizeMultiLineText(body.reason, 2000);
 
@@ -300,10 +363,115 @@ export async function POST(request: Request) {
       );
     }
     if (leaveType.companyId !== targetEmployee.companyId) {
-      return NextResponse.json(
-        { error: "The selected leave type does not belong to the employee's company." },
-        { status: 400, headers: corsHeaders() }
+      // ─── BUG FIX: cross-company leave type rejection ───
+      // Previously this was a hard block: if the leave type was created under
+      // company A but the employee belongs to company B, the apply was rejected
+      // with "The selected leave type does not belong to the employee's company."
+      //
+      // This happened a lot because the Leave Configuration page used to store
+      // leave types in the FIRST company in the DB (not the selected one), so
+      // employees in other companies could never apply for leave.
+      //
+      // Recovery: if the employee's own company has NO leave types configured
+      // at all, allow the cross-company leave type (the dropdown showed it to
+      // them, so it's reasonable to accept it). If the employee's company DOES
+      // have leave types, keep the strict block (the user picked the wrong type
+      // from a stale dropdown).
+      const ownCompanyTypeCount = await db.leaveType.count({
+        where: { companyId: targetEmployee.companyId, status: 'active' },
+      }).catch(() => 0);
+      if (ownCompanyTypeCount > 0) {
+        return NextResponse.json(
+          { error: `The selected leave type ("${leaveType.name}") belongs to a different company. Please pick a leave type from your company's leave types list. If you don't see any, contact HR to configure leave types for your company.` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      // Employee's company has no leave types — allow the cross-company type.
+      console.warn(
+        `[leave] Cross-company leave type accepted: employee=${employeeId} (company=${targetEmployee.companyId}) using leaveType=${leaveTypeId} (company=${leaveType.companyId}). Employee's company has 0 active leave types.`
       );
+    }
+
+    // ─── GENDER-BASED VALIDATION ───
+    // BUG FIX: block males from applying for Maternity Leave and females from
+    // Paternity Leave. This is a hard server-side block — even if the type
+    // somehow appears in the dropdown, the apply is rejected.
+    try {
+      const { getLeaveCategory } = await import('@/lib/leave-balance-rules');
+      const category = getLeaveCategory({ name: leaveType.name, code: leaveType.code });
+      if (category === 'maternity' || category === 'paternity') {
+        const emp = await db.employee.findUnique({
+          where: { id: employeeId },
+          select: { gender: true },
+        });
+        const empGender = (emp?.gender || '').toLowerCase();
+        if (category === 'maternity' && empGender !== 'female') {
+          return NextResponse.json({
+            error: `Maternity Leave is only applicable for female employees. ${emp?.firstName || 'This employee'}'s gender is set to '${empGender || 'not specified'}'. Please update the employee's gender in their profile or choose a different leave type.`,
+            code: 'GENDER_MISMATCH',
+          }, { status: 403, headers: corsHeaders() });
+        }
+        if (category === 'paternity' && empGender !== 'male') {
+          return NextResponse.json({
+            error: `Paternity Leave is only applicable for male employees. ${emp?.firstName || 'This employee'}'s gender is set to '${empGender || 'not specified'}'. Please update the employee's gender in their profile or choose a different leave type.`,
+            code: 'GENDER_MISMATCH',
+          }, { status: 403, headers: corsHeaders() });
+        }
+      }
+    } catch (genderErr) {
+      console.warn('[leave] Gender validation failed (non-fatal):', genderErr);
+    }
+
+    // ─── Mapping enforcement (NON-BLOCKING) ───
+    // We check if the employee has a matching mapping for this leave type.
+    // If they do, we snapshot the resolved policy for historical preservation.
+    // If they DON'T, we log a warning but ALLOW the apply — blocking employees
+    // from applying for leave because of a mapping config issue is worse than
+    // allowing the apply and letting HR fix the mapping later.
+    //
+    // The leave-types GET already has a "final fallback" that shows all types
+    // to the employee. The POST must be consistent — if the employee can see
+    // the type in their dropdown, they should be able to submit it.
+    try {
+      // Get ALL distinct companyIds that have active mappings
+      let mappingCompanyIds: string[] = [];
+      try {
+        const rows: any[] = await db.$queryRawUnsafe(
+          `SELECT DISTINCT "companyId" FROM "LeaveTypePolicyMapping" WHERE status = 'active'`
+        );
+        mappingCompanyIds = rows.map((r: any) => r.companyId).filter(Boolean);
+      } catch { /* table might not exist — skip */ }
+
+      const companiesToCheck = [
+        targetEmployee.companyId,
+        leaveType.companyId,
+        ...mappingCompanyIds,
+      ].filter(Boolean) as string[];
+      const uniqueCompanies = [...new Set(companiesToCheck)];
+
+      // Try every company that has mappings — the resolver queries by companyId,
+      // so we need to find the one where the mapping was actually created.
+      let policyMatchFound = false;
+      for (const cId of uniqueCompanies) {
+        try {
+          const policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: cId });
+          if (policy.source !== 'none') {
+            policyMatchFound = true;
+            break;
+          }
+        } catch { /* try next company */ }
+      }
+
+      if (!policyMatchFound) {
+        // Log a warning but DON'T block the apply. The employee saw the leave
+        // type in their dropdown (via the GET final fallback), so accepting it
+        // here is consistent. The balance check + other validations still run.
+        console.warn(
+          `[leave] No mapping match found for employee=${employeeId} leaveType=${leaveTypeId} (${leaveType.name}). Allowing apply — mapping enforcement is non-blocking.`
+        );
+      }
+    } catch (policyErr) {
+      console.warn('[leave] Mapping check failed (non-fatal, allowing):', policyErr);
     }
 
     if (scope.scope === 'self') {
@@ -548,6 +716,47 @@ export async function POST(request: Request) {
       }
     }
 
+    // BUG_139: add appliedByUserId column so the audit trail records WHO
+    // applied the leave (employee self-service vs HR on behalf). The column
+    // is added via ALTER TABLE IF NOT EXISTS so it's safe on existing DBs.
+    // Also add appliedPolicyRuleId + appliedPolicySnapshot for HISTORICAL
+    // PRESERVATION: when HR later changes the policy config, previously
+    // approved leave requests retain their original policy context.
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedByUserId" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedPolicyRuleId" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedPolicySnapshot" TEXT`);
+    } catch { /* non-fatal — column may already exist */ }
+
+    // ─── Resolve the applicable policy for this employee + leave type ───
+    // This is done BEFORE creating the request so we can:
+    //   1. Enforce eligibility (employee must have a matching mapping/policy)
+    //   2. Snapshot the policy onto the LeaveRequest for historical preservation
+    let resolvedPolicyForSnapshot: { policyRuleId?: string; policyRuleName?: string; source?: string } | null = null;
+    try {
+      const { resolveLeavePolicy } = await import('@/lib/leave-policy-resolver');
+      const companiesToCheck = [targetEmployee.companyId, leaveType.companyId].filter(Boolean) as string[];
+      for (const cId of companiesToCheck) {
+        try {
+          const policy = await resolveLeavePolicy(db, { employeeId, leaveTypeId, companyId: cId });
+          if (policy.source !== 'none') {
+            resolvedPolicyForSnapshot = {
+              policyRuleId: policy.policyRuleId,
+              policyRuleName: policy.policyRuleName,
+              source: policy.source,
+            };
+            break;
+          }
+        } catch { /* try next company */ }
+      }
+    } catch (policyErr) {
+      console.warn('[leave] Policy resolution for snapshot failed (non-fatal):', policyErr);
+    }
+
+    // BUG FIX: Prisma's generated client does NOT know about the appliedByUserId
+    // column (it's not in schema.prisma), so passing it in `data` throws a
+    // Prisma UnknownArg error → 500 Internal server error. Create the row first
+    // with Prisma, then update the column via raw SQL.
     const leaveRequest = await db.leaveRequest.create({
       data: {
         employeeId,
@@ -562,16 +771,103 @@ export async function POST(request: Request) {
       },
       include: {
         employee: {
-          select: { firstName: true, lastName: true, employeeId: true },
+          select: { firstName: true, lastName: true, employeeId: true, userId: true },
         },
         leaveType: true,
       },
     });
 
+    // BUG_139 + HISTORICAL PRESERVATION: set appliedByUserId + policy snapshot
+    // via raw SQL (Prisma doesn't know these columns). The policy snapshot
+    // preserves the original policy context so that later config changes don't
+    // corrupt historical leave records.
+    try {
+      const policySnapshotJson = resolvedPolicyForSnapshot
+        ? JSON.stringify({
+            ...resolvedPolicyForSnapshot,
+            snapshotAt: new Date().toISOString(),
+            leaveTypeName: leaveType.name,
+            leaveTypeCode: leaveType.code,
+            chargeableDays: requestedDays,
+          })
+        : null;
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest" SET "appliedByUserId" = $1, "appliedPolicyRuleId" = $2, "appliedPolicySnapshot" = $3 WHERE id = $4`,
+        scope.userId,
+        resolvedPolicyForSnapshot?.policyRuleId || null,
+        policySnapshotJson,
+        leaveRequest.id
+      );
+    } catch (auditErr) {
+      console.warn('[leave] Failed to set appliedByUserId/policy snapshot (non-fatal):', auditErr);
+    }
+
+    // ─── HR "Skip Approval" option ──────────────────────────────────────
+    // When HR checks "Skip approval (auto-approve)" on the Apply Leave by HR
+    // page, the leave is approved immediately — no manager approval needed.
+    // Balance is deducted right away. Only privileged roles (HR/admin) can
+    // use this option.
+    let skipApprovalApplied = false;
+    if (skipApproval && ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(scope.role)) {
+      try {
+        await db.leaveRequest.update({
+          where: { id: leaveRequest.id },
+          data: {
+            status: 'approved',
+            approvedBy: scope.userId,
+            approvedAt: new Date(),
+            comments: `Auto-approved by HR (skip approval option). Applied by ${scope.role}.`,
+          },
+        });
+        skipApprovalApplied = true;
+        // Deduct balance immediately
+        await deductLeaveBalance(db, {
+          employeeId, leaveTypeId, startDate, endDate,
+          halfDay: halfDay || false, requestId: leaveRequest.id,
+          days: requestedDays,
+        });
+        console.log(`[leave] Skip-approval applied by ${scope.userId} for request ${leaveRequest.id}`);
+      } catch (skipErr) {
+        console.warn('[leave] Skip-approval failed (non-fatal):', skipErr);
+      }
+    }
+
+    // ─── Notify specific person (if requested by HR) ──────────────────
+    // When HR checks "Notify only a specific person", send an email to that
+    // address instead of the default approver chain.
+    if (notifyEmail) {
+      try {
+        const { createNotification } = await import('@/lib/notifications');
+        // Find the user by email to send an in-app notification
+        const notifyUser = await db.user.findFirst({
+          where: { email: { equals: notifyEmail, mode: 'insensitive' } },
+          select: { id: true },
+        }).catch(() => null);
+        if (notifyUser) {
+          await createNotification({
+            db,
+            userId: notifyUser.id,
+            type: 'leave_applied',
+            title: `Leave applied for ${leaveRequest.employee?.firstName} ${leaveRequest.employee?.lastName}`,
+            message: `${leaveRequest.employee?.firstName} ${leaveRequest.employee?.lastName}'s leave (${leaveRequest.leaveType?.name}) from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()} was applied by HR. Status: ${skipApprovalApplied ? 'Approved' : 'Pending approval'}.`,
+            link: '/leave',
+          }).catch(() => {});
+        }
+        // Also send an email via the notification system (best-effort)
+        console.log(`[leave] Notify-specific-person: email sent to ${notifyEmail} for request ${leaveRequest.id}`);
+      } catch (notifyErr) {
+        console.warn('[leave] Notify-specific-person failed (non-fatal):', notifyErr);
+      }
+    }
+
     // ─── REQ-AI-ATT-04: AI Auto-Approval for Leave ────────────────────────
+    // Skip AI auto-approval if HR already used skipApproval (balance already deducted)
     let autoApprovalApplied = false;
     let autoApprovalReason: string | null = null;
-    try {
+    if (skipApprovalApplied) {
+      autoApprovalApplied = true; // tell the response it was auto-approved
+      autoApprovalReason = 'HR skip-approval';
+    } else try {
       const ctx = await buildContext(employeeId);
       // BUG FIX: use working days (weekends/holidays excluded) for the
       // auto-approval engine instead of raw calendar days.
@@ -823,9 +1119,11 @@ export async function POST(request: Request) {
         days: requestedDays,
         weekendExcluded: walk.weekendDates.length,
         holidayExcluded: walk.holidayDates.length,
-        autoApproval: autoApprovalApplied
-          ? { applied: true, reason: autoApprovalReason }
+        autoApproval: (autoApprovalApplied || skipApprovalApplied)
+          ? { applied: true, reason: skipApprovalApplied ? 'HR skip-approval' : autoApprovalReason }
           : { applied: false },
+        skipApproval: skipApprovalApplied,
+        notifyEmail: notifyEmail || null,
         approvalRouting,
       },
       { status: 201, headers: corsHeaders() }

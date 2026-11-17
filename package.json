@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && (command -v python3 >/dev/null 2>&1 && python3 scripts/gen-missing-tables.py || echo '[build] Skipping gen-missing-tables.py') && node scripts/schema-sync.js && next build",
+    "build": "prisma generate && (command -v python3 >/dev/null 2>&1 && python3 scripts/gen-missing-tables.py || echo '[build] Skipping gen-missing-tables.py') && node scripts/schema-sync.js && next build --webpack",
     "schema:sync": "python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js",
     "postinstall": "prisma generate",
     "start": "next start",
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
-    "@neondatabase/serverless": "^1.1.0",
+    "@neondatabase/serverless": "^1.2.0",
     "@prisma/adapter-neon": "^7.8.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.8.0",
@@ -43,6 +43,7 @@
     "jose": "^6.2.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "jsqr": "^1.4.0",
     "lucide-react": "^1.17.0",
     "mammoth": "^1.12.0",
     "next": "16.2.7",

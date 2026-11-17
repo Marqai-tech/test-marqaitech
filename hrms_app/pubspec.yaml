@@ -1,7 +1,7 @@
 name: hrms_app
-description: "3Boxes HRMS"
+description: "3 Boxes HRMS"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.9.0+37
 
 environment:
   sdk: ^3.8.1
@@ -11,10 +11,18 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   http: ^1.2.1
+  geolocator: ^13.0.4
   provider: ^6.1.2
   shared_preferences: ^2.3.2
   intl: ^0.19.0
   cached_network_image: ^3.3.1
+  url_launcher: ^6.3.0
+  image_picker: ^1.1.2
+  local_auth: ^2.3.0
+  # Task 121 — chat/project file attachments: generic document picker +
+  # system share sheet (save/forward attachments without a FileProvider).
+  file_picker: ^8.1.7
+  share_plus: ^10.1.2
 
 dev_dependencies:
   flutter_test:

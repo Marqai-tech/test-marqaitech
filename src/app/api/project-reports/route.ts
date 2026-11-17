@@ -58,7 +58,13 @@ export async function GET(request: NextRequest) {
 
     await withSchemaSync(() => Promise.resolve());
 
-    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
+    // Task 129 — tenant users live in the TENANT DB, not the platform DB.
+    // The platform-only lookup 404-ed for every tenant user on their
+    // subdomain; fall back to the tenant DB before giving up.
+    let user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
+    if (!user) {
+      user = await db.user.findUnique({ where: { id: decoded.userId as string } });
+    }
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
@@ -166,13 +172,19 @@ export async function GET(request: NextRequest) {
 
     // ── 7. Task status distribution (across all projects) ──
     const tasks = (await safeQuery(() => db.projectTask.findMany({
-      select: { status: true, assignedToId: true, priority: true },
+      select: { status: true, source: true, assignedToId: true, priority: true },
     }))) ?? [];
 
     const taskDist: Record<string, number> = {};
     for (const t of tasks) {
       taskDist[t.status] = (taskDist[t.status] || 0) + 1;
     }
+
+    // Task 152 — internal vs external (client-raised) task split
+    const taskSourceSplit = {
+      internal: tasks.filter((t) => (t.source || 'internal') === 'internal').length,
+      external: tasks.filter((t) => t.source === 'external').length,
+    };
 
     // Overdue tasks (tasks past due date that aren't done)
     const overdueTasks = (await safeQuery(() => db.projectTask.findMany({
@@ -202,6 +214,7 @@ export async function GET(request: NextRequest) {
         avgProgress,
       },
       taskDistribution: taskDist,
+      taskSourceSplit,
       overdueTasks,
     }, { headers: corsHeaders() });
   } catch (error) {

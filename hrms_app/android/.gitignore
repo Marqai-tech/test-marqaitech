@@ -12,3 +12,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+# Task 110b EXCEPTION: the PERMANENT release signing key IS committed on
+# purpose — it is the whole fix for upgrade-blocking signature churn across
+# sandbox rebuilds. Do not re-ignore it.
+!key.properties
+!app/release-key.jks

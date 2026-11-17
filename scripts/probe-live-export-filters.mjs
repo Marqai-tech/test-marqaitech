@@ -1,7 +1,7 @@
 // Probe LIVE tenant export-filter behavior end-to-end (read-only).
 // Simulates exactly what the fixed employees page sends for each filter.
 const BASE = 'https://marqaitechgroup.3boxeshrms.com';
-const EMAIL = process.env.LIVE_EMAIL || 'hr@marqaitech.com';
+const EMAIL = process.env.LIVE_EMAIL || 'hr@gmail.com';
 const PASS = 'MarqAI@2026';
 
 let bearer = '';

@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Only tenant admins + super admins can lock/unlock
     const role = (decoded.role as string) || '';
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Only admins can lock/unlock employee data' }, { status: 403, headers: corsHeaders() });
     }
 

@@ -323,7 +323,7 @@ export async function POST(request: Request) {
     });
 
     // ==================== HR ADMINS + EMPLOYEES ====================
-    const hrEmails = ['hr@marqaitech.com', 'hr@marqaisolutions.com', 'hr@marqaidigital.com', 'hr@marqaiinnovations.com', 'hr@marqaiconsulting.com'];
+    const hrEmails = ['hr@gmail.com', 'hr@marqaisolutions.com', 'hr@marqaidigital.com', 'hr@marqaiinnovations.com', 'hr@marqaiconsulting.com'];
     const empData = [
       { email: 'rajesh.kumar@marqaitech.com', firstName: 'Rajesh', lastName: 'Kumar', desName: 'Senior Software Engineer' },
       { email: 'priya.sharma@marqaisolutions.com', firstName: 'Priya', lastName: 'Sharma', desName: 'Software Engineer' },

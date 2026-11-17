@@ -1116,6 +1116,15 @@ const SYNC_STATEMENTS: string[] = [
     CONSTRAINT "CollaborationSettings_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "CollaborationSettings_tenantId_key" ON "CollaborationSettings"("tenantId")`,
+  // ─── Task 122: chat governance columns ───
+  `ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "chatCustomManagersEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "chatGroupManagerIds" TEXT NOT NULL DEFAULT '[]'`,
+  `ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "chatDirectDeleteEnabled" BOOLEAN NOT NULL DEFAULT true`,
+  // ─── Task 122: room soft-delete audit trail + per-member hidden flag ───
+  `ALTER TABLE "ChatRoom" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "ChatRoom" ADD COLUMN IF NOT EXISTS "deletedBy" TEXT`,
+  `ALTER TABLE "ChatRoomMember" ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "ChatRoomMember" ADD COLUMN IF NOT EXISTS "hiddenAt" TIMESTAMP(3)`,
 
   // ─── CalendarEvent: ensure table exists ───
   `CREATE TABLE IF NOT EXISTS "CalendarEvent" (
@@ -1135,6 +1144,187 @@ const SYNC_STATEMENTS: string[] = [
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "CalendarEvent_pkey" PRIMARY KEY ("id")
   )`,
+
+  // ─── Onboarding Workflow: Draft Employee fields on PreboardingCandidate ───
+  // These extend the existing PreboardingCandidate with the full draft-employee
+  // details that HR enters during the Convert form. The record stays as a
+  // draft until BGV is approved, at which point these fields are copied to
+  // the real Employee table.
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "employmentType" TEXT DEFAULT 'full-time'`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "workLocation" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "ctc" DOUBLE PRECISION`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP(3)`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "candidatePortalUserId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "onboardingStatus" TEXT DEFAULT 'candidate'`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "bgvNotes" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "provisionalAccess" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "activatedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "convertedById" TEXT`,
+
+  // ─── OnboardingDocument table — candidate document uploads with review workflow ───
+  `CREATE TABLE IF NOT EXISTS "OnboardingDocument" (
+    "id" TEXT NOT NULL,
+    "preboardingCandidateId" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "documentType" TEXT NOT NULL,
+    "documentLabel" TEXT NOT NULL,
+    "fileName" TEXT,
+    "fileData" TEXT,
+    "fileMimeType" TEXT,
+    "fileSize" INTEGER,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "uploadedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+    "reviewedById" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "reviewNotes" TEXT,
+    "rejectionReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OnboardingDocument_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocument_preboardingCandidateId_idx" ON "OnboardingDocument"("preboardingCandidateId")`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocument_candidateEmail_idx" ON "OnboardingDocument"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocument_status_idx" ON "OnboardingDocument"("status")`,
+  // Upload APIs write fileUrl/mimeType columns; the file-streaming route reads
+  // fileData/fileMimeType/fileSize. Guarantee ALL of them exist even on tenants
+  // created from older CREATE TABLE versions — a single missing column would make
+  // the SELECT in /api/preboarding/brd/documents/[id]/file fail (HR sees "Document
+  // not found" instead of the file).
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileUrl" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "mimeType" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "rejectionReason" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileName" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileData" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileMimeType" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileSize" INTEGER`,
+
+  // ─── OnboardingConfig table — HR-configured required documents ───
+  `CREATE TABLE IF NOT EXISTS "OnboardingConfig" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "companyId" TEXT,
+    "documentType" TEXT NOT NULL,
+    "documentLabel" TEXT NOT NULL,
+    "isRequired" BOOLEAN NOT NULL DEFAULT true,
+    "displayOrder" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OnboardingConfig_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingConfig_tenantId_idx" ON "OnboardingConfig"("tenantId")`,
+
+  // ─── BRD 6.2 Employee-creation approval workflow ───
+  // Draft → Under Review → (optional, configured) Pending Payroll →
+  // Authorized → Created. Terminal: Rejected / Cancelled. Holds the
+  // employment payload until the final Authorized → create step, which
+  // runs inside a single $transaction with the Employee insert.
+  `CREATE TABLE IF NOT EXISTS "EmployeeCreationRequest" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT,
+    "preboardingCandidateId" TEXT NOT NULL,
+    "preboardingId" TEXT,
+    "candidateName" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "employment" JSONB,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "payrollRequired" BOOLEAN NOT NULL DEFAULT false,
+    "createdById" TEXT,
+    "submittedById" TEXT,
+    "submittedAt" TIMESTAMP(3),
+    "payrollReviewedById" TEXT,
+    "payrollReviewedAt" TIMESTAMP(3),
+    "authorizedById" TEXT,
+    "authorizedAt" TIMESTAMP(3),
+    "rejectedById" TEXT,
+    "rejectedAt" TIMESTAMP(3),
+    "rejectReason" TEXT,
+    "employeeRowId" TEXT,
+    "provisionalEmployeeId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmployeeCreationRequest_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_preboardingCandidateId_idx" ON "EmployeeCreationRequest"("preboardingCandidateId")`,
+  `CREATE INDEX IF NOT EXISTS "EmployeeCreationRequest_status_idx" ON "EmployeeCreationRequest"("status")`,
+
+  // ─── BRD 6.3 #11: Employee ↔ candidate/application link columns ───
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedApplicationId" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "linkedOfferId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
+
+  // ─── BRD 5.3 Preboarding Initiation (draft → invited / cancelled) ───
+  // Dedicated initiation screen state: HR Details / Checklist /
+  // Communication payload is held here while a draft, then consumed by
+  // send-invitation which creates the PreboardingCandidate atomically.
+  `CREATE TABLE IF NOT EXISTS "PreboardingInitiation" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT,
+    "offerId" TEXT NOT NULL,
+    "applicationId" TEXT,
+    "candidateName" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "jobTitle" TEXT,
+    "hrDetails" JSONB,
+    "checklist" JSONB,
+    "communication" JSONB,
+    "remarks" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "createdById" TEXT,
+    "invitedById" TEXT,
+    "invitedAt" TIMESTAMP(3),
+    "cancelledById" TEXT,
+    "cancelledAt" TIMESTAMP(3),
+    "cancelReason" TEXT,
+    "preboardingCandidateId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "PreboardingInitiation_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "PreboardingInitiation_offerId_idx" ON "PreboardingInitiation"("offerId")`,
+  `CREATE INDEX IF NOT EXISTS "PreboardingInitiation_status_idx" ON "PreboardingInitiation"("status")`,
+  // One ACTIVE initiation (draft or invited) per offer — retries and repeated
+  // clicks can never create a second draft/invitation for the same offer.
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PreboardingInitiation_active_offer_key"
+     ON "PreboardingInitiation"("offerId") WHERE "status" IN ('draft','invited')`,
+
+  // BRD 5.8 required/optional indicator for joining documents (also written
+  // by the BRD 5.3 initiation checklist).
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "required" BOOLEAN DEFAULT true`,
+
+  // ─── BRD 5.1 dashboard filters: Company / Branch on preboarding records ───
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "branchId" TEXT`,
+
+  // ─── BRD 5.8 document hardening: metadata, expiry, versioning, dup-detection ───
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "documentNumber" TEXT`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "issueDate" TIMESTAMP(3)`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "expiryDate" TIMESTAMP(3)`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "version" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "OnboardingDocument" ADD COLUMN IF NOT EXISTS "fileHash" TEXT`,
+  // Re-uploads archive the previous file here (version history — nothing is
+  // silently overwritten; HR can still view/download every prior version).
+  `CREATE TABLE IF NOT EXISTS "OnboardingDocumentVersion" (
+    "id" TEXT NOT NULL,
+    "onboardingDocumentId" TEXT NOT NULL,
+    "version" INTEGER NOT NULL,
+    "fileName" TEXT,
+    "fileData" TEXT,
+    "fileMimeType" TEXT,
+    "fileSize" INTEGER,
+    "fileHash" TEXT,
+    "status" TEXT,
+    "uploadedAt" TIMESTAMP(3),
+    "archivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OnboardingDocumentVersion_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingDocumentVersion_doc_idx" ON "OnboardingDocumentVersion"("onboardingDocumentId")`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.

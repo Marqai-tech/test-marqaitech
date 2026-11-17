@@ -107,7 +107,7 @@ function calculateAmount(rateType: string, hours: number, rate: number, basicSal
 export default function OvertimePage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);

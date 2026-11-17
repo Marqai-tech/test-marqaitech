@@ -1,5 +1,5 @@
 const LIVE = 'https://marqaitechgroup.3boxeshrms.com';
-const login = await fetch(LIVE + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'hr@marqaitech.com', password: 'MarqAI@2026' }) });
+const login = await fetch(LIVE + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'hr@gmail.com', password: 'MarqAI@2026' }) });
 const lb = await login.json();
 const bearer = lb?.token || '';
 const wf = await fetch(LIVE + '/api/employees/workflow-config?type=update_profile', { headers: { Authorization: `Bearer ${bearer}` } }).then(r => r.json());

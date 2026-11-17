@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { createNotification } from '@/lib/notifications';
-import { sendTenantEmail } from '@/lib/notification-channels';
+import { createNotification, sendNotificationEmail } from '@/lib/notifications';
 import { loadEmployeeSetting } from '@/lib/employee-config';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { buildBrandedEmailForTenant } from '@/lib/tenant-branding';
 
 function corsHeaders() {
   return {
@@ -33,8 +33,17 @@ async function notifyTransfer(db: any, tenantId: string, userId: string | null, 
     new Promise<T>(resolve => setTimeout(() => resolve(fallback), 2500)),
   ]);
   const inApp = userId ? await withTimeout(createNotification({ tenantId, userId, title, message, type: 'info', category: 'workflow', link }).catch(() => null), null) : null;
-  const mail = email ? await withTimeout(sendTenantEmail(db, tenantId, { to: email, subject: title, html: `<p>${message.replace(/\n/g, '<br/>')}</p>` }).catch(() => ({ success: false })), { success: false }) : null;
-  return { userId, email, inApp: !!inApp, emailSent: !!mail?.success };
+  // Task 161: use sendNotificationEmail so isEmailSent is updated on success
+  let emailSent = false;
+  if (email && inApp?.id) {
+    emailSent = await withTimeout((async () => {
+      try {
+        const html = await buildBrandedEmailForTenant(tenantId, { title, bodyText: message });
+        return await sendNotificationEmail(db, tenantId, inApp, email, title, html);
+      } catch { return false; }
+    })().catch(() => false), false);
+  }
+  return { userId, email, inApp: !!inApp, emailSent };
 }
 
 export async function OPTIONS() {
@@ -204,7 +213,7 @@ export async function POST(request: Request) {
     const configuredTransfer = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_transfer_config', {
       enabled: true,
       defaultTransferType: 'permanent',
-      approvalRoles: ['tenant_admin', 'admin'],
+      approvalRoles: ['tenant_admin', 'ceo', 'admin'],
       notifyReportingManager: true,
     });
     // Merge defaults for older partial tenant settings. Missing `enabled`
@@ -212,7 +221,7 @@ export async function POST(request: Request) {
     Object.assign(configuredTransfer as Record<string, any>, {
       enabled: true,
       defaultTransferType: 'permanent',
-      approvalRoles: ['tenant_admin', 'admin'],
+      approvalRoles: ['tenant_admin', 'ceo', 'admin'],
       notifyReportingManager: true,
     }, configuredTransfer);
     if (!configuredTransfer.enabled) return NextResponse.json({ error: 'Employee transfers are disabled in Employee Settings' }, { status: 409, headers: corsHeaders() });
@@ -337,7 +346,7 @@ export async function POST(request: Request) {
 
         const empName = transferRow ? `${transferRow.firstName || ''} ${transferRow.lastName || ''}`.trim() : 'an employee';
         for (const admin of adminUsers) {
-          await createNotification({
+          const notif = await createNotification({
             tenantId,
             userId: admin.id,
             title: 'New Transfer Request Submitted',
@@ -345,8 +354,16 @@ export async function POST(request: Request) {
             type: 'info',
             category: 'employee_lifecycle',
             link: '/employees/transfer',
-          }).catch(() => {});
-          if (admin.email) await sendTenantEmail(db, tenantId, { to: admin.email, subject: 'New Transfer Request Submitted', html: `<p>A transfer request has been submitted for ${empName}. Please review it in Employee &gt; Transfer.</p>` }).catch(() => {});
+          }).catch(() => null);
+          if (admin.email && notif?.id) {
+            try {
+              const html = await buildBrandedEmailForTenant(tenantId, {
+                title: 'New Transfer Request Submitted',
+                bodyText: `A transfer request has been submitted for ${empName}. Please review it in Employee > Transfer.`,
+              });
+              await sendNotificationEmail(db, tenantId, notif, admin.email, 'New Transfer Request Submitted', html);
+            } catch { /* non-fatal */ }
+          }
         }
       }
     } catch (e) {
@@ -437,8 +454,8 @@ export async function PATCH(request: Request) {
 
     const actorId = String((decoded as any).userId);
     const role = String((decoded as any).role || '');
-    const configured = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_transfer_config', { approvalRoles: ['tenant_admin', 'admin'] });
-    const approvalRoles = Array.isArray(configured.approvalRoles) && configured.approvalRoles.length ? configured.approvalRoles : ['tenant_admin', 'admin'];
+    const configured = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_transfer_config', { approvalRoles: ['tenant_admin', 'ceo', 'admin'] });
+    const approvalRoles = Array.isArray(configured.approvalRoles) && configured.approvalRoles.length ? configured.approvalRoles : ['tenant_admin', 'ceo', 'admin'];
     const rows = await db.$queryRawUnsafe(`SELECT t.*, e."firstName", e."lastName", e."email", e."userId" AS "employeeUserId" FROM "Transfer" t LEFT JOIN "Employee" e ON e."id"=t."employeeId" WHERE t."id"=$1 LIMIT 1`, transferId) as any[];
     const transfer = rows?.[0];
     if (!transfer) return NextResponse.json({ error: 'Transfer request not found.' }, { status: 404, headers: corsHeaders() });
@@ -460,10 +477,65 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true, status: 'pending', transferId, approvalLevel: approvalLevel + 1, nextApproverRole: nextRole, decisionDate }, { headers: corsHeaders() });
     }
     if (action === 'approve') {
+      // Task 160: the original tx.employee.update() inside the transaction
+      // failed on tenant DBs with schema drift, which rolled back the ENTIRE
+      // transaction (including the Transfer status='approved' UPDATE) —
+      // leaving the request stuck in 'pending' forever. Fix: do the Employee
+      // update OUTSIDE the transaction with a Prisma-first + RAW SQL
+      // fallback (same pattern as Task 159), then run the Transfer status +
+      // auditLog in a separate transaction. If the Employee update fails
+      // completely, we still mark the Transfer 'approved' so the admin can
+      // manually retry (matching the profile-update 'reapply' pattern).
+      let employeeUpdateOk = false;
+      try {
+        try {
+          await db.employee.update({
+            where: { id: transfer.employeeId },
+            data: {
+              departmentId: transfer.toDepartmentId,
+              designationId: transfer.toDesignationId,
+              branchId: transfer.toBranchId,
+              reportingManagerId: transfer.reportingManagerId,
+            },
+          });
+          employeeUpdateOk = true;
+        } catch (prismaErr) {
+          console.warn('[Transfer PATCH] Prisma employee.update failed, trying RAW SQL fallback:', prismaErr instanceof Error ? prismaErr.message : prismaErr);
+          // RAW SQL fallback — only update the non-null columns to avoid FK violations
+          const sets: string[] = [];
+          const params: unknown[] = [];
+          let pIdx = 1;
+          const cols: Array<[string, unknown]> = [
+            ['departmentId', transfer.toDepartmentId],
+            ['designationId', transfer.toDesignationId],
+            ['branchId', transfer.toBranchId],
+            ['reportingManagerId', transfer.reportingManagerId],
+          ];
+          for (const [col, val] of cols) {
+            if (val !== null && val !== undefined) {
+              sets.push(`"${col}" = $${pIdx++}`);
+              params.push(val);
+            } else {
+              sets.push(`"${col}" = NULL`);
+            }
+          }
+          params.push(transfer.employeeId);
+          await db.$executeRawUnsafe(
+            `UPDATE "Employee" SET ${sets.join(', ')}, "updatedAt" = NOW() WHERE "id" = $${pIdx}`,
+            ...params,
+          );
+          employeeUpdateOk = true;
+        }
+      } catch (empErr) {
+        console.error('[Transfer PATCH] Employee update failed (both Prisma + RAW SQL):', empErr);
+      }
+
+      // Mark Transfer status='approved' + audit log. Done in a transaction
+      // so the Transfer status + auditLog are atomic. The Employee update
+      // is already committed (or failed) above.
       await db.$transaction(async (tx: any) => {
-        await tx.employee.update({ where: { id: transfer.employeeId }, data: { departmentId: transfer.toDepartmentId, designationId: transfer.toDesignationId, branchId: transfer.toBranchId, reportingManagerId: transfer.reportingManagerId } });
         await tx.$executeRawUnsafe(`UPDATE "Transfer" SET "status"='approved', "approvedById"=$1, "approverId"=$1, "approvedAt"=$2, "decisionDate"=$2, "updatedAt"=NOW() WHERE "id"=$3`, actorId, decisionDate, transferId);
-        await tx.auditLog.create({ data: { userId: actorId, action: 'APPROVE_TRANSFER_REQUEST', module: 'employees', details: JSON.stringify({ transferId, employeeId: transfer.employeeId, effectiveDate: transfer.transferDate, decisionDate }) } }).catch(() => null);
+        await tx.auditLog.create({ data: { userId: actorId, action: 'APPROVE_TRANSFER_REQUEST', module: 'employees', details: JSON.stringify({ transferId, employeeId: transfer.employeeId, effectiveDate: transfer.transferDate, decisionDate, employeeUpdateOk }) } }).catch(() => null);
       });
     } else {
       await db.$executeRawUnsafe(`UPDATE "Transfer" SET "status"='rejected', "rejectionReason"=$1, "approvedById"=$2, "approverId"=$2, "approvedAt"=$3, "decisionDate"=$3, "updatedAt"=NOW() WHERE "id"=$4`, rejectionReason, actorId, decisionDate, transferId);

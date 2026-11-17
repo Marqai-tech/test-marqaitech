@@ -276,9 +276,11 @@ export async function GET(request: Request) {
     });
 
     // ─── Stats ───────────────────────────────────────────────────────────
+    // Phase 10 fix: Shortlisted counter was counting 'screening' — now counts actual 'shortlisted'
     const stats = {
       applied: applications.filter(a => a.status === 'applied').length,
-      shortlisted: applications.filter(a => a.status === 'screening').length,
+      screening: applications.filter(a => a.status === 'screening').length,
+      shortlisted: applications.filter(a => a.status === 'shortlisted').length,
       interviewing: applications.filter(a => a.status === 'interview').length,
       offered: applications.filter(a => a.status === 'offered').length,
       hired: applications.filter(a => a.status === 'hired').length,
@@ -312,7 +314,8 @@ export async function GET(request: Request) {
           aiScore: iv.aiScore,
           feedback: iv.feedback,
         };
-        if (iv.status === 'cancelled' || iv.status === 'rescheduled') continue;
+        // Phase 10 fix: Don't skip rescheduled interviews — they should appear in upcoming
+        if (iv.status === 'cancelled') continue;
         if (ivDate > now) {
           upcoming.push(entry);
         } else if (iv.status === 'completed') {

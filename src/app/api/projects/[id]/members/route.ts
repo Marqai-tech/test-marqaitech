@@ -32,7 +32,7 @@ export async function GET(
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const { id } = await params;
-    const access = await resolveProjectAccess(decoded, id);
+    const access = await resolveProjectAccess(decoded, id, db);
     if (!access.canView) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
@@ -77,7 +77,7 @@ export async function POST(
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const { id } = await params;
-    const access = await resolveProjectAccess(decoded, id);
+    const access = await resolveProjectAccess(decoded, id, db);
     if (!access.canManageMembers) {
       return NextResponse.json(
         { error: 'You do not have permission to manage members on this project' },

@@ -37,7 +37,7 @@ const BASIC_DESIGNATIONS = [
   { title: 'Sales Manager', dept: 'Sales & Marketing' },
 ];
 
-const HR_EMAILS = ['hr@marqaitech.com', 'hr@marqaisolutions.com', 'hr@marqaidigital.com', 'hr@marqaiinnovations.com', 'hr@marqaiconsulting.com'];
+const HR_EMAILS = ['hr@gmail.com', 'hr@marqaisolutions.com', 'hr@marqaidigital.com', 'hr@marqaiinnovations.com', 'hr@marqaiconsulting.com'];
 const EMP_DATA = [
   { email: 'rajesh.kumar@marqaitech.com', firstName: 'Rajesh', lastName: 'Kumar', desName: 'Senior Software Engineer' },
   { email: 'priya.sharma@marqaisolutions.com', firstName: 'Priya', lastName: 'Sharma', desName: 'Software Engineer' },

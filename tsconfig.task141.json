@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/app/api/auth/otp/route.ts",
+    "src/app/api/tickets/route.ts",
+    "src/app/(dashboard)/dashboard/page.tsx",
+    "src/lib/app-version.ts"
+  ]
+}

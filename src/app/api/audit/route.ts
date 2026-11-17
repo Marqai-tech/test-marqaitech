@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+
+// Audit trail is compliance-sensitive — HR/Admin roles only (BRD Section 3:
+// permissions enforced at backend/API level, not only by hiding frontend buttons)
+const AUDIT_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'finance_admin'];
 
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
   try {
+    const token = getTokenFromHeaders(req);
+    const decoded = token ? await verifyToken(token).catch(() => null) : null;
+    if (!decoded || !AUDIT_ROLES.includes(String((decoded as any).role || ''))) {
+      return NextResponse.json({ error: 'Forbidden — HR/Admin access only' }, { status: 403 });
+    }
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const action = url.searchParams.get('action');

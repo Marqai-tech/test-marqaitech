@@ -37,7 +37,16 @@ class EmployeeProvider extends ChangeNotifier {
         status: _statusFilter.isNotEmpty ? _statusFilter : null,
       );
       final List items = data['employees'] ?? data['data'] ?? data['items'] ?? [];
-      final newEmployees = items.map((e) => EmployeeModel.fromJson(e)).toList();
+      // Per-row tolerance: one malformed row must not blank the whole list
+      // (Task 107 — LIVE tenant payloads carry shapes demo doesn't).
+      final newEmployees = <EmployeeModel>[];
+      for (final e in items) {
+        try {
+          if (e is Map<String, dynamic>) newEmployees.add(EmployeeModel.fromJson(e));
+        } catch (rowError) {
+          debugPrint('[Employees] skipped unparseable row: $rowError');
+        }
+      }
 
       if (refresh) {
         _employees = newEmployees;

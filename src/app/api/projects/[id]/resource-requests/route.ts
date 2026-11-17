@@ -70,7 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
 
     const role = (decoded as any).role;
-    if (!['tenant_admin', 'super_admin', 'admin', 'manager'].includes(role)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin', 'manager'].includes(role)) {
       // project managers may also raise resource requests
       const myEmp = await db.employee.findUnique({ where: { userId: (decoded as any).userId }, select: { id: true } }).catch(() => null);
       const isPM = myEmp && (project.projectManagerId === myEmp.id || project.deliveryManagerId === myEmp.id);
@@ -155,7 +155,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
 
     const role = (decoded as any).role;
-    if (!['tenant_admin', 'super_admin', 'admin', 'manager'].includes(role)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin', 'manager'].includes(role)) {
       const myEmp = await db.employee.findUnique({ where: { userId: (decoded as any).userId }, select: { id: true } }).catch(() => null);
       const isPM = myEmp && (project.projectManagerId === myEmp.id || project.deliveryManagerId === myEmp.id);
       if (!isPM) return NextResponse.json({ error: 'Not authorized to manage project resources' }, { status: 403, headers: corsHeaders() });
@@ -293,7 +293,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const token = getTokenFromHeaders(request);
     const decoded = token ? await verifyToken(token) : null;
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    if (!['tenant_admin', 'super_admin', 'admin', 'manager'].includes((decoded as any).role)) {
+    if (!['tenant_admin', 'ceo', 'super_admin', 'admin', 'manager'].includes((decoded as any).role)) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403, headers: corsHeaders() });
     }
     const { id } = await params;

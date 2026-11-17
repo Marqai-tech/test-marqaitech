@@ -7,6 +7,19 @@ import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Dashboard } from './dashboard';
 import { Recruitment } from './recruitment';
+import { RecruitmentDashboard } from './recruitment-dashboard';
+import { FindCandidates } from './find-candidates';
+import { PipelineKanban } from './pipeline-kanban';
+import { ScheduleInterview } from './schedule-interview';
+import { TalentPool } from './talent-pool';
+import { Resumes } from './resumes';
+import { Submissions } from './submissions';
+import { OfferDashboard } from './offer-dashboard';
+import { CreateOffer } from './create-offer';
+import { OfferApprovalQueue } from './offer-approval-queue';
+import { OfferBrandingSettings } from './offer-branding-settings';
+import { OfferWorkflowSettings } from './offer-workflow-settings';
+import { OfferRolePermissions } from './offer-role-permissions';
 import { Employees } from './employees';
 import { Attendance } from './attendance';
 import { Leave } from './leave';
@@ -36,6 +49,19 @@ import { TrialRequests } from './trial-requests';
 const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   dashboard: Dashboard,
   recruitment: Recruitment,
+  recruitment_dashboard: RecruitmentDashboard,
+  find_candidates: FindCandidates,
+  pipeline_kanban: PipelineKanban,
+  schedule_interview: ScheduleInterview,
+  talent_pool: TalentPool,
+  resumes: Resumes,
+  submissions: Submissions,
+  offer_dashboard: OfferDashboard,
+  offer_create: CreateOffer,
+  offer_approvals: OfferApprovalQueue,
+  offer_branding: OfferBrandingSettings,
+  offer_workflow: OfferWorkflowSettings,
+  offer_permissions: OfferRolePermissions,
   employees: Employees,
   attendance: Attendance,
   leave: Leave,

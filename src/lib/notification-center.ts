@@ -286,11 +286,25 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
   // Tenant slug for absolute links + company name for branding
   let tenantSlug = '';
   let companyName = params.companyName || '';
+  let tenantBranding: { name: string; logoUrl?: string | null; brandColor?: string | null; website?: string | null; phone?: string | null; email?: string | null } | undefined;
   try {
     const platformDb = getPlatformDb();
-    const tenant = await platformDb.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } });
+    const tenant = await platformDb.tenant.findUnique({
+      where: { id: tenantId },
+      select: { slug: true, name: true, logo: true, brandColor: true, website: true, phone: true, email: true },
+    });
     tenantSlug = tenant?.slug || '';
     if (!companyName) companyName = tenant?.name || '3Boxes HRMS';
+    if (tenant) {
+      tenantBranding = {
+        name: tenant.name,
+        logoUrl: tenant.logo,
+        brandColor: tenant.brandColor,
+        website: tenant.website,
+        phone: tenant.phone,
+        email: tenant.email,
+      };
+    }
   } catch { /* branding fallback below */ }
   const baseUrl = resolveBaseUrl(params.origin, tenantSlug);
 
@@ -329,6 +343,7 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
         const status = await sendToChannel({
           db, tenantId, channel, recipient, vars, tpl, module, eventKey,
           entity: params.entity, actionToken, actionUrl, actionExpiresAt, baseUrl, companyName,
+          branding: tenantBranding,
         });
         logDelivery(result, channel, recipientLabel, status.status, status.error, actionToken || undefined);
       } catch (e: any) {
@@ -363,6 +378,7 @@ interface SendContext {
   actionExpiresAt: Date | null;
   baseUrl: string;
   companyName: string;
+  branding?: { name: string; logoUrl?: string | null; brandColor?: string | null; website?: string | null; phone?: string | null; email?: string | null };
 }
 
 /**
@@ -451,7 +467,16 @@ async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?
         break;
       }
       case 'email': {
-        const html = buildEmailHtml({ title, bodyText, actionUrl: ctx.actionUrl, companyName: ctx.companyName, expiresAt: vars.Action_Expiry });
+        const emailStatus = inferEmailStatus(module, eventKey);
+        const html = buildEmailHtml({
+          title, bodyText,
+          actionUrl: ctx.actionUrl,
+          companyName: ctx.companyName,
+          branding: ctx.branding,
+          status: emailStatus,
+          greeting: vars.Recipient_Name ? `Hi ${vars.Recipient_Name},` : undefined,
+          expiresAt: vars.Action_Expiry,
+        });
         const res = await sendTenantEmail(db, tenantId, { to: recipient.email!, subject: title, html });
         status = res.success ? 'sent' : 'failed';
         error = res.error;
@@ -504,6 +529,24 @@ function moduleCategory(module: string): string {
     learning: 'system', payroll: 'payroll', exit: 'workflow',
   };
   return map[module] || 'system';
+}
+
+/**
+ * Infer the email status (controls accent color + badge) from the event key.
+ * Patterns: *.approved / *.confirmed / *.accepted → approved
+ *           *.rejected / *.declined / *.terminated → rejected
+ *           *.submitted / *.pending_* / *.reminder / *.ack_pending → pending
+ *           *.welcome / *.welcome_new_hire → welcome
+ *           default → info
+ */
+function inferEmailStatus(module: string, eventKey: string): 'approved' | 'rejected' | 'pending' | 'info' | 'warning' | 'welcome' | undefined {
+  const k = eventKey.toLowerCase();
+  if (/\.welcome|welcome_new_hire|new_hire/.test(k)) return 'welcome';
+  if (/\.approved$|\.confirmed$|\.accepted$|\.ack_confirmed$|\.completed$|signoff$/.test(k)) return 'approved';
+  if (/\.rejected$|\.declined$|\.terminated$|review_rejected$/.test(k)) return 'rejected';
+  if (/\.submitted$|\.pending|\.reminder|\.ack_pending|\.escalated$|\.missing_punch$|\.expiring$|\.due$|\.overdue$|\.flagged$|\.conflict$/.test(k)) return 'pending';
+  if (/\.issued$|\.assigned$|\.ready$|\.applied$|\.acknowledgment$|\.acknowledged$|\.set$|\.locked$|\.launched$|\.opened$|\.published$|\.result$|\.advanced$|\.cancelled$|\.submission_confirmation$|\.submitted_confirmation$/.test(k)) return 'info';
+  return 'info';
 }
 
 /**

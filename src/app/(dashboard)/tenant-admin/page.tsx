@@ -32,6 +32,8 @@ import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import SrsBanner from '@/components/SrsBanner';
+/* Task 156e — shared SmartHR gradient banner (header-only restyle). */
+import { PageBreadcrumbs } from '@/components/dashboard/smarthr-widgets';
 
 /* ── Types ── */
 interface TenantInfo {
@@ -250,7 +252,7 @@ export default function TenantAdminPage() {
   // Also handle the case where the user IS a tenant_admin but their account
   // doesn't have a tenantId or tenant object (e.g. legacy data, misconfigured account,
   // or /api/auth/me not returning tenantId). Show a clear message.
-  if (user && user.role === 'tenant_admin' && !user.tenantId && !user.tenant?.id) {
+  if (user && (user.role === 'tenant_admin' || user.role === 'ceo') && !user.tenantId && !user.tenant?.id) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
@@ -366,36 +368,36 @@ export default function TenantAdminPage() {
       {/* SRS-aligned role banner — shows what this role can/can't do per spec */}
       <SrsBanner role="tenant_admin" />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiServer className="w-6 h-6 text-teal-500" />
-            Tenant Admin
-          </h1>
-          <p className="text-thb-text-secondary mt-1 flex items-center gap-1.5 flex-wrap">
-            <FiHome className="w-3.5 h-3.5" />
-            <span>Managing tenant:</span>
-            <span className="font-semibold text-thb-text-primary">{tenantName}</span>
-            {tenantInfo?.slug && <span className="text-xs text-thb-text-muted">({tenantInfo.slug})</span>}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => { fetchTenantInfo(); fetchGroups(); }}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
-          >
-            <FiRefreshCw className="w-4 h-4" /> Refresh
-          </button>
-          <Link
-            href="/tenant-admin/group-companies"
-            className="inline-flex items-center gap-2 px-3 py-2 border border-teal-200 bg-teal-50 text-teal-700 rounded-lg hover:bg-teal-100 font-medium text-sm shadow-sm transition-colors"
-            title="View the group companies under your tenant (read-only — only super admin can create or modify)"
-          >
-            <FiLayers className="w-4 h-4" /> View Group Companies
-          </Link>
-        </div>
-      </div>
+      {/* Header — SmartHR gradient breadcrumb banner (Task 156e: header-only
+          restyle; the managing-tenant info + action buttons moved into `right`) */}
+      <PageBreadcrumbs
+        title="Tenant Dashboard"
+        trail={['Tenant', 'Dashboard']}
+        right={
+          <>
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white"
+              title="Tenant you are managing"
+            >
+              <FiHome className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="max-w-[220px] truncate">Managing tenant: {tenantName}{tenantInfo?.slug ? ` (${tenantInfo.slug})` : ''}</span>
+            </span>
+            <button
+              onClick={() => { fetchTenantInfo(); fetchGroups(); }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors"
+            >
+              <FiRefreshCw className="w-3.5 h-3.5" /> Refresh
+            </button>
+            <Link
+              href="/tenant-admin/group-companies"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors"
+              title="View the group companies under your tenant (read-only — only super admin can create or modify)"
+            >
+              <FiLayers className="w-3.5 h-3.5" /> View Group Companies
+            </Link>
+          </>
+        }
+      />
 
       {/* Stats Cards — REAL data */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

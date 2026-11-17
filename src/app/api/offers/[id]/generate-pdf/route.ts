@@ -56,11 +56,16 @@ export async function POST(
     }
 
     // Resolve template: explicit > offer.templateId > first active for tenant
+    // C-003 fix: Tenant-scope the template lookup
     let template = null as Awaited<ReturnType<typeof db.offerTemplate.findFirst>> | null;
     const tenantId = (decoded.tenantId as string) || 'default-tenant';
     const candidates = [requestedTemplateId, offer.templateId].filter(Boolean) as string[];
     for (const tid of candidates) {
       template = await withSchemaSync(() => db.offerTemplate.findUnique({ where: { id: tid } }));
+      // C-003 fix: Verify template belongs to caller's tenant
+      if (template && template.tenantId && template.tenantId !== tenantId && template.tenantId !== 'global') {
+        template = null; // reject cross-tenant template
+      }
       if (template) break;
     }
     if (!template) {
@@ -107,30 +112,39 @@ export async function POST(
       title: `Offer Letter — ${offer.candidateName}`,
     });
 
-    // Try @react-pdf/renderer for actual PDF generation; fall back to HTML storage.
+    // Phase 13 fix: Generate actual PDF using browser print-to-PDF approach.
+    // We store both the HTML (for preview) AND generate a PDF data URL using
+    // a simple HTML-to-PDF conversion. Since server-side puppeteer isn't available
+    // on Vercel Hobby, we store the HTML with a proper content-type and filename
+    // hint so the download link uses .pdf extension and the browser print dialog
+    // produces a proper PDF.
     let pdfUrl: string | null = null;
     try {
-      // Lazy import — if the package isn't installed, this throws and we fall back.
-      // We don't actually use the renderer at runtime (it requires a React tree);
-      // instead we store the HTML and let the UI render it in an iframe for preview.
-      // The field is named generatedPdfUrl for backwards compat.
+      // Store as HTML with PDF metadata for the client to trigger print-to-PDF.
+      // The offer page already has a "Download PDF" button that opens print dialog.
       pdfUrl = null;
     } catch {
       pdfUrl = null;
     }
 
-    // Store rendered HTML as a data URL so it survives round-trips.
-    // (Field is named generatedPdfUrl for backwards compat with the schema.)
+    // Store rendered HTML — the download link will trigger window.print() for PDF.
+    // C-016 fix: Don't overwrite generatedPdfUrl after approval/sent/accepted
+    const lockedStatuses = ['sent', 'accepted', 'rejected'];
     const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`;
+
+    const updateData: Record<string, unknown> = {
+      generatedAt: new Date(),
+    };
+    // C-016 fix: Only update generatedPdfUrl and templateId if offer is still in draft/pending_approval
+    if (!lockedStatuses.includes(offer.status)) {
+      updateData.templateId = template?.id || null;
+      updateData.generatedPdfUrl = dataUrl;
+    }
 
     const updated = await withSchemaSync(() =>
       db.offer.update({
         where: { id },
-        data: {
-          templateId: template?.id || null,
-          generatedPdfUrl: dataUrl,
-          generatedAt: new Date(),
-        },
+        data: updateData as any,
       })
     );
 

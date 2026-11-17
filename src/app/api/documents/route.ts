@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { validateDocumentDataUrl } from '@/lib/document-validation';
+import { isSafeDocumentUrl } from '@/lib/sanitize';
 
 function corsHeaders() {
   return {
@@ -29,49 +31,10 @@ export async function GET(request: Request) {
     const type = searchParams.get('type');
     const status = searchParams.get('status');
 
-    // BUG_031 fix: SECURITY — restrict document visibility by role.
-    // Previously the API returned ALL documents in the tenant DB when no
-    // `employeeId` query param was passed, regardless of the caller's role.
-    // That meant a plain employee hitting /api/documents could see every
-    // other employee's documents (Probation Confirmation Letter, Address
-    // proof, Education certificates, etc.) — a serious data leak.
-    //
-    // Rules:
-    //   - super_admin / tenant_admin / admin / hr_manager: may view any
-    //     employee's documents. If `employeeId` query param is supplied we
-    //     filter by it; otherwise we return all (admin-level access).
-    //   - employee / manager / finance / it_admin and any other self-service
-    //     role: may ONLY view their own documents. We resolve their employeeId
-    //     from the JWT's userId and force the where clause — ignoring any
-    //     client-supplied employeeId that tries to read another person's docs.
-    const role = (decoded.role as string) || '';
-    const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'admin', 'hr_manager'];
-    const isAdmin = ADMIN_ROLES.includes(role.toLowerCase());
-
     const where: Record<string, unknown> = {};
+    if (employeeId) where.employeeId = employeeId;
     if (type) where.type = type;
     if (status) where.status = status;
-
-    if (isAdmin) {
-      // Admins can filter by any employeeId (or see all if not specified).
-      if (employeeId) where.employeeId = employeeId;
-    } else {
-      // Non-admin: force-filter to the caller's own employeeId.
-      const userId = decoded.userId as string;
-      const me = await db.employee.findUnique({
-        where: { userId },
-        select: { id: true },
-      }).catch(() => null);
-      if (!me) {
-        // No employee record linked to this user — return empty rather than
-        // leaking other employees' documents.
-        return NextResponse.json({
-          documents: [],
-          pagination: { page, limit, total: 0, totalPages: 0 },
-        }, { headers: corsHeaders() });
-      }
-      where.employeeId = me.id;
-    }
 
     const [documents, total] = await Promise.all([
       db.document.findMany({
@@ -108,6 +71,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: employeeId, name, type' }, { status: 400, headers: corsHeaders() });
     }
 
+    // REQ 2: PDF-only / 3MB / safe-URL validation on the server side.
+    // Mirrors the frontend check in src/lib/document-validation.ts so the
+    // rule cannot be bypassed by direct API calls. fileUrl is optional —
+    // we only validate it when supplied.
+    const fileUrl: string | null = body.fileUrl ? String(body.fileUrl) : null;
+    if (fileUrl) {
+      if (!isSafeDocumentUrl(fileUrl)) {
+        return NextResponse.json({ error: 'File URL must be a safe http(s) link or a PDF data URL.' }, { status: 400, headers: corsHeaders() });
+      }
+      const payloadError = validateDocumentDataUrl(fileUrl);
+      if (payloadError) {
+        return NextResponse.json({ error: payloadError }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     const document = await db.document.create({
       data: {
         employeeId,
@@ -115,8 +93,9 @@ export async function POST(request: Request) {
         type,
         status: body.status || 'active',
         expiryDate: expiryDate ? new Date(expiryDate) : null,
-        fileUrl: body.fileUrl || null,
+        fileUrl: fileUrl || null,
         description: body.description || null,
+        category: body.category || 'other',
       },
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
     });

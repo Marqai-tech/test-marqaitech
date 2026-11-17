@@ -264,7 +264,7 @@ export async function PATCH(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'tenant_admin' && userRole !== 'super_admin') {
+    if ((userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'super_admin') {
       return NextResponse.json({ error: 'Only tenant admins can update tenant settings' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -320,7 +320,7 @@ export async function POST(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'tenant_admin' && userRole !== 'super_admin') {
+    if ((userRole !== 'tenant_admin' && userRole !== 'ceo') && userRole !== 'super_admin') {
       return NextResponse.json({ error: 'Only tenant admins can create users' }, { status: 403, headers: corsHeaders() });
     }
 

@@ -18,11 +18,13 @@ import { FiGitBranch } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import WorkflowBuilderTab from '../settings/WorkflowBuilderTab';
+import RegularizationReleasePanel from '@/components/attendance/RegularizationReleasePanel';
 
 function ApprovalWorkflowsContent() {
   const { user } = useAuthStore();
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId());
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  // Task 161: hr_admin included — HR releases the regularization window here.
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
 
   if (!isAdmin) {
     return (
@@ -49,6 +51,10 @@ function ApprovalWorkflowsContent() {
           </p>
         </div>
       </div>
+
+      {/* Task 161 — release the regularization window for all employees
+          (email + in-app/mobile notifications, auto-closes at payroll cut-off) */}
+      <RegularizationReleasePanel />
 
       <WorkflowBuilderTab companyId={companyId} />
     </div>

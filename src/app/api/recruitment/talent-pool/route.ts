@@ -42,9 +42,87 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const { applicationId, notes, skillsSnapshot } = body;
+
+    // ─── MANUAL ENTRY MODE ───
+    // If no applicationId is provided, accept manual candidate details and
+    // create a CandidateTalentPool entry directly. This lets HR add candidates
+    // to the talent pool without an existing job application (e.g. sourced
+    // externally, walked in, or referred by an employee).
     if (!applicationId) {
-      return NextResponse.json({ error: 'applicationId is required' }, { status: 400, headers: CORS });
+      const { candidateName, candidateEmail, companyId: manualCompanyId } = body;
+      if (!candidateName || !candidateEmail) {
+        return NextResponse.json({
+          error: 'Either applicationId OR (candidateName + candidateEmail) is required',
+        }, { status: 400, headers: CORS });
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateEmail)) {
+        return NextResponse.json({ error: 'Invalid candidateEmail' }, { status: 400, headers: CORS });
+      }
+
+      // Resolve companyId: explicit > caller's first company > error
+      let resolvedCompanyId = manualCompanyId;
+      if (!resolvedCompanyId) {
+        const companies = await db.company.findMany({
+          where: { companyGroup: { tenantId: decodedRec.tenantId as string } },
+          select: { id: true, name: true },
+          take: 1,
+        }).catch(() => []);
+        if (companies.length === 0) {
+          return NextResponse.json({ error: 'No company found in your tenant — pass companyId explicitly' }, { status: 400, headers: CORS });
+        }
+        resolvedCompanyId = companies[0].id;
+      } else {
+        // Verify the companyId belongs to the caller's tenant (unless super_admin)
+        if (decodedRec.role !== 'super_admin') {
+          const c = await db.company.findFirst({
+            where: { id: resolvedCompanyId, companyGroup: { tenantId: decodedRec.tenantId as string } },
+            select: { id: true },
+          }).catch(() => null);
+          if (!c) {
+            return NextResponse.json({ error: 'companyId not found in your tenant' }, { status: 403, headers: CORS });
+          }
+        }
+      }
+
+      const snapshot = skillsSnapshot || null;
+      const entry = await db.candidateTalentPool.upsert({
+        where: {
+          candidateEmail_companyId: {
+            candidateEmail,
+            companyId: resolvedCompanyId,
+          },
+        },
+        create: {
+          candidateEmail,
+          candidateName,
+          companyId: resolvedCompanyId,
+          skillsSnapshot: snapshot,
+          notes: notes || null,
+          expiresAt: new Date(Date.now() + 2 * 365 * 24 * 60 * 60 * 1000),
+        },
+        update: {
+          notes: notes || undefined,
+          skillsSnapshot: snapshot || undefined,
+          removedAt: null,
+        },
+      });
+
+      await db.auditLog.create({
+        data: {
+          userId: decodedRec.userId as string,
+          action: 'ADD_TO_TALENT_POOL_MANUAL',
+          module: 'recruitment',
+          details: `Manually added ${candidateName} (${candidateEmail}) to talent pool`,
+        },
+      }).catch(() => {});
+
+      return NextResponse.json({
+        ok: true,
+        talentPoolEntry: entry,
+        message: `${candidateName} added to talent pool`,
+      }, { headers: CORS });
     }
+    // ─── END MANUAL ENTRY MODE ───
 
     // Verify the application exists AND belongs to the caller's tenant
     // (super_admin bypasses the tenant filter so they can manage any application)

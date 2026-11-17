@@ -349,8 +349,8 @@ export async function checkOverAllocation(
         tenantId: params.tenantId,
         employeeId: mgrId,
         title: 'Over-allocation alert',
-        message: `${name} is now allocated to ${totalPct}% across ${allocs.length} project(s) (threshold ${params.thresholdPct}%). Review capacity in the Capacity Planner.`,
-        link: `/projects/capacity?employeeId=${params.employeeId}`,
+        message: `${name} is now allocated to ${totalPct}% across ${allocs.length} project(s) (threshold ${params.thresholdPct}%). Review their tasks on the Task Board.`,
+        link: `/project-management/tasks`,
         type: 'warning',
         category: 'alert',
       });

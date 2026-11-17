@@ -154,8 +154,6 @@ export function Dashboard() {
     ? payrollCosts.map((p) => ({ name: p.month, cost: (p.totalGross ?? 0) / 1000 }))
     : [];
 
-  const recentActivities = data?.recentActivities || [];
-
   return (
     <div className="space-y-6">
       {/* Page Header */}

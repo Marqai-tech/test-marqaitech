@@ -58,14 +58,20 @@ const FINANCIAL_FIELDS = [
  */
 export async function resolveProjectAccess(
   decoded: { userId?: string; role?: string; tenantId?: string },
-  projectId: string
+  projectId: string,
+  // Task 115 FIX: routes get a TENANT-scoped PrismaClient from getDb(request).
+  // Without this handle the entity lookups below ran against the PLATFORM DB,
+  // where tenant projects/employees/members do not exist — so every non-admin
+  // (no global-role shortcut) was denied 403 even on their own projects.
+  dbOverride?: Pick<typeof prisma, 'project' | 'employee' | 'projectMember' | 'projectAllocation'>
 ): Promise<ProjectAccessResult> {
   await ensureSchemaSynced();
+  const db = dbOverride ?? prisma;
 
   const globalRole = decoded.role as string | undefined;
 
   // Global admins always get full access
-  if (globalRole === 'super_admin' || globalRole === 'tenant_admin') {
+  if (globalRole === 'super_admin' || (globalRole === 'tenant_admin' || globalRole === 'ceo')) {
     return {
       role: 'manager',
       canView: true,
@@ -80,7 +86,7 @@ export async function resolveProjectAccess(
 
   // Fetch the project + member row in parallel
   const [project, member] = await Promise.all([
-    prisma.project.findUnique({
+    db.project.findUnique({
       where: { id: projectId },
       select: {
         id: true,
@@ -91,7 +97,7 @@ export async function resolveProjectAccess(
     }),
     decoded.userId
       ? withSchemaSync(() =>
-          prisma.projectMember.findFirst({
+          db.projectMember.findFirst({
             where: {
               projectId,
               // Try userId first, then fall back to employee lookup by userId
@@ -150,7 +156,7 @@ export async function resolveProjectAccess(
   // We need their employeeId
   let employeeId: string | null = null;
   if (decoded.userId) {
-    const emp = await prisma.employee.findUnique({
+    const emp = await db.employee.findUnique({
       where: { userId: decoded.userId },
       select: { id: true },
     });
@@ -181,7 +187,7 @@ export async function resolveProjectAccess(
 
   // If user has an active allocation on the project → 'member' (can log time + view, no financials)
   if (employeeId) {
-    const alloc = await prisma.projectAllocation.findFirst({
+    const alloc = await db.projectAllocation.findFirst({
       where: {
         projectId,
         employeeId,

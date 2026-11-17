@@ -40,6 +40,13 @@ export async function GET(
 
     const { id } = await params;
     await ensureSchemaSynced();
+
+    // C-006 fix: Enforce HR/Admin role for preboarding mutations
+    const HR_ROLES_PRE = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+    if (!HR_ROLES_PRE.includes((decoded.role as string) || '')) {
+      return NextResponse.json({ error: 'Only HR/Admin can access preboarding records' }, { status: 403, headers: corsHeaders() });
+    }
+
     const candidate = await withSchemaSync(() =>
       db.preboardingCandidate.findUnique({
         where: { id },

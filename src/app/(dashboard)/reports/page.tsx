@@ -1711,7 +1711,7 @@ export default function ReportsPage() {
 
   /* ── Main Render ── */
   return (
-    <RoleAccessGuard allowedRoles={['super_admin', 'tenant_admin', 'manager', 'employee', 'finance']} moduleKey="reports">
+    <RoleAccessGuard allowedRoles={['super_admin', 'tenant_admin', 'ceo', 'manager', 'employee', 'finance']} moduleKey="reports">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

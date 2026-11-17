@@ -97,7 +97,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // HR view: compliance + compensation + custom fields
-    if (viewerRole === 'hr' || viewerRole === 'tenant_admin' || viewerRole === 'super_admin') {
+    if (viewerRole === 'hr' || (viewerRole === 'tenant_admin' || viewerRole === 'ceo') || viewerRole === 'super_admin') {
       const [documents, customFields, paymentMethods, salaryStructure] = await Promise.all([
         db.document.findMany({ where: { employeeId: id }, take: 50 }),
         db.employeeCustomFieldValue.findMany({

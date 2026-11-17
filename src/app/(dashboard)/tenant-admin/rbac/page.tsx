@@ -436,7 +436,7 @@ export default function TenantAdminRBACPage() {
   }
 
   // ─── Access Guard ───────────────────────────────────────
-  if (user?.role !== 'tenant_admin' && user?.role !== 'super_admin') {
+  if ((user?.role !== 'tenant_admin' && user?.role !== 'ceo') && user?.role !== 'super_admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <FiShield className="w-16 h-16 text-thb-text-muted" />
@@ -447,7 +447,7 @@ export default function TenantAdminRBACPage() {
   }
 
   // Filter modules and categories based on user role — hide Admin-category modules for tenant_admin
-  const isTenantAdmin = user?.role === 'tenant_admin';
+  const isTenantAdmin = (user?.role === 'tenant_admin' || user?.role === 'ceo');
   const filteredModules = isTenantAdmin ? modules.filter((m) => m.category !== 'Admin') : modules;
   const categories = [...new Set(filteredModules.map((m) => m.category))];
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
@@ -850,7 +850,7 @@ export default function TenantAdminRBACPage() {
                               <div className="flex items-center gap-2">
                                 <select value={assignRoleId} onChange={(e) => setAssignRoleId(e.target.value)} className="text-xs px-2 py-1.5 rounded border border-thb-border bg-white">
                                   <option value="">Select role</option>
-                                    {roles.filter((r) => !(isTenantAdmin && (r.key === 'super_admin' || r.key === 'tenant_admin'))).filter((r) => !r.isSystem || r.key === 'hr_admin' || r.key === 'finance_admin' || r.key === 'manager' || r.key === 'travel_admin' || r.key === 'crm_admin' || r.key === 'employee').map((r) => (
+                                    {roles.filter((r) => !(isTenantAdmin && (r.key === 'super_admin' || (r.key === 'tenant_admin' || r.key === 'ceo')))).filter((r) => !r.isSystem || r.key === 'hr_admin' || r.key === 'finance_admin' || r.key === 'manager' || r.key === 'travel_admin' || r.key === 'crm_admin' || r.key === 'employee').map((r) => (
                                     <option key={r.id} value={r.id}>{r.name}{r.company ? ` (${r.company.name})` : ''}</option>
                                   ))}
                                 </select>

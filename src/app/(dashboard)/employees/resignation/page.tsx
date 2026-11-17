@@ -80,7 +80,7 @@ const initialForm = {
 export default function ResignationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isApprover = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const isApprover = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(user?.role || '');
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -117,7 +117,11 @@ export default function ResignationPage() {
     setLoading(true);
     try {
       const sq = scopeQuery();
-      const res = await fetch(`/api/employees/resignation?limit=50${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      // BUG_080 FIX: Non-approvers (regular employees) should only see their
+      // OWN resignation requests, not other employees'. Pass scope=self for
+      // non-approvers; approvers (admin/HR) see all requests.
+      const scope = isApprover ? 'all' : 'self';
+      const res = await fetch(`/api/employees/resignation?limit=50&scope=${scope}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.resignations || data.data || []);
@@ -126,16 +130,30 @@ export default function ResignationPage() {
     } finally {
       setLoading(false);
     }
-  }, [scopeQuery, selectedTenantId]);
+  }, [scopeQuery, selectedTenantId, isApprover]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
   const validate = (): string | null => {
     if (!form.resignationDate) return 'Resignation Date is required';
+    // BUG_075 FIX: Resignation date cannot be in the past
+    const today = new Date().toISOString().split('T')[0];
+    if (form.resignationDate < today) {
+      return 'Resignation Date cannot be in the past. Please select today or a future date.';
+    }
     if (!form.lastWorkingDate) return 'Last Working Date is required';
     // Task 65 FIX: Last Working Date must NOT be earlier than Resignation Date
     if (form.lastWorkingDate < form.resignationDate) {
       return `Last Working Date (${form.lastWorkingDate}) cannot be earlier than the Resignation Date (${form.resignationDate}). Please correct the date.`;
+    }
+    // BUG_076 FIX: Last Working Date must be at least the notice period after Resignation Date
+    if (!form.isNoticePeriodWaived) {
+      const resDate = new Date(form.resignationDate);
+      const lwdDate = new Date(form.lastWorkingDate);
+      const diffDays = Math.ceil((lwdDate.getTime() - resDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < Number(form.noticePeriodDays)) {
+        return `Last Working Date must be at least ${form.noticePeriodDays} days after the Resignation Date (notice period). Current gap: ${diffDays} days. To reduce the notice period, check "Is Notice Period Waived?" and provide a waiver reason.`;
+      }
     }
     if (!form.reasonCategory) return 'Reason Category is required';
     if (!form.detailedReason.trim() || form.detailedReason.trim().length < 20) return 'Detailed reason must be at least 20 characters';
@@ -259,7 +277,7 @@ export default function ResignationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Resignation Date <span className="text-red-500 font-bold">*</span></label>
-            <input type="date" value={form.resignationDate} onChange={e => updateField('resignationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+            <input type="date" min={new Date().toISOString().split('T')[0]} value={form.resignationDate} onChange={e => updateField('resignationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Working Date <span className="text-red-500 font-bold">*</span></label>
@@ -301,6 +319,10 @@ export default function ResignationPage() {
             <input type="checkbox" id="notice-waived" checked={form.isNoticePeriodWaived} onChange={e => updateField('isNoticePeriodWaived', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
             <label htmlFor="notice-waived" className="text-sm text-slate-700">Is Notice Period Waived?</label>
           </div>
+          {/* BUG_078 FIX: Clarify that waiver requires HR approval */}
+          {form.isNoticePeriodWaived && (
+            <p className="text-[10px] text-amber-600 mt-1 ml-7">⚠ Waiver request requires HR approval — do not assume it will be granted.</p>
+          )}
         </div>
 
         {form.isNoticePeriodWaived && (
@@ -338,7 +360,13 @@ export default function ResignationPage() {
 
       {/* Actions */}
       <div className="flex justify-end gap-3">
-        <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
+        {/* BUG_079 FIX: Cancel button should ask for confirmation before navigating away */}
+        <button onClick={() => {
+          if (form.resignationDate || form.detailedReason || form.reasonCategory) {
+            if (!confirm('You have unsaved changes. Are you sure you want to cancel?')) return;
+          }
+          router.push('/employees');
+        }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
           <FiArrowLeft className="w-4 h-4" /> Cancel
         </button>
         <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium text-sm shadow-sm transition-all">
@@ -385,7 +413,7 @@ export default function ResignationPage() {
                   <td className="px-4 py-3 text-slate-600">{fmtDate(r.lastWorkingDate)}</td>
                   <td className="px-4 py-3 text-slate-600">{reasonLabel(r.reasonCategory)}</td>
                   <td className="px-4 py-3">
-                    <span className={getStatusBadge(r.status)}>{r.status}</span>
+                    <span className={getStatusBadge(r.status)}>{r.status.charAt(0).toUpperCase() + r.status.slice(1)}</span>
                   </td>
                   {isApprover && <td className="px-4 py-3">
                     {r.status === 'pending' || r.status === 'pending_approval' ? <div className="flex gap-2">
@@ -393,6 +421,35 @@ export default function ResignationPage() {
                       <button onClick={() => decide(r, 'reject')} className="text-xs px-2 py-1 rounded bg-rose-600 text-white">Reject</button>
                     </div> : <span className="text-xs text-slate-500">{r.rejectionReason || (r.decisionDate ? fmtDate(r.decisionDate) : '—')}</span>}
                   </td>}
+                  {/* BUG_083 FIX: Add Withdraw button for employees' own pending requests */}
+                  {!isApprover && r.status === 'pending' && (
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Are you sure you want to withdraw this resignation request?')) return;
+                          try {
+                            const res = await fetch(`/api/employees/resignation/${r.id}`, {
+                              method: 'PATCH',
+                              headers: getAuthHeaders(),
+                              body: JSON.stringify({ action: 'cancel' }),
+                            });
+                            if (res.ok) {
+                              toast.success('Resignation request withdrawn');
+                              fetchRecords();
+                            } else {
+                              const d = await res.json();
+                              toast.error(d.error || 'Failed to withdraw');
+                            }
+                          } catch {
+                            toast.error('Network error');
+                          }
+                        }}
+                        className="text-xs px-2 py-1 rounded bg-slate-200 text-slate-700 hover:bg-slate-300"
+                      >
+                        Withdraw
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

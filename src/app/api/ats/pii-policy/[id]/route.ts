@@ -21,7 +21,7 @@ export async function OPTIONS() {
 }
 
 const VALID_STRATEGIES = new Set(['full', 'partial', 'hidden', 'hash']);
-const ADMIN_ROLES = new Set(['super_admin', 'tenant_admin', 'admin']);
+const ADMIN_ROLES = new Set(['super_admin', 'tenant_admin', 'ceo', 'admin']);
 
 async function requireAuth(request: Request) {
   const token = getTokenFromHeaders(request);

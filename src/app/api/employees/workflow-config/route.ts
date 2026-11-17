@@ -16,7 +16,7 @@ import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { APPROVER_TYPE_LABELS, WorkflowTier } from '@/lib/approverResolve';
 
 const VALID_TYPES = ['update_profile', 'probation_confirmation'];
-const VALID_APPROVER_TYPES = ['reporting_manager', 'hr_admin', 'tenant_admin', 'specific_user', 'finance'];
+const VALID_APPROVER_TYPES = ['reporting_manager', 'hr_admin', 'tenant_admin', 'ceo', 'specific_user', 'finance'];
 
 function corsHeaders() {
   return {
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
 
     const url = new URL(req.url);
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
-    const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
     if (!auth.tenantId) return NextResponse.json({ error: 'Tenant context missing' }, { status: 400, headers: corsHeaders() });
 

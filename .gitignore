@@ -47,3 +47,7 @@ next-env.d.ts
 nexus-hrms/
 tool-results/
 dev-verify.log
+core
+
+.vercel
+.env*

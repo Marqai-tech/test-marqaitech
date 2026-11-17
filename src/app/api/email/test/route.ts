@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const role = (decoded.role as string) || 'employee';
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const role = (decoded.role as string) || 'employee';
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -114,7 +114,11 @@ export async function POST(request: Request) {
       isSandbox,
       usedFallbackFrom: result.usedFallbackFrom,
       sandboxWarning: result.sandboxWarning,
-      error: result.error,
+      via: (result as any).via || 'unknown',
+      error: result.error || undefined,
+      smtpHost: process.env.SMTP_HOST || 'not set',
+      smtpPasswordSet: !!process.env.SMTP_PASSWORD,
+      resendKeySet: !!process.env.RESEND_API_KEY,
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[Email Test POST] Error:', error);

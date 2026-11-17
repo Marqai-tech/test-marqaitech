@@ -22,6 +22,7 @@ export type ProjectApproverType =
   | 'department_head'        // head of the project's department
   | 'hr_admin'
   | 'tenant_admin'
+  | 'ceo'
   | 'specific_employee'      // approverValue = employeeId
   | 'project_sponsor';       // Project.executiveSponsor employee
 
@@ -284,7 +285,7 @@ export async function resolveTierApprover(
     case 'specific_employee':
       return { employeeId: tier.approverValue || null };
     case 'hr_admin':
-    case 'tenant_admin':
+    case 'tenant_admin': case 'ceo':
     default:
       // Role-based approvers are resolved at decision time by role check,
       // not pinned to one employee.

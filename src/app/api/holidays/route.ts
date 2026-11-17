@@ -65,6 +65,10 @@ export async function POST(req: NextRequest) {
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
+    // RBAC FIX: only admins can create holidays (was: any authenticated user)
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(auth.role)) {
+      return NextResponse.json({ error: 'Admin only — you do not have permission to create holidays' }, { status: 403, headers: corsHeaders() });
+    }
 
     const body = await req.json();
     const { name, date, type, country, description, companyId } = body;

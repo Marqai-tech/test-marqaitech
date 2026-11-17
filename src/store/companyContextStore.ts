@@ -217,7 +217,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           }
           const data = await res.json();
           const role = data.role || 'employee';
-          const isAdmin = role === 'super_admin' || role === 'tenant_admin';
+          const isAdmin = role === 'super_admin' || (role === 'tenant_admin' || role === 'ceo');
           const hasMappedCompanies = (data.mappedCompanies || []).length > 1;
           const canSwitch = isAdmin || hasMappedCompanies;
 
@@ -466,7 +466,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       effectiveCompanyId: () => {
         const s = get();
         const r = s.role;
-        if (r === 'super_admin' || r === 'tenant_admin') {
+        if (r === 'super_admin' || (r === 'tenant_admin' || r === 'ceo')) {
           // Admin can choose to view "all companies" (null) or a specific one
           return s.selectedCompanyId;
         }
@@ -480,7 +480,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       effectiveGroupId: () => {
         const s = get();
         const r = s.role;
-        if (r === 'super_admin' || r === 'tenant_admin') {
+        if (r === 'super_admin' || (r === 'tenant_admin' || r === 'ceo')) {
           // If a specific company is selected, its group is implied.
           if (s.selectedCompanyId) {
             const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
@@ -509,7 +509,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         // would briefly show "Not yet assigned" for tenant_admin right after
         // page reload.
         const r = (userRole || s.role || 'employee').toLowerCase();
-        if (r === 'super_admin' || r === 'tenant_admin') {
+        if (r === 'super_admin' || (r === 'tenant_admin' || r === 'ceo')) {
           // Most specific: a single company
           if (s.selectedCompanyId) {
             const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
@@ -521,7 +521,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             if (g) return `${g.name} (group)`;
           }
           // Broadest: all companies in the tenant/parent
-          if (r === 'tenant_admin') {
+          if ((r === 'tenant_admin' || r === 'ceo')) {
             return s.tenant?.name ? `${s.tenant.name} (all)` : 'All companies (group)';
           }
           const t = s.availableTenants.find((x) => x.id === s.selectedTenantId);
@@ -541,7 +541,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       canSwitch: (userRole?: string) => {
         const s = get();
         const r = (userRole || s.role || 'employee').toLowerCase();
-        if (r === 'super_admin' || r === 'tenant_admin') return true;
+        if (r === 'super_admin' || (r === 'tenant_admin' || r === 'ceo')) return true;
         // Employees with multiple mapped companies can switch between them
         return s.mappedCompanies.length > 1;
       },
@@ -572,7 +572,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           if (s.selectedCompanyId) {
             params.set('companyId', s.selectedCompanyId);
           }
-        } else if (r === 'tenant_admin') {
+        } else if ((r === 'tenant_admin' || r === 'ceo')) {
           if (s.selectedCompanyId) {
             params.set('companyId', s.selectedCompanyId);
           }

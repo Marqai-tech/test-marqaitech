@@ -122,7 +122,7 @@ const colorMap: Record<string, { chip: string; active: string }> = {
 // ═════════════════════════════════════════════════════════════════════
 export default function WorkflowBuilderTab({ companyId }: { companyId: string | null }) {
   const { user } = useAuthStore();
-  const canEdit = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const canEdit = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
   const [activeType, setActiveType] = useState<RequestType>('REGULARIZATION');
   const [configs, setConfigs] = useState<Partial<Record<RequestType, TypeConfig>>>({});
   const [loading, setLoading] = useState(true);

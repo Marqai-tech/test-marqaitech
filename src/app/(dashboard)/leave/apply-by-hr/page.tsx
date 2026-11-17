@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { getDataScope } from '@/lib/roleAccess';
 import { useRouter } from 'next/navigation';
+import TeamLeaveSidebar from '@/components/TeamLeaveSidebar';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -27,7 +28,12 @@ interface Employee {
   companyId?: string;
   avatar?: string | null;
   department?: { name: string } | null;
-  designation?: { name: string } | null;
+  // BUG_128 FIX: Designation model uses 'title' not 'name'. The API returns
+  // { id, title } so the frontend must read .title (was reading .name → 'No Designation').
+  designation?: { id: string; title: string } | null;
+  // BUG_136: probation status + dateOfJoining for paid-leave blocking.
+  employeeStatus?: string | null;
+  dateOfJoining?: string | null;
 }
 
 interface LeaveType {
@@ -60,6 +66,13 @@ interface LeaveRequest {
   leaveType?: { id: string; name: string; code: string };
 }
 
+/* ── Task 135: attendance context (regularization dates + pending requests)
+   shown beside the leave form so HR sees the full picture before applying ── */
+interface AttendanceContextLite {
+  regularizations: Array<{ id: string; date: string; punchType: string; status: string }>;
+  pendingByType: Array<{ type: string; count: number; latestDate?: string }>;
+}
+
 export default function ApplyLeaveByHRPage() {
   const { user } = useAuthStore();
   const router = useRouter();
@@ -85,6 +98,8 @@ export default function ApplyLeaveByHRPage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [recentRequests, setRecentRequests] = useState<LeaveRequest[]>([]);
+  // Task 135 — the selected employee's regularization dates + pending requests
+  const [attendanceContext, setAttendanceContext] = useState<AttendanceContextLite | null>(null);
   // Holiday calendar (for working-day duration display)
   const [holidays, setHolidays] = useState<Array<{ id: string; name: string; date: string; type: string }>>([]);
 
@@ -97,6 +112,14 @@ export default function ApplyLeaveByHRPage() {
     halfDay: false,
     halfDaySlot: 'first_half',
   });
+  // Approval + notification options
+  const [skipApproval, setSkipApproval] = useState(false); // auto-approve (no manager approval needed)
+  const [notifySpecificPerson, setNotifySpecificPerson] = useState(false); // email only a specific person
+  const [notifyEmail, setNotifyEmail] = useState(''); // email of the person to notify
+  const [notifyEmployee, setNotifyEmployee] = useState<Employee | null>(null); // selected employee to notify
+  const [notifySearch, setNotifySearch] = useState('');
+  const [notifyResults, setNotifyResults] = useState<Employee[]>([]);
+  const [notifyDropdown, setNotifyDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingLeaveData, setLoadingLeaveData] = useState(false);
 
@@ -105,7 +128,7 @@ export default function ApplyLeaveByHRPage() {
     setLoadingEmployees(true);
     try {
       const sq = scopeQuery();
-      const r = await fetch(`/api/employees?limit=50&includePhotos=0&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal });
+      const r = await fetch(`/api/employees?limit=50&includePhotos=0&excludeInactive=true&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setEmployees(d.employees || []);
@@ -130,6 +153,22 @@ export default function ApplyLeaveByHRPage() {
     };
   }, [employeeSearch, fetchEmployees]);
 
+  // ─── Fetch notify-person results (debounced) ──
+  useEffect(() => {
+    if (!notifySpecificPerson) return;
+    const search = notifySearch.trim();
+    if (search.length < 2) { setNotifyResults([]); return; }
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      const sq = scopeQuery();
+      fetch(`/api/employees?limit=20&includePhotos=0&excludeInactive=true&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal: controller.signal })
+        .then(r => r.json())
+        .then(d => { setNotifyResults(d.employees || []); setNotifyDropdown(true); })
+        .catch(() => {});
+    }, 250);
+    return () => { window.clearTimeout(timeoutId); controller.abort(); };
+  }, [notifySearch, notifySpecificPerson, scopeQuery]);
+
   // ─── Fetch holidays once (for weekend/holiday-aware day count) ──
   useEffect(() => {
     (async () => {
@@ -153,10 +192,13 @@ export default function ApplyLeaveByHRPage() {
       const typesUrl = employee.companyId
         ? `/api/leave-types?companyId=${encodeURIComponent(employee.companyId)}`
         : '/api/leave-types';
-      const [typesRes, balanceRes, requestsRes] = await Promise.all([
+      const [typesRes, balanceRes, requestsRes, regRes, attReqRes] = await Promise.all([
         fetch(typesUrl, { headers: getAuthHeaders() }),
         fetch(`/api/leave/balance?employeeId=${employee.id}`, { headers: getAuthHeaders() }),
         fetch(`/api/leave?employeeId=${employee.id}&limit=5`, { headers: getAuthHeaders() }),
+        // Task 135 — regularization dates + pending attendance requests
+        fetch(`/api/attendance/regularize?employeeId=${employee.id}&limit=50`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/attendance/requests?scope=all&status=pending&limit=200`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
 
       const typesData = await typesRes.json();
@@ -196,6 +238,38 @@ export default function ApplyLeaveByHRPage() {
 
       const requestData = await requestsRes.json();
       if (requestsRes.ok) setRecentRequests(requestData.leaveRequests || []);
+
+      // Task 135 — build the attendance context panel (best-effort)
+      const ctx: AttendanceContextLite = { regularizations: [], pendingByType: [] };
+      if (regRes && regRes.ok) {
+        try {
+          const d = await regRes.json();
+          const regs = Array.isArray(d?.regularizations) ? d.regularizations : [];
+          ctx.regularizations = regs.slice(0, 6).map((r: Record<string, unknown>) => ({
+            id: String(r.id || ''),
+            date: String(r.date || '').slice(0, 10),
+            punchType: String(r.punchType || '—').replace(/_/g, ' '),
+            status: String(r.status || 'pending'),
+          }));
+        } catch { /* non-fatal */ }
+      }
+      if (attReqRes && attReqRes.ok) {
+        try {
+          const d = await attReqRes.json();
+          const reqs = (Array.isArray(d?.requests) ? d.requests : []).filter((r: Record<string, unknown>) => r.employeeId === employee.id || (r.employee as Record<string, unknown> | undefined)?.id === employee.id);
+          const byType = new Map<string, { count: number; latest?: string }>();
+          for (const r of reqs) {
+            const key = String(r.requestType || 'OTHER').replace(/_/g, ' ');
+            const cur = byType.get(key) || { count: 0 };
+            cur.count += 1;
+            const sd = r.startDate ? String(r.startDate).slice(0, 10) : '';
+            if (sd && (!cur.latest || sd > cur.latest)) cur.latest = sd;
+            byType.set(key, cur);
+          }
+          ctx.pendingByType = Array.from(byType.entries()).map(([type, v]) => ({ type, count: v.count, latestDate: v.latest }));
+        } catch { /* non-fatal */ }
+      }
+      setAttendanceContext(ctx);
     } catch {
       toast.error('Failed to load leave data');
     } finally {
@@ -216,6 +290,9 @@ export default function ApplyLeaveByHRPage() {
   // BUG FIX: weekends (Sat+Sun) and configured holidays are excluded from
   // the duration — matches the server-side working-day count used for the
   // balance check and deduction.
+  // BUG_132/133 FIX: half-day for a multi-day range is now disabled in the
+  // UI (see checkbox below). When half-day IS checked (single day only),
+  // duration = 0.5 (was 0.5 for the WHOLE multi-day range).
   const calculateDays = () => {
     if (!form.startDate || !form.endDate) return 0;
     const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
@@ -232,6 +309,7 @@ export default function ApplyLeaveByHRPage() {
       if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) workingDays++;
       cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
+    // BUG_132/133: half day = 0.5 (single day only, enforced by checkbox disabled state)
     return form.halfDay ? 0.5 : workingDays;
   };
 
@@ -253,11 +331,44 @@ export default function ApplyLeaveByHRPage() {
       toast.error('End date cannot be before start date');
       return;
     }
-    // BUG FIX: block past dates for HR-applied leave too
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    if (form.startDate < todayStr) {
-      toast.error(`Leave cannot be applied for past dates. ${form.startDate} has already passed (today is ${todayStr}).`);
+    // BUG_131 FIX: HR/admin CAN apply past-dated leave (per spec). Remove the past-date block.
+    // (The server already allows privileged roles to apply past dates.)
+
+    // BUG_136 FIX: block paid leave for probation employees. Probation employees
+    // can only take LOP (unpaid) leave. Paid leave types are blocked per policy.
+    const selectedLt = leaveTypes.find(lt => lt.id === form.leaveTypeId);
+    const isProbation = (() => {
+      const status = (selectedEmployee.employeeStatus || '').toLowerCase();
+      if (!status.includes('probation') || !selectedEmployee.dateOfJoining) return false;
+      const end = new Date(selectedEmployee.dateOfJoining);
+      end.setMonth(end.getMonth() + 6);
+      return end.getTime() > Date.now();
+    })();
+    if (isProbation && selectedLt?.isPaid) {
+      toast.error(`${selectedEmployee.firstName} is on probation — paid leave is blocked during probation. Please select Loss of Pay (LOP) or an unpaid leave type.`);
       return;
+    }
+
+    // BUG_135: client-side insufficient-balance validation for HR apply.
+    const selectedBalance = leaveBalances.find(b => b.leaveType.id === form.leaveTypeId);
+    if (selectedBalance) {
+      const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
+      const start = new Date(`${form.startDate}T00:00:00Z`);
+      const end = new Date(`${form.endDate}T00:00:00Z`);
+      let workingDays = 0;
+      const cursor = new Date(start.getTime());
+      let guard = 0;
+      while (cursor <= end && guard < 4000) { guard++; const dow = cursor.getUTCDay(); const dateStr = cursor.toISOString().split('T')[0]; if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) workingDays++; cursor.setUTCDate(cursor.getUTCDate() + 1); }
+      const requestedDays = form.halfDay ? 0.5 : workingDays;
+      const effectiveRemaining = Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0));
+      if (effectiveRemaining === 0 && selectedBalance.total > 0) {
+        toast.error(`No leave balance available for ${selectedEmployee.firstName} for "${selectedBalance.leaveType.name}". Please choose an unpaid leave type (LOP).`);
+        return;
+      }
+      if (requestedDays > effectiveRemaining && selectedBalance.total > 0) {
+        toast.error(`Insufficient leave balance for ${selectedEmployee.firstName}. Available: ${effectiveRemaining} day(s). Requested: ${requestedDays} day(s).`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -273,12 +384,17 @@ export default function ApplyLeaveByHRPage() {
           reason: form.reason || `Leave applied by HR on behalf of ${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
           halfDay: form.halfDay,
           halfDaySlot: form.halfDay ? form.halfDaySlot : null,
+          // Approval + notification options
+          skipApproval: skipApproval,
+          notifyEmail: notifySpecificPerson ? (notifyEmail || notifyEmployee?.email || '') : '',
         }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
 
-      toast.success(`Leave applied successfully for ${selectedEmployee.firstName} ${selectedEmployee.lastName}${d.autoApproval?.applied ? ' (Auto-approved)' : ''}${d.days !== undefined ? ` — ${d.days} working day(s) counted` : ''}`);
+      const approvalNote = skipApproval ? ' (Auto-approved — approval skipped)' : (d.autoApproval?.applied ? ' (Auto-approved)' : '');
+      const notifyNote = (notifySpecificPerson && (notifyEmail || notifyEmployee?.email)) ? ` — notification sent to ${notifyEmail || notifyEmployee?.email}` : '';
+      toast.success(`Leave applied successfully for ${selectedEmployee.firstName} ${selectedEmployee.lastName}${approvalNote}${d.days !== undefined ? ` — ${d.days} working day(s) counted` : ''}${notifyNote}`);
       setForm({
         leaveTypeId: '',
         startDate: new Date().toISOString().split('T')[0],
@@ -287,6 +403,13 @@ export default function ApplyLeaveByHRPage() {
         halfDay: false,
         halfDaySlot: 'first_half',
       });
+      // Reset approval + notification options
+      setSkipApproval(false);
+      setNotifySpecificPerson(false);
+      setNotifyEmail('');
+      setNotifyEmployee(null);
+      setNotifySearch('');
+      setNotifyResults([]);
       fetchLeaveData(selectedEmployee);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to apply leave');
@@ -369,7 +492,7 @@ export default function ApplyLeaveByHRPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium truncate">{emp.firstName} {emp.lastName}</p>
-                    <p className="text-xs text-slate-400 truncate">{emp.employeeId} · {emp.department?.name || 'No Dept'} · {emp.designation?.name || 'No Desg'}</p>
+                    <p className="text-xs text-slate-400 truncate">{emp.employeeId} · {emp.email} · {emp.department?.name || 'No Dept'} · {emp.designation?.title || 'No Desg'}</p>
                   </div>
                 </button>
               ))}
@@ -386,7 +509,7 @@ export default function ApplyLeaveByHRPage() {
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-slate-800">{selectedEmployee.firstName} {selectedEmployee.lastName}</p>
               <p className="text-xs text-slate-500">{selectedEmployee.employeeId} · {selectedEmployee.email}</p>
-              <p className="text-xs text-slate-400">{selectedEmployee.department?.name || 'No Department'} · {selectedEmployee.designation?.name || 'No Designation'}</p>
+              <p className="text-xs text-slate-400">{selectedEmployee.department?.name || 'No Department'} · {selectedEmployee.designation?.title || 'No Designation'}</p>
             </div>
             <button
               onClick={() => { setSelectedEmployee(null); setLeaveTypes([]); setLeaveBalances([]); setRecentRequests([]); }}
@@ -445,14 +568,18 @@ export default function ApplyLeaveByHRPage() {
                 )}
 
                 {/* Date Range */}
+                {/* BUG_130 FIX: date format helper text shows DD-MMM-YYYY so day/month is unambiguous. */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Date <span className="text-red-500 font-bold">*</span></label>
-                    <input type="date" value={form.startDate} min={new Date().toLocaleDateString('en-CA')} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
+                    {/* BUG_131 FIX: HR can select past dates — no min attribute. */}
+                    <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
+                    {form.startDate && <p className="text-[10px] text-slate-400 mt-0.5">{new Date(form.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">End Date <span className="text-red-500 font-bold">*</span></label>
-                    <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} min={form.startDate || new Date().toLocaleDateString('en-CA')} className="3boxes-input w1-full" />
+                    <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} min={form.startDate} className="3boxes-input w-full" />
+                    {form.endDate && <p className="text-[10px] text-slate-400 mt-0.5">{new Date(form.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
                   </div>
                 </div>
 
@@ -465,10 +592,11 @@ export default function ApplyLeaveByHRPage() {
                 )}
 
                 {/* Half Day */}
+                {/* BUG_123/132/133 FIX: Half Day disabled for multi-day ranges — half day only makes sense for a single day. */}
                 <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.halfDay} onChange={e => setForm({ ...form, halfDay: e.target.checked })} className="w-4 h-4 text-teal-500 rounded border-slate-300 focus:ring-teal-500" />
-                    <span className="text-sm text-slate-700">Half Day</span>
+                  <label className={`flex items-center gap-2 ${(form.startDate && form.endDate && form.startDate !== form.endDate) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                    <input type="checkbox" checked={form.halfDay} onChange={e => setForm({ ...form, halfDay: e.target.checked })} disabled={form.startDate && form.endDate && form.startDate !== form.endDate} className="w-4 h-4 text-teal-500 rounded border-slate-300 focus:ring-teal-500 disabled:cursor-not-allowed" />
+                    <span className="text-sm text-slate-700">Half Day {form.startDate && form.endDate && form.startDate !== form.endDate && <span className="text-[10px] text-slate-400">(only for single-day leave)</span>}</span>
                   </label>
                   {form.halfDay && (
                     <select value={form.halfDaySlot} onChange={e => setForm({ ...form, halfDaySlot: e.target.value })} className="3boxes-input text-sm">
@@ -479,15 +607,108 @@ export default function ApplyLeaveByHRPage() {
                 </div>
 
                 {/* Reason */}
+                {/* BUG_134 FIX: max length 1000 chars + char counter. */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-[10px] text-slate-400">({form.reason.length}/1000)</span></label>
                   <textarea
                     value={form.reason}
-                    onChange={e => setForm({ ...form, reason: e.target.value })}
+                    onChange={e => setForm({ ...form, reason: e.target.value.slice(0, 1000) })}
                     rows={3}
+                    maxLength={1000}
                     className="3boxes-input w-full resize-none"
                     placeholder="Reason for leave (optional — auto-filled if left blank)"
                   />
+                </div>
+
+                {/* ─── Approval & Notification Options ─── */}
+                <div className="border-t border-slate-100 pt-4 space-y-3">
+                  <p className="text-xs font-semibold text-slate-700">Approval &amp; Notification</p>
+
+                  {/* Skip approval checkbox */}
+                  <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={skipApproval}
+                      onChange={e => setSkipApproval(e.target.checked)}
+                      className="w-4 h-4 mt-0.5 text-teal-500 rounded border-slate-300 focus:ring-teal-500"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-slate-700">Skip approval (auto-approve)</span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">The leave will be approved immediately — no manager approval needed. Balance is deducted right away.</p>
+                    </div>
+                  </label>
+
+                  {/* Notify specific person checkbox */}
+                  <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={notifySpecificPerson}
+                      onChange={e => { setNotifySpecificPerson(e.target.checked); if (!e.target.checked) { setNotifyEmail(''); setNotifyEmployee(null); setNotifySearch(''); setNotifyResults([]); } }}
+                      className="w-4 h-4 mt-0.5 text-teal-500 rounded border-slate-300 focus:ring-teal-500"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-slate-700">Notify only a specific person</span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Send an email notification to a specific employee instead of the default approver chain.</p>
+                    </div>
+                  </label>
+
+                  {/* Notify person search — shown only when notifySpecificPerson is checked */}
+                  {notifySpecificPerson && (
+                    <div className="ml-6 space-y-2">
+                      <div className="relative">
+                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={notifySearch}
+                          onChange={(e) => { setNotifySearch(e.target.value); setNotifyDropdown(true); }}
+                          onFocus={() => setNotifyDropdown(true)}
+                          placeholder="Search employee to notify (name, email, or ID)..."
+                          className="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400"
+                        />
+                        {notifyDropdown && notifyResults.length > 0 && (
+                          <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
+                            {notifyResults.map(emp => (
+                              <button
+                                key={emp.id}
+                                type="button"
+                                onClick={() => {
+                                  setNotifyEmployee(emp);
+                                  setNotifyEmail(emp.email);
+                                  setNotifySearch(`${emp.firstName} ${emp.lastName} (${emp.email})`);
+                                  setNotifyDropdown(false);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-teal-50 transition-colors border-b border-slate-50 last:border-0"
+                              >
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                                  {emp.firstName[0]}{emp.lastName[0]}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-slate-700 truncate">{emp.firstName} {emp.lastName}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{emp.email}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {/* Manual email entry fallback */}
+                      <div>
+                        <label className="block text-[10px] font-medium text-slate-500 mb-1">Or enter an email directly:</label>
+                        <input
+                          type="email"
+                          value={notifyEmail}
+                          onChange={e => { setNotifyEmail(e.target.value); setNotifyEmployee(null); }}
+                          placeholder="person@company.com"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400"
+                        />
+                      </div>
+                      {notifyEmail && (
+                        <p className="text-[11px] text-teal-600 flex items-center gap-1">
+                          <FiCheck className="w-3 h-3" /> Notification will be sent to: <strong>{notifyEmail}</strong>
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit */}
@@ -508,7 +729,7 @@ export default function ApplyLeaveByHRPage() {
           {/* Sidebar: Balances & Recent Requests */}
           <div className="space-y-6">
             {/* Leave Balances */}
-            <div className="thb-card p-5">
+            {/* <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
                 <FiFileText className="w-4 h-4 text-teal-500" />
                 Leave Balances
@@ -528,10 +749,10 @@ export default function ApplyLeaveByHRPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Recent Requests */}
-            <div className="thb-card p-5">
+            {/* <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
                 <FiClock className="w-4 h-4 text-slate-500" />
                 Recent Requests
@@ -556,7 +777,62 @@ export default function ApplyLeaveByHRPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
+            {/* Task 135 — Attendance & Regularizations */}
+            {/* <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                <FiCalendar className="w-4 h-4 text-cyan-500" />
+                Attendance &amp; Regularizations
+              </h3>
+              {attendanceContext && attendanceContext.pendingByType.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {attendanceContext.pendingByType.map(p => (
+                    <span key={p.type} className="text-[10px] bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full">
+                      {p.type}: {p.count} pending{p.latestDate ? ` · ${p.latestDate}` : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {!attendanceContext || attendanceContext.regularizations.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2 text-center">No regularizations on record</p>
+              ) : (
+                <div className="space-y-2">
+                  {attendanceContext.regularizations.map(r => (
+                    <div key={r.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                      <div>
+                        <p className="text-xs font-medium text-slate-700">{r.date}</p>
+                        <p className="text-[10px] text-slate-400 capitalize">{r.punchType}</p>
+                      </div>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        r.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        r.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        r.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>{r.status}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div> */}
+
+            {/* Team Leave Calendar sidebar — same as Apply Leave form */}
+            <TeamLeaveSidebar
+              startDate={form.startDate}
+              endDate={form.endDate}
+              scopeQuery={scopeQuery()}
+              employeeId={selectedEmployee?.id}
+              onDateSelect={(date) => {
+                setForm(prev => {
+                  if (!prev.startDate || (prev.startDate && prev.endDate)) {
+                    return { ...prev, startDate: date, endDate: '' };
+                  }
+                  if (date < prev.startDate) {
+                    return { ...prev, startDate: date, endDate: prev.startDate };
+                  }
+                  return { ...prev, endDate: date };
+                });
+              }}
+            />
           </div>
         </div>
       )}

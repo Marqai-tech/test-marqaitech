@@ -178,7 +178,7 @@ const initialPromptForm = {
 /* ── Component ── */
 export default function AIAdminPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo'].includes(user?.role || '');
 
   const [prompts, setPrompts] = useState<AIPrompt[]>([]);
   const [biasData, setBiasData] = useState<BiasCategory[]>([]);

@@ -55,7 +55,15 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build the where clause — only ever return OPEN jobs publicly
-    const where: Record<string, unknown> = { status: 'open' };
+    // Phase 6 fix: Also exclude jobs past their closing date
+    const where: Record<string, unknown> = {
+      status: 'open',
+      // Exclude jobs past their closing date (null closingDate = no deadline)
+      OR: [
+        { closingDate: null },
+        { closingDate: { gte: new Date() } },
+      ],
+    };
 
     if (tenantSlug) {
       where.department = { company: { companyGroup: { tenant: { slug: tenantSlug } } } };

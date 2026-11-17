@@ -21,7 +21,7 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 
 export default function TravelSettingsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [defaultClass, setDefaultClass] = useState('economy');
   const [preApprovalRequired, setPreApprovalRequired] = useState(true);

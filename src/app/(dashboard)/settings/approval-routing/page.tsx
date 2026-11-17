@@ -23,7 +23,7 @@ interface RoutingRule {
 
 export default function ApprovalRoutingPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<RoutingRule[]>([]);
   const [loading, setLoading] = useState(true);

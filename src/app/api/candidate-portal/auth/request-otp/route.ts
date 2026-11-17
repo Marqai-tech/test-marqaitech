@@ -32,14 +32,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400, headers: CORS });
     }
 
-    // Look up candidate name from any job application they've ever submitted.
-    // If they haven't applied yet, we still create a CandidatePortalUser so they
-    // can pre-register (per REQ-CAND-05: "candidates can register before applying").
+    // Candidate OTP is an authentication flow, not an open registration flow.
+    // Only an existing portal account or a previously submitted application may
+    // request an OTP. This prevents arbitrary email addresses from creating a
+    // candidate portal account and gaining access before applying.
     const apps = await db.jobApplication.findFirst({
       where: { candidateEmail: email },
       select: { candidateName: true },
     });
-    const candidateName = apps?.candidateName || email.split('@')[0];
+    const existingPortalUser = await db.candidatePortalUser.findUnique({
+      where: { candidateEmail: email },
+      select: { id: true, candidateName: true },
+    });
+    if (!apps && !existingPortalUser) {
+      return NextResponse.json(
+        { error: 'No candidate account or application found for this email. Please apply for a job first.', code: 'CANDIDATE_NOT_FOUND' },
+        { status: 404, headers: CORS },
+      );
+    }
+
+    const candidateName = apps?.candidateName || existingPortalUser?.candidateName || email.split('@')[0];
 
     const otp = String(randomInt(100000, 999999));
     const otpHash = await hashPassword(otp);
@@ -67,9 +79,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      message: apps
-        ? 'If you have applied, an OTP has been sent.'
-        : 'An OTP has been generated for your email.',
+      message: 'OTP sent — check your email.',
       // Email provider not yet configured — surface OTP so the candidate can log in.
       devOtp: otp,
     }, { headers: CORS });

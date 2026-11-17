@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  FiShield, FiLock, FiUnlock, FiPlus, FiAlertCircle,
+  FiShield, FiLock, FiUnlock, FiPlus, FiAlertCircle, FiArchive, FiRefreshCw, FiSearch, FiFileText,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -28,6 +28,39 @@ interface LegalHold {
   releaseReason: string | null;
 }
 
+// ─── Task 121: super-admin retention view over deleted chat history ──
+interface ArchiveRow {
+  messageId: string;
+  tenantId: string | null;
+  tenantName: string;
+  roomId: string;
+  roomName: string | null;
+  roomType: string | null;
+  projectName: string | null;
+  roomActive: boolean | null;
+  senderName: string;
+  senderEmail: string | null;
+  body: string;
+  attachments: string | null;
+  createdAt: string;
+  deletedAt: string;
+  source: string;
+}
+interface ArchiveRoom {
+  roomId: string;
+  tenantName: string;
+  name: string | null;
+  roomType: string | null;
+  projectName: string | null;
+  updatedAt: string;
+}
+interface ArchiveResponse {
+  rows: ArchiveRow[];
+  rooms: ArchiveRoom[];
+  tenants: Array<{ id: string; name: string; slug: string }>;
+  truncated: boolean;
+}
+
 export default function EdiscoveryPage() {
   const [holds, setHolds] = useState<LegalHold[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,6 +73,40 @@ export default function EdiscoveryPage() {
     caseReference: '',
     reason: '',
   });
+
+  // ─── Task 121: deleted chat history (safety measure) ────
+  const [archiveRows, setArchiveRows] = useState<ArchiveRow[]>([]);
+  const [archiveRooms, setArchiveRooms] = useState<ArchiveRoom[]>([]);
+  const [archiveTenants, setArchiveTenants] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [archiveTenantFilter, setArchiveTenantFilter] = useState('');
+  const [archiveQuery, setArchiveQuery] = useState('');
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveLoaded, setArchiveLoaded] = useState(false);
+  const [archiveTruncated, setArchiveTruncated] = useState(false);
+
+  const fetchArchive = useCallback(async () => {
+    setArchiveLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '100' });
+      if (archiveTenantFilter) params.set('tenantId', archiveTenantFilter);
+      if (archiveQuery.trim()) params.set('q', archiveQuery.trim());
+      const res = await fetch(`/api/super-admin/chat-archive?${params}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data: ArchiveResponse = await res.json();
+        setArchiveRows(data.rows || []);
+        setArchiveRooms(data.rooms || []);
+        setArchiveTenants(data.tenants || []);
+        setArchiveTruncated(!!data.truncated);
+        setArchiveLoaded(true);
+      } else {
+        toast.error('Failed to load deleted chat history');
+      }
+    } catch {
+      toast.error('Failed to load deleted chat history');
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, [archiveTenantFilter, archiveQuery]);
 
   const fetchHolds = useCallback(async () => {
     try {
@@ -199,6 +266,116 @@ export default function EdiscoveryPage() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* ─── Task 121: Deleted Chat History (retention / safety measure) ─── */}
+      <div className="thb-card overflow-hidden">
+        <div className="p-3 border-b border-thb-border flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
+            <FiArchive className="w-4 h-4 text-slate-500" />
+            Deleted Chat History
+          </h2>
+          <span className="text-[11px] text-thb-text-muted">
+            Messages deleted by users are retained here (projects &amp; individual chats) — visible only to Super Admin.
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <select
+              value={archiveTenantFilter}
+              onChange={(e) => setArchiveTenantFilter(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-thb-border text-xs"
+            >
+              <option value="">All tenants</option>
+              {archiveTenants.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <div className="relative">
+              <FiSearch className="absolute left-2 top-2.5 w-3.5 h-3.5 text-thb-text-muted" />
+              <input
+                value={archiveQuery}
+                onChange={(e) => setArchiveQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') fetchArchive(); }}
+                placeholder="Search deleted text..."
+                className="pl-7 pr-2 py-1.5 rounded-lg border border-thb-border text-xs w-44"
+              />
+            </div>
+            <button
+              onClick={fetchArchive}
+              disabled={archiveLoading}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-700 text-white text-xs hover:bg-slate-800 disabled:opacity-50"
+            >
+              {archiveLoading ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiSearch className="w-3.5 h-3.5" />}
+              {archiveLoaded ? 'Refresh' : 'Load'}
+            </button>
+          </div>
+        </div>
+        {archiveLoading ? (
+          <div className="p-8 text-center text-sm text-thb-text-muted">Sweeping platform + tenant databases...</div>
+        ) : !archiveLoaded ? (
+          <div className="p-8 text-center">
+            <FiArchive className="w-10 h-10 text-thb-text-muted mx-auto mb-2" />
+            <p className="text-sm text-thb-text-muted">Press Load to sweep deleted messages across all tenants.</p>
+          </div>
+        ) : (
+          <>
+            {archiveTruncated && (
+              <p className="px-4 py-2 text-[11px] text-amber-700 bg-amber-50">Result set truncated — narrow the filters to see more.</p>
+            )}
+            {archiveRows.length === 0 ? (
+              <div className="p-8 text-center text-sm text-thb-text-muted">No deleted messages found.</div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-slate-50">
+                  <tr className="text-left text-xs text-thb-text-muted uppercase tracking-wider">
+                    <th className="px-4 py-2 font-medium">Tenant</th>
+                    <th className="px-4 py-2 font-medium">Chat</th>
+                    <th className="px-4 py-2 font-medium">Sender</th>
+                    <th className="px-4 py-2 font-medium">Message</th>
+                    <th className="px-4 py-2 font-medium">Files</th>
+                    <th className="px-4 py-2 font-medium">Deleted At</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-thb-border">
+                  {archiveRows.map((r) => (
+                    <tr key={`${r.source}-${r.messageId}`} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary">{r.tenantName}</td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary">
+                        <div className="font-medium">{r.roomName || 'Direct chat'}</div>
+                        <div className="text-[10px] text-thb-text-muted">
+                          {r.roomType || '—'}{r.projectName ? ` · ${r.projectName}` : ''}{r.roomActive === false ? ' · room deleted' : ''}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary">{r.senderName}</td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary max-w-sm">
+                        <div className="whitespace-pre-wrap break-words line-clamp-3">{r.body}</div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary">
+                        {r.attachments && r.attachments !== 'null' ? (
+                          <span className="inline-flex items-center gap-1 text-sky-600"><FiFileText className="w-3 h-3" /> attached</span>
+                        ) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-thb-text-muted whitespace-nowrap">
+                        {new Date(r.deletedAt).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {archiveRooms.length > 0 && (
+              <div className="p-3 border-t border-thb-border">
+                <p className="text-xs font-semibold text-thb-text-primary mb-2">Deleted / archived conversations ({archiveRooms.length}) — history preserved</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {archiveRooms.map((r) => (
+                    <span key={`${r.source}-${r.roomId}`} className="inline-flex items-center gap-1 bg-slate-100 border border-thb-border rounded-full px-2.5 py-1 text-[11px] text-thb-text-secondary">
+                      {r.name || 'Untitled'} · {r.roomType || '—'}{r.projectName ? ` · ${r.projectName}` : ''} · {r.tenantName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

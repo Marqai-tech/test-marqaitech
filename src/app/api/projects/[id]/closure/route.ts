@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canView) return NextResponse.json({ error: 'No access to this project' }, { status: 403, headers: corsHeaders() });
 
     const config = await resolveProjectWorkflowConfig(db, (decoded as any).tenantId, null);
@@ -144,8 +144,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
-    if (!access.canEdit || !['tenant_admin', 'super_admin', 'admin', 'manager'].includes((decoded as any).role)) {
+    const access = await resolveProjectAccess(decoded as any, id, db);
+    if (!access.canEdit || !['tenant_admin', 'ceo', 'super_admin', 'admin', 'manager'].includes((decoded as any).role)) {
       return NextResponse.json({ error: 'Only the project manager or administrators can sign off the project' }, { status: 403, headers: corsHeaders() });
     }
 

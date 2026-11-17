@@ -97,7 +97,7 @@ const initialForm = {
 export default function TerminationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 

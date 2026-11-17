@@ -1,0 +1,297 @@
+# 3Boxes HRMS — Candidate→Employee Journey: Session Progress & Handover
+
+> Session date: 13 Nov 2026 · Repo: `Marqai-tech/test-marqaitech` (main) · Live: `https://3boxes-hrms-beta.vercel.app`
+> Workflow: work divided into 10 parts; each part = implement → commit → push → deploy to Vercel → verify READY. All progress below is **pushed to GitHub and deployed** — a new session can continue from the deployed state.
+
+---
+
+## ✅ COMPLETED THIS SESSION (6 commits, all deployed or deploying)
+
+### Part 1 — BGV submit-report failure: FIXED
+- **Root cause** (found by prior session, verified this session): `pg_advisory_xact_lock()` returns `void`; the Neon HTTP driver cannot deserialize a void column → every report submission failed with "Failed to deserialize column of type void". Fixed in commit `7bda4ad` (CTE wrapping the lock so the outer SELECT returns an int).
+- Second fix `822907f`: HR report view never selected the `snapshot` column → HR saw empty check lists after submission.
+- This session: verified the full rework cycle live (HR `rework_required` → vendor resubmit → **report v2, 201, PDF ready**), verified double-click protection (parallel submits → clean 409 ×2), then **removed the TEMP diagnostic** (`ff25b3a`).
+- Test data note: case `bgv-1794542921962-u2g0ta` (E2E BGV Runner) went through a rework cycle and is now `submitted_for_hr_review` with report v2 — awaiting HR decision on `/bgv-dashboard`.
+
+### Part 2 — Candidate portal tabbed shell (mock screens visual language) — `2a72bd1`
+- New `src/components/candidate-portal/CandidatePortalNav.tsx`: dark-navy top bar — Applications / Interviews / Offers / **Preboarding (state-driven)** / Resume Builder / Browse Jobs + bell with unread dot + user menu + logout.
+- **Preboarding tab only renders when HR has initiated preboarding** (mock 03 hides it; mock 04+ shows it active) — driven by new `GET /api/candidate-portal/portal-state` (profile, active preboarding record, accepted-offers-awaiting-HR, unread count). Offer↔application linkage uses `jobPostingId`+email (Offer model has no applicationId).
+- New `GET/POST /api/candidate-portal/messages` (feed + mark-all-read; `message` column preferred, `body` fallback) + `/candidate-portal/notifications` Notification Center page.
+- All portal pages (dashboard, interviews, offers, settings, preboarding wizard) switched to the shared nav.
+
+### Part 3 — Portal states 01–03 — `b9c83f6`
+- **Mock 01**: welcome band (initials avatar, name, most-relevant application) above Application Overview.
+- **Mock 02 (Review Offer)**: inline offer-letter iframe preview, "I have read the offer terms" checkbox **gating the Accept button**, info banner "Accepting the offer does not activate employee access. HR will initiate preboarding."
+- **Mock 03 (Awaiting HR)**: state card with offer summary (Accepted date, "Awaiting HR initiation" pill, View accepted offer CTA) + What's-next stepper (Offer accepted ✓ / HR initiates preboarding / Complete joining information). Hidden once preboarding is initiated.
+
+### Part 4 — Portal states 04–08 — `799cacc` + `f96af13`
+- **Mock 04 (Journey overview)**: new default view of the Preboarding tab — "HR has initiated your preboarding" banner, SVG progress ring (N of 9), Documents status card, Need help?/Contact HR card, and the 9-step journey list (numbered circle + icon + description + per-step state: Start/In progress/Complete/Approved/Needs attention/**Locked** for Submit-to-HR until steps 1–8 done). "Continue preboarding" jumps to first incomplete step.
+- **Mocks 06/07 (Documents)**: action-required amber banner listing every rejected/resubmission-requested document with HR's instructions + "Only the requested documents will return to HR review" note; amber accent borders on rows needing action.
+- **Mock 08 (post-submit)**: submitted banner upgraded to 4-stage stepper (Submitted ✓ / HR review / Joining confirmation / Employee activation — advance with onboardingStatus) + "Submission does not activate employee access."
+- Existing wizard steps (personal/address/family/education/bank/documents/review/submit) unchanged — they were already BRD-compliant.
+
+### Part 5 — BRD 6.2 Employee-creation approval workflow — `d9b3253` (deploying `dpl_7PGCmhPz…`)
+- New `EmployeeCreationRequest` table (schema-synced to platform + tenant DBs at build): state machine **draft → under_review → (payrollRequired? pending_payroll) → authorized → created**, terminal rejected/cancelled. Server-side transition map + role gates (HR: save-draft/submit/reject/cancel; Finance roles: payroll-approve; HR Admin/Tenant Admin: authorize).
+- `authorize` re-runs ALL BRD 6.3 hard rules, then creates Employee + PreboardingCandidate link + request completion inside **one `$transaction`** (BRD 6.3 #12 — no partial records).
+- New Employee columns `preboardingCandidateId`/`linkedApplicationId`/`linkedOfferId` + `PreboardingCandidate.jobApplicationId` (BRD 6.3 #11 traceability).
+- API: `src/app/api/preboarding/brd/employee-creation-approval/route.ts` (GET active request + history; POST actions).
+- Provisional `PROV-` id at creation; formal `MarqNNN` still issued at BGV approval (unchanged).
+
+### Gap 6 — Legacy `/api/recruitment/convert` §2.1 gate — `a0c1172` (deploying)
+- The legacy direct-convert endpoint (which created ACTIVE employees with no accepted-offer check) now rejects with 409 unless the candidate has an **accepted** offer. The compliant UI flow (convert-to-draft → preboarding) is unaffected.
+
+---
+
+## ⏳ REMAINING
+
+Gaps 2-5 are DONE (deployed + verified): Gap 2 initiation screen (dpl_DMY→DiCR8Yp READY), Gap 3 widgets/filters (READY, pipeline API returns employmentType/company), Gap 4 doc hardening (live: 54 docs carry documentNumber/expiryDate/expired/fileHash), Gap 5 milestones (wired into onboarding-reminders sweep; runs on schedule — live trigger requires CRON_SECRET by design). For the next session:
+
+**Part 10: Full E2E live verification** — DONE 13 Nov 2026. Full API E2E journey (fresh candidate → apply → offer → accept → BRD 5.3 initiation → wizard ×5 → 6 docs upload → HR rework → v2 re-upload → approve → submit → BRD 5.11 confirm-joined → BRD 6.2 ECA authorize → employee created atomically → BGV initiate → vendor assign → verifier 3 checks Clear → report v1 → HR approve): **26/27 steps PASS, Marq025 issued**. Leftover case bgv-1794542921962-u2g0ta (report v2) approved → Marq020. 10 live UI screenshots in /p10-screens of the repo download bundle. Two production bugs found+fixed: Employee.workMode missing (928e3d1), offers auditLog 500-after-commit (483eb97). Known test-data rule: synthetic candidates need unique FIRST names (companyEmail = firstname@marqaitech.com; Employee.userId unique). Offer send requires branded PDF first (NO_PDF); email send honestly fails without provider (EMAIL_FAILED → reverts to approved).
+
+## E2E verification done this session (live, beta)
+| # | Test | Result |
+|---|---|---|
+| 1 | Vendor verifier login | 200, token OK |
+| 2 | Vendor case list (both cases) | 200, statuses correct (`submitted_for_hr_review` ×2) |
+| 3 | HR rework action on case 1 | 200 → `rework_required`, notifications sent |
+| 4 | Vendor resubmit report v2 | **201**, PDF ready |
+| 5 | Parallel double-click submit ×2 | 409 + 409 (one version, race-safe) |
+| 6 | Candidate login (manoj23434@gmail.com) | 200 |
+| 7 | Candidate onboarding API | 200 — job title + 6 documents |
+| 8 | HR pipeline API | 200 — 7 candidates listed |
+| 9 | HR candidate detail (messages) | 200 — 13 messages, `message` column works |
+
+## Deployment ledger (Vercel project `3boxes-hrms`, production)
+| Commit | Part | Deployment | State |
+|---|---|---|---|
+| `7bda4ad` | 1 (root cause) | dpl_124dLhDq… | READY |
+| `822907f` | 1 (snapshot col) | dpl_G8WHDVFy… | READY |
+| `ff25b3a` | 1 (diag removal) | dpl_Bn3ProBY… | READY |
+| `2a72bd1` | 2 (portal shell) | dpl_449mW3FK… | READY |
+| `6dc75f3` | (prior session BGV fix) | dpl_3hz8RnwU… | READY/QUEUED |
+| `b9c83f6` | 3 (states 01–03) | dpl_J79RDiTp… | QUEUED→READY |
+| `799cacc`+`f96af13` | 4 (states 04–08) | dpl_2TVZjewx… | **READY** |
+| `d9b3253` | 5 (BRD 6.2) | dpl_7PGCmhPz… | **READY** |
+| `a0c1172` | Gap 6 (§2.1 gate) | dpl_24kdpJBW… | **READY** |
+| `8be2383` | merge + vendor My-Cases fix | dpl_5i3EX9wW… | **READY** |
+| `1c20c71` | Gap 2 (BRD 5.3 Initiation screen) | dpl_DMYRpMRsRduN→superseded | READY |
+| `7a4edeb` (HEAD) | Gap 3 (BRD 5.1 widgets + filters) | dpl_DiCR8Yp3a2fXg | **READY** |
+| `8305f2b` | Gap 4 (BRD 5.8 doc hardening: version history, expiry, duplicates) | dpl_7WPtGbG5fuLct | **READY** |
+| `c49c846`+`68fc87d` | Gap 5 (Day 7/30/60/90 milestones) + ledger docs | dpl_7WPtGbG5fuLct | **READY** |
+
+**Live post-deploy verification (production beta):** `GET /api/candidate-portal/portal-state` returns HTTP 200 with real state-driven data — `preboarding: { PRE-2026-0001, stage: initiated, status: joined, submittedAt: 2026-11-12 }`, `awaitingHR: []`, `unreadNotifications: 13`. The Preboarding tab will therefore render for this candidate, and the journey-overview view (mock 04) is their default Preboarding screen.
+
+Deploy command used (works from any session):
+```
+curl -s -X POST "https://api.vercel.com/v13/deployments?teamId=team_TPceTg1lfUwMToCxSNH64Lt0" \
+  -H "Authorization: Bearer <VERCEL_TOKEN>" -H "Content-Type: application/json" \
+  -d '{"name":"3boxes-hrms","target":"production","gitSource":{"type":"github","repoId":1422962694,"ref":"main"}}'
+```
+(repoId 1422962694 = Marqai-tech/test-marqaitech; `repoId` must be the numeric GitHub id — `repo`/`ref`-only forms fail.)
+
+## Key accounts (test tenant `test-marqaitech`)
+| Persona | Email | Password |
+|---|---|---|
+| Candidate | manoj23434@gmail.com | Welcome@123 |
+| HR (tenant_admin) | e2e-verify@hrmscheck.io | Verify@123 |
+| Vendor admin | manoj23434@gmail.com | Welcome@123 |
+| Vendor verifier | manoj23434+verifier@gmail.com | Welcome@123 |
+
+## Not verified / known limits
+- **Email inbox delivery NOT claimed** — no SMTP/Resend provider is configured on the beta; emails are logged/best-effort. BgvNotification rows track queued/sent/failed honestly.
+- The new BRD 6.2 workflow API is deployed but not yet exercised end-to-end live (needs a joined candidate with all docs approved; Part 10 covers this).
+- Repo-conventional `no-explicit-any` lint errors remain in touched files (same pattern as 400+ existing routes; build passes via `ignoreBuildErrors`).
+
+---
+
+## ✅ COMPLETED BY THE FOLLOW-UP SESSION (4 commits — gaps 2–5 all closed)
+
+> Continuation session (sandbox recycled; state recovered from GitHub). Same workflow: one part = one commit = one deploy.
+
+### Gap 2 → Part 5 — Dedicated Initiation screen (BRD 5.3) — `1c20c71`
+- `/preboarding/initiation` — sidebar entry, offers-page "Initiate" deep link, dashboard quick action. Level 1: eligible accepted offers / saved drafts / recent invitations. Level 2: Offer Details (read-only) · HR Details (joining date, dept, designation, manager, employment type, CTC, work location, company email, HR contact, **Company + Branch**) · Checklist & Required Documents (per-doc required/optional + extra items) · Communication & Remarks (email + in-app toggles).
+- `POST /api/preboarding/brd/initiation`: save-draft / send-invitation / cancel. Server-side accepted-offer gate; invitation creates PreboardingCandidate + docs + portal user + HRMS user in ONE `$transaction`; unique active-initiation-per-offer index → retries are 409, never duplicates. Email sent best-effort, honestly reported.
+- §2.1 gate added to `/api/onboarding/convert-to-draft` (offer path strict; application path = accepted offer or `hired`).
+
+### Gap 3 → Part 6 — Dashboard widgets + filters (BRD 5.1) — `7a4edeb`
+- Recruiter-wise Handover widget + 6-month Joining Trends (joined vs expected) on `/preboarding`; Company / Branch / Employment-type filters on the dashboard + candidates list; `PreboardingCandidate.companyId/branchId` persisted at initiation.
+
+### Gap 4 → Part 7 — Document hardening (BRD 5.8) — `8305f2b`
+- Version history (OnboardingDocumentVersion; re-upload archives prior file; HR views/downloads any version via `/file?version=N`), duplicate detection (SHA-256 content + document number → 409), document number / issue / expiry dates (candidate + HR editing), EXPIRED flagging (HR + candidate), fixed silent portal-message failure in both upload routes. **Malware scan NOT claimed** (no AV integration; fileHash is the hook).
+
+### Gap 5 → Part 8 — Day 7/30/60/90 milestones (BRD Figure 1.2) — `c49c846`
+- Milestone templates (self-healing seed) + backfill for in-flight joiners; **onboarding-reminders cron now actually scheduled** via the unified daily-tasks sweep (was never registered); "Onboarding Completed" state (progress API + /onboarding badge).
+
+### Remaining backlog (small, documented in compliance doc §15)
+- 5.9 Escalate to HR Admin / Request Additional Info actions; 5.2 Candidate-ID search + Edit row action; per-record document slots (5.6); notification fan-out; malware/AV integration; orientation/training events as first-class entities.
+
+---
+
+## ✅ AFTERNOON E2E ROUND — 4 user-reported issues fixed + full-journey verified (fresh test data)
+
+Commits: `6d1a84d` (candidate docs response dropped Part 7 fields) → `0f6ee99` (rejected-doc re-upload lock exemption; joining gates on all 3 employee-creation paths via `findJoiningBlockers`; portal nav overflow fix; `.no-scrollbar` utility) → `483eb97` (milestone backfill chicken-and-egg; offers API 500-after-write). Deployments: `dpl_3Phot6BK` (6d1a84d) READY, `dpl_FTmZk5a98o` (0f6ee99) READY, `dpl_AZqA7dwFtv` (483eb97) deploying at time of writing.
+
+**E2E results (live, production beta):** 65 checks, 57 pass. Journey completed end-to-end with fresh candidates: application + 4 consents → offer create/approve/accept → initiation → wizard (5 sections) → 5 doc uploads with metadata → declaration submit (negatives verified: 400 DECLARATION_REQUIRED / SIGNATURE_REQUIRED) → HR rejects PAN → **candidate re-uploads while submitted (200, v2)** → **all 3 joining paths blocked with 409 DOCUMENTS_NOT_APPROVED** → HR approves → readiness (positive run with reporting manager: mark-ready 200, stage ready_to_join) → confirm-joined → provisional employee → BGV → **active employee Marq022**. Nav verified visually at 780/900/1400px (agent-browser + VLM, no clipping).
+
+**Test data:** candidate 1 `e2e.fresh.1794554661@hrmscheck.io` / `Welcome@123` (→ Marq022); candidate 2 `e2e.fresh2.1794555176@hrmscheck.io` (OTP); HR `e2e-verify@hrmscheck.io` / `Verify@123`. PAN rejection remark: "Blurry scan — please re-upload a clear copy of your PAN card."
+
+**483eb97 verified live after deployment** (`scripts/verify_e2e_fixes.py`): `POST /api/offers` → 201 with payload (was 500-after-write); `PATCH approve` → 200 status=approved; cron sweep backfilled **20 milestone tasks** and Marq022 now appears in `/onboarding/progress` (4 milestones, onboardingCompleted flags). Both E2E-found defects closed. Feature backlog unchanged (5.9 escalate/request-info, 5.10 assign-task backend, per-record doc slots, malware/AV, email provider).
+
+---
+
+## EVENING — Conflict-marker cleanup + production deploy of the other session's work (`e091c0f`)
+
+Commit `eac2976` ("Complete HRMS lifecycle workflow and UI audit fixes", from the parallel session) had been rebased with **unresolved conflict markers committed into 52 files** — `prisma generate` failed and production could not deploy past `731c0de`. `2a840f4` removed one artifact file but missed the markers.
+
+**Resolution (`e091c0f`, 52 files, −2115 lines of markers):**
+- `prisma/schema.prisma`: kept `workMode` (BRD 6.2) → schema validates (`prisma validate` pass).
+- Adopted from the other session (verified consistent with backend): random temporary-password lifecycle in `bgv/requests/[id]/approve`, `onboarding/bgv`, `onboarding/convert-to-draft` (replaces hardcoded `Welcome@123` — the known tech-debt item), vendor email-activation invite flow (backend `vendor/auth/set-password` SHA-256 single-use endpoint already present), vendor-mode login page, admin-gated vendor-portal stats, ConvertCandidateButton offerId routing.
+- Kept from our verified lineage: BRD 5.9 `findJoiningBlockers` gates on all 3 joining paths, scroll-safe candidate portal nav, offers non-fatal audit catch, milestone chicken-and-egg fix, `data/` skill CSVs.
+
+**Deploy:** `dpl_D8t9WSH4oKfJA4gmKTy9tnV7P2dM` (e091c0f) **READY** in 5m35s. First attempt `dpl_6M6BuTtMCRc4Fk3Z` (2a840f4) ERROR at prisma generate — expected, superseded.
+
+**Post-deploy smoke (live):** /login 200; HR login 200 + token; initiation 200 (eligible 4 / invited 8); pipeline 200 (17 candidates); `/api/preboarding/brd/documents` 200 — **98 docs, 100% with Gap-4 fields** (documentNumber/expiryDate/fileHash/expired); offers 200; cron without secret → 401 (guard intact). All green.
+
+**Production now matches GitHub main (`e091c0f`).**
+
+## EVENING 2 — Requisition approval fix deployed (`3b411ad`)
+
+`3b411ad` "Fix requisition approval action" (requisitions page: removed `window.prompt` for approval comments — native prompts are blocked in embedded browsers and could prevent the approval PATCH from being sent; approval comments now optional/no-op). Pre-flight: conflict-marker scan clean, esbuild syntax pass. Deploy `dpl_6Yp5xzGJVG5iHCVumNKjsGFt7Djj` **READY in 6m04s**. Smoke: site 200, HR login OK, initiation/pipeline/offers/requisitions APIs all 200. Production = GitHub main.
+
+## EVENING 3 — Requisition approval screen layout deployed (`28fed11`)
+
+`28fed11` "Improve requisition approval screen layout" — requisitions page only (+38/−1): approval-pipeline banner (HR review → Finance review → Job posting) with Pending/Approved legend, and a mobile card layout (`md:hidden`) so approval status and actions are visible without horizontal scrolling; desktop table now hidden on mobile. All referenced helpers (`getApprovalBadge/Label`, `getPriorityBadge`, `getStatusBadge`, `getApprovalButtons`, `handleView/Edit`) already existed from `3b411ad`.
+
+**Pre-flight:** conflict-marker scan clean (rg exit 1), esbuild transform pass on the changed file. **Deploy:** `dpl_4GoyFNMmwezs4tYbA4hRapoh6HZ5` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`.
+
+**Post-deploy smoke (8/8 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); `/api/documents` 200 (2 employee docs) + `/api/preboarding/brd/documents` 200 (80 docs — was 98; 18 belonged to the deleted manoj test data), Gap-4 fields intact on all sampled docs; offers 200; cron without secret → 401. Smoke script fixed in passing: documents URL corrected to real endpoints, commit check now queries latest production READY deployment instead of a hardcoded dpl id.
+
+**Production = GitHub main (`28fed11`).**
+
+## EVENING 4 — Job posting creation UI deployed (`672343e`)
+
+`672343e` "Improve job posting creation UI" — job-portal page only (+20/−6): gradient header card with "Approved requisition" badge and requisition-id pill, prefilled role/department/requisition-status summary strip, numbered sections (1 Role details, 2 Candidate-facing content), footer hint + flex-wrap responsive action row (Cancel / Save as Draft / Preview & Publish). Identifiers verified present: `FiBriefcase` import, `requisitionId` state, `handlePublish`, `form.title/departmentId`.
+
+**Pre-flight:** conflict-marker scan clean, esbuild transform pass. **Deploy:** `dpl_DAcPkuKmwgmELMwpRB4PTLXwfafd` **READY in 5m38s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 672343e.
+
+**Post-deploy smoke (8/8 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); documents 200 (2); offers 200; cron without secret → 401; latest production READY commit = 672343e.
+
+**Production = GitHub main (`672343e`).**
+
+## EVENING 5 — Candidate OTP registration gate deployed (`a37739b`)
+
+`a37739b` "Require candidate account or application for OTP" — candidate-portal auth change: `request-otp` now requires either an existing `CandidatePortalUser` or a previously submitted `JobApplication` for the email (else 404 `CANDIDATE_NOT_FOUND` with "apply for a job first" message); closes the REQ-CAND-05 open pre-registration loophole. Login page tab-fallback no longer auto-switches to OTP for non-existent users. Build-safety verified: `findUnique({where:{candidateEmail}})` valid via `@@unique([candidateEmail])` (same pattern already used by verify-otp), `ignoreBuildErrors` irrelevant, esbuild pass, conflict scan clean.
+
+**Pre-flight:** both changed files compile; schema check pass. **Deploy:** `dpl_8X6Kt3HCbNcDA9RHYS8YeTag58VX` **READY in 5m38s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA a37739b. (Sandbox recycled mid-task — repo re-cloned, smoke script rebuilt with new OTP-gate checks.)
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14 candidates); documents 200 (2); offers 200; cron without secret → 401; **OTP gate live**: stranger email → 404 CANDIDATE_NOT_FOUND, pipeline candidate `p10.cand1.eohy7t@hrmscheck.io` → 200 + devOtp issued; latest production READY commit = a37739b.
+
+**Production = GitHub main (`a37739b`).**
+
+## EVENING 6 — Sequential interview rounds deployed (`3515c0b`)
+
+`3515c0b` "Enforce sequential interview rounds" — server-side gate in `POST /api/interviews`: a candidate cannot be scheduled for the next round until the previous one is completed (409 `PREVIOUS_INTERVIEW_NOT_COMPLETED`; cancelled/no_show excluded); round 2 must use Technical type, round ≥3 must use HR type (400). Check is wrapped in try/catch (warn only, non-fatal). New `/schedule-interview` page redirects to `/interviews` (static-prerendered NEXT_REDIRECT → client navigation). Pre-flight: redirect target exists, Interview model has all raw-SQL columns (round/type/status/jobApplicationId/createdAt), esbuild pass, conflict scan clean.
+
+**Deploy:** `dpl_8hsr4d6wyHMNMvZDVpihVT9ZT2bP` **READY in 6m00s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 3515c0b.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate still live (stranger 404 / candidate devOtp); prod commit = 3515c0b; `/schedule-interview` serves the redirect payload.
+
+**Production = GitHub main (`3515c0b`).**
+
+## EVENING 7 — Interview-stage-only scheduling deployed (`ff373b9`)
+
+(Interim: `019a96c` "Block interview scheduling from screening stage" was deployed from the parallel session between our deploys.)
+
+`ff373b9` "Require interview stage before scheduling" — tightens eligibility further: the Schedule-Interview button (recruitment page) and the `POST /api/interviews` gate now require application status exactly `interview` (previously `shortlisted` was also allowed); Shortlisted/Screening candidates must be explicitly advanced to Interview first. 409 `APPLICATION_NOT_INTERVIEW_READY` with updated message. Pre-flight: conflict scan clean, esbuild pass on both files.
+
+**Deploy:** `dpl_Hp2LZVnzm1NJDhSK8UKiMA63AQ8V` **READY in 5m30s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA ff373b9.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live (stranger 404 / candidate devOtp); prod commit = ff373b9.
+
+**Production = GitHub main (`ff373b9`).**
+
+## EVENING 8 — Interview date input persistence fix deployed (`8bae6cb`)
+
+`8bae6cb` "Persist interview date input reliably" — interview date inputs on both `/interviews` and the recruitment scheduling modal now use the functional state updater (`setInterviewForm(prev => ...)`), eliminating stale-closure races on rapid edits, plus an `onInput` handler alongside `onChange` for embedded browsers that can miss change events. 2 files, +3/−2. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_GSXTvnW2JgTXrfaLG4W1QjeqA7wU` **READY in 5m30s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 8bae6cb.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live; prod commit = 8bae6cb.
+
+**Production = GitHub main (`8bae6cb`).**
+
+## EVENING 9 — Dynamic interview round labels deployed (`f0834ce`)
+
+`f0834ce` "Show dynamic interview round labels" — interviews page and recruitment InterviewSyncView now render "Type — Round N" badges (e.g. "Technical Interview — Round 2") via a shared `interviewDisplayLabel(type, round)` helper; replaces the separate conditional Round badge on /interviews; recruitment view falls back to `appInterviews.length` when `latest.round` is missing. 2 files, +9/−7. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_JBhrncM2LuPJ6UTjRtSDxABXi6Fj` **READY in 5m30s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA f0834ce.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401 without secret; OTP gate live; prod commit = f0834ce.
+
+**Production = GitHub main (`f0834ce`).**
+
+## EVENING 10 — Dynamic interview plans deployed (`122cd1e`, incl. `dc0eb46` + `61042da` + DB-fix)
+
+`dc0eb46` "Add dynamic interview plans per job posting": new nullable `JobPosting.interviewPlan` (JSON array of {sequence,name,type}); recruitment create/PATCH normalize+persist the plan; `POST /api/interviews` honours the plan as authoritative (409 INTERVIEW_PLAN_COMPLETE / INTERVIEW_PLAN_TYPE_MISMATCH). `61042da` "Enforce job interview plan before offer" (+28, offer route gate). **Deploy blocker found & fixed:** the commit shipped the schema field but NO migration — JobPosting is only covered by `_generated-tables` CREATE IF NOT EXISTS (no-op on existing table) and gen-init-table-fixes (JobPosting not in 0_init), so the column would never reach the production DB and every Prisma JobPosting query would 500. Fix commit `122cd1e`: one idempotent `ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT` added to the hand-curated schema-sync list. (Vercel env API now returns sensitive-encrypted blobs — direct out-of-band ALTER not possible, so the fix rides the build.)
+
+**Deploy:** `dpl_42zAtQuPcGwGMcoAsALQFHanA5Gq` (SHA 122cd1e = dc0eb46 + 61042da + fix) **READY in 14m40s** (longer: SchemaSyncState hash changed → full 1952-statement sync). Build logs: `[tenant-sync] + JobPosting.interviewPlan TEXT` applied on tenant DB, platform sync OK (3 pre-existing non-fatal Employee-column warnings unchanged).
+
+**Post-deploy smoke (12/12 PASS + JobPosting endpoints):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 122cd1e; **GET /api/job-portal 200 and GET /api/recruitment 200** — interviewPlan column live, Prisma reads/writes healthy.
+
+**Production = GitHub main (`122cd1e`).**
+
+## EVENING 11 — Interview plan editor + progress + job status deployed (`98bc696`, incl. `df219fd`/`e99b2ad`/`01a9b65`)
+
+Three user commits deployed together (user asked for 01a9b65; the other two sat below it on main): `df219fd` visual interview plan editor (add/remove/rename rounds with type select, replaces the raw JSON textarea); `e99b2ad` interview plan progress ("Round N of M · X remaining" badge; interviews GET SQL computes planTotal via jsonb_array_length); `01a9b65` job posting status control (Open/On Hold/Closed/Filled select). No schema changes — no migration needed this time. Pre-flight: conflict scan clean, esbuild pass on all 3 changed files.
+
+**Deploy:** `dpl_BQ8n4p8pY7wM1cktVDZJNCiHzTrR` (SHA 98bc696 = 01a9b65 + docs ledger) **READY in 5m35s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`.
+
+**Post-deploy smoke (12/12 PASS + endpoints):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 98bc696; `/api/job-portal` 200, `/api/recruitment` 200, `/api/interviews` 200 (planTotal query healthy).
+
+**Production = GitHub main (`98bc696`).**
+
+## EVENING 12 — Preboarding login reuse deployed (`606f0ea`)
+
+`606f0ea` "Reuse candidate login during preboarding" — preboarding initiation no longer creates a company-email HRMS User at initiation (removes the last hardcoded `Welcome@123` path); companyEmail = null until employee conversion. Candidate email now instructs reuse of the existing candidate-portal login, includes the required-documents list, the reject→re-upload flow, and notes employee ID/company email arrive only after BGV + conversion. Audit message updated. No schema changes. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_4yvup1CctujYXtcoE35XMC3AqN46` **READY in 5m50s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA 606f0ea.
+
+**Post-deploy smoke (12/12 PASS):** /login 200; HR login OK; initiation 200 (eligible 3 / invited 8 — changed route healthy); pipeline 200 (14); documents 200 (2); offers 200; cron 401; OTP gate live; prod commit = 606f0ea.
+
+**Production = GitHub main (`606f0ea`).**
+
+## EVENING 13 — Requisition as interview plan source deployed (`12c440b`, incl. `bda0fa0` + DB-fix)
+
+`bda0fa0` "Make requisition the interview plan source": new `Requisition.interviewPlan String?`; requisition create/PATCH normalize+persist the plan; job posting create copies the plan from the linked requisition when not explicitly provided (plus a runtime self-healing ADD COLUMN for JobPosting). **Same migration gap as last time caught pre-deploy:** no migration committed, Requisition not in 0_init and its generated CREATE IF NOT EXISTS is a no-op — requisition-create INSERT writes the column explicitly (hard fail) and the Prisma client selects it on every read. Fix commit `12c440b`: idempotent `ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "interviewPlan" TEXT` in schema-sync. Pre-flight: conflict scan clean, esbuild pass on all 4 changed files.
+
+**Deploy:** `dpl_B68qerhtQVue1M6FnNhy7rayzvaW` (SHA 12c440b = bda0fa0 + fix) **READY in 14m40s** (full sync re-run). Build log: `[tenant-sync] + Requisition.interviewPlan TEXT` applied on ALL 4 active tenant DBs (tenant_abcd, tenant_abcdv, tenant_marq, tenant_test_marqaitech).
+
+**Post-deploy smoke (12/12 PASS + endpoints):** standard suite green (initiation eligible 3 / invited 8; pipeline 14; documents 2; offers 200; cron 401; OTP gate live); prod commit = 12c440b; **GET /api/requisitions 200, GET /api/jobs 200** — Requisition.interviewPlan live on reads and writes.
+
+**Production = GitHub main (`12c440b`).**
+
+## MORNING 16 — BGV hiring lifecycle enforcement deployed (`f8e6615`)
+
+`f8e6615` "Enforce preboarding and BGV hiring lifecycle" — 5 routes, +47/-3, NO schema changes: (1) background-checks route syncs JobApplication status on BGV transitions (in_progress→bgv_in_progress, cleared→bgv_passed) and emails the candidate; (2) employee-creation + employee-creation-approval now 409 unless `backgroundCheckStatus==='cleared'`, and on conversion set JobApplication→hired; (3) initiation sets application→preboarding; (4) recruitment PATCH accepts the new statuses (preboarding/bgv_in_progress/bgv_passed) with labels, and 'hired' now requires bgv_passed (was: offered). Note: sandbox was recycled before this deploy — repo re-cloned, smoke-test.sh rebuilt at scripts/smoke-test.sh (fixed a shell-quoting bug in the stranger-email check). Pre-flight: conflict scan clean, esbuild pass on all 5 changed files (re-verified on the f8e6615 tree after an initial run against a stale checkout).
+
+**Deploy:** `dpl_3R4CUXEPkm4MDsjD8G7dF8WxyHVc` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA f8e6615.
+
+**Post-deploy smoke (11/11 PASS):** GET / 200; HR login OK; initiation/pipeline/documents/offers 200; cron guard 401; OTP gate stranger-404 + CANDIDATE_NOT_FOUND + known-candidate 200; prod commit f8e6615.
+
+## MORNING 16b — BGV initiation card deployed (`bb084a0`, incl. `f9ad472`)
+
+Two user commits deployed together (bb084a0 requested; f9ad472 landed during the prior build): `f9ad472` preboarding candidate profile navigation fix (+4/-1, candidates list page); `bb084a0` BGV initiation card on the preboarding candidate profile (+41/-1): vendor (Manual/Sterling/HireRight/First Advantage) + package (Basic/Standard/Enhanced/Executive) selects and an Initiate BGV button POSTing /api/preboarding/background-checks, disabled once in_progress/cleared; card shows current BGV status. UI-to-API contract verified against the route's POST signature (same value sets). No schema changes. Pre-flight: conflict scan clean, esbuild pass on the bb084a0 tree.
+
+**Deploy:** `dpl_Ajj2FFfaZ4QZ1G6ipdBQKvU7YKqV` **READY in 5m20s**, aliasAssigned=True → `3boxes-hrms-beta.vercel.app`, SHA bb084a0.
+
+**Post-deploy smoke (11/11 PASS):** GET / 200; HR login; initiation/pipeline/documents/offers 200; background-checks GET 200; cron guard 401; OTP gate stranger-404 + CANDIDATE_NOT_FOUND + known candidate 200; prod commit bb084a0.
+
+## AFTERNOON 16j — bc47dd4 restored to production + tabbed-login redirect fix (`deploy-base` branch)
+
+User reported the login tabs (Employee/HR, Candidate, Vendor) "gone". Investigation: the tabs were never removed — `/login` on the current lineage always had all three (verified live HTML); users landing on `/` were redirected to `/landing` (marketing page) instead. Meanwhile the team force-pushed main to the new lineage (f783030d mega-merge Tasks 158-165 + leave-setup a48004d7 + login redesign 23f32afb/a5d75780) and deployed it (a5d7578 READY); that login has only 2 tabs (no Vendor). User chose bc47dd4 era back.
+
+**Fix:** one-line root redirect change on `src/app/page.tsx` (`/landing` → `/login`, mirroring team commit 23f32afb) on branch `deploy-base` = **bc47dd4 + 67eba5cd only** (git diff vs bc47dd4: 1 file, +1/−1). Pushed `deploy-base` with refreshed GitHub token. Deployed `dpl_4RJtHkThQX26rC5sf81Hmjg8WQLC` via gitSource ref=deploy-base — **READY ~5 min**, aliasAssigned=True → beta domain, SHA 67eba5c. Team's new-lineage commits explicitly EXCLUDED.
+
+**Smoke 14/14 PASS** (3 login tabs live, HR login, BRD/offers APIs, cron guard, OTP gate, prod commit). Root `/` now lands on the tabbed login.
+
+**Note:** "Browse Jobs" tab exists in no commit of this repo (only the pre-Nov-16 app, commit f41525c, not in this repo's history).

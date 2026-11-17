@@ -170,7 +170,7 @@ const emptyForm = {
 export default function CompliancePage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
 
   const [obligations, setObligations] = useState<ComplianceObligation[]>([]);
   const [filings, setFilings] = useState<ComplianceFiling[]>([]);

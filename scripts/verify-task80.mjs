@@ -1,6 +1,6 @@
 // Task 80 post-deploy verification — Inactive filter semantics + designation filter.
 const BASES = [
-  ['LIVE', 'https://marqaitechgroup.3boxeshrms.com', 'hr@marqaitech.com'],
+  ['LIVE', 'https://marqaitechgroup.3boxeshrms.com', 'hr@gmail.com'],
   ['DEMO', 'https://nexus-hrms-mu.vercel.app', 'admin@3boxeshrms.com'],
 ];
 const PASS = 'MarqAI@2026';

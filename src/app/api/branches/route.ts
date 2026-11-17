@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Only admins can create branches
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(authInfo.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(authInfo.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -192,7 +192,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Only admins can update branches
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(authInfo.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(authInfo.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -254,7 +254,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Only admins can delete branches
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(authInfo.role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(authInfo.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 
