@@ -4,6 +4,7 @@ import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/compan
 import { resolveLeavePolicy } from '@/lib/leave-policy-resolver';
 import { validateCompanyOwnership } from '@/lib/company-ownership';
 import { getLeaveCategory } from '@/lib/leave-balance-rules';
+import { ensureLeaveSetupSchema } from '@/lib/leave-setup-schema';
 
 function corsHeaders() {
   return {
@@ -21,6 +22,9 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // Ensure the Leave Setup columns (category, smallestUnit, displayOrder, …)
+    // exist before Prisma selects them — tenant DBs may not be migrated yet.
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -278,11 +282,12 @@ export async function POST(req: NextRequest) {
     const auth = await getAuthInfo(req);
     if (!auth) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() }); }
     if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(auth.role)) { return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() }); }
-    try { await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "calendarColor" TEXT`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true`); await db.$executeRawUnsafe(`ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "documentRequirement" TEXT NOT NULL DEFAULT 'never'`); } catch {}
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
 
     const body = await req.json();
     const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward, companyId,
-            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled } = body;
+            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled,
+            category, smallestUnit, calendarColor, displayOrder } = body;
 
     if (!name || !code) {
       return NextResponse.json({ error: 'Name and code are required' }, { status: 400, headers: corsHeaders() });
@@ -381,6 +386,15 @@ export async function POST(req: NextRequest) {
           ? String(employeeStatus) : 'all',
         probationRestricted: probationRestricted ?? false,
         sandwichRuleEnabled: sandwichRuleEnabled ?? true,
+        // ─── Leave Setup wizard fields ───
+        category: ['paid', 'unpaid', 'statutory', 'special'].includes(String(category || '').toLowerCase())
+          ? String(category).toLowerCase() : 'paid',
+        smallestUnit: ['full_day', 'half_day', 'hourly'].includes(String(smallestUnit || '').toLowerCase())
+          ? String(smallestUnit).toLowerCase() : 'full_day',
+        calendarColor: (typeof calendarColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(calendarColor))
+          ? calendarColor : null,
+        displayOrder: Number.isFinite(Number(displayOrder))
+          ? Math.max(0, Math.trunc(Number(displayOrder))) : 0,
       },
     });
 

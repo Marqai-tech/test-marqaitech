@@ -955,6 +955,12 @@ model LeaveType {
   // Document requirement mode: never | always | conditional (conditional uses attachmentMandatoryAfterDays)
   documentRequirement  String  @default("never") // never | always | conditional
 
+  // ─── Leave Setup (4-step wizard) ───
+  // Columns also ensured at runtime by src/lib/leave-setup-schema.ts (LEAVE_TYPE_COLS)
+  category             String  @default("paid") // paid | unpaid | statutory | special
+  smallestUnit         String  @default("full_day") // full_day | half_day | hourly
+  displayOrder         Int     @default(0)
+
   leaveBalances  LeaveBalance[]
   leaveRequests  LeaveRequest[]
   encashmentRequests LeaveEncashmentRequest[]

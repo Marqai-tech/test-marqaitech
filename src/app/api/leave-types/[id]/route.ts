@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
+import { ensureLeaveSetupSchema } from '@/lib/leave-setup-schema';
 
 function corsHeaders() {
   return {
@@ -29,7 +30,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await req.json();
     const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward,
-            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled, status } = body;
+            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled, status,
+            category, smallestUnit, calendarColor, displayOrder } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) {
@@ -79,9 +81,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (probationRestricted !== undefined) data.probationRestricted = !!probationRestricted;
     if (sandwichRuleEnabled !== undefined) data.sandwichRuleEnabled = !!sandwichRuleEnabled;
-
+    // ─── Leave Setup wizard fields ───
+    if (category !== undefined) {
+      data.category = ['paid', 'unpaid', 'statutory', 'special'].includes(String(category).toLowerCase())
+        ? String(category).toLowerCase() : 'paid';
+    }
+    if (smallestUnit !== undefined) {
+      data.smallestUnit = ['full_day', 'half_day', 'hourly'].includes(String(smallestUnit).toLowerCase())
+        ? String(smallestUnit).toLowerCase() : 'full_day';
+    }
+    if (calendarColor !== undefined) {
+      data.calendarColor = (typeof calendarColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(calendarColor))
+        ? calendarColor : null;
+    }
+    if (displayOrder !== undefined) {
+      data.displayOrder = Number.isFinite(Number(displayOrder))
+        ? Math.max(0, Math.trunc(Number(displayOrder))) : 0;
+    }
 
     // Ensure new columns exist
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
     const newCols = [
       `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "maxConsecutiveDays" INTEGER DEFAULT 0`,
       `ALTER TABLE "LeaveType" ADD COLUMN IF NOT EXISTS "minAdvanceDays" INTEGER DEFAULT 0`,
@@ -102,6 +121,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Failed to update leave type' }, { status: 500, headers: corsHeaders() });
   }
 }
+
+// The Leave Setup wizard saves edits with PUT (method: 'PUT') — alias it to
+// PATCH so both verbs work. PATCH/PUT semantics are identical here.
+export const PUT = PATCH;
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const db = await getDb(req);
