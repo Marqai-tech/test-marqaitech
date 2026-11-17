@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FiArrowLeft, FiBriefcase, FiEye, FiEyeOff, FiLock, FiMail, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiBriefcase, FiCheckCircle, FiEye, FiEyeOff, FiLock, FiMail, FiUser } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function CandidateRegisterPage() {
@@ -11,9 +11,17 @@ export default function CandidateRegisterPage() {
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState<'details' | 'verify'>('details');
+  const [otp, setOtp] = useState('');
+  const [cooldown, setCooldown] = useState(0);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setInterval(() => setCooldown(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
+
+  const requestVerification = async () => {
     if (form.password !== form.confirmPassword) { toast.error('Passwords do not match.'); return; }
     setSubmitting(true);
     try {
@@ -23,12 +31,32 @@ export default function CandidateRegisterPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Could not create account.');
+      setStep('verify');
+      setCooldown(Number(data.resendAfter || 60));
+      toast.success('Verification code sent to your email.');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Could not send verification code.');
+    } finally { setSubmitting(false); }
+  };
+
+  const submitDetails = (event: FormEvent) => { event.preventDefault(); void requestVerification(); };
+
+  const verify = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!/^\d{6}$/.test(otp)) { toast.error('Enter the six-digit verification code.'); return; }
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/candidate-portal/auth/register/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: form.email, otp }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Email verification failed.');
       localStorage.setItem('tb_candidate_token', data.token);
       localStorage.setItem('tb_candidate_email', data.user.email);
-      toast.success('Candidate account created successfully.');
+      toast.success('Email verified. Your candidate account is ready.');
       router.push('/candidate-portal/dashboard');
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Could not create account.');
+      toast.error(error instanceof Error ? error.message : 'Email verification failed.');
     } finally { setSubmitting(false); }
   };
 
@@ -39,7 +67,7 @@ export default function CandidateRegisterPage() {
           <Link href="/careers" className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white"><FiArrowLeft /> Back to jobs</Link>
           <div className="mt-4 flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-white/10 flex items-center justify-center"><FiBriefcase /></span><div><h1 className="text-2xl font-bold">Create Candidate Account</h1><p className="text-sm text-slate-300">Create your account first. You can upload a resume when applying for a job.</p></div></div>
         </div>
-        <form onSubmit={submit} className="p-6 space-y-4">
+        {step === 'details' ? <form onSubmit={submitDetails} className="p-6 space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <Field icon={<FiUser />} label="First name" value={form.firstName} onChange={value => setForm(current => ({ ...current, firstName: value }))} autoComplete="given-name" />
             <Field icon={<FiUser />} label="Last name" value={form.lastName} onChange={value => setForm(current => ({ ...current, lastName: value }))} autoComplete="family-name" />
@@ -48,9 +76,15 @@ export default function CandidateRegisterPage() {
           <div className="relative"><Field icon={<FiLock />} label="Password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={value => setForm(current => ({ ...current, password: value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowPassword(value => !value)} className="absolute right-3 top-9 text-slate-400" aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <FiEyeOff /> : <FiEye />}</button></div>
           <Field icon={<FiLock />} label="Confirm password" type="password" value={form.confirmPassword} onChange={value => setForm(current => ({ ...current, confirmPassword: value }))} autoComplete="new-password" />
           <p className="text-xs text-slate-500">No resume is required during account creation.</p>
-          <button disabled={submitting} className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">{submitting ? 'Creating account…' : 'Create Account'}</button>
+          <button disabled={submitting} className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">{submitting ? 'Sending code…' : 'Create Account & Verify Email'}</button>
           <p className="text-center text-sm text-slate-500">Already registered? <Link href="/login?mode=candidate" className="font-semibold text-emerald-700 hover:underline">Candidate login</Link></p>
-        </form>
+        </form> : <form onSubmit={verify} className="p-6 space-y-5">
+          <div className="text-center"><span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><FiMail /></span><h2 className="mt-3 text-xl font-bold text-slate-900">Verify your email</h2><p className="mt-1 text-sm text-slate-500">We sent a six-digit code to <strong className="text-slate-700">{form.email}</strong>.</p></div>
+          <label className="block"><span className="mb-1.5 block text-sm font-medium text-slate-700">Verification code</span><input autoFocus required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={otp} onChange={event => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} className="w-full rounded-xl border border-slate-300 px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15" placeholder="000000" /></label>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-800 flex gap-2"><FiCheckCircle className="mt-0.5 shrink-0" />Your account will be activated only after this code is verified. The code expires in 15 minutes.</div>
+          <button disabled={submitting || otp.length !== 6} className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">{submitting ? 'Verifying…' : 'Verify & Open Candidate Portal'}</button>
+          <div className="flex items-center justify-between text-sm"><button type="button" onClick={() => { setStep('details'); setOtp(''); }} className="text-slate-600 hover:text-slate-900">Change email</button><button type="button" disabled={submitting || cooldown > 0} onClick={() => void requestVerification()} className="font-semibold text-emerald-700 disabled:text-slate-400">{cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}</button></div>
+        </form>}
       </section>
     </main>
   );

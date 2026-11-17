@@ -42,8 +42,11 @@ export async function POST(request: Request) {
     });
     const existingPortalUser = await db.candidatePortalUser.findUnique({
       where: { candidateEmail: email },
-      select: { id: true, candidateName: true },
+      select: { id: true, candidateName: true, passwordHash: true, magicToken: true },
     });
+    if (existingPortalUser?.magicToken && !existingPortalUser.passwordHash) {
+      return NextResponse.json({ error: 'Finish verifying your email before signing in.', code: 'EMAIL_VERIFICATION_REQUIRED' }, { status: 403, headers: CORS });
+    }
     if (!apps && !existingPortalUser) {
       return NextResponse.json(
         { error: 'No candidate account or application found for this email. Please apply for a job first.', code: 'CANDIDATE_NOT_FOUND' },
