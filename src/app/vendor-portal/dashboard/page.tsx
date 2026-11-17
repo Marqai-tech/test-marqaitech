@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import {
   FiShield, FiRefreshCw, FiLoader, FiAlertCircle, FiUserPlus, FiClock,
   FiCheckCircle, FiFileText, FiUsers, FiSearch, FiChevronRight, FiX, FiInfo, FiSettings,
+  FiUser, FiLogOut,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import VendorPortalBell from '../VendorPortalBell';
@@ -110,6 +111,12 @@ export default function VendorDashboardPage() {
 
   const isAdmin = vendorInfo?.role === 'vendor_admin';
 
+  const logout = () => {
+    localStorage.removeItem('tb_token');
+    localStorage.removeItem('tb_user');
+    router.push('/login');
+  };
+
   const TABS = isAdmin
     ? [
         { key: 'unassigned', label: 'Unassigned' },
@@ -174,10 +181,16 @@ export default function VendorDashboardPage() {
                 <FiUsers className="h-4 w-4" /> Team
               </button>
             )}
+            <button onClick={() => router.push('/vendor-portal/profile')} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2">
+              <FiUser className="h-4 w-4" /> My Profile
+            </button>
             <button onClick={fetchRequests} disabled={loading} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2">
               <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
             <VendorPortalBell />
+            <button onClick={logout} className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg inline-flex items-center gap-2" aria-label="Logout">
+              <FiLogOut className="h-4 w-4" /> Logout
+            </button>
           </nav>
         </div>
       </div>

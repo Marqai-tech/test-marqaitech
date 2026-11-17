@@ -391,6 +391,15 @@ export default function CareersPage() {
 
   /* ── Apply modal handlers ── */
   const openApply = (job: PublicJob) => {
+    // Candidates must have a verified portal account before an application
+    // can be created. This prevents anonymous submissions followed by a
+    // confusing post-submit account setup step.
+    if (typeof window !== 'undefined' && !localStorage.getItem('tb_candidate_token')) {
+      toast.error('Create and verify a candidate account before applying.');
+      const redirect = `/careers?jobId=${encodeURIComponent(job.id)}`;
+      router.push(`/login?mode=candidate&redirect=${encodeURIComponent(redirect)}`);
+      return;
+    }
     setApplyJob(job);
     // REQ-SRC-05: pre-fill the referral token from URL ?ref= param so the
     // apply API can attribute the application to the matching Referral.
