@@ -311,3 +311,11 @@ Team merged everything on main: deploy-base (bc47dd4 + root→/login login fix) 
 **Deploy:** `dpl_5yRFPH3HjSnW2E8TSGFdPuXg6cJ2` **READY ~7 min** (1.5 min QUEUED), aliasAssigned=True → beta domain, SHA e94b611.
 
 **Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit e94b611.
+
+## MORNING 11-18c — Requisitions UX polish deployed (`c107dc1c`)
+
+4 commits over deployed e94b6110: raise-requisition form redesign (f9a677b8), requisition detail alignment polish (05ff239f), and pending-approvals filter (c107dc1c, 1 file +4/−3) + ledger. No schema changes. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_JDCKts6CZJzMUXgtpMKbSzJf2zGG` **READY ~6 min**, aliasAssigned=True → beta domain, SHA c107dc1.
+
+**Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit c107dc1.
