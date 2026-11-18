@@ -319,3 +319,11 @@ Team merged everything on main: deploy-base (bc47dd4 + root→/login login fix) 
 **Deploy:** `dpl_JDCKts6CZJzMUXgtpMKbSzJf2zGG` **READY ~6 min**, aliasAssigned=True → beta domain, SHA c107dc1.
 
 **Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit c107dc1.
+
+## MORNING 11-18d — Create-jobs workspace redesign deployed (`275ea815`)
+
+4 commits over deployed c107dc1c: mapping-based leave visibility + eligibility enforcement for employees (9cd3a4bb), leave BUG_219-234 + dashboard mapped-only visibility (eafd4f47), and create-jobs workspace redesign (275ea815 — recruitment page simplified −141 lines, requisitions/job-boards/analytics adjusted, net −90 lines) + ledger. No schema changes. Pre-flight: conflict scan clean, esbuild pass on all 4 changed pages.
+
+**Deploy:** `dpl_B2ABKfXAGq7AJESZrwx3RKyzTzHy` **READY ~6 min**, aliasAssigned=True → beta domain, SHA 275ea81.
+
+**Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit 275ea81.
