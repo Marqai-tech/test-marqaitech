@@ -124,25 +124,25 @@ export default function VendorTeamPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#f4f7fb]">
       <VendorPortalHeader title={`Team${vendorName ? ` — ${vendorName}` : ''}`} subtitle="Manage your vendor team and their access to BGV cases. Each member signs in with their own work email." isAdmin backToPrevious backLabel="Back to previous screen" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-xs text-slate-500 flex items-center gap-1.5"><FiInfo /> Employees must activate via their emailed link before they can be assigned cases. Passwords are never visible to anyone.</p>
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
+        <div className="rounded-2xl border border-teal-100 bg-gradient-to-r from-teal-50 to-cyan-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
+          <p className="text-sm text-teal-900 flex items-start gap-2"><span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white"><FiInfo /></span><span><b>Team access</b><br/><span className="text-xs text-teal-700">Employees activate using their emailed link before cases can be assigned. Passwords remain private.</span></span></p>
           <div className="grid grid-cols-2 sm:flex gap-2">
-            <button onClick={load} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-slate-50 inline-flex items-center gap-2"><FiRefreshCw /> Refresh</button>
-            <button onClick={() => setInviteOpen(true)} className="px-3.5 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 inline-flex items-center gap-2"><FiUserPlus /> Invite Employee</button>
+            <button onClick={load} className="px-3.5 py-2.5 text-sm border border-white bg-white rounded-xl hover:bg-slate-50 inline-flex items-center justify-center gap-2 shadow-sm"><FiRefreshCw /> Refresh</button>
+            <button onClick={() => setInviteOpen(true)} className="px-4 py-2.5 text-sm font-semibold bg-teal-600 text-white rounded-xl hover:bg-teal-700 inline-flex items-center justify-center gap-2 shadow-lg shadow-teal-600/20"><FiUserPlus /> Invite Employee</button>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-3xl shadow-sm overflow-hidden">
           <div className="md:hidden divide-y divide-slate-100">
             {users.map(u => <article key={u.id} className="p-4 space-y-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-semibold text-slate-900">{u.name}</h3><p className="text-xs text-slate-500 break-all">{u.email}</p></div>{inviteStatusChip(u)}</div><div className="grid grid-cols-2 gap-3 text-xs"><div><span className="text-slate-400">Role</span><p className="font-medium text-slate-700">{u.role === 'vendor_admin' ? 'Vendor Admin' : 'Vendor Employee'}</p></div><div><span className="text-slate-400">Workload</span><p className="font-medium text-slate-700">{u.activeCases ?? 0} active cases</p></div></div><div className="flex flex-wrap gap-2">{u.status === 'pending' && <><button onClick={() => action(u, 'resend_invite')} disabled={busyId === u.id} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700">Resend Invite</button><button onClick={() => action(u, 'cancel_invite')} disabled={busyId === u.id} className="rounded-lg border px-3 py-2 text-xs font-semibold text-slate-600">Cancel</button></>}{u.status === 'active' && <button onClick={() => action(u, 'disable')} disabled={busyId === u.id} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600">Disable Access</button>}{u.status === 'inactive' && <button onClick={() => action(u, 'reactivate')} disabled={busyId === u.id} className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">Reactivate</button>}</div></article>)}
             {users.length === 0 && <div className="p-10 text-center text-sm text-slate-500">No team members yet — invite your first employee.</div>}
           </div>
           <div className="hidden md:block overflow-x-auto"><table className="min-w-[720px] w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-[#0f2942] text-xs uppercase tracking-[0.12em] text-slate-200">
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Name</th>
                 <th className="text-left px-4 py-3 font-medium">Work Email</th>

@@ -162,32 +162,32 @@ export default function VendorDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#f4f7fb]">
       <VendorPortalHeader
         title={isAdmin ? 'Vendor Dashboard' : 'My Cases'}
         subtitle={isAdmin ? 'BGV cases for your company — assign investigators and monitor progress.' : 'Only cases assigned to you appear here.'}
         isAdmin={isAdmin}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <StatCard label={isAdmin ? 'Total Cases' : 'Total Assigned'} value={requests.length} color="text-slate-900" icon={<FiFileText className="h-5 w-5 text-blue-600" />} />
-          <StatCard label="In Progress" value={requests.filter(r => ['assigned', 'in_progress', 'rework_required'].includes(r.status)).length} color="text-blue-600" icon={<FiUsers className="h-5 w-5 text-blue-600" />} />
-          <StatCard label="Submitted" value={requests.filter(r => ['submitted_for_hr_review', 'awaiting_information'].includes(r.status)).length} color="text-violet-600" icon={<FiFileText className="h-5 w-5" />} />
-          <StatCard label="Completed" value={requests.filter(r => ['approved_by_hr', 'rejected_by_hr'].includes(r.status)).length} color="text-emerald-600" icon={<FiCheckCircle className="h-5 w-5" />} />
-          <StatCard label={overdueCount ? 'Overdue' : 'Due Today'} value={overdueCount || dueTodayCount} color={overdueCount ? 'text-red-600' : 'text-amber-600'} icon={overdueCount ? <FiAlertTriangle className="h-5 w-5 text-red-500" /> : <FiCalendar className="h-5 w-5 text-amber-500" />} />
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+          <StatCard label={isAdmin ? 'Total Cases' : 'Total Assigned'} value={requests.length} tone="blue" icon={<FiFileText className="h-5 w-5" />} />
+          <StatCard label="In Progress" value={requests.filter(r => ['assigned', 'in_progress', 'rework_required'].includes(r.status)).length} tone="cyan" icon={<FiUsers className="h-5 w-5" />} />
+          <StatCard label="Submitted" value={requests.filter(r => ['submitted_for_hr_review', 'awaiting_information'].includes(r.status)).length} tone="violet" icon={<FiFileText className="h-5 w-5" />} />
+          <StatCard label="Completed" value={requests.filter(r => ['approved_by_hr', 'rejected_by_hr'].includes(r.status)).length} tone="emerald" icon={<FiCheckCircle className="h-5 w-5" />} />
+          <StatCard label={overdueCount ? 'Overdue' : 'Due Today'} value={overdueCount || dueTodayCount} tone={overdueCount ? 'rose' : 'amber'} icon={overdueCount ? <FiAlertTriangle className="h-5 w-5" /> : <FiCalendar className="h-5 w-5" />} />
         </div>
 
         {/* Tabs + search */}
-        <div className="bg-white border rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-3">
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm flex flex-col md:flex-row md:items-center gap-3">
           <div className="flex flex-wrap gap-1.5">
             {TABS.map((t) => {
               const count = t.key === 'unassigned' ? unassignedCount : undefined;
               return (
                 <button key={t.key} onClick={() => setTab(t.key)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    tab === t.key ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                    tab === t.key ? 'border-teal-600 bg-teal-600 text-white shadow-md shadow-teal-600/20' : 'border-transparent bg-slate-100 text-slate-600 hover:bg-slate-200/70'}`}>
                   {t.label}{count ? ` (${count})` : ''}
                 </button>
               );
@@ -197,9 +197,9 @@ export default function VendorDashboardPage() {
             <FiSearch className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search candidate / case ID…"
-              className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm" aria-label="Search cases" />
+              className="w-full border border-slate-200 bg-slate-50 rounded-xl pl-9 pr-3 py-2.5 text-sm outline-none transition focus:border-teal-400 focus:bg-white focus:ring-4 focus:ring-teal-500/10" aria-label="Search cases" />
           </div>
-        </div>
+        </section>
 
         {error ? (
           <div className="bg-white border rounded-xl p-10 text-center">
@@ -210,20 +210,21 @@ export default function VendorDashboardPage() {
         ) : loading ? (
           <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-16 bg-white border rounded-xl animate-pulse" />)}</div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white border rounded-xl p-12 text-center">
-            <FiShield className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm font-medium text-slate-600">
+          <div className="relative overflow-hidden rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-20 text-center shadow-sm">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-teal-400 to-emerald-500" />
+            <span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 ring-8 ring-slate-50"><FiShield className="h-8 w-8 text-slate-400" /></span>
+            <p className="text-base font-semibold text-slate-700">
               {tab === 'unassigned' ? 'No unassigned cases — new HR requests appear here.' : 'No cases in this view.'}
             </p>
-            {!isAdmin && <p className="text-xs text-slate-400 mt-1">Empty state means no cases are assigned to you yet.</p>}
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">{isAdmin ? 'When HR sends a new BGV request, it will appear here for assignment to your investigation team.' : 'Your vendor administrator will assign candidate verification cases to you.'}</p>
           </div>
         ) : (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200/80 rounded-3xl shadow-sm overflow-hidden">
             <div className="md:hidden divide-y divide-slate-100">
               {filtered.map(r => <CaseCard key={r.id} request={r} isAdmin={!!isAdmin} vendorCompanyId={vendorInfo!.vendorCompanyId} onDone={fetchRequests} onOpen={() => openCase(r)} />)}
             </div>
             <div className="hidden md:block overflow-x-auto"><table className="min-w-[820px] w-full text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-[#0f2942] text-xs uppercase tracking-[0.12em] text-slate-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">Candidate</th>
                   <th className="text-left px-4 py-3 font-medium">Case ID</th>
@@ -235,10 +236,11 @@ export default function VendorDashboardPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/60">
+                  <tr key={r.id} className="group hover:bg-teal-50/40 transition-colors">
                     <td className="px-4 py-3.5">
-                      <p className="font-medium text-slate-800">{r.candidateName || 'Unknown candidate'}</p>
+                      <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 text-xs font-bold text-white shadow-sm">{(r.candidateName || r.candidateEmail || '?').slice(0, 2).toUpperCase()}</span><div><p className="font-semibold text-slate-800">{r.candidateName || 'Unknown candidate'}</p>
                       <p className="text-xs text-slate-400">{r.candidateEmail}</p>
+                      </div></div>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="font-mono text-xs text-slate-600">{r.caseNumber || r.id}</span>
@@ -394,14 +396,24 @@ function AssignButton({ request, vendorCompanyId, onDone }: {
   );
 }
 
-function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
+const STAT_TONES: Record<string, { card: string; icon: string; value: string }> = {
+  blue: { card: 'from-blue-50 to-white border-blue-100', icon: 'bg-blue-600 text-white shadow-blue-500/25', value: 'text-blue-700' },
+  cyan: { card: 'from-cyan-50 to-white border-cyan-100', icon: 'bg-cyan-600 text-white shadow-cyan-500/25', value: 'text-cyan-700' },
+  violet: { card: 'from-violet-50 to-white border-violet-100', icon: 'bg-violet-600 text-white shadow-violet-500/25', value: 'text-violet-700' },
+  emerald: { card: 'from-emerald-50 to-white border-emerald-100', icon: 'bg-emerald-600 text-white shadow-emerald-500/25', value: 'text-emerald-700' },
+  amber: { card: 'from-amber-50 to-white border-amber-100', icon: 'bg-amber-500 text-white shadow-amber-500/25', value: 'text-amber-700' },
+  rose: { card: 'from-rose-50 to-white border-rose-100', icon: 'bg-rose-600 text-white shadow-rose-500/25', value: 'text-rose-700' },
+};
+
+function StatCard({ label, value, tone, icon }: { label: string; value: number; tone: string; icon: React.ReactNode }) {
+  const colors = STAT_TONES[tone] || STAT_TONES.blue;
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-2.5">
-        {icon}
+    <div className={`group rounded-2xl border bg-gradient-to-br p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${colors.card}`}>
+      <div className="flex items-center gap-3.5">
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-lg ${colors.icon}`}>{icon}</span>
         <div>
-          <div className={`text-xl font-bold ${color}`}>{value}</div>
-          <div className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</div>
+          <div className={`text-2xl font-extrabold tracking-tight ${colors.value}`}>{value}</div>
+          <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-500">{label}</div>
         </div>
       </div>
     </div>

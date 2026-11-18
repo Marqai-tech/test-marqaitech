@@ -92,10 +92,10 @@ export default function VendorNotificationsPage() {
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#f4f7fb]">
       <VendorPortalHeader title="Notification Center" subtitle="Updates about your cases, invitations and team — newest first." backToPrevious backLabel="Back to previous screen" />
 
-      <main className="max-w-3xl mx-auto p-4 sm:p-6">
+      <main className="max-w-4xl mx-auto p-4 sm:p-8">
         <div className="flex items-center justify-end mb-4">
           <div className="flex items-center gap-2">
             <button onClick={() => void load()} disabled={loading}
@@ -127,8 +127,8 @@ export default function VendorNotificationsPage() {
             {(items || []).map((n) => {
               const meta = EVENT_META[n.event] || { label: n.event, icon: <FiInfo className="text-slate-500" /> };
               return (
-                <li key={n.id} className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-start gap-3">
-                  <span className="mt-0.5">{meta.icon}</span>
+                <li key={n.id} className="bg-white border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                  <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50">{meta.icon}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800">{meta.label}</p>
                     <p className="text-xs text-slate-500 mt-0.5">

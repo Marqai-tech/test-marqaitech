@@ -21,16 +21,16 @@ export default function VendorProfilePage() {
 
   const isAdmin = user.role === 'vendor_admin';
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-[#f4f7fb]">
       <VendorPortalHeader title="My Profile" subtitle="Your vendor account, company and access information." isAdmin={isAdmin} backToPrevious backLabel="Back to previous screen" />
-      <div className="max-w-3xl mx-auto p-4 sm:p-6">
-        <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-5 sm:p-8 flex flex-col sm:flex-row items-start gap-5 border-b">
-            <div className="h-16 w-16 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center text-2xl font-bold">{(user.name || user.email || 'V').slice(0, 2).toUpperCase()}</div>
+      <div className="max-w-4xl mx-auto p-4 sm:p-8">
+        <div className="bg-white border border-slate-200/80 rounded-3xl shadow-lg shadow-slate-200/40 overflow-hidden">
+          <div className="relative p-6 sm:p-9 flex flex-col sm:flex-row items-start gap-5 border-b bg-gradient-to-r from-slate-900 via-slate-800 to-teal-900 text-white">
+            <div className="h-20 w-20 rounded-3xl bg-white/10 text-white ring-1 ring-white/20 flex items-center justify-center text-2xl font-bold shadow-xl">{(user.name || user.email || 'V').slice(0, 2).toUpperCase()}</div>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold text-slate-900 break-words">{user.name || 'Vendor User'}</h2>
-              <p className="text-sm text-slate-500 break-all">{user.email || 'Email unavailable'}</p>
-              <span className="mt-2 inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">{isAdmin ? 'Vendor Administrator' : 'Vendor Employee'}</span>
+              <h2 className="text-2xl font-bold break-words">{user.name || 'Vendor User'}</h2>
+              <p className="text-sm text-slate-300 break-all">{user.email || 'Email unavailable'}</p>
+              <span className="mt-3 inline-flex rounded-full border border-teal-300/20 bg-teal-300/10 px-3 py-1 text-xs font-semibold text-teal-100">{isAdmin ? 'Vendor Administrator' : 'Vendor Employee'}</span>
             </div>
           </div>
           <dl className="grid sm:grid-cols-2 gap-4 p-5 sm:p-8">
@@ -49,5 +49,5 @@ export default function VendorProfilePage() {
 }
 
 function ProfileItem({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return <div className="rounded-xl border border-slate-200 p-4 min-w-0"><dt className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-400">{icon}{label}</dt><dd className="mt-2 text-sm font-semibold text-slate-800 break-all">{value}</dd></div>;
+  return <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 min-w-0 transition hover:border-teal-200 hover:bg-teal-50/40"><dt className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-400"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-teal-700 shadow-sm">{icon}</span>{label}</dt><dd className="mt-3 text-sm font-semibold text-slate-800 break-all">{value}</dd></div>;
 }
