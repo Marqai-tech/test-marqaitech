@@ -38,6 +38,15 @@ import {
   PageBreadcrumbs, DateChip, Panel, StatCard, MiniStatTile,
   QuickLinkGrid, SkeletonBlock, StatSkeleton,
 } from '@/components/dashboard/smarthr-widgets';
+/* Dashboard KPI drill-down: date-range filter + clickable cards. */
+import DateRangeSelector from '@/components/dashboard/DateRangeSelector';
+import DetailTable, { type CardType } from '@/components/dashboard/DetailTable';
+import {
+  DEFAULT_DATE_RANGE,
+  resolveDateRange,
+  type DateRangePreset,
+  type ResolvedDateRange,
+} from '@/lib/dateRange';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -137,11 +146,38 @@ export default function EmployeeDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const todayChip = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+  // ── Date-range filter (Last 30 Days default) ──
+  // The dropdown in the header switches between presets + custom range; the
+  // resolved fromDate/toDate is appended to every dashboard fetch so KPIs +
+  // drill-down detail tables all reflect the selected window.
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>(DEFAULT_DATE_RANGE);
+  const [dateRange, setDateRange] = useState<ResolvedDateRange>(() => resolveDateRange(DEFAULT_DATE_RANGE));
+
+  // ── KPI drill-down state ──
+  // `selectedCard` holds the card key the user clicked (Total / Active / On
+  // Leave / Exits — or for employees: My Leave Balance / My Pending Requests
+  // / My Attendance / My Recent Leaves). When set, the DetailTable component
+  // replaces the dashboard grid.
+  const [selectedCard, setSelectedCard] = useState<CardType | null>(null);
+
+  // ── Employee personal KPIs (only computed when scope === 'self') ──
+  // Mirror the org-wide cards with employee-specific counts so the dashboard
+  // layout stays consistent for self-scope logins.
+  const [personalStats, setPersonalStats] = useState<{
+    leaveBalance: number;
+    pendingRequests: number;
+    attendanceRate: number | null;
+    recentLeaves: number;
+  }>({ leaveBalance: 0, pendingRequests: 0, attendanceRate: null, recentLeaves: 0 });
+
   // Role-based permissions
   const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'hr_admin'].includes(userRole);
   const isManager = userRole === 'manager' || isAdmin;
   const canViewSalary = isAdmin;
   const canViewFullDetails = isManager;
+  // Self-scope employees get the personal-card dashboard; everyone else sees
+  // the org-wide KPI grid. roleAccess.getDataScope('employee') === 'self'.
+  const isSelfScope = !isAdmin && !isManager;
 
   /* ── Data Fetching ── */
   const cidValue = selectedCompanyId;
@@ -162,6 +198,15 @@ export default function EmployeeDashboardPage() {
       if (tid) scopeParams.set('tenantId', tid);
       const scopeQs = scopeParams.toString();
       const scopeQuery = scopeQs ? `&${scopeQs}` : '';
+
+      // ── Date-range window used for date-sensitive KPIs (new hires, exits,
+      //    on-leave, leave-overlap counts). The dashboard API also accepts
+      //    the same params so the mobile Home KPIs stay in sync.
+      const rangeParams = new URLSearchParams();
+      if (dateRange.fromDate) rangeParams.set('fromDate', dateRange.fromDate);
+      if (dateRange.toDate) rangeParams.set('toDate', dateRange.toDate);
+      const rangeQs = rangeParams.toString();
+      const rangeQuery = rangeQs ? `&${rangeQs}` : '';
 
       // Employees are scoped to their own record by the API. A one-row page
       // is sufficient for the personal dashboard; managers/admins retain the
@@ -185,6 +230,12 @@ export default function EmployeeDashboardPage() {
         const now = new Date();
         const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+        // ── Window the date-sensitive counts to the selected range ──
+        // Total + Active are HEAD-COUNT snapshots (not affected by the range);
+        // new hires + exits reflect the selected window so changing "Last 30
+        // Days" to "This Quarter" actually updates the KPIs.
+        const rangeStart = dateRange.fromDate ? new Date(`${dateRange.fromDate}T00:00:00.000Z`) : thisMonth;
+        const rangeEnd = dateRange.toDate ? new Date(`${dateRange.toDate}T23:59:59.999Z`) : now;
         let newHires = 0;
         let exits = 0;
 
@@ -204,13 +255,15 @@ export default function EmployeeDashboardPage() {
             const months = (now.getFullYear() - joinDate.getFullYear()) * 12 + (now.getMonth() - joinDate.getMonth());
             totalTenure += months;
             tenureCount++;
-            if (joinDate >= thisMonth) newHires++;
+            // New hires: joined within the selected date range
+            if (joinDate >= rangeStart && joinDate <= rangeEnd) newHires++;
           }
 
-          // Exits this month (terminated/resigned)
+          // Exits within the selected range (terminated/resigned + updatedAt
+          // inside [fromDate, toDate])
           if ((emp.status === 'terminated' || emp.status === 'resigned') && emp.updatedAt) {
             const updatedDate = new Date(emp.updatedAt);
-            if (updatedDate >= thisMonth) exits++;
+            if (updatedDate >= rangeStart && updatedDate <= rangeEnd) exits++;
           }
         });
 
@@ -224,9 +277,12 @@ export default function EmployeeDashboardPage() {
         // holding an APPROVED leave record covering today — approved leaves
         // count, cancelled/rejected don't, and only currently-employed people
         // (active/on_leave) are included. Employee.status stays as fallback.
+        // For a custom date range we additionally pass fromDate/toDate so the
+        // count reflects approved leaves OVERLAPPING the selected window
+        // rather than just "today".
         let leaveCount = allEmps.filter((e: any) => e.status === 'on_leave').length;
         try {
-          const leaveRes = await fetch(`/api/leave?onLeaveToday=1${scopeQuery}`, { headers });
+          const leaveRes = await fetch(`/api/leave?onLeaveToday=1${scopeQuery}${rangeQuery}`, { headers });
           if (leaveRes.ok) {
             const leaveData = await leaveRes.json();
             if (typeof leaveData.onLeaveToday === 'number') leaveCount = leaveData.onLeaveToday;
@@ -381,6 +437,55 @@ export default function EmployeeDashboardPage() {
         // Generate headcount trend (only from real data, no random/fake)
         setHeadcountTrend(generateHeadcountTrend(allEmps, total));
       }
+
+      // ─── Personal KPIs for self-scope employees ───
+      // Fetched in parallel with the org dashboard so the personal card grid
+      // (My Leave Balance / My Pending Requests / My Attendance / My Recent
+      // Leaves) is ready by the time the dashboard renders. Each request is
+      // independently fault-tolerant — a failure degrades to 0/empty.
+      if (isSelfScope) {
+        try {
+          const [balanceRes, pendingRes, attendanceRes, recentRes] = await Promise.allSettled([
+            fetch(`/api/leaves/my-balance${rangeQuery ? `?${rangeQs}` : ''}`, { headers }),
+            fetch(`/api/leave?view=self&status=pending&limit=1${scopeQuery}`, { headers }),
+            fetch(`/api/attendance/my-summary${rangeQuery ? `?${rangeQs}` : ''}`, { headers }),
+            fetch(`/api/leave?view=self&limit=100${scopeQuery}${rangeQuery}`, { headers }),
+          ]);
+
+          const balance = balanceRes.status === 'fulfilled' && balanceRes.value.ok
+            ? await balanceRes.value.json().catch(() => ({}))
+            : {};
+          const pending = pendingRes.status === 'fulfilled' && pendingRes.value.ok
+            ? await pendingRes.value.json().catch(() => ({}))
+            : {};
+          const attendance = attendanceRes.status === 'fulfilled' && attendanceRes.value.ok
+            ? await attendanceRes.value.json().catch(() => ({}))
+            : {};
+          const recent = recentRes.status === 'fulfilled' && recentRes.value.ok
+            ? await recentRes.value.json().catch(() => ({}))
+            : {};
+
+          const recentLeaveRows: Array<{ startDate?: string; endDate?: string }> =
+            Array.isArray(recent.leaveRequests) ? recent.leaveRequests : [];
+          // Filter recent leaves to those overlapping the selected range
+          // (client-side, since the leave API filters by startDate only).
+          const overlapRecent = recentLeaveRows.filter((l) => {
+            if (!l.startDate || !l.endDate) return false;
+            const s = new Date(l.startDate);
+            const e = new Date(l.endDate);
+            return s <= rangeEnd && e >= rangeStart;
+          });
+
+          setPersonalStats({
+            leaveBalance: Number(balance.remaining ?? 0) || 0,
+            pendingRequests: Number(pending.pagination?.total ?? pending.leaveRequests?.length ?? 0) || 0,
+            attendanceRate: typeof attendance.attendanceRate === 'number' ? attendance.attendanceRate : null,
+            recentLeaves: overlapRecent.length,
+          });
+        } catch {
+          // Keep zero defaults — non-fatal
+        }
+      }
     } catch (err) {
       console.error('Dashboard fetch error:', err);
       // GOLDEN RULE: On error, show zeros/empty — NOT fake data
@@ -394,7 +499,7 @@ export default function EmployeeDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [cidValue, tidValue, isManager]);
+  }, [cidValue, tidValue, isManager, isSelfScope, dateRange.fromDate, dateRange.toDate]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
@@ -496,7 +601,29 @@ export default function EmployeeDashboardPage() {
   if (loading) {
     return (
       <div>
-        <PageBreadcrumbs title="Dashboard" trail={['Employee', 'Dashboard']} right={<DateChip value={todayChip} />} />
+        <PageBreadcrumbs
+          title="Dashboard"
+          trail={['Employee', 'Dashboard']}
+          right={
+            <>
+              <DateChip value={todayChip} />
+              <DateRangeSelector
+                value={dateRangePreset}
+                onChange={(r) => {
+                  setDateRangePreset(r.preset);
+                  setDateRange(r);
+                }}
+              />
+              <button
+                onClick={fetchDashboardData}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-300 shadow-sm transition-all"
+                title="Refresh data"
+              >
+                <FiRefreshCw className="w-4 h-4" />
+              </button>
+            </>
+          }
+        />
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => <StatSkeleton key={i} />)}
@@ -506,6 +633,80 @@ export default function EmployeeDashboardPage() {
             <SkeletonBlock className="h-64 rounded-2xl lg:col-span-2" />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ── Card click handlers — open the DetailTable drill-down view ──
+  // Each handler sets `selectedCard`, which swaps the dashboard grid for the
+  // DetailTable component. The component fetches its own rows from
+  // /api/dashboard/details with the same fromDate/toDate + scope params.
+  const scopeParamsForDetails: Record<string, string | undefined> = {
+    companyId: selectedCompanyId || undefined,
+    tenantId: selectedTenantId || undefined,
+  };
+
+  // Card titles + subtitles used by the DetailTable header band.
+  const cardMeta: Record<CardType, { title: string; subtitle: string; accent: string }> = {
+    total: { title: 'Total Employees', subtitle: 'Every employee in your scope (headcount snapshot)', accent: 'text-[#3A57C4]' },
+    active: { title: 'Active Employees', subtitle: 'Employees with status = active', accent: 'text-emerald-600' },
+    onLeave: { title: 'Employees On Leave', subtitle: 'Approved leave records overlapping the selected range', accent: 'text-amber-600' },
+    exits: { title: 'Employee Exits', subtitle: 'Terminated / resigned employees in the selected range', accent: 'text-rose-600' },
+    myLeaveBalance: { title: 'My Leave Balance', subtitle: 'Your leave entitlement for the selected year', accent: 'text-[#3A57C4]' },
+    myPendingRequests: { title: 'My Pending Requests', subtitle: 'Your leave requests awaiting approval', accent: 'text-amber-600' },
+    myAttendance: { title: 'My Attendance', subtitle: 'Your attendance records in the selected range', accent: 'text-emerald-600' },
+    myRecentLeaves: { title: 'My Recent Leaves', subtitle: 'Your leave records in the selected range', accent: 'text-[#6C4FD6]' },
+  };
+
+  // ── Drill-down view: when a card is clicked, replace the dashboard with
+  //    the DetailTable. The header band + date range selector stay visible
+  //    so the user can still switch ranges or refresh.
+  if (selectedCard) {
+    const meta = cardMeta[selectedCard];
+    return (
+      <div>
+        <PageBreadcrumbs
+          title="Dashboard"
+          trail={['Employee', 'Dashboard', meta.title]}
+          right={
+            <>
+              <DateChip value={todayChip} />
+              <DateRangeSelector
+                value={dateRangePreset}
+                onChange={(r) => {
+                  setDateRangePreset(r.preset);
+                  setDateRange(r);
+                }}
+              />
+              <button
+                onClick={fetchDashboardData}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-300 shadow-sm transition-all"
+                title="Refresh data"
+              >
+                <FiRefreshCw className="w-4 h-4" />
+              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => router.push('/employees/add')}
+                  className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-gradient-to-r from-[#FF9B44] to-[#FF7A3D] text-white text-sm font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/45 transition-all"
+                >
+                  <FiUserPlus className="w-4 h-4" />
+                  Add Employee
+                </button>
+              )}
+            </>
+          }
+        />
+        <DetailTable
+          cardType={selectedCard}
+          title={meta.title}
+          subtitle={meta.subtitle}
+          accent={meta.accent}
+          fromDate={dateRange.fromDate}
+          toDate={dateRange.toDate}
+          scopeParams={scopeParamsForDetails}
+          onBack={() => setSelectedCard(null)}
+        />
       </div>
     );
   }
@@ -520,6 +721,13 @@ export default function EmployeeDashboardPage() {
         right={
           <>
             <DateChip value={todayChip} />
+            <DateRangeSelector
+              value={dateRangePreset}
+              onChange={(r) => {
+                setDateRangePreset(r.preset);
+                setDateRange(r);
+              }}
+            />
             <button
               onClick={fetchDashboardData}
               className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-300 shadow-sm transition-all"
@@ -596,41 +804,105 @@ export default function EmployeeDashboardPage() {
             </div>
           )}
           {/* ── KPI stat tiles — shared SmartHR StatCard (white card, colourful
-              top accent bar, round pastel icon — same as /dashboard) ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              label="Total Employees"
-              value={stats?.totalEmployees ?? 0}
-              sub={`${stats?.newHiresThisMonth ?? 0} new this month`}
-              icon={<FiUsers className="w-5 h-5" />}
-              bg="bg-[#3A57C4]/10 text-[#3A57C4]"
-              ring="ring-[#3A57C4]/20"
-            />
-            <StatCard
-              label="Active"
-              value={stats?.activeEmployees ?? 0}
-              sub={stats?.totalEmployees ? `${Math.round((stats.activeEmployees / stats.totalEmployees) * 100)}% of total` : '—'}
-              icon={<FiUserCheck className="w-5 h-5" />}
-              bg="bg-emerald-50 text-emerald-600"
-              ring="ring-emerald-100"
-            />
-            <StatCard
-              label="On Leave"
-              value={stats?.onLeaveEmployees ?? 0}
-              sub={stats?.totalEmployees ? `${Math.round((stats.onLeaveEmployees / stats.totalEmployees) * 100)}% of total` : '—'}
-              icon={<FiClock className="w-5 h-5" />}
-              bg="bg-amber-50 text-amber-600"
-              ring="ring-amber-100"
-            />
-            <StatCard
-              label="Exits This Month"
-              value={stats?.exitsThisMonth ?? 0}
-              sub={(stats?.newHiresThisMonth ?? 0) >= (stats?.exitsThisMonth ?? 0) ? `${stats?.newHiresThisMonth ?? 0} hires vs exits` : 'hires behind exits'}
-              icon={<FiUserX className="w-5 h-5" />}
-              bg="bg-rose-50 text-rose-600"
-              ring="ring-rose-100"
-            />
-          </div>
+              top accent bar, round pastel icon — same as /dashboard).
+
+              ROLE-BASED VISIBILITY (Task: Employee Dashboard KPI drill-down):
+                - Self-scope employees see PERSONAL cards (My Leave Balance /
+                  My Pending Requests / My Attendance This Month / My Recent
+                  Leaves) instead of the org-wide KPI grid.
+                - Admins / HR / managers see the org-wide grid (Total /
+                  Active / On Leave / Exits) — every card opens a DetailTable
+                  with the underlying records.
+
+              Every card is clickable: it opens a DetailTable that replaces
+              the dashboard content (see the `selectedCard` branch above). */}
+          {isSelfScope ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                label="My Leave Balance"
+                value={personalStats.leaveBalance}
+                sub="Remaining days this year"
+                icon={<FiClock className="w-5 h-5" />}
+                bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+                ring="ring-[#3A57C4]/20"
+                onClick={() => setSelectedCard('myLeaveBalance')}
+                clickableHint="View balance"
+              />
+              <StatCard
+                label="My Pending Requests"
+                value={personalStats.pendingRequests}
+                sub="Leave requests awaiting approval"
+                icon={<FiFileText className="w-5 h-5" />}
+                bg="bg-amber-50 text-amber-600"
+                ring="ring-amber-100"
+                onClick={() => setSelectedCard('myPendingRequests')}
+                clickableHint="View requests"
+              />
+              <StatCard
+                label="My Attendance"
+                value={personalStats.attendanceRate === null ? '—' : `${personalStats.attendanceRate}%`}
+                sub="Attendance rate for selected range"
+                icon={<FiUserCheck className="w-5 h-5" />}
+                bg="bg-emerald-50 text-emerald-600"
+                ring="ring-emerald-100"
+                onClick={() => setSelectedCard('myAttendance')}
+                clickableHint="View attendance"
+              />
+              <StatCard
+                label="My Recent Leaves"
+                value={personalStats.recentLeaves}
+                sub="Leave records in selected range"
+                icon={<FiCalendar className="w-5 h-5" />}
+                bg="bg-[#6C4FD6]/10 text-[#6C4FD6]"
+                ring="ring-[#6C4FD6]/20"
+                onClick={() => setSelectedCard('myRecentLeaves')}
+                clickableHint="View leaves"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                label="Total Employees"
+                value={stats?.totalEmployees ?? 0}
+                sub={`${stats?.newHiresThisMonth ?? 0} new in range`}
+                icon={<FiUsers className="w-5 h-5" />}
+                bg="bg-[#3A57C4]/10 text-[#3A57C4]"
+                ring="ring-[#3A57C4]/20"
+                onClick={() => setSelectedCard('total')}
+                clickableHint="View all employees"
+              />
+              <StatCard
+                label="Active"
+                value={stats?.activeEmployees ?? 0}
+                sub={stats?.totalEmployees ? `${Math.round((stats.activeEmployees / stats.totalEmployees) * 100)}% of total` : '—'}
+                icon={<FiUserCheck className="w-5 h-5" />}
+                bg="bg-emerald-50 text-emerald-600"
+                ring="ring-emerald-100"
+                onClick={() => setSelectedCard('active')}
+                clickableHint="View active employees"
+              />
+              <StatCard
+                label="On Leave"
+                value={stats?.onLeaveEmployees ?? 0}
+                sub={stats?.totalEmployees ? `${Math.round((stats.onLeaveEmployees / stats.totalEmployees) * 100)}% of total` : '—'}
+                icon={<FiClock className="w-5 h-5" />}
+                bg="bg-amber-50 text-amber-600"
+                ring="ring-amber-100"
+                onClick={() => setSelectedCard('onLeave')}
+                clickableHint="View leave records"
+              />
+              <StatCard
+                label="Exits This Period"
+                value={stats?.exitsThisMonth ?? 0}
+                sub={(stats?.newHiresThisMonth ?? 0) >= (stats?.exitsThisMonth ?? 0) ? `${stats?.newHiresThisMonth ?? 0} hires vs exits` : 'hires behind exits'}
+                icon={<FiUserX className="w-5 h-5" />}
+                bg="bg-rose-50 text-rose-600"
+                ring="ring-rose-100"
+                onClick={() => setSelectedCard('exits')}
+                clickableHint="View exit records"
+              />
+            </div>
+          )}
 
           {/* ── Quick Actions + Department Distribution ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

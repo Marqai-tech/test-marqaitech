@@ -385,9 +385,30 @@ export function RoleHero({ role, firstName, greeting, today, subtitle, searchQue
 
 /* ---------- stat card ---------- */
 
-export function StatCard({ label, value, sub, icon, bg, ring }: { label: string; value: React.ReactNode; sub: string; icon: React.ReactNode; bg: string; ring: string }) {
+/**
+ * StatCard — white card with colourful top accent + round pastel icon.
+ *
+ * Optional `onClick` turns the card into a clickable drill-down button (the
+ * dashboard KPI cards open a DetailTable when clicked). When clickable, a
+ * subtle "View details →" hint is rendered so the affordance is obvious.
+ */
+export function StatCard({ label, value, sub, icon, bg, ring, onClick, clickableHint = 'View details' }: { label: string; value: React.ReactNode; sub: string; icon: React.ReactNode; bg: string; ring: string; onClick?: () => void; clickableHint?: string }) {
+  const Tag: React.ElementType = onClick ? 'button' : 'div';
+  const interactiveProps = onClick
+    ? {
+        onClick,
+        type: 'button' as const,
+        'aria-label': `${label} — ${clickableHint}`,
+        style: { textAlign: 'left' as const },
+      }
+    : {};
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all relative overflow-hidden">
+    <Tag
+      className={`bg-white rounded-2xl p-5 border border-slate-100 shadow-sm transition-all relative overflow-hidden w-full ${
+        onClick ? 'hover:shadow-md hover:-translate-y-0.5 hover:border-[#3A57C4]/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3A57C4]/40' : 'hover:shadow-md hover:-translate-y-0.5'
+      }`}
+      {...interactiveProps}
+    >
       {/* SmartHR-style colourful top accent */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#3A57C4] via-[#6C4FD6] to-[#FF9B44] opacity-70" />
       <div className="flex items-start justify-between">
@@ -398,7 +419,12 @@ export function StatCard({ label, value, sub, icon, bg, ring }: { label: string;
         <div className={`w-11 h-11 rounded-full ${bg} ring-1 ${ring} flex items-center justify-center shadow-sm`}>{icon}</div>
       </div>
       <p className="text-xs font-medium text-slate-500 mt-2">{sub}</p>
-    </div>
+      {onClick && (
+        <p className="text-[11px] font-semibold text-[#3A57C4] mt-2 inline-flex items-center gap-0.5">
+          {clickableHint} <FiChevronRight className="w-3 h-3" />
+        </p>
+      )}
+    </Tag>
   );
 }
 
