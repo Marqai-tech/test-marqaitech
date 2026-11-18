@@ -640,15 +640,46 @@ export default function RequisitionsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-thb-text-primary">
-                {editingId ? 'Edit Requisition' : 'Raise New Requisition'}
-              </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+        <div id="crud-form" className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/60 shadow-xl shadow-slate-200/40">
+          <div className="border-b border-slate-200 bg-gradient-to-r from-white via-white to-emerald-50/60 px-5 py-5 sm:px-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                    {editingId ? 'Edit Requisition' : 'Raise New Requisition'}
+                  </h2>
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">
+                    <FiEdit2 className="h-3.5 w-3.5" /> {editingId ? 'Editing' : 'Draft'}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm text-slate-500">Create a hiring request with role details, requirements, budget and a position-specific interview plan.</p>
+              </div>
+              <button onClick={handleCancelForm} className="rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-white hover:text-slate-700 hover:shadow-sm" aria-label="Close requisition form"><FiX className="h-5 w-5" /></button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          </div>
+
+          <div className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:mx-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><FiAlertCircle className="h-4 w-4" /></span>
+              Required fields are marked with <span className="font-bold text-red-500">*</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold sm:text-sm">
+              <span className="mr-1 text-slate-600">Approval Path:</span>
+              <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-emerald-700 ring-1 ring-emerald-100">HR</span>
+              <span className="text-slate-400">→</span>
+              <span className="rounded-lg bg-amber-50 px-3 py-1.5 text-amber-700 ring-1 ring-amber-100">Finance</span>
+              <span className="text-slate-400">→</span>
+              <span className="rounded-lg bg-blue-50 px-3 py-1.5 text-blue-700 ring-1 ring-blue-100">Job Posting</span>
+            </div>
+          </div>
+
+          <div className="space-y-4 p-4 sm:p-5">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiBriefcase className="h-5 w-5" /></span>
+                <div><h3 className="text-lg font-bold text-slate-900">Role &amp; Position</h3><p className="text-xs text-slate-500 sm:text-sm">Define the department, designation and position details.</p></div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500 font-bold">*</span></label>
                 {departments.length > 0 ? (
@@ -679,7 +710,7 @@ export default function RequisitionsPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position / Designation</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position / Designation <span className="text-red-500 font-bold">*</span></label>
                 {designations.length > 0 ? (
                   <select
                     value={form.designationId}
@@ -729,11 +760,20 @@ export default function RequisitionsPage() {
                   <option value="critical">Critical</option>
                 </select>
               </div>
-              <div className="sm:col-span-2 lg:col-span-3">
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiCalendar className="h-5 w-5" /></span>
+                <div><h3 className="text-lg font-bold text-slate-900">Requirements &amp; Budget</h3><p className="text-xs text-slate-500 sm:text-sm">Capture compensation, skills, experience and closing details.</p></div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Range / Budget</label>
                 <input value={form.salaryBudget} onChange={(e) => setForm({ ...form, salaryBudget: e.target.value })} placeholder="e.g. 500000-700000 INR/year" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
-              <div className="sm:col-span-2 lg:col-span-3">
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Required Skills</label>
                 <input value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} placeholder="e.g. React, Node.js, Python, PostgreSQL" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
@@ -750,19 +790,31 @@ export default function RequisitionsPage() {
                 <input type="date" value={form.expectedJoiningDate} onChange={(e) => setForm({ ...form, expectedJoiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 <p className="text-[10px] text-thb-text-muted mt-1">The linked job posting will automatically close when this date is reached.</p>
               </div>
-              <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
-                <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-indigo-900">Number of Interview Rounds for This Role <span className="text-red-500">*</span></label><p className="text-[11px] text-indigo-700 mt-0.5">{parseInterviewPlan(form.interviewPlan).length} round(s) configured. Add, rename or remove rounds. At least one round is required when saving.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(form.interviewPlan); setForm({ ...form, interviewPlan: serializeInterviewPlan([...rows, { name: '', type: 'technical' }]) }); }} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700">+ Add Round</button></div>
-                <div className="space-y-2">{parseInterviewPlan(form.interviewPlan).map((row, i, rows) => <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg bg-white border border-indigo-100 p-2"><span className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span><input required value={row.name} placeholder="Enter your own round name" onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="sm:w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="client">Client</option><option value="ai">AI</option></select><button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan(rows.filter((_, index) => index !== i)) })} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
-                {parseInterviewPlan(form.interviewPlan).length === 0 && <div className="rounded-lg border border-dashed border-red-200 bg-red-50 p-4 text-center text-xs text-red-700">No interview rounds configured. Click <b>Add Round</b> and enter a round name.</div>}
               </div>
-            </div>
-            {/* Task 164: Save as Draft + Submit for Approval */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={() => handleSave('draft')} disabled={submitting} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 disabled:opacity-50 transition-colors">{submitting ? 'Saving...' : 'Save as Draft'}</button>
-              <button onClick={() => handleSave('submit')} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">{submitting ? 'Saving...' : 'Submit for Approval'}</button>
-            </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiClock className="h-5 w-5" /></span>
+                  <div><h3 className="text-lg font-bold text-slate-900">Interview Rounds <span className="text-red-500">*</span></h3><p className="text-xs text-slate-500 sm:text-sm">Define and order the interview rounds for this position.</p></div>
+                </div>
+                <button type="button" onClick={() => { const rows = parseInterviewPlan(form.interviewPlan); setForm({ ...form, interviewPlan: serializeInterviewPlan([...rows, { name: '', type: 'technical' }]) }); }} className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"><FiPlus className="h-4 w-4" /> Add Round</button>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <div className="hidden grid-cols-[52px_minmax(0,1fr)_minmax(180px,0.65fr)_76px] gap-3 bg-slate-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 sm:grid"><span>#</span><span>Round Name</span><span>Interview Type</span><span className="text-center">Action</span></div>
+                <div className="divide-y divide-slate-100">{parseInterviewPlan(form.interviewPlan).map((row, i, rows) => <div key={i} className="grid grid-cols-1 items-center gap-2 p-3 sm:grid-cols-[52px_minmax(0,1fr)_minmax(180px,0.65fr)_76px] sm:gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-700">{i + 1}</span><input required value={row.name} placeholder="Enter round name" onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="min-w-0 rounded-lg border border-thb-border px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="rounded-lg border border-thb-border px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="client">Client</option><option value="ai">AI</option></select><button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan(rows.filter((_, index) => index !== i)) })} className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2.5 text-red-600 transition hover:bg-red-50" aria-label={`Remove round ${i + 1}`}><FiTrash2 className="h-4 w-4" /></button></div>)}</div>
+                {parseInterviewPlan(form.interviewPlan).length === 0 && <div className="m-3 rounded-lg border border-dashed border-red-200 bg-red-50 p-5 text-center text-xs text-red-700">No interview rounds configured. Click <b>Add Round</b> and enter a round name.</div>}
+              </div>
+              <p className="mt-3 text-xs text-slate-500">{parseInterviewPlan(form.interviewPlan).length} round(s) configured. At least one named round is required.</p>
+            </section>
           </div>
+            {/* Task 164: Save as Draft + Submit for Approval */}
+            <div className="sticky bottom-0 z-10 flex flex-col-reverse items-stretch justify-end gap-3 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center">
+              <button onClick={handleCancelForm} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">Cancel</button>
+              <button onClick={() => handleSave('draft')} disabled={submitting} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50">{submitting ? 'Saving...' : 'Save as Draft'}</button>
+              <button onClick={() => handleSave('submit')} disabled={submitting} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-colors hover:bg-emerald-700 disabled:opacity-50"><FiCheck className="h-4 w-4" /> {submitting ? 'Saving...' : 'Submit for Approval'}</button>
+            </div>
         </div>
       )}
 
