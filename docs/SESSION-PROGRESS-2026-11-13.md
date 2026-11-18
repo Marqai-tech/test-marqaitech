@@ -295,3 +295,11 @@ User reported the login tabs (Employee/HR, Candidate, Vendor) "gone". Investigat
 **Smoke 14/14 PASS** (3 login tabs live, HR login, BRD/offers APIs, cron guard, OTP gate, prod commit). Root `/` now lands on the tabbed login.
 
 **Note:** "Browse Jobs" tab exists in no commit of this repo (only the pre-Nov-16 app, commit f41525c, not in this repo's history).
+
+## MORNING 11-18 — Lineage reconciliation deployed (`f2199169`)
+
+Team merged everything on main: deploy-base (bc47dd4 + root→/login login fix) + mega-merge (Tasks 158-165) + new work (vendor portal redesign, candidate signup w/ OTP, leave-setup/policy/mapping suite, BGV report submission) — 1123 commits over 67eba5cd. Tip commit f2199169 "reorder recruitment sidebar workflow" = navData.tsx only (+10/−14). Login page retains 3-tab mode toggle (Employee/HR, Candidate, Vendor) + root redirects to /login. Schema: 5 changed lines only. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy (new Vercel token):** `dpl_9KFaCZ9oiZQhfXDH83zkQvgcwyoj` **READY ~6 min**, aliasAssigned=True → beta domain, SHA f219916.
+
+**Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate (stranger rejected, known candidate 200); prod commit f219916. Alias war resolved by the merge — main now carries the tabbed login, so future main pushes keep it.
