@@ -335,3 +335,11 @@ Team merged everything on main: deploy-base (bc47dd4 + root→/login login fix) 
 **Deploy:** `dpl_Bqryax9x7k6RWo6k1S7WHigNjK4T` **READY ~7.5 min**, aliasAssigned=True → beta domain, SHA d5c047b.
 
 **Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit d5c047b.
+
+## MORNING 11-18f — Recruitment top-nav + dashboard KPI deployed (cb8aaf54)
+
+3 commits over deployed d5c047b1: dashboard date-range filter + clickable KPI cards + detail tables + role-based view (02a44745 — new src/lib/dateRange.ts, DateRangeSelector.tsx, DetailTable.tsx and /api/dashboard/details route; employees/dashboard page + /api/dashboard route updated), recruitment dashboard moved to top navigation (cb8aaf54, navData.tsx 1 line), plus ledger (7836a660). No schema changes (prisma/schema.prisma diff vs d5c047b1 empty). Pre-flight: conflict scan clean, esbuild pass on all 8 touched files.
+
+**Deploy:** `dpl_98gyUydQy53Dn8p6swGKxiA99QBE` **READY at 2026-11-18 11:51:19 UTC (build ~6m50s)**, aliasAssigned=True → beta domain, SHA cb8aaf5.
+
+**Post-deploy smoke (13/13 PASS):** 3 login tabs live (Employee / HR, Vendor, Candidate); HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit cb8aaf5.
