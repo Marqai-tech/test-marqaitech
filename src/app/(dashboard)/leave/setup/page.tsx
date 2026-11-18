@@ -182,8 +182,8 @@ export default function LeaveSetupPage() {
       {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
-      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(id) => go('mapping', 'form', id)} />}
-      {mode === 'form' && tab === 'mapping' && <MappingForm editId={editId} types={types} policies={policies} rules={rules} onCancel={() => go('mapping')} onSaved={onSaved} sq={sq} />}
+      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(policyId) => go('mapping', 'form', policyId)} />}
+      {mode === 'form' && tab === 'mapping' && <MappingForm editPolicyId={editId} types={types} policies={policies} rules={rules} mappings={mappings} onCancel={() => go('mapping')} onSaved={onSaved} sq={sq} />}
       {/* BUG_234 FIX: bottom padding so floating AI icon doesn't cover buttons */}
       <div className="h-16" />
     </div>
@@ -877,21 +877,24 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
 }
 
 
-/* ═══ Mapping Overview with List view ═══ */
-function MappingOverview({ types, policies, rules, mappings, loading, onCreate, onEdit }: { types: LType[]; policies: LPolicy[]; rules: LRule[]; mappings: any[]; loading: boolean; onCreate: () => void; onEdit: (id: string) => void }) {
+/* ═══ Mapping Overview with List + Matrix + Side Panel + Remove ═══ */
+function MappingOverview({ types, policies, rules, mappings, loading, onCreate, onEdit }: {
+  types: LType[]; policies: LPolicy[]; rules: LRule[]; mappings: any[];
+  loading: boolean; onCreate: () => void; onEdit: (policyId: string) => void;
+}) {
   const [view, setView] = useState<'List' | 'Matrix'>('List');
   const [pf, setPf] = useState('');
+  const [selRow, setSelRow] = useState<number | null>(null);
   const activeTypes = types.filter(t => t.status === 'active');
 
-  // BUG_232 FIX: build mapping rows from actual LeaveTypePolicyMapping data (not from rules)
+  // Build mapping rows from actual LeaveTypePolicyMapping data
   const mappingRows: Array<{ policy: LPolicy | undefined; type: LType | undefined; rule: LRule | undefined; mapping: any }> = [];
   for (const m of mappings) {
     const lt = types.find(t => t.id === m.leaveTypeId);
     const rule = rules.find(r => r.id === m.policyRuleId);
-    const policy = rule?.policyId ? policies.find(p => p.id === rule.policyId) : undefined;
+    const policy = rule?.policyId ? policies.find(p => p.id === rule.policyId) : policies.find(p => p.id === m.policyId);
     mappingRows.push({ policy, type: lt, rule, mapping: m });
   }
-  // Sort by policy title then leave type name
   mappingRows.sort((a, b) => {
     const pa = (a.policy?.title || '').toLowerCase();
     const pb = (b.policy?.title || '').toLowerCase();
@@ -899,6 +902,40 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
     return (a.type?.name || '').toLowerCase().localeCompare((b.type?.name || '').toLowerCase());
   });
   const filtered = pf ? mappingRows.filter(m => m.policy?.id === pf) : mappingRows;
+
+  // Side panel selected row
+  const selected = selRow !== null ? filtered[selRow] : null;
+
+  // Plain-words rule summary
+  function ruleSummary(rule?: LRule): string {
+    if (!rule) return 'No rule linked.';
+    const parts: string[] = [];
+    const days = rule.entitledDaysPerYear || rule.entitledDays || 0;
+    if (days > 0) parts.push(`Entitled to ${days} days per year`);
+    else parts.push('Unlimited days (e.g. LOP)');
+    if (rule.halfDayAllowed || rule.halfDay) parts.push('Half-day allowed');
+    const notice = rule.advanceNoticeDays || rule.noticeDays || 0;
+    if (notice > 0) parts.push(`${notice} day(s) advance notice required`);
+    if (rule.carryForwardToNextYear || rule.carryForward) parts.push('Carry forward: Yes');
+    else parts.push('Carry forward: Lapse');
+    const g = (rule.genderApplicability || rule.gender || 'all').toLowerCase();
+    if (g !== 'all' && g !== 'both') parts.push(`Gender: ${g}`);
+    if (rule.employmentType && rule.employmentType !== 'all') parts.push(`Employment: ${rule.employmentType}`);
+    return parts.join('. ') + '.';
+  }
+
+  // Remove a mapping
+  const handleRemove = async (mappingId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Remove this leave type from the policy?')) return;
+    try {
+      const res = await fetch(`/api/leave-type-policy-mappings/${mappingId}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Mapping removed');
+      setSelRow(null);
+      window.location.reload();
+    } catch { toast.error('Failed to remove'); }
+  };
 
   return (
     <div>
@@ -920,8 +957,7 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
           {view === 'List' && <select className="h-8 border border-slate-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-slate-600 outline-none" value={pf} onChange={e => setPf(e.target.value)}>
             <option value="">All policies</option>{policies.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>}
-          {/* Create Mapping button */}
-          <button onClick={onCreate} className="h-8 px-3.5 rounded-lg bg-violet-600 text-white text-[12.5px] font-bold flex items-center gap-1.5 hover:bg-violet-700 transition-colors shadow-sm shadow-violet-500/25">
+          <button onClick={onCreate} className="h-8 px-3.5 rounded-lg bg-violet-600 text-white text-[12.5px] font-bold flex items-center gap-1.5 hover:bg-violet-700 shadow-sm shadow-violet-500/25">
             <FiPlus className="w-3.5 h-3.5" /> Create Mapping
           </button>
         </div>
@@ -932,158 +968,259 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
               <thead><tr>{['Policy', 'Leave type', 'Rule applied', 'Days/year', 'Effective from', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 3 && i <= 4 ? 'text-center' : i === 6 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
               <tbody>
                 {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-                 /* BUG_231 FIX: correct empty state message */
                  filtered.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No mappings yet. Click <b>+ Create Mapping</b> to attach leave types and rules to a policy.</td></tr> :
                  filtered.map((m, i) => (
-                  <tr key={m.mapping?.id || i} className="border-b border-slate-50 hover:bg-slate-50">
+                  <tr key={m.mapping?.id || i} className={`border-b border-slate-50 cursor-pointer transition-colors ${selRow === i ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSelRow(i)}>
                     <td className="px-3.5 py-3 font-bold text-[13px]">{m.policy?.title || '—'}</td>
                     <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{m.type && <CodeChip code={m.type.code} color={m.type.calendarColor} />}<span className="text-[13px]">{m.type?.name || m.mapping?.leaveTypeName || '—'}</span></div></td>
                     <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || m.mapping?.policyRuleName || '—'}</td>
-                    <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule?.entitledDaysPerYear || '—'}</td>
-                    <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{m.policy?.effectiveDate ? fmtDate(m.policy.effectiveDate) : '—'}</td>
-                    <td className="px-3.5 py-3"><StatusPill s={(m.mapping?.status || m.rule?.status || 'active') === 'active' ? 'Active' : 'Inactive'} /></td>
-                    <td className="px-3.5 py-3 text-right"><button onClick={() => m.rule?.id && onEdit(m.rule.id)} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto"><FiEdit2 className="w-3 h-3" />Edit</button></td>
+                    <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule?.entitledDaysPerYear || m.rule?.entitledDays || '—'}</td>
+                    <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{m.policy?.effectiveDate ? fmtDate(m.policy.effectiveDate) : (m.mapping?.effectiveFrom ? fmtDate(m.mapping.effectiveFrom) : '—')}</td>
+                    <td className="px-3.5 py-3"><StatusPill s={(m.mapping?.status || 'active') === 'active' ? 'Active' : 'Inactive'} /></td>
+                    <td className="px-3.5 py-3 text-right">
+                      <div className="flex items-center gap-1 ml-auto justify-end">
+                        <button onClick={e => { e.stopPropagation(); if (m.policy?.id) onEdit(m.policy.id); }} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50" title="Edit this policy's mapping"><FiEdit2 className="w-3 h-3" />Edit</button>
+                        {m.mapping?.id && <button onClick={e => handleRemove(m.mapping.id, e)} className="h-8 px-2 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-bold hover:bg-rose-50" title="Remove this leave type from the policy"><FiX className="w-3 h-3" />Remove</button>}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          /* BUG_232 FIX: Matrix view uses actual mapping data */
+          /* Matrix view — rows clickable → edit that policy's mapping */
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead><tr>
-                <th className="text-left text-[10.5px] font-bold uppercase text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 sticky left-0 bg-white">Policy</th>
+                <th className="text-left text-[10.5px] font-bold uppercase text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50">Policy</th>
                 {activeTypes.map(t => <th key={t.id} className="text-center text-[10px] font-bold text-slate-400 px-1 py-2.5 border-b border-slate-100 bg-slate-50/50" title={t.name}>{t.code}</th>)}
               </tr></thead>
               <tbody>
                 {policies.map(p => (
-                  <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
-                    <td className="px-3.5 py-3 sticky left-0 bg-white"><div className="font-bold text-[13px]">{p.title}</div><div className="text-[11px] text-slate-500">{p.status}</div></td>
+                  <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer" onClick={() => onEdit(p.id)}>
+                    <td className="px-3.5 py-3"><div className="font-bold text-[13px]">{p.title}</div><div className="text-[11px] text-slate-500">{p.status}</div></td>
                     {activeTypes.map(t => {
-                      // Find a mapping for this policy + leave type
                       const match = mappingRows.find(m => m.type?.id === t.id && m.policy?.id === p.id);
-                      return <td key={t.id} className="text-center py-3">{match ? <span className="inline-grid place-items-center w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-extrabold">{match.rule?.entitledDaysPerYear || '✓'}</span> : <span className="inline-grid place-items-center w-7 h-7 rounded-lg text-slate-300 border border-dashed border-slate-200 text-[11px]">—</span>}</td>;
+                      return <td key={t.id} className="text-center py-3">{match ? <span className="inline-grid place-items-center w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-extrabold">{match.rule?.entitledDaysPerYear || match.rule?.entitledDays || '✓'}</span> : <span className="inline-grid place-items-center w-7 h-7 rounded-lg text-slate-300 border border-dashed border-slate-200 text-[11px]">—</span>}</td>;
                     })}
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="text-[12px] text-slate-500 px-4 py-3 border-t border-slate-100">Number = days per year from the mapped rule · ✓ = mapped without a fixed entitlement · — = not mapped</p>
+            <p className="text-[12px] text-slate-500 px-4 py-3 border-t border-slate-100">Number = days per year · ✓ = mapped without fixed days · — = not mapped · Click a row to edit that policy's mapping</p>
           </div>
         )}
       </div>
+
+      {/* Side panel — plain-words rule summary */}
+      {selected && (
+        <Drawer onClose={() => setSelRow(null)}
+          head={<>
+            {selected.type && <CodeChip code={selected.type.code} color={selected.type.calendarColor} />}
+            <div><h3 className="text-lg font-extrabold">{selected.type?.name || '—'}</h3><div className="text-[12px] text-slate-500">{selected.policy?.title || '—'} · {selected.rule?.name || '—'}</div></div>
+          </>}
+          foot={<>
+            <button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => { if (selected.policy?.id) onEdit(selected.policy.id); }}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit mapping</button>
+            {selected.mapping?.id && <button className="h-9 px-3 rounded-lg border border-rose-200 text-rose-600 text-[12px] font-bold" onClick={() => handleRemove(selected.mapping.id, { stopPropagation: () => {} } as any)}><FiX className="w-3.5 h-3.5 inline mr-1" />Remove</button>}
+          </>}>
+          <div className="mb-5">
+            <h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Mapping details</h4>
+            <KV items={[
+              ['Policy', selected.policy?.title || '—'],
+              ['Leave type', selected.type?.name || '—'],
+              ['Rule applied', selected.rule?.name || '—'],
+              ['Days/year', String(selected.rule?.entitledDaysPerYear || selected.rule?.entitledDays || '—')],
+              ['Effective from', selected.policy?.effectiveDate ? fmtDate(selected.policy.effectiveDate) : (selected.mapping?.effectiveFrom ? fmtDate(selected.mapping.effectiveFrom) : '—')],
+              ['Status', (selected.mapping?.status || 'active')],
+            ]} />
+          </div>
+          <div className="mb-5">
+            <h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Rule summary</h4>
+            <div className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-[13px] text-slate-700 leading-relaxed">{ruleSummary(selected.rule)}</div>
+          </div>
+        </Drawer>
+      )}
     </div>
   );
 }
 
-/* ═══ Mapping Form (inline Create/Edit) ═══ */
-function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: {
-  editId: string | null;
+/* ═══ Mapping Form — Create/Edit with Effective from + Policy banner + Replace logic ═══ */
+function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel, onSaved, sq }: {
+  editPolicyId: string | null;
   types: LType[];
   policies: LPolicy[];
   rules: LRule[];
+  mappings: any[];
   onCancel: () => void;
   onSaved: () => void;
   sq: string;
 }) {
-  const [selectedPolicyId, setSelectedPolicyId] = useState('');
-  // Each entry = one leave type with a SET of checked rule ids
+  const [selectedPolicyId, setSelectedPolicyId] = useState(editPolicyId || '');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
   const [rows, setRows] = useState<Array<{
-    leaveTypeId: string; leaveTypeName: string; leaveTypeCode: string;
-    defaultDays: number;
-    checkedRuleIds: string[]; // rules the user has ticked for this leave type
+    leaveTypeId: string; leaveTypeName: string; leaveTypeCode: string; calendarColor?: string;
+    included: boolean; ruleId: string;
   }>>([]);
   const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Initialize rows from leave types
+  const selectedPolicy = policies.find(p => p.id === selectedPolicyId);
+
+  // Initialize: when policy is selected or editPolicyId is set, load existing mappings
   useEffect(() => {
-    if (editId) {
-      // Edit mode: find the rule being edited + pre-fill
-      const rule = rules.find(r => r.id === editId);
-      const lt = rule ? types.find(t => t.id === (rule.leaveTypeId || rule.typeId)) : null;
-      if (lt && rule) {
-        setSelectedPolicyId(rule.policyId || policies[0]?.id || '');
-        setRows([{
-          leaveTypeId: lt.id, leaveTypeName: lt.name, leaveTypeCode: lt.code,
-          defaultDays: lt.defaultDays || 0, checkedRuleIds: [rule.id],
-        }]);
-      }
-    } else {
-      // Add mode: all leave types, pre-populate checked rules from existing mappings
-      setRows(types.filter(t => t.status === 'active').map(lt => {
-        // Find all rules already linked to this leave type (existing mappings)
-        const existingRuleIds = rules.filter(r => (r.leaveTypeId || r.typeId) === lt.id).map(r => r.id);
-        return {
-          leaveTypeId: lt.id, leaveTypeName: lt.name, leaveTypeCode: lt.code,
-          defaultDays: lt.defaultDays || 0, checkedRuleIds: existingRuleIds,
-        };
-      }));
+    if (editPolicyId && !selectedPolicyId) {
+      setSelectedPolicyId(editPolicyId);
     }
-  }, [editId, types, rules, policies]);
+  }, [editPolicyId]);
 
-  // Toggle a rule checkbox for a leave type
-  const toggleRule = (leaveTypeId: string, ruleId: string) => {
-    setRows(prev => prev.map(row => {
-      if (row.leaveTypeId !== leaveTypeId) return row;
-      const isChecked = row.checkedRuleIds.includes(ruleId);
+  useEffect(() => {
+    if (!selectedPolicyId) {
+      setRows([]);
+      setEffectiveFrom('');
+      return;
+    }
+    const policy = policies.find(p => p.id === selectedPolicyId);
+    // Default effective from to policy's effectiveDate
+    if (policy?.effectiveDate) {
+      const d = new Date(policy.effectiveDate);
+      setEffectiveFrom(d.toISOString().split('T')[0]);
+    }
+    // Load existing mappings for this policy — check the leave types that are already mapped
+    const existingMappings = mappings.filter(m => {
+      const rule = rules.find(r => r.id === m.policyRuleId);
+      return rule?.policyId === selectedPolicyId;
+    });
+    const existingByLeaveType = new Map<string, string>(); // leaveTypeId → ruleId
+    for (const m of existingMappings) {
+      existingByLeaveType.set(m.leaveTypeId, m.policyRuleId);
+    }
+    // Build rows: all active leave types, pre-checked if they have existing mappings
+    setRows(types.filter(t => t.status === 'active').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).map(lt => {
+      const existingRuleId = existingByLeaveType.get(lt.id) || '';
+      // Pre-select first active rule if no existing mapping but the type has rules
+      const ltRules = rules.filter(r => (r.leaveTypeId || r.typeId) === lt.id && r.status === 'active');
+      const firstRuleId = existingRuleId || (ltRules.length > 0 ? ltRules[0].id : '');
       return {
-        ...row,
-        checkedRuleIds: isChecked
-          ? row.checkedRuleIds.filter(id => id !== ruleId)
-          : [...row.checkedRuleIds, ruleId],
+        leaveTypeId: lt.id, leaveTypeName: lt.name, leaveTypeCode: lt.code, calendarColor: lt.calendarColor,
+        included: !!existingRuleId, // checked if it has an existing mapping
+        ruleId: firstRuleId,
       };
+    }));
+  }, [selectedPolicyId, policies, types, rules, mappings]);
+
+  const toggleInclude = (leaveTypeId: string) => {
+    setRows(prev => prev.map(r => {
+      if (r.leaveTypeId !== leaveTypeId) return r;
+      const newIncluded = !r.included;
+      // When including, auto-select first active rule if none selected
+      if (newIncluded && !r.ruleId) {
+        const ltRules = rules.filter(rr => (rr.leaveTypeId || rr.typeId) === leaveTypeId && rr.status === 'active');
+        return { ...r, included: true, ruleId: ltRules[0]?.id || '' };
+      }
+      return { ...r, included: newIncluded };
     }));
   };
 
-  // Get all checked (leaveType, rule) pairs — each becomes a mapping on save
-  const checkedPairs: Array<{ leaveTypeId: string; leaveTypeName: string; leaveTypeCode: string; ruleId: string; daysPerYear: number }> = [];
-  for (const row of rows) {
-    for (const ruleId of row.checkedRuleIds) {
-      const rule = rules.find(r => r.id === ruleId);
-      checkedPairs.push({
-        leaveTypeId: row.leaveTypeId,
-        leaveTypeName: row.leaveTypeName,
-        leaveTypeCode: row.leaveTypeCode,
-        ruleId,
-        daysPerYear: rule?.entitledDaysPerYear || row.defaultDays || 0,
-      });
+  const updateRule = (leaveTypeId: string, ruleId: string) => {
+    setRows(prev => prev.map(r => r.leaveTypeId === leaveTypeId ? { ...r, ruleId } : r));
+  };
+
+  // Validation
+  const validate = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!selectedPolicyId) errors.policy = 'Select a policy';
+    if (!effectiveFrom) errors.effectiveFrom = 'Set effective date';
+    const includedRows = rows.filter(r => r.included);
+    if (includedRows.length === 0) errors.rows = 'Tick at least one leave type';
+    for (const r of includedRows) {
+      if (!r.ruleId) errors[`rule_${r.leaveTypeId}`] = 'Select a rule';
     }
-  }
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSave = async () => {
-    if (!editId && !selectedPolicyId) { toast.error('Please select a policy'); return; }
-    if (checkedPairs.length === 0) { toast.error('Please tick at least one rule for a leave type'); return; }
+    if (!validate()) {
+      toast.error(`${Object.keys(validationErrors).length} item(s) need attention`);
+      return;
+    }
     setSaving(true);
-    let ok = 0, fail = 0;
     try {
-      for (const pair of checkedPairs) {
-        const rule = rules.find(r => r.id === pair.ruleId);
+      const includedRows = rows.filter(r => r.included && r.ruleId);
+      const policy = policies.find(p => p.id === selectedPolicyId);
+      const mappingStatus = (policy?.status || '').toLowerCase() === 'active' ? 'active' : 'draft';
+
+      // REPLACE logic: delete old mappings for this policy, then create new ones
+      const oldMappings = mappings.filter(m => {
+        const rule = rules.find(r => r.id === m.policyRuleId);
+        return rule?.policyId === selectedPolicyId;
+      });
+      for (const old of oldMappings) {
+        try { await fetch(`/api/leave-type-policy-mappings/${old.id}`, { method: 'DELETE', headers: getAuthHeaders() }); } catch {}
+      }
+
+      // Create new mappings
+      let ok = 0, fail = 0;
+      for (const row of includedRows) {
+        const rule = rules.find(r => r.id === row.ruleId);
         const payload = {
-          leaveTypeId: pair.leaveTypeId,
-          policyRuleId: pair.ruleId,
+          leaveTypeId: row.leaveTypeId,
+          policyRuleId: row.ruleId,
           priority: 10,
           employmentType: rule?.employmentType || 'all',
           genderApplicability: rule?.genderApplicability || rule?.gender || 'all',
           branchId: rule?.branchId || null,
           departmentId: rule?.departmentId || null,
           employeeIds: null,
+          status: mappingStatus,
         };
         try {
-          const url = editId ? `/api/leave-type-policy-mappings/${editId}` : '/api/leave-type-policy-mappings';
-          const method = editId ? 'PUT' : 'POST';
-          const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
+          const res = await fetch('/api/leave-type-policy-mappings', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
           if (res.ok) ok++; else fail++;
         } catch { fail++; }
       }
-      if (ok > 0) { toast.success(`${editId ? 'Updated' : 'Created'} ${ok} mapping(s)${fail > 0 ? `, ${fail} failed` : ''}`); onSaved(); }
-      else toast.error('Failed to save mappings');
+      if (ok > 0) {
+        toast.success(`${ok} leave type(s) mapped to "${policy?.title || 'policy'}"${fail > 0 ? `, ${fail} failed` : ''}`);
+        onSaved();
+      } else {
+        toast.error('Failed to save mappings');
+      }
     } catch (e: any) { toast.error(e.message || 'Failed'); }
     finally { setSaving(false); }
   };
 
-  const selectedPolicy = policies.find(p => p.id === selectedPolicyId);
-  const totalChecked = checkedPairs.length;
+  const includedCount = rows.filter(r => r.included).length;
+  const missingCount = rows.filter(r => r.included && !r.ruleId).length;
+  const errorCount = Object.keys(validationErrors).length;
+
+  // Derive "Who" from a rule
+  function whoBadges(rule?: LRule): Array<{ label: string; cls: string }> {
+    if (!rule) return [{ label: '—', cls: 'bg-slate-100 text-slate-400' }];
+    const badges: Array<{ label: string; cls: string }> = [];
+    const g = (rule.genderApplicability || rule.gender || 'all').toLowerCase();
+    if (g === 'male') badges.push({ label: 'Male', cls: 'bg-blue-50 text-blue-700' });
+    else if (g === 'female') badges.push({ label: 'Female', cls: 'bg-pink-50 text-pink-700' });
+    else if (g === 'other') badges.push({ label: 'Other', cls: 'bg-amber-50 text-amber-700' });
+    if (rule.employmentType && rule.employmentType !== 'all') {
+      if (rule.employmentType === 'internship') badges.push({ label: 'Probation', cls: 'bg-amber-50 text-amber-700' });
+      else badges.push({ label: rule.employmentType.charAt(0).toUpperCase() + rule.employmentType.slice(1), cls: 'bg-teal-50 text-teal-700' });
+    }
+    if (rule.branch?.name) badges.push({ label: rule.branch.name, cls: 'bg-emerald-50 text-emerald-700' });
+    if (rule.department?.name) badges.push({ label: rule.department.name, cls: 'bg-indigo-50 text-indigo-700' });
+    if (badges.length === 0) badges.push({ label: 'All', cls: 'bg-slate-100 text-slate-600' });
+    return badges;
+  }
+
+  // Check if rule's employment type mismatches policy's scope
+  function statusMismatch(rule?: LRule): boolean {
+    if (!rule || !selectedPolicy) return false;
+    const policyDesc = (selectedPolicy.description || '').toLowerCase();
+    const ruleEmpType = (rule.employmentType || 'all').toLowerCase();
+    if (policyDesc.includes('probation') && ruleEmpType === 'full-time') return true;
+    if (policyDesc.includes('confirmed') && ruleEmpType === 'internship') return true;
+    return false;
+  }
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
@@ -1093,168 +1230,138 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
           <span>Leave</span><span className="text-slate-300">›</span>
           <span>Setup</span><span className="text-slate-300">›</span>
           <span>Mapping</span><span className="text-slate-300">›</span>
-          <span className="text-violet-600 font-medium">{editId ? 'Edit Mapping' : 'Create Mapping'}</span>
+          <span className="text-violet-600 font-medium">{editPolicyId ? 'Edit Mapping' : 'Create Mapping'}</span>
         </div>
 
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <FiGrid className="w-5 h-5 text-violet-500" /> {editId ? 'Edit Mapping' : 'Create Mapping'}
+              <FiGrid className="w-5 h-5 text-violet-500" /> {editPolicyId ? 'Edit Mapping' : 'Create Mapping'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">Select a policy, then tick the leave types to include and pick the applicable rule for each.</p>
           </div>
           <button onClick={onCancel} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"><FiX className="w-5 h-5" /></button>
         </div>
 
-        {/* Step 1 — Select Policy */}
-        {!editId && (
-          <div className="bg-slate-50/70 border border-slate-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-              <h3 className="text-sm font-semibold text-slate-900">Select Policy <span className="text-red-500">*</span></h3>
+        {/* Section 1 — Select Policy + Effective from + Info banner */}
+        <div className="bg-slate-50/70 border border-slate-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <h3 className="text-sm font-semibold text-slate-900">Select Policy <span className="text-red-500">*</span></h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${validationErrors.policy ? 'text-red-500' : 'text-slate-600'}`}>Leave Policy {validationErrors.policy && <span className="text-red-500">— {validationErrors.policy}</span>}</label>
+              <select value={selectedPolicyId} onChange={e => { setSelectedPolicyId(e.target.value); setValidationErrors({}); }} className={`w-full px-3 py-2 text-sm border rounded-lg bg-white outline-none focus:ring-2 focus:ring-violet-500/20 ${validationErrors.policy ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}>
+                <option value="">— Select a policy —</option>
+                {policies.map(p => <option key={p.id} value={p.id}>{p.title}{(p.status || '').toLowerCase() === 'active' ? ' — Active' : ` — ${p.status}`}</option>)}
+              </select>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Leave Policy</label>
-                <select value={selectedPolicyId} onChange={e => setSelectedPolicyId(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-violet-500/20">
-                  <option value="">— Select a policy —</option>
-                  {policies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version || '1.0'}){p.status === 'active' || p.status === 'Active' ? ' — Active' : ''}</option>)}
-                </select>
-              </div>
-              {selectedPolicy && (
-                <div className="text-xs text-slate-600 space-y-1 sm:pt-7">
-                  <p><span className="font-medium">Status:</span> <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs ${(selectedPolicy.status || '').toLowerCase() === 'active' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>{selectedPolicy.status}</span></p>
-                  <p><span className="font-medium">Effective:</span> {fmtDate(selectedPolicy.effectiveDate || '')}</p>
-                  {selectedPolicy.description && <p className="text-slate-500">{selectedPolicy.description}</p>}
-                </div>
-              )}
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${validationErrors.effectiveFrom ? 'text-red-500' : 'text-slate-600'}`}>Effective from <span className="text-red-500">*</span> {validationErrors.effectiveFrom && <span className="text-red-500">— {validationErrors.effectiveFrom}</span>}</label>
+              <input type="date" value={effectiveFrom} onChange={e => { setEffectiveFrom(e.target.value); setValidationErrors(prev => { const c = {...prev}; delete c.effectiveFrom; return c; }); }} className={`w-full px-3 py-2 text-sm border rounded-lg bg-white outline-none focus:ring-2 focus:ring-violet-500/20 ${validationErrors.effectiveFrom ? 'border-red-400 bg-red-50' : 'border-slate-300'}`} />
             </div>
           </div>
-        )}
+          {/* Blue info banner */}
+          {selectedPolicy && (
+            <div className="px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold"><FiInfo className="w-3.5 h-3.5" />{selectedPolicy.title}</div>
+              <div className="ml-5 space-y-0.5">
+                <p><b>Applies to:</b> {selectedPolicy.description || 'All employees'}</p>
+                <p><b>Leave year:</b> {selectedPolicy.effectiveDate ? fmtDate(selectedPolicy.effectiveDate) : '—'} → {selectedPolicy.expiryDate ? fmtDate(selectedPolicy.expiryDate) : '—'}</p>
+                <p><b>Status:</b> {(selectedPolicy.status || '').toLowerCase() === 'active' ? 'Active' : selectedPolicy.status}</p>
+                {mappings.filter(m => { const r = rules.find(rr => rr.id === m.policyRuleId); return r?.policyId === selectedPolicyId; }).length > 0 && (
+                  <p className="text-blue-600 font-medium">✓ {mappings.filter(m => { const r = rules.find(rr => rr.id === m.policyRuleId); return r?.policyId === selectedPolicyId; }).length} existing mapping(s) loaded — editing will replace them.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
-        {/* Step 2 — Leave Types & Rules (checkboxes for rules, matching screenshot) */}
+        {/* Section 2 — Leave Types & Rules */}
         <div className="bg-slate-50/70 border border-slate-200 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
             <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">2</span>
             <h3 className="text-sm font-semibold text-slate-900">Leave Types &amp; Rules</h3>
-            <span className="text-xs text-slate-500">— tick the box next to each rule you want to include</span>
+            {validationErrors.rows && <span className="text-xs text-red-500 font-medium">— {validationErrors.rows}</span>}
           </div>
-          {/* Info note */}
-          {!editId && (
-            <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex items-start gap-2">
-              <FiInfo className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-              <span><b>Multiple rules per leave type:</b> A single leave type (e.g. Casual Leave) can have multiple rules — tick all the rules you want to map under the selected policy. Each checked rule creates a separate mapping.</span>
-            </div>
-          )}
           {types.length === 0 ? (
             <div className="text-sm text-slate-500 bg-white rounded-lg p-4 border border-slate-200">No leave types configured. Create leave types first in Step 1.</div>
-          ) : rules.length === 0 ? (
-            <div className="text-sm text-slate-500 bg-white rounded-lg p-4 border border-slate-200">No policy rules defined. Create rules first in Step 3.</div>
           ) : (
             <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider w-16 text-center">Include</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Leave Type</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Rule to Apply</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider w-28">Days/Year</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Who</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase w-16 text-center">Include</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Leave Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Rule to Apply</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase w-24">Days/Year</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Who</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {rows.map(row => {
-                    // Find all rules for this leave type
-                    const ltRules = rules.filter(r => (r.leaveTypeId || r.typeId) === row.leaveTypeId);
-                    if (ltRules.length === 0) {
-                      // No rules defined for this leave type — show a placeholder row
-                      return (
-                        <tr key={row.leaveTypeId} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-3 text-center text-slate-300">—</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
-                              <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
-                            </div>
-                            {row.leaveTypeCode && <p className="text-xs text-slate-400 mt-0.5">Code: {row.leaveTypeCode}</p>}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-slate-400 italic" colSpan={3}>No rules defined for this leave type — create one in Step 3</td>
-                        </tr>
-                      );
-                    }
-                    // Render one row per rule (each with its own checkbox)
-                    // But the leave type name only shows on the first rule row (rowSpan)
-                    return ltRules.map((rule, idx) => {
-                      const isChecked = row.checkedRuleIds.includes(rule.id);
-                      const daysPerYear = rule.entitledDaysPerYear || row.defaultDays || 0;
-                      // Derive "Who" badges from the rule's scope
-                      const whoBadges: Array<{ label: string; cls: string }> = [];
-                      const g = (rule.genderApplicability || rule.gender || 'all').toLowerCase();
-                      if (g === 'male') whoBadges.push({ label: 'Male', cls: 'bg-blue-50 text-blue-700' });
-                      else if (g === 'female') whoBadges.push({ label: 'Female', cls: 'bg-pink-50 text-pink-700' });
-                      else if (g === 'other') whoBadges.push({ label: 'Other', cls: 'bg-amber-50 text-amber-700' });
-                      if (rule.employmentType && rule.employmentType !== 'all') {
-                        if (rule.employmentType === 'internship') whoBadges.push({ label: 'Probation', cls: 'bg-amber-50 text-amber-700' });
-                        else whoBadges.push({ label: rule.employmentType.charAt(0).toUpperCase() + rule.employmentType.slice(1), cls: 'bg-teal-50 text-teal-700' });
-                      }
-                      if (rule.branch?.name) whoBadges.push({ label: rule.branch.name, cls: 'bg-emerald-50 text-emerald-700' });
-                      if (rule.department?.name) whoBadges.push({ label: rule.department.name, cls: 'bg-indigo-50 text-indigo-700' });
-                      if (whoBadges.length === 0) whoBadges.push({ label: 'All', cls: 'bg-slate-100 text-slate-600' });
-
-                      return (
-                        <tr key={`${row.leaveTypeId}-${rule.id}`} className={`transition-colors ${isChecked ? 'bg-violet-50/40' : 'hover:bg-slate-50/50'} ${idx > 0 ? 'border-t border-slate-50' : ''}`}>
-                          {/* Include checkbox */}
-                          <td className="px-4 py-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleRule(row.leaveTypeId, rule.id)}
-                              className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
-                            />
-                          </td>
-                          {/* Leave Type — only show on the first rule row for this leave type (rowSpan) */}
-                          {idx === 0 && (
-                            <td className="px-4 py-3 align-top" rowSpan={ltRules.length}>
-                              <div className="flex items-center gap-2">
-                                {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
-                                <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
-                              </div>
-                              {ltRules.length > 1 && <p className="text-[10px] text-violet-500 mt-1 font-medium">{ltRules.length} rules available</p>}
-                            </td>
-                          )}
-                          {/* Rule to Apply — show the rule name as a label next to the checkbox */}
-                          <td className="px-4 py-3">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm" onClick={() => toggleRule(row.leaveTypeId, rule.id)}>
-                              <span className={`font-medium ${isChecked ? 'text-violet-700' : 'text-slate-700'}`}>{rule.name}</span>
-                            </label>
-                          </td>
-                          {/* Days/Year */}
-                          <td className="px-4 py-3">
-                            <span className="font-bold text-slate-900 text-sm">{daysPerYear}</span>
-                            <span className="text-xs text-slate-400 ml-1">days</span>
-                          </td>
-                          {/* Who */}
-                          <td className="px-4 py-3">
+                    const ltRules = rules.filter(r => (r.leaveTypeId || r.typeId) === row.leaveTypeId && r.status === 'active');
+                    const selectedRule = rules.find(r => r.id === row.ruleId);
+                    const daysYr = selectedRule?.entitledDaysPerYear || selectedRule?.entitledDays || 0;
+                    const hasRuleError = validationErrors[`rule_${row.leaveTypeId}`];
+                    const mismatch = row.included && statusMismatch(selectedRule);
+                    return (
+                      <tr key={row.leaveTypeId} className={`transition-colors ${row.included ? '' : 'bg-slate-50/30 opacity-60'}`}>
+                        <td className="px-4 py-3 text-center">
+                          <input type="checkbox" checked={row.included} onChange={() => toggleInclude(row.leaveTypeId)} className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 cursor-pointer" />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} color={row.calendarColor} />}
+                            <span className={`font-medium text-[13px] ${row.included ? 'text-slate-900' : 'text-slate-500'}`}>{row.leaveTypeName}</span>
+                          </div>
+                          {ltRules.length === 0 && <span className="text-[10px] text-amber-600 font-medium ml-1">No rule — create in Step 3</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <select value={row.ruleId} onChange={e => updateRule(row.leaveTypeId, e.target.value)} disabled={!row.included || ltRules.length === 0} className={`w-full text-xs px-2 py-1.5 rounded border bg-white outline-none focus:ring-2 focus:ring-violet-500/20 disabled:bg-slate-50 disabled:text-slate-400 ${hasRuleError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}>
+                            <option value="">— Select rule —</option>
+                            {ltRules.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                          {hasRuleError && <p className="text-[10px] text-red-500 mt-0.5">{hasRuleError}</p>}
+                          {mismatch && <p className="text-[10px] text-amber-600 mt-0.5 font-medium">⚠ Rule's employee status doesn't match policy scope</p>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {row.included && selectedRule ? <><span className="font-bold text-slate-900 text-sm">{daysYr}</span><span className="text-xs text-slate-400 ml-1">days</span></> : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {row.included ? (
                             <div className="flex items-center gap-1 flex-wrap">
-                              {whoBadges.map(b => <span key={b.label} className={`text-xs px-1.5 py-0.5 rounded ${b.cls}`}>{b.label}</span>)}
+                              {whoBadges(selectedRule).map(b => <span key={b.label} className={`text-xs px-1.5 py-0.5 rounded ${b.cls}`}>{b.label}</span>)}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    });
+                          ) : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+                      </tr>
+                    );
                   })}
                 </tbody>
               </table>
             </div>
           )}
+          {/* Validation footer */}
+          {errorCount > 0 && (
+            <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
+              {errorCount} item(s) need attention — highlighted in red above
+            </div>
+          )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
-          <button onClick={onCancel} className="px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-          <button onClick={handleSave} disabled={saving || (!editId && (!selectedPolicyId || totalChecked === 0))} className="px-6 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-violet-500/25 flex items-center gap-2">
-            <FiPlus className="w-4 h-4" /> {saving ? 'Saving...' : editId ? 'Save Changes' : `Save Mapping${totalChecked > 0 ? ` (${totalChecked})` : ''}`}
-          </button>
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200">
+          <div className="text-xs text-slate-500">
+            {includedCount > 0 ? `${includedCount} leave type(s) included${missingCount > 0 ? ` · ${missingCount} missing rule` : ''}` : 'No leave types included yet'}
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={onCancel} className="px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-violet-500/25 flex items-center gap-2">
+              {saving ? 'Saving...' : editPolicyId ? 'Save Changes' : `Save Mapping${includedCount > 0 ? ` (${includedCount})` : ''}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>
