@@ -303,3 +303,11 @@ Team merged everything on main: deploy-base (bc47dd4 + root→/login login fix) 
 **Deploy (new Vercel token):** `dpl_9KFaCZ9oiZQhfXDH83zkQvgcwyoj` **READY ~6 min**, aliasAssigned=True → beta domain, SHA f219916.
 
 **Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate (stranger rejected, known candidate 200); prod commit f219916. Alias war resolved by the merge — main now carries the tabbed login, so future main pushes keep it.
+
+## MORNING 11-18b — Requisitions master-detail deployed (`e94b6110`)
+
+5 commits over the deployed f2199169, all team work on the reconciled lineage: leave-setup Create Mapping button + inline form (4146a9c7), multiple policies+rules per leave type (90026919), rule checkboxes in Create Mapping (1cb501b4), and requisitions redesigned as master-detail workspace (e94b6110, 1 file +116/−25). No schema changes. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_5yRFPH3HjSnW2E8TSGFdPuXg6cJ2` **READY ~7 min** (1.5 min QUEUED), aliasAssigned=True → beta domain, SHA e94b611.
+
+**Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit e94b611.
