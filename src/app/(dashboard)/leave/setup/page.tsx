@@ -84,8 +84,8 @@ function FormFooter({ onCancel, onSave, isEdit, errCount, saveLabel }: { onCance
 
 /* ═══ Types ═══ */
 interface LType { id: string; name: string; code: string; description?: string; category?: string; smallestUnit?: string; displayOrder?: number; calendarColor?: string; status: string; isPaid?: boolean; }
-interface LRule { id: string; name: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; employmentType?: string; employeeStatus?: string; }
-interface LPolicy { id: string; title: string; name?: string; code?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; }
+interface LRule { id: string; name: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
+interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; }
 interface LMapping { id: string; policyId: string; typeId: string; ruleId: string; effectiveFrom: string; status: string; }
 
 const STEPS = [
@@ -178,7 +178,8 @@ export default function LeaveSetupPage() {
       {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
-      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} loading={loading} />}
+      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(id) => go('mapping', 'form', id)} />}
+      {mode === 'form' && tab === 'mapping' && <MappingForm editId={editId} types={types} policies={policies} rules={rules} onCancel={() => go('mapping')} onSaved={onSaved} sq={sq} />}
     </div>
   );
 }
@@ -806,7 +807,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
 
 
 /* ═══ Mapping Overview with List view ═══ */
-function MappingOverview({ types, policies, rules, loading }: { types: LType[]; policies: LPolicy[]; rules: LRule[]; loading: boolean }) {
+function MappingOverview({ types, policies, rules, loading, onCreate, onEdit }: { types: LType[]; policies: LPolicy[]; rules: LRule[]; loading: boolean; onCreate: () => void; onEdit: (id: string) => void }) {
   const [view, setView] = useState<'List' | 'Matrix'>('List');
   const [pf, setPf] = useState('');
   const activeTypes = types.filter(t => t.status === 'active');
@@ -842,6 +843,10 @@ function MappingOverview({ types, policies, rules, loading }: { types: LType[]; 
           {view === 'List' && <select className="h-8 border border-slate-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-slate-600 outline-none" value={pf} onChange={e => setPf(e.target.value)}>
             <option value="">All policies</option>{policies.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>}
+          {/* Create Mapping button */}
+          <button onClick={onCreate} className="h-8 px-3.5 rounded-lg bg-violet-600 text-white text-[12.5px] font-bold flex items-center gap-1.5 hover:bg-violet-700 transition-colors shadow-sm shadow-violet-500/25">
+            <FiPlus className="w-3.5 h-3.5" /> Create Mapping
+          </button>
         </div>
 
         {view === 'List' ? (
@@ -858,7 +863,7 @@ function MappingOverview({ types, policies, rules, loading }: { types: LType[]; 
                     <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || '—'}</td>
                     <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule?.entitledDaysPerYear || '—'}</td>
                     <td className="px-3.5 py-3"><StatusPill s={m.rule?.status || 'Inactive'} /></td>
-                    <td className="px-3.5 py-3 text-right"><button className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto"><FiEdit2 className="w-3 h-3" />Edit</button></td>
+                    <td className="px-3.5 py-3 text-right"><button onClick={() => m.rule?.id && onEdit(m.rule.id)} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto"><FiEdit2 className="w-3 h-3" />Edit</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -886,6 +891,216 @@ function MappingOverview({ types, policies, rules, loading }: { types: LType[]; 
             <p className="text-[12px] text-slate-500 px-4 py-3 border-t border-slate-100">Number = days per year from the mapped rule · ✓ = mapped without a fixed entitlement · — = not mapped</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Mapping Form (inline Create/Edit) ═══ */
+function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: {
+  editId: string | null;
+  types: LType[];
+  policies: LPolicy[];
+  rules: LRule[];
+  onCancel: () => void;
+  onSaved: () => void;
+  sq: string;
+}) {
+  const [selectedPolicyId, setSelectedPolicyId] = useState('');
+  const [rows, setRows] = useState<Array<{
+    leaveTypeId: string; leaveTypeName: string; leaveTypeCode: string;
+    defaultDays: number; included: boolean; ruleId: string; daysPerYear: number;
+  }>>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Initialize rows from leave types
+  useEffect(() => {
+    if (editId) {
+      // Edit mode: find the rule being edited + pre-fill
+      const rule = rules.find(r => r.id === editId);
+      const lt = rule ? types.find(t => t.id === (rule.leaveTypeId || rule.typeId)) : null;
+      if (lt && rule) {
+        setSelectedPolicyId(rule.policyId || policies[0]?.id || '');
+        setRows([{
+          leaveTypeId: lt.id, leaveTypeName: lt.name, leaveTypeCode: lt.code,
+          defaultDays: lt.defaultDays || 0, included: true, ruleId: rule.id,
+          daysPerYear: rule.entitledDaysPerYear || lt.defaultDays || 0,
+        }]);
+      }
+    } else {
+      // Add mode: all leave types, pre-populate with existing rule if any
+      setRows(types.filter(t => t.status === 'active').map(lt => {
+        const existingRule = rules.find(r => (r.leaveTypeId || r.typeId) === lt.id);
+        return {
+          leaveTypeId: lt.id, leaveTypeName: lt.name, leaveTypeCode: lt.code,
+          defaultDays: lt.defaultDays || 0, included: false,
+          ruleId: existingRule?.id || '', daysPerYear: existingRule?.entitledDaysPerYear || lt.defaultDays || 0,
+        };
+      }));
+    }
+  }, [editId, types, rules, policies]);
+
+  const updateRowRule = (leaveTypeId: string, ruleId: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.leaveTypeId !== leaveTypeId) return row;
+      if (!ruleId) return { ...row, ruleId: '', daysPerYear: row.defaultDays };
+      const rule = rules.find(r => r.id === ruleId);
+      return { ...row, ruleId, daysPerYear: rule?.entitledDaysPerYear || row.defaultDays };
+    }));
+  };
+  const updateRowDays = (ltId: string, days: number) => setRows(prev => prev.map(r => r.leaveTypeId === ltId ? { ...r, daysPerYear: days } : r));
+  const toggleRow = (ltId: string) => setRows(prev => prev.map(r => r.leaveTypeId === ltId ? { ...r, included: !r.included } : r));
+
+  const handleSave = async () => {
+    if (!editId && !selectedPolicyId) { toast.error('Please select a policy'); return; }
+    const includedRows = rows.filter(r => r.included && r.ruleId);
+    if (includedRows.length === 0) { toast.error('Please tick at least one leave type and select a rule'); return; }
+    setSaving(true);
+    let ok = 0, fail = 0;
+    try {
+      for (const row of includedRows) {
+        const rule = rules.find(r => r.id === row.ruleId);
+        const payload = {
+          leaveTypeId: row.leaveTypeId,
+          policyRuleId: row.ruleId,
+          priority: 10,
+          employmentType: rule?.employmentType || 'all',
+          genderApplicability: rule?.genderApplicability || rule?.gender || 'all',
+          branchId: rule?.branchId || null,
+          departmentId: rule?.departmentId || null,
+          employeeIds: null,
+        };
+        try {
+          const url = editId ? `/api/leave-type-policy-mappings/${editId}` : '/api/leave-type-policy-mappings';
+          const method = editId ? 'PUT' : 'POST';
+          const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
+          if (res.ok) ok++; else fail++;
+        } catch { fail++; }
+      }
+      if (ok > 0) { toast.success(`${editId ? 'Updated' : 'Created'} ${ok} mapping(s)${fail > 0 ? `, ${fail} failed` : ''}`); onSaved(); }
+      else toast.error('Failed to save mappings');
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setSaving(false); }
+  };
+
+  const selectedPolicy = policies.find(p => p.id === selectedPolicyId);
+  const includedCount = rows.filter(r => r.included && r.ruleId).length;
+
+  return (
+    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+      <div className="p-6 space-y-5">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <span>Leave</span><span className="text-slate-300">›</span>
+          <span>Setup</span><span className="text-slate-300">›</span>
+          <span>Mapping</span><span className="text-slate-300">›</span>
+          <span className="text-violet-600 font-medium">{editId ? 'Edit Mapping' : 'Create Mapping'}</span>
+        </div>
+
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <FiGrid className="w-5 h-5 text-violet-500" /> {editId ? 'Edit Mapping' : 'Create Mapping'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">Select a policy, then tick the leave types to include and pick the applicable rule for each.</p>
+          </div>
+          <button onClick={onCancel} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"><FiX className="w-5 h-5" /></button>
+        </div>
+
+        {/* Step 1 — Select Policy */}
+        {!editId && (
+          <div className="bg-slate-50/70 border border-slate-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+              <h3 className="text-sm font-semibold text-slate-900">Select Policy <span className="text-red-500">*</span></h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Leave Policy</label>
+                <select value={selectedPolicyId} onChange={e => setSelectedPolicyId(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-violet-500/20">
+                  <option value="">— Select a policy —</option>
+                  {policies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version || '1.0'}){p.status === 'active' || p.status === 'Active' ? ' — Active' : ''}</option>)}
+                </select>
+              </div>
+              {selectedPolicy && (
+                <div className="text-xs text-slate-600 space-y-1 sm:pt-7">
+                  <p><span className="font-medium">Status:</span> <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs ${(selectedPolicy.status || '').toLowerCase() === 'active' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>{selectedPolicy.status}</span></p>
+                  <p><span className="font-medium">Effective:</span> {fmtDate(selectedPolicy.effectiveDate || '')}</p>
+                  {selectedPolicy.description && <p className="text-slate-500">{selectedPolicy.description}</p>}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — Leave Types & Rules */}
+        <div className="bg-slate-50/70 border border-slate-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">{editId ? '2' : '2'}</span>
+            <h3 className="text-sm font-semibold text-slate-900">Leave Types &amp; Rules</h3>
+            <span className="text-xs text-slate-500">— {editId ? 'update the rule for this leave type' : 'tick the leave types to include'}</span>
+          </div>
+          {types.length === 0 ? (
+            <div className="text-sm text-slate-500 bg-white rounded-lg p-4 border border-slate-200">No leave types configured. Create leave types first in Step 1.</div>
+          ) : rules.length === 0 ? (
+            <div className="text-sm text-slate-500 bg-white rounded-lg p-4 border border-slate-200">No policy rules defined. Create rules first in Step 3.</div>
+          ) : (
+            <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase w-16 text-center">Include</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Leave Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Applicable Rule</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase w-32">Days/Year</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Applicable To</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map(row => {
+                    const rule = rules.find(r => r.id === row.ruleId);
+                    return (
+                      <tr key={row.leaveTypeId} className={`transition-colors ${row.included ? 'bg-violet-50/40' : 'hover:bg-slate-50/50'}`}>
+                        <td className="px-4 py-3 text-center"><input type="checkbox" checked={row.included} onChange={() => toggleRow(row.leaveTypeId)} className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 cursor-pointer" /></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
+                            <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5">default {row.defaultDays} days/year</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <select value={row.ruleId} onChange={e => updateRowRule(row.leaveTypeId, e.target.value)} disabled={!!editId} className="w-full text-xs px-2 py-1.5 rounded border border-slate-300 bg-white outline-none focus:ring-2 focus:ring-violet-500/20 disabled:bg-slate-50 disabled:text-slate-400">
+                            <option value="">— Select rule —</option>
+                            {rules.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3"><input type="number" min={0} value={row.daysPerYear} onChange={e => updateRowDays(row.leaveTypeId, parseInt(e.target.value) || 0)} disabled={!row.ruleId} className="w-24 px-2 py-1 rounded border border-slate-300 text-sm disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {rule?.genderApplicability && rule.genderApplicability !== 'all' && <span className={`text-xs px-1.5 py-0.5 rounded ${rule.genderApplicability === 'male' ? 'bg-blue-50 text-blue-700' : rule.genderApplicability === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-amber-50 text-amber-700'}`}>{rule.genderApplicability}</span>}
+                            {rule?.employmentType && rule.employmentType !== 'all' && <span className="text-xs px-1.5 py-0.5 rounded bg-teal-50 text-teal-700">{rule.employmentType}</span>}
+                            {rule?.branch?.name && <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{rule.branch.name}</span>}
+                            {rule?.department?.name && <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{rule.department.name}</span>}
+                            {(!rule || (!rule.genderApplicability || rule.genderApplicability === 'all') && (!rule.employmentType || rule.employmentType === 'all') && !rule?.branch?.name && !rule?.department?.name) && <span className="text-xs text-slate-400">All Employees</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
+          <button onClick={onCancel} className="px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+          <button onClick={handleSave} disabled={saving || (!editId && (!selectedPolicyId || includedCount === 0))} className="px-6 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-violet-500/25 flex items-center gap-2">
+            <FiPlus className="w-4 h-4" /> {saving ? 'Saving...' : editId ? 'Save Changes' : `Save Mapping${includedCount > 0 ? ` (${includedCount})` : ''}`}
+          </button>
+        </div>
       </div>
     </div>
   );
