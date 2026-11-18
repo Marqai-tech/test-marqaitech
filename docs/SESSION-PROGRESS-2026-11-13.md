@@ -327,3 +327,11 @@ Team merged everything on main: deploy-base (bc47dd4 + root→/login login fix) 
 **Deploy:** `dpl_B2ABKfXAGq7AJESZrwx3RKyzTzHy` **READY ~6 min**, aliasAssigned=True → beta domain, SHA 275ea81.
 
 **Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit 275ea81.
+
+## MORNING 11-18e — Guided create-job wizard deployed (`d5c047b1`)
+
+1 commit over deployed 275ea815 (+ledger): create-jobs flow rebuilt as a guided wizard (recruitment/page.tsx, +43/−12). No schema changes. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_Bqryax9x7k6RWo6k1S7WHigNjK4T` **READY ~7.5 min**, aliasAssigned=True → beta domain, SHA d5c047b.
+
+**Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit d5c047b.
