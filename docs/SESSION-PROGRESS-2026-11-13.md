@@ -343,3 +343,11 @@ Team merged everything on main: deploy-base (bc47dd4 + root→/login login fix) 
 **Deploy:** `dpl_98gyUydQy53Dn8p6swGKxiA99QBE` **READY at 2026-11-18 11:51:19 UTC (build ~6m50s)**, aliasAssigned=True → beta domain, SHA cb8aaf5.
 
 **Post-deploy smoke (13/13 PASS):** 3 login tabs live (Employee / HR, Vendor, Candidate); HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit cb8aaf5.
+
+## NOON 11-18 — Five-step create-job mock screens deployed (`b43e95c5`)
+
+3 commits over deployed cb8aaf54: leave-mapping complete rewrite (79b80cc8, previously auto-deployed, now pinned in an explicit deploy), ledger, and five-step create job mock screens (b43e95c5, recruitment page +17/−9). No schema changes. Pre-flight: conflict scan clean, esbuild pass.
+
+**Deploy:** `dpl_3hxSLDNsZQEWStrgM33ibYpYruvq` **READY ~6.5 min**, aliasAssigned=True → beta domain, SHA b43e95c.
+
+**Post-deploy smoke (13/13 PASS):** 3 login tabs live; HR login + BRD/offers APIs 200; cron guard 401; OTP gate correct; prod commit b43e95c.
