@@ -252,6 +252,107 @@ export async function GET(req: NextRequest) {
     // Usage: GET /api/leave-types?debug=1
     // Returns the same data PLUS a _debug object showing how many types exist,
     // how many mappings exist, and how many the employee is allowed to see.
+    // ─── FINAL MAPPING ENFORCEMENT (simple + robust) ───
+    // For employees only: query LeaveTypePolicyMapping directly to check if
+    // each leave type has at least one active mapping that matches the employee.
+    // This runs AFTER all existing logic as a safety net — if the resolver-based
+    // filtering above missed anything, this catches it.
+    if (scope && scope.scope === 'self' && filteredTypes.length > 0) {
+      try {
+        // Re-fetch employee if not already available
+        let empId = '';
+        let empGender = '';
+        let empEmpType = '';
+        let empBranchId: string | null = null;
+        let empDeptId: string | null = null;
+        const emp = await db.employee.findFirst({
+          where: { userId: scope.userId },
+          select: { id: true, gender: true, employeeType: true, branchId: true, departmentId: true },
+        }).catch(() => null);
+        if (emp) {
+          empId = emp.id;
+          empGender = (emp.gender || '').toLowerCase();
+          empEmpType = (emp.employeeType || '').toLowerCase().replace('_', '-');
+          empBranchId = emp.branchId || null;
+          empDeptId = emp.departmentId || null;
+        }
+
+        if (empId) {
+          // Query all active mappings for these leave types (across ALL companies)
+          const ltIds = filteredTypes.map((t: any) => t.id);
+          if (ltIds.length > 0) {
+            const placeholders = ltIds.map((_: any, i: number) => `$${i + 1}`).join(',');
+            const mappingRows: any[] = await db.$queryRawUnsafe(
+              `SELECT "leaveTypeId", "employmentType", "genderApplicability", "branchId", "departmentId", "employeeIds"
+               FROM "LeaveTypePolicyMapping"
+               WHERE "leaveTypeId" IN (${placeholders})
+                 AND status = 'active'`,
+              ...ltIds
+            );
+
+            // Check if ANY mappings exist at all
+            if (mappingRows.length > 0) {
+              // Group mappings by leaveTypeId
+              const mappingsByLt = new Map<string, any[]>();
+              for (const m of mappingRows) {
+                const arr = mappingsByLt.get(m.leaveTypeId) || [];
+                arr.push(m);
+                mappingsByLt.set(m.leaveTypeId, arr);
+              }
+
+              // Filter: only keep leave types where at least one mapping matches the employee
+              const enforcedTypes = filteredTypes.filter((lt: any) => {
+                const ltMappings = mappingsByLt.get(lt.id) || [];
+                if (ltMappings.length === 0) return false; // no mappings → hidden
+
+                // Check if any mapping matches the employee's scope
+                return ltMappings.some((m: any) => {
+                  // Employment type check
+                  const mEmpType = (m.employmentType || 'all').toLowerCase();
+                  if (mEmpType !== 'all') {
+                    const rt = mEmpType.replace('_', '-');
+                    if (rt === 'full-time' && empEmpType !== 'full-time') return false;
+                    if (rt === 'part-time' && empEmpType !== 'part-time') return false;
+                    if (rt === 'contract' && empEmpType !== 'contract') return false;
+                    if (rt === 'internship' && empEmpType !== 'internship' && empEmpType !== 'intern') return false;
+                    if (rt !== empEmpType) return false;
+                  }
+                  // Gender check
+                  const mGender = (m.genderApplicability || 'all').toLowerCase();
+                  if (mGender !== 'all' && mGender !== 'both') {
+                    if (empGender === 'male' && mGender !== 'male' && mGender !== 'm') return false;
+                    if (empGender === 'female' && mGender !== 'female' && mGender !== 'f') return false;
+                    if (empGender === 'other' && mGender !== 'other' && mGender !== 'o') return false;
+                    if (!empGender) return false;
+                  }
+                  // Branch check
+                  if (m.branchId && m.branchId !== empBranchId) return false;
+                  // Department check
+                  if (m.departmentId && m.departmentId !== empDeptId) return false;
+                  // Employee IDs check — if set, employee must be in the list
+                  if (m.employeeIds) {
+                    try {
+                      const ids = JSON.parse(m.employeeIds);
+                      if (Array.isArray(ids) && ids.length > 0 && !ids.includes(empId)) return false;
+                    } catch {}
+                  }
+                  return true; // all checks passed
+                });
+              });
+
+              console.log(
+                `[leave-types] FINAL mapping enforcement: employee=${empId} sees ${enforcedTypes.length} of ${filteredTypes.length} type(s) (based on ${mappingRows.length} active mappings).`
+              );
+              filteredTypes = enforcedTypes;
+            }
+            // If NO mappings exist at all → don't filter (backward compat)
+          }
+        }
+      } catch (finalFilterErr) {
+        console.warn('[leave-types] FINAL mapping enforcement failed (non-fatal):', finalFilterErr);
+      }
+    }
+
     const { searchParams } = new URL(req.url);
     const isDebug = searchParams.get('debug') === '1';
     if (isDebug) {

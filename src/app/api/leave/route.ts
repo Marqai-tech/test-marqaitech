@@ -375,33 +375,67 @@ export async function POST(request: Request) {
       );
     }
     if (leaveType.companyId !== targetEmployee.companyId) {
-      // ─── BUG FIX: cross-company leave type rejection ───
-      // Previously this was a hard block: if the leave type was created under
-      // company A but the employee belongs to company B, the apply was rejected
-      // with "The selected leave type does not belong to the employee's company."
-      //
-      // This happened a lot because the Leave Configuration page used to store
-      // leave types in the FIRST company in the DB (not the selected one), so
-      // employees in other companies could never apply for leave.
-      //
-      // Recovery: if the employee's own company has NO leave types configured
-      // at all, allow the cross-company leave type (the dropdown showed it to
-      // them, so it's reasonable to accept it). If the employee's company DOES
-      // have leave types, keep the strict block (the user picked the wrong type
-      // from a stale dropdown).
-      const ownCompanyTypeCount = await db.leaveType.count({
-        where: { companyId: targetEmployee.companyId, status: 'active' },
-      }).catch(() => 0);
-      if (ownCompanyTypeCount > 0) {
+      // ─── MAPPING-BASED CROSS-COMPANY CHECK ───
+      // Instead of hard-blocking based on companyId mismatch, check if there's
+      // an active LeaveTypePolicyMapping for this leave type that matches the
+      // employee's scope. If a mapping exists → the employee is eligible → allow.
+      // If no mapping exists → reject with clear "not eligible" message.
+      let hasMapping = false;
+      try {
+        const empFull = await db.employee.findUnique({
+          where: { id: employeeId },
+          select: { id: true, gender: true, employeeType: true, branchId: true, departmentId: true },
+        });
+        if (empFull) {
+          const mappingRows: any[] = await db.$queryRawUnsafe(
+            `SELECT "employmentType", "genderApplicability", "branchId", "departmentId", "employeeIds"
+             FROM "LeaveTypePolicyMapping"
+             WHERE "leaveTypeId" = $1 AND status = 'active'`,
+            leaveTypeId
+          );
+          if (mappingRows.length > 0) {
+            const empGender = (empFull.gender || '').toLowerCase();
+            const empEmpType = (empFull.employeeType || '').toLowerCase().replace('_', '-');
+            hasMapping = mappingRows.some((m: any) => {
+              const mEmpType = (m.employmentType || 'all').toLowerCase();
+              if (mEmpType !== 'all') {
+                const rt = mEmpType.replace('_', '-');
+                if (rt === 'full-time' && empEmpType !== 'full-time') return false;
+                if (rt === 'part-time' && empEmpType !== 'part-time') return false;
+                if (rt === 'contract' && empEmpType !== 'contract') return false;
+                if (rt === 'internship' && empEmpType !== 'internship' && empEmpType !== 'intern') return false;
+                if (rt !== empEmpType) return false;
+              }
+              const mGender = (m.genderApplicability || 'all').toLowerCase();
+              if (mGender !== 'all' && mGender !== 'both') {
+                if (empGender === 'male' && mGender !== 'male' && mGender !== 'm') return false;
+                if (empGender === 'female' && mGender !== 'female' && mGender !== 'f') return false;
+                if (empGender === 'other' && mGender !== 'other' && mGender !== 'o') return false;
+                if (!empGender) return false;
+              }
+              if (m.branchId && m.branchId !== empFull.branchId) return false;
+              if (m.departmentId && m.departmentId !== empFull.departmentId) return false;
+              if (m.employeeIds) {
+                try {
+                  const ids = JSON.parse(m.employeeIds);
+                  if (Array.isArray(ids) && ids.length > 0 && !ids.includes(empFull.id)) return false;
+                } catch {}
+              }
+              return true;
+            });
+          }
+        }
+      } catch (mappingErr: any) {
+        console.warn('[leave POST] Mapping check failed (non-fatal):', mappingErr?.message || mappingErr);
+      }
+
+      if (!hasMapping) {
         return NextResponse.json(
-          { error: `The selected leave type ("${leaveType.name}") belongs to a different company. Please pick a leave type from your company's leave types list. If you don't see any, contact HR to configure leave types for your company.` },
-          { status: 400, headers: corsHeaders() }
+          { error: `You are not eligible for the leave type "${leaveType.name}". Only leave types mapped to your employee profile via a policy mapping can be applied for. Please contact HR if you believe this is an error.` },
+          { status: 403, headers: corsHeaders() }
         );
       }
-      // Employee's company has no leave types — allow the cross-company type.
-      console.warn(
-        `[leave] Cross-company leave type accepted: employee=${employeeId} (company=${targetEmployee.companyId}) using leaveType=${leaveTypeId} (company=${leaveType.companyId}). Employee's company has 0 active leave types.`
-      );
+      // If hasMapping → continue (the employee has a valid mapping for this leave type)
     }
 
     // ─── GENDER-BASED VALIDATION ───
