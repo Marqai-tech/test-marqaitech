@@ -43,6 +43,7 @@ interface CaseData {
   caseNumber?: string; vendorName?: string; instructions?: string; dueDate?: string;
   version?: number; reworkReason?: string | null; reworkChecks?: string | null; reworkDueDate?: string | null;
   assigneeName?: string; assigneeEmail?: string;
+  assignedVendorUserId?: string;
   checks: Check[];
   sharedDocuments: Array<{ id: string; documentLabel: string; documentType: string }>;
   reports: Array<{ id: string; version: number; summary?: string; overallResult?: string; status: string; submittedAt: string; pdfStatus?: string; hasStandardPdf?: boolean; hasVendorPdf?: boolean; hrDecision?: string | null; hrDecisionReason?: string | null }>;
@@ -101,7 +102,9 @@ export default function VendorRequestDetailPage() {
   useEffect(() => { queueMicrotask(() => void fetchDetail()); }, [fetchDetail]);
 
   const canWork = data ? WORKABLE.includes(data.status) && myRole === 'vendor_employee' : false;
-  const isAssignedEmployee = myRole === 'vendor_employee';
+  const canSubmitReport = data
+    ? WORKABLE.includes(data.status) && (myRole === 'vendor_employee' || (myRole === 'vendor_admin' && !!data.assignedVendorUserId))
+    : false;
   const reworkCheckIds: string[] = useMemo(() => {
     if (!data) return [];
     try { const arr = JSON.parse(data.reworkChecks || 'null'); return Array.isArray(arr) ? arr : []; } catch { return []; }
@@ -174,8 +177,8 @@ export default function VendorRequestDetailPage() {
         {tab === 'report' && (
           <ReportTab
             data={data}
-            canWork={canWork}
-            isAssignedEmployee={isAssignedEmployee}
+            canWork={canSubmitReport}
+            canSubmitReport={canSubmitReport}
             allCompleted={allCompleted}
             reworkBlocks={reworkBlocks}
             onSubmitted={fetchDetail}
@@ -409,8 +412,8 @@ function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
 }
 
 /* ─────────────────────────── Report Summary tab ─────────────────────────── */
-function ReportTab({ data, canWork, isAssignedEmployee, allCompleted, reworkBlocks, onSubmitted }: {
-  data: CaseData; canWork: boolean; isAssignedEmployee: boolean; allCompleted: boolean; reworkBlocks: number; onSubmitted: () => void;
+function ReportTab({ data, canWork, canSubmitReport, allCompleted, reworkBlocks, onSubmitted }: {
+  data: CaseData; canWork: boolean; canSubmitReport: boolean; allCompleted: boolean; reworkBlocks: number; onSubmitted: () => void;
 }) {
   const [summary, setSummary] = useState('');
   const [vendorPdfName, setVendorPdfName] = useState<string | null>(null);
@@ -548,7 +551,7 @@ function ReportTab({ data, canWork, isAssignedEmployee, allCompleted, reworkBloc
       ) : (
         <div className="bg-white border rounded-xl p-4 text-sm text-slate-600 flex items-center gap-2">
           <FiInfo className="text-slate-400" />
-          {isAssignedEmployee ? 'Complete all checks, then submit from this tab.' : 'The assigned investigator submits the report; admins can monitor here.'}
+          {canSubmitReport ? 'Complete all checks, then submit from this tab.' : 'Assign this case to an investigator before uploading or submitting a report.'}
         </div>
       )}
     </div>
