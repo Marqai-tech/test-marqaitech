@@ -812,15 +812,24 @@ function MappingOverview({ types, policies, rules, loading, onCreate, onEdit }: 
   const [pf, setPf] = useState('');
   const activeTypes = types.filter(t => t.status === 'active');
 
-  // Build mapping rows from rules (each rule links a leave type to a policy via leaveTypeId)
+  // Build mapping rows from rules — each rule links a leave type to a policy via policyId.
+  // One leave type can have MULTIPLE rules (e.g. CL under Staff Policy with 12 days + CL under Probation Policy with 6 days).
+  // Derive the correct policy from each rule's policyId — don't just use policies[0].
   const mappings: Array<{ policy: LPolicy | undefined; type: LType | undefined; rule: LRule | undefined }> = [];
   for (const r of rules) {
     const lt = types.find(t => t.id === (r.leaveTypeId || r.typeId));
     if (!lt) continue;
-    // Each rule is a mapping entry: policy → type → rule
-    // Since we don't have explicit policy-rule links, show rules grouped by type
-    mappings.push({ policy: policies[0], type: lt, rule: r });
+    // Find the policy linked to this rule via rule.policyId
+    const policy = r.policyId ? policies.find(p => p.id === r.policyId) : undefined;
+    mappings.push({ policy: policy || policies[0], type: lt, rule: r });
   }
+  // Sort by policy title then leave type name so multiple mappings for the same leave type are grouped
+  mappings.sort((a, b) => {
+    const pa = (a.policy?.title || '').toLowerCase();
+    const pb = (b.policy?.title || '').toLowerCase();
+    if (pa !== pb) return pa.localeCompare(pb);
+    return (a.type?.name || '').toLowerCase().localeCompare((b.type?.name || '').toLowerCase());
+  });
   const filtered = pf ? mappings.filter(m => m.policy?.id === pf) : mappings;
 
   return (
@@ -1038,8 +1047,44 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
           <div className="flex items-center gap-2 mb-3">
             <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">{editId ? '2' : '2'}</span>
             <h3 className="text-sm font-semibold text-slate-900">Leave Types &amp; Rules</h3>
-            <span className="text-xs text-slate-500">— {editId ? 'update the rule for this leave type' : 'tick the leave types to include'}</span>
+            <span className="text-xs text-slate-500">— {editId ? 'update the rule for this leave type' : 'tick the leave types to include under this policy'}</span>
           </div>
+          {/* Info note: one leave type can have multiple policy+rule mappings */}
+          {!editId && (
+            <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex items-start gap-2">
+              <FiInfo className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span><b>Multiple policies per leave type:</b> A single leave type (e.g. Casual Leave) can be mapped to different policies with different rules + days. Run "Create Mapping" once per policy — existing mappings are not overwritten.</span>
+            </div>
+          )}
+          {/* Show existing mappings for each leave type (so user sees what's already mapped) */}
+          {!editId && rows.some(r => r.ruleId) && (
+            <div className="mb-3 overflow-x-auto border border-slate-200 rounded-lg bg-white">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Leave Type</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Existing Rule</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Days/Yr</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Policy</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.filter(r => r.ruleId).map(r => {
+                    const rule = rules.find(rr => rr.id === r.ruleId);
+                    const policy = rule?.policyId ? policies.find(p => p.id === rule.policyId) : undefined;
+                    return (
+                      <tr key={r.leaveTypeId} className="text-xs">
+                        <td className="px-3 py-2 font-medium text-slate-700">{r.leaveTypeName}</td>
+                        <td className="px-3 py-2 text-slate-600">{rule?.name || '—'}</td>
+                        <td className="px-3 py-2 text-slate-600">{r.daysPerYear}</td>
+                        <td className="px-3 py-2 text-slate-600">{policy?.title || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
           {types.length === 0 ? (
             <div className="text-sm text-slate-500 bg-white rounded-lg p-4 border border-slate-200">No leave types configured. Create leave types first in Step 1.</div>
           ) : rules.length === 0 ? (
