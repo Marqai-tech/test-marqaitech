@@ -156,7 +156,7 @@ export default function VendorRequestDetailPage() {
           {data.instructions && <p className="text-slate-300 text-xs mt-3 flex items-start gap-1.5"><FiInfo className="mt-0.5 shrink-0" /> Instructions from HR: {data.instructions}</p>}
       </VendorPortalHeader>
 
-      <div className="max-w-5xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Tabs */}
         <div className="flex gap-1 border-b border-slate-200 mb-5 overflow-x-auto">
           {([
@@ -211,21 +211,21 @@ function SharedDocsTab({ data }: { data: CaseData }) {
       {docs.length === 0 ? (
         <div className="border rounded-lg p-10 text-center bg-white"><FiFileText className="h-8 w-8 text-slate-300 mx-auto mb-2" /><p className="text-sm text-slate-500">No documents were shared for this case.</p></div>
       ) : (
-        <div className="bg-white border rounded-lg divide-y divide-slate-100">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
           {docs.map((doc) => (
-            <div key={doc.id} className="flex items-center gap-3 p-3.5">
+            <div key={doc.id} className="flex flex-wrap sm:flex-nowrap items-center gap-3 p-3.5">
               <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><FiFileText /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-800 truncate">{doc.documentLabel || doc.documentType}</p>
                 <p className="text-xs text-slate-400">{doc.documentType || 'Document'}</p>
               </div>
-              <button onClick={() => view(doc.id, doc.documentLabel || doc.documentType || 'document')} className="inline-flex items-center gap-1.5 text-xs font-medium border border-teal-600 text-teal-700 hover:bg-teal-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors">
+              <button onClick={() => view(doc.id, doc.documentLabel || doc.documentType || 'document')} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 text-xs font-medium border border-teal-600 text-teal-700 hover:bg-teal-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors">
                 <FiEye /> View
               </button>
               <button onClick={() => view(doc.id, doc.documentLabel || 'document').then(() => {
                 if (!preview) return;
                 const a = document.createElement('a'); a.href = preview.url; a.download = preview.name; a.click();
-              })} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 border border-slate-300 hover:bg-slate-50 px-3 py-1.5 rounded-lg">
+              })} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 border border-slate-300 hover:bg-slate-50 px-3 py-1.5 rounded-lg">
                 <FiDownload /> Download
               </button>
             </div>
@@ -473,7 +473,7 @@ function ReportTab({ data, canWork, canSubmitReport, allCompleted, reworkBlocks,
         <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
           <h2 className="text-sm font-semibold text-slate-800">Report Summary — {data.candidateName || data.candidateEmail} ({data.caseNumber || data.id})</h2>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="min-w-[700px] w-full text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr><th className="text-left px-4 py-2.5 font-medium w-8">#</th><th className="text-left px-4 py-2.5 font-medium">Check</th><th className="text-left px-4 py-2.5 font-medium">Result</th><th className="text-left px-4 py-2.5 font-medium">Reason / Remarks</th></tr>
           </thead>
@@ -496,7 +496,7 @@ function ReportTab({ data, canWork, canSubmitReport, allCompleted, reworkBlocks,
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {canWork ? (

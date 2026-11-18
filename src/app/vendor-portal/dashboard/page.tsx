@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiShield, FiRefreshCw, FiLoader, FiAlertCircle, FiUserPlus, FiClock,
-  FiCheckCircle, FiFileText, FiUsers, FiSearch, FiChevronRight, FiX, FiInfo, FiSettings,
+  FiCheckCircle, FiFileText, FiUsers, FiSearch, FiChevronRight, FiX, FiInfo, FiCalendar, FiAlertTriangle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import VendorPortalHeader from '../VendorPortalHeader';
@@ -149,6 +149,9 @@ export default function VendorDashboardPage() {
   }, [requests, search, tab]);
 
   const unassignedCount = requests.filter((r) => r.status === 'awaiting_assignment').length;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dueTodayCount = requests.filter(r => r.dueDate && new Date(r.dueDate).toDateString() === today.toDateString() && !['approved_by_hr', 'rejected_by_hr', 'cancelled'].includes(r.status)).length;
+  const overdueCount = requests.filter(r => r.dueDate && new Date(r.dueDate) < today && !['approved_by_hr', 'rejected_by_hr', 'cancelled'].includes(r.status)).length;
 
   const openCase = (r: BgvRequest) => {
     if (r.status === 'awaiting_assignment') {
@@ -166,13 +169,14 @@ export default function VendorDashboardPage() {
         isAdmin={isAdmin}
       />
 
-      <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Stats */}
-        <div className={`grid grid-cols-2 ${isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
-          {isAdmin && <StatCard label="Unassigned" value={requests.filter(r => r.status === 'awaiting_assignment').length} color="text-amber-600" icon={<FiClock className="h-5 w-5" />} />}
-          <StatCard label="In Progress" value={requests.filter(r => ['assigned', 'in_progress', 'rework_required'].includes(r.status)).length} color="text-blue-600" icon={<FiUsers className="h-5 w-5" />} />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <StatCard label={isAdmin ? 'Total Cases' : 'Total Assigned'} value={requests.length} color="text-slate-900" icon={<FiFileText className="h-5 w-5 text-blue-600" />} />
+          <StatCard label="In Progress" value={requests.filter(r => ['assigned', 'in_progress', 'rework_required'].includes(r.status)).length} color="text-blue-600" icon={<FiUsers className="h-5 w-5 text-blue-600" />} />
           <StatCard label="Submitted" value={requests.filter(r => ['submitted_for_hr_review', 'awaiting_information'].includes(r.status)).length} color="text-violet-600" icon={<FiFileText className="h-5 w-5" />} />
           <StatCard label="Completed" value={requests.filter(r => ['approved_by_hr', 'rejected_by_hr'].includes(r.status)).length} color="text-emerald-600" icon={<FiCheckCircle className="h-5 w-5" />} />
+          <StatCard label={overdueCount ? 'Overdue' : 'Due Today'} value={overdueCount || dueTodayCount} color={overdueCount ? 'text-red-600' : 'text-amber-600'} icon={overdueCount ? <FiAlertTriangle className="h-5 w-5 text-red-500" /> : <FiCalendar className="h-5 w-5 text-amber-500" />} />
         </div>
 
         {/* Tabs + search */}
@@ -214,8 +218,11 @@ export default function VendorDashboardPage() {
             {!isAdmin && <p className="text-xs text-slate-400 mt-1">Empty state means no cases are assigned to you yet.</p>}
           </div>
         ) : (
-          <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
-            <table className="min-w-[760px] w-full text-sm">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="md:hidden divide-y divide-slate-100">
+              {filtered.map(r => <CaseCard key={r.id} request={r} isAdmin={!!isAdmin} vendorCompanyId={vendorInfo!.vendorCompanyId} onDone={fetchRequests} onOpen={() => openCase(r)} />)}
+            </div>
+            <div className="hidden md:block overflow-x-auto"><table className="min-w-[820px] w-full text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">Candidate</th>
@@ -271,7 +278,7 @@ export default function VendorDashboardPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
 
@@ -389,7 +396,7 @@ function AssignButton({ request, vendorCompanyId, onDone }: {
 
 function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
   return (
-    <div className="bg-white border rounded-lg p-3.5">
+    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2.5">
         {icon}
         <div>
@@ -399,4 +406,14 @@ function StatCard({ label, value, color, icon }: { label: string; value: number;
       </div>
     </div>
   );
+}
+
+function CaseCard({ request, isAdmin, vendorCompanyId, onDone, onOpen }: { request: BgvRequest; isAdmin: boolean; vendorCompanyId: string; onDone: () => void; onOpen: () => void }) {
+  const completed = request.checks?.filter(check => check.status === 'completed').length || 0;
+  const total = request.checks?.length || 0;
+  return <article className="p-4 space-y-3">
+    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-semibold text-slate-900 truncate">{request.candidateName || 'Unknown candidate'}</h3><p className="text-xs text-slate-500 break-all">{request.candidateEmail}</p></div><span className={`px-2 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${STATUS_COLORS[request.status] || 'bg-slate-100 text-slate-700'}`}>{STATUS_LABELS[request.status] || request.status}</span></div>
+    <div className="grid grid-cols-2 gap-3 text-xs"><div><span className="text-slate-400">Case ID</span><p className="font-mono text-slate-700">{request.caseNumber || request.id}</p></div><div><span className="text-slate-400">Due date</span><p className="font-medium text-slate-700">{request.dueDate ? new Date(request.dueDate).toLocaleDateString('en-GB') : '—'}</p></div><div><span className="text-slate-400">Investigator</span><p className="font-medium text-slate-700">{request.assigneeName || 'Unassigned'}</p></div><div><span className="text-slate-400">Progress</span><p className="font-medium text-slate-700">{completed}/{total} checks</p></div></div>
+    {request.status === 'awaiting_assignment' && isAdmin ? <AssignButton request={request} vendorCompanyId={vendorCompanyId} onDone={onDone} /> : <button onClick={onOpen} disabled={request.status === 'awaiting_assignment'} className="w-full rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:bg-slate-200 disabled:text-slate-500">{request.status === 'awaiting_assignment' ? 'Awaiting assignment' : 'Open Case'}</button>}
+  </article>;
 }
