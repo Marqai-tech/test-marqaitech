@@ -106,21 +106,25 @@ export default function LeaveSetupPage() {
   const [types, setTypes] = useState<LType[]>([]);
   const [rules, setRules] = useState<LRule[]>([]);
   const [policies, setPolicies] = useState<LPolicy[]>([]);
+  const [mappings, setMappings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const sq = scopeQuery();
   const sep = sq ? `&${sq}` : '';
+  const qsep = sq ? `?${sq}` : '';
 
   const fetchAll = useCallback(async () => {
     try { setLoading(true); const h = getAuthHeaders();
-      const [t, r, p] = await Promise.all([
-        fetch(`/api/leave-types?limit=100${sep}`, { headers: h }).catch(() => null),
+      const [t, r, p, m] = await Promise.all([
+        fetch(`/api/leave-types?limit=100${sep}&includeInactive=1`, { headers: h }).catch(() => null),
         fetch(`/api/leave-policy-rules?limit=100${sep}`, { headers: h }).catch(() => null),
         fetch(`/api/policies?category=leave&limit=100${sep ? `&${sq}` : ''}`, { headers: h }).catch(() => null),
+        fetch(`/api/leave-type-policy-mappings${qsep}`, { headers: h }).catch(() => null),
       ]);
       if (t?.ok) { const d = await t.json(); setTypes(d.data || []); }
       if (r?.ok) { const d = await r.json(); setRules(d.data || []); }
       if (p?.ok) { const d = await p.json(); setPolicies(d.data || d.policies || []); }
+      if (m?.ok) { const d = await m.json(); setMappings(d.data || []); }
     } catch { toast.error('Failed to load leave setup data'); }
     finally { setLoading(false); }
   }, [sq]);
@@ -129,7 +133,7 @@ export default function LeaveSetupPage() {
 
   if (!isAdmin) return <div className="flex items-center justify-center min-h-[40vh]"><div className="text-center"><FiSliders className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-sm text-slate-500">Leave Setup is available to HR/Admin roles only.</p></div></div>;
 
-  const counts = { types: types.length, policy: policies.length, rules: rules.length, mapping: 0 };
+  const counts = { types: types.length, policy: policies.length, rules: rules.length, mapping: mappings.length };
   const step = STEPS.find(s => s.key === tab)!;
 
   const go = (t: string, m: 'list' | 'form' = 'list', id: string | null = null) => { setTab(t); setMode(m); setEditId(id); window.scrollTo(0, 0); };
@@ -178,8 +182,10 @@ export default function LeaveSetupPage() {
       {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
-      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(id) => go('mapping', 'form', id)} />}
+      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(id) => go('mapping', 'form', id)} />}
       {mode === 'form' && tab === 'mapping' && <MappingForm editId={editId} types={types} policies={policies} rules={rules} onCancel={() => go('mapping')} onSaved={onSaved} sq={sq} />}
+      {/* BUG_234 FIX: bottom padding so floating AI icon doesn't cover buttons */}
+      <div className="h-16" />
     </div>
   );
 }
@@ -190,19 +196,45 @@ export default function LeaveSetupPage() {
 function TypesList({ types, rules, loading, onCreate, onEdit }: { types: LType[]; rules: LRule[]; loading: boolean; onCreate: () => void; onEdit: (id: string) => void }) {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [sel, setSel] = useState<string | null>(null);
-  const rows = types.filter(t => (!cat || (t.category || 'paid') === cat) && (t.name + t.code).toLowerCase().includes(q.toLowerCase()));
+  // BUG_219 FIX: show ALL types (active + inactive) — filter by status only if user selects a filter
+  const rows = types.filter(t =>
+    (!cat || (t.category || 'paid') === cat) &&
+    (!statusFilter || t.status === statusFilter) &&
+    (t.name + t.code).toLowerCase().includes(q.toLowerCase())
+  );
   const t = sel && types.find(x => x.id === sel);
   const rulesFor = t ? rules.filter(r => r.leaveTypeId === t.id || r.typeId === t.id) : [];
+
+  // BUG_219 FIX: Activate/Deactivate handler
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    try {
+      const res = await fetch(`/api/leave-types/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      toast.success(`Leave type ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
+      // Refresh data — need to call parent's fetchAll
+      window.location.reload();
+    } catch { toast.error('Failed to update status'); }
+  };
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-slate-100 flex-wrap">
-        <h2 className="text-[15px] font-extrabold">Leave Types</h2><span className="text-[12px] text-slate-500">{types.length} types</span>
+        <h2 className="text-[15px] font-extrabold">Leave Types</h2><span className="text-[12px] text-slate-500">{types.length} types ({types.filter(t => t.status === 'active').length} active, {types.filter(t => t.status !== 'active').length} inactive)</span>
         <span className="flex-1" />
         <SearchBox value={q} onChange={setQ} placeholder="Search name or code" />
         <select className="h-9 border border-slate-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-slate-600 outline-none" value={cat} onChange={e => setCat(e.target.value)}>
           <option value="">All categories</option><option value="paid">Paid</option><option value="unpaid">Unpaid</option><option value="statutory">Statutory</option><option value="special">Special</option>
+        </select>
+        {/* BUG_219 FIX: status filter */}
+        <select className="h-9 border border-slate-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-slate-600 outline-none" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option>
         </select>
         <button className="h-8 px-3 rounded-lg bg-slate-800 text-white text-[12px] font-bold flex items-center gap-1.5 hover:bg-slate-900" onClick={onCreate}><FiPlus className="w-3.5 h-3.5" />Create Leave Type</button>
       </div>
@@ -213,14 +245,24 @@ function TypesList({ types, rules, loading, onCreate, onEdit }: { types: LType[]
             {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
              rows.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No leave types found.</td></tr> :
              rows.map((r, i) => (
-              <tr key={r.id} className={`border-b border-slate-50 cursor-pointer transition-colors ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSel(r.id)}>
+              <tr key={r.id} className={`border-b border-slate-50 cursor-pointer transition-colors ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'} ${r.status !== 'active' ? 'opacity-60' : ''}`} onClick={() => setSel(r.id)}>
                 <td className="px-3.5 py-3 text-slate-400 font-bold text-[12px]">{i + 1}</td>
                 <td className="px-3.5 py-3"><div className="flex items-center gap-2.5"><CodeChip code={r.code} color={r.calendarColor} /><div><div className="font-bold text-[13px]">{r.name}</div><div className="text-[11.5px] text-slate-500 max-w-xs truncate">{r.description || ''}</div></div></div></td>
                 <td className="px-3.5 py-3"><CatPill c={(r.category || 'paid').charAt(0).toUpperCase() + (r.category || 'paid').slice(1)} /></td>
                 <td className="px-3.5 py-3 text-[13px] text-slate-500 capitalize">{(r.smallestUnit || 'full_day').replace('_', ' ')}</td>
-                <td className="px-3.5 py-3 text-center font-bold text-[13px]">{rulesFor.length}</td>
+                <td className="px-3.5 py-3 text-center font-bold text-[13px]">{rules.filter(rr => rr.leaveTypeId === r.id || rr.typeId === r.id).length}</td>
                 <td className="px-3.5 py-3 text-center"><StatusPill s={r.status === 'active' ? 'Active' : 'Inactive'} /></td>
-                <td className="px-3.5 py-3 text-right"><button className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto" onClick={e => { e.stopPropagation(); onEdit(r.id); }}><FiEdit2 className="w-3 h-3" />Edit</button></td>
+                <td className="px-3.5 py-3 text-right">
+                  <div className="flex items-center gap-1 ml-auto justify-end">
+                    {/* BUG_219 FIX: Activate/Deactivate button */}
+                    {r.status === 'active' ? (
+                      <button className="h-8 px-2 rounded-lg border border-amber-200 text-amber-700 text-[11px] font-bold hover:bg-amber-50" onClick={e => { e.stopPropagation(); handleToggleStatus(r.id, r.status); }} title="Deactivate">Deactivate</button>
+                    ) : (
+                      <button className="h-8 px-2 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-50" onClick={e => { e.stopPropagation(); handleToggleStatus(r.id, r.status); }} title="Activate">Activate</button>
+                    )}
+                    <button className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50" onClick={e => { e.stopPropagation(); onEdit(r.id); }}><FiEdit2 className="w-3 h-3" />Edit</button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -375,20 +417,49 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead><tr>{['Rule', 'Days/yr', 'Per req', 'Notice', 'Half day', 'Carry fwd', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 5 ? 'text-center' : i === 7 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+          {/* BUG_223 FIX: added Document + Encash columns */}
+          <thead><tr>{['Rule', 'Days/yr', 'Per req', 'Notice', 'Half day', 'Document', 'Carry fwd', 'Encash', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 7 ? 'text-center' : i === 9 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={8} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-             rows.length === 0 ? <tr><td colSpan={8} className="text-center py-10 text-slate-500">No rules found.</td></tr> :
+            {loading ? <tr><td colSpan={10} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+             rows.length === 0 ? <tr><td colSpan={10} className="text-center py-10 text-slate-500">No rules found.</td></tr> :
              rows.map(x => {
                const ty = types.find(t => t.id === (x.leaveTypeId || x.typeId));
+               // BUG_224 FIX: derive actual values from the rule's fields
+               const daysYr = x.entitledDaysPerYear ?? x.entitledDays ?? 0;
+               const minReq = x.minDaysPerRequest ?? x.minDays ?? 0.5;
+               const maxReq = x.maxDaysPerRequest ?? x.maxDays ?? 0;
+               const perReqStr = maxReq > 0 ? `${minReq}–${maxReq}d` : `${minReq}d`;
+               const notice = x.advanceNoticeDays ?? x.noticeDays ?? 0;
+               const halfDay = x.halfDayAllowed ?? x.halfDay ?? false;
+               // BUG_223 FIX: document requirement
+               const docReq = (x as any).requireAttachment ?? (x as any).documentRequired ?? false;
+               const docAfterDays = (x as any).requireAttachmentAfterDays ?? 0;
+               const docStr = docReq ? (docAfterDays > 0 ? `>${docAfterDays}d` : 'Yes') : 'No';
+               const carryFwd = x.carryForwardToNextYear ?? x.carryForward ?? false;
+               // BUG_223 FIX: encashment
+               const encash = (x as any).encashmentAllowed ?? (x as any).leaveEncashmentApplicable ?? false;
+               // BUG_229 FIX: applicable to label derived from rule scope
+               const applicableParts: string[] = [];
+               const g = (x.genderApplicability || x.gender || 'all').toLowerCase();
+               if (g !== 'all' && g !== 'both') applicableParts.push(g.charAt(0).toUpperCase() + g.slice(1));
+               if (x.employmentType && x.employmentType !== 'all') applicableParts.push(x.employmentType.charAt(0).toUpperCase() + x.employmentType.slice(1));
+               if (x.branch?.name) applicableParts.push(x.branch.name);
+               if (x.department?.name) applicableParts.push(x.department.name);
+               const applicableStr = applicableParts.length > 0 ? applicableParts.join(', ') : 'All';
                return (
                 <tr key={x.id} className={`border-b border-slate-50 cursor-pointer ${sel === x.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSel(x.id)}>
-                  <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{ty && <CodeChip code={ty.code} color={ty.calendarColor} />}<div><div className="font-bold text-[13px]">{x.name}</div><div className="text-[11.5px] text-slate-500">{x.employmentType || x.employeeStatus || ''}</div></div></div></td>
-                  <td className="px-3.5 py-3 text-center font-bold text-[13px]">{x.entitledDaysPerYear || x.entitledDays || '—'}</td>
-                  <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{x.minDaysPerRequest || x.minDays || 0.5}–{x.maxDaysPerRequest || x.maxDays || '?'}</td>
-                  <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{x.advanceNoticeDays || x.noticeDays || 0}d</td>
-                  <td className="px-3.5 py-3 text-center"><span className={`inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full border ${x.halfDayAllowed || x.halfDay ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{x.halfDayAllowed || x.halfDay ? 'Yes' : 'No'}</span></td>
-                  <td className="px-3.5 py-3 text-center"><span className={`inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full border ${x.carryForwardToNextYear || x.carryForward ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{x.carryForwardToNextYear || x.carryForward ? 'Yes' : 'Lapse'}</span></td>
+                  {/* BUG_222 FIX: show colour-coded leave type code chip before rule name + applicable population below */}
+                  <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{ty && <CodeChip code={ty.code} color={ty.calendarColor} />}<div><div className="font-bold text-[13px]">{x.name}</div><div className="text-[11.5px] text-slate-500">{applicableStr}</div></div></div></td>
+                  {/* BUG_224 FIX: show actual values */}
+                  <td className="px-3.5 py-3 text-center font-bold text-[13px]">{daysYr > 0 ? daysYr : '—'}</td>
+                  <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{perReqStr}</td>
+                  <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{notice}d</td>
+                  <td className="px-3.5 py-3 text-center"><span className={`inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full border ${halfDay ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{halfDay ? 'Yes' : 'No'}</span></td>
+                  {/* BUG_223 FIX: Document column */}
+                  <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{docStr}</td>
+                  <td className="px-3.5 py-3 text-center"><span className={`inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full border ${carryFwd ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{carryFwd ? 'Yes' : 'Lapse'}</span></td>
+                  {/* BUG_223 FIX: Encash column */}
+                  <td className="px-3.5 py-3 text-center"><span className={`inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full border ${encash ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{encash ? 'Yes' : 'No'}</span></td>
                   <td className="px-3.5 py-3"><StatusPill s={x.status === 'active' ? 'Active' : 'Inactive'} /></td>
                   <td className="px-3.5 py-3 text-right"><button className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto" onClick={e => { e.stopPropagation(); onEdit(x.id); }}><FiEdit2 className="w-3 h-3" />Edit</button></td>
                 </tr>
@@ -807,30 +878,27 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
 
 
 /* ═══ Mapping Overview with List view ═══ */
-function MappingOverview({ types, policies, rules, loading, onCreate, onEdit }: { types: LType[]; policies: LPolicy[]; rules: LRule[]; loading: boolean; onCreate: () => void; onEdit: (id: string) => void }) {
+function MappingOverview({ types, policies, rules, mappings, loading, onCreate, onEdit }: { types: LType[]; policies: LPolicy[]; rules: LRule[]; mappings: any[]; loading: boolean; onCreate: () => void; onEdit: (id: string) => void }) {
   const [view, setView] = useState<'List' | 'Matrix'>('List');
   const [pf, setPf] = useState('');
   const activeTypes = types.filter(t => t.status === 'active');
 
-  // Build mapping rows from rules — each rule links a leave type to a policy via policyId.
-  // One leave type can have MULTIPLE rules (e.g. CL under Staff Policy with 12 days + CL under Probation Policy with 6 days).
-  // Derive the correct policy from each rule's policyId — don't just use policies[0].
-  const mappings: Array<{ policy: LPolicy | undefined; type: LType | undefined; rule: LRule | undefined }> = [];
-  for (const r of rules) {
-    const lt = types.find(t => t.id === (r.leaveTypeId || r.typeId));
-    if (!lt) continue;
-    // Find the policy linked to this rule via rule.policyId
-    const policy = r.policyId ? policies.find(p => p.id === r.policyId) : undefined;
-    mappings.push({ policy: policy || policies[0], type: lt, rule: r });
+  // BUG_232 FIX: build mapping rows from actual LeaveTypePolicyMapping data (not from rules)
+  const mappingRows: Array<{ policy: LPolicy | undefined; type: LType | undefined; rule: LRule | undefined; mapping: any }> = [];
+  for (const m of mappings) {
+    const lt = types.find(t => t.id === m.leaveTypeId);
+    const rule = rules.find(r => r.id === m.policyRuleId);
+    const policy = rule?.policyId ? policies.find(p => p.id === rule.policyId) : undefined;
+    mappingRows.push({ policy, type: lt, rule, mapping: m });
   }
-  // Sort by policy title then leave type name so multiple mappings for the same leave type are grouped
-  mappings.sort((a, b) => {
+  // Sort by policy title then leave type name
+  mappingRows.sort((a, b) => {
     const pa = (a.policy?.title || '').toLowerCase();
     const pb = (b.policy?.title || '').toLowerCase();
     if (pa !== pb) return pa.localeCompare(pb);
     return (a.type?.name || '').toLowerCase().localeCompare((b.type?.name || '').toLowerCase());
   });
-  const filtered = pf ? mappings.filter(m => m.policy?.id === pf) : mappings;
+  const filtered = pf ? mappingRows.filter(m => m.policy?.id === pf) : mappingRows;
 
   return (
     <div>
@@ -861,17 +929,19 @@ function MappingOverview({ types, policies, rules, loading, onCreate, onEdit }: 
         {view === 'List' ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
-              <thead><tr>{['Policy', 'Leave type', 'Rule applied', 'Days/year', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i === 5 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Policy', 'Leave type', 'Rule applied', 'Days/year', 'Effective from', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 3 && i <= 4 ? 'text-center' : i === 6 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
               <tbody>
-                {loading ? <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-                 filtered.length === 0 ? <tr><td colSpan={6} className="text-center py-10 text-slate-500">No mappings yet. Create rules in Step 3 to build mappings.</td></tr> :
+                {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+                 /* BUG_231 FIX: correct empty state message */
+                 filtered.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No mappings yet. Click <b>+ Create Mapping</b> to attach leave types and rules to a policy.</td></tr> :
                  filtered.map((m, i) => (
-                  <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                  <tr key={m.mapping?.id || i} className="border-b border-slate-50 hover:bg-slate-50">
                     <td className="px-3.5 py-3 font-bold text-[13px]">{m.policy?.title || '—'}</td>
-                    <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{m.type && <CodeChip code={m.type.code} color={m.type.calendarColor} />}<span className="text-[13px]">{m.type?.name}</span></div></td>
-                    <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || '—'}</td>
+                    <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{m.type && <CodeChip code={m.type.code} color={m.type.calendarColor} />}<span className="text-[13px]">{m.type?.name || m.mapping?.leaveTypeName || '—'}</span></div></td>
+                    <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || m.mapping?.policyRuleName || '—'}</td>
                     <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule?.entitledDaysPerYear || '—'}</td>
-                    <td className="px-3.5 py-3"><StatusPill s={m.rule?.status || 'Inactive'} /></td>
+                    <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{m.policy?.effectiveDate ? fmtDate(m.policy.effectiveDate) : '—'}</td>
+                    <td className="px-3.5 py-3"><StatusPill s={(m.mapping?.status || m.rule?.status || 'active') === 'active' ? 'Active' : 'Inactive'} /></td>
                     <td className="px-3.5 py-3 text-right"><button onClick={() => m.rule?.id && onEdit(m.rule.id)} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto"><FiEdit2 className="w-3 h-3" />Edit</button></td>
                   </tr>
                 ))}
@@ -879,6 +949,7 @@ function MappingOverview({ types, policies, rules, loading, onCreate, onEdit }: 
             </table>
           </div>
         ) : (
+          /* BUG_232 FIX: Matrix view uses actual mapping data */
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead><tr>
@@ -890,8 +961,9 @@ function MappingOverview({ types, policies, rules, loading, onCreate, onEdit }: 
                   <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
                     <td className="px-3.5 py-3 sticky left-0 bg-white"><div className="font-bold text-[13px]">{p.title}</div><div className="text-[11px] text-slate-500">{p.status}</div></td>
                     {activeTypes.map(t => {
-                      const r = rules.find(rule => (rule.leaveTypeId || rule.typeId) === t.id);
-                      return <td key={t.id} className="text-center py-3">{r ? <span className="inline-grid place-items-center w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-extrabold">{r.entitledDaysPerYear || '✓'}</span> : <span className="inline-grid place-items-center w-7 h-7 rounded-lg text-slate-300 border border-dashed border-slate-200 text-[11px]">—</span>}</td>;
+                      // Find a mapping for this policy + leave type
+                      const match = mappingRows.find(m => m.type?.id === t.id && m.policy?.id === p.id);
+                      return <td key={t.id} className="text-center py-3">{match ? <span className="inline-grid place-items-center w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-extrabold">{match.rule?.entitledDaysPerYear || '✓'}</span> : <span className="inline-grid place-items-center w-7 h-7 rounded-lg text-slate-300 border border-dashed border-slate-200 text-[11px]">—</span>}</td>;
                     })}
                   </tr>
                 ))}
@@ -1104,7 +1176,7 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
                               {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
                               <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
                             </div>
-                            <p className="text-xs text-slate-400 mt-0.5">default {row.defaultDays} days/year</p>
+                            {row.leaveTypeCode && <p className="text-xs text-slate-400 mt-0.5">Code: {row.leaveTypeCode}</p>}
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-400 italic" colSpan={3}>No rules defined for this leave type — create one in Step 3</td>
                         </tr>
@@ -1147,7 +1219,6 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
                                 {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
                                 <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
                               </div>
-                              <p className="text-xs text-slate-400 mt-0.5">default {row.defaultDays} days/year</p>
                               {ltRules.length > 1 && <p className="text-[10px] text-violet-500 mt-1 font-medium">{ltRules.length} rules available</p>}
                             </td>
                           )}

@@ -46,8 +46,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // BUG_219 FIX: support includeInactive=1 for admin setup pages (show active + inactive types)
+    const { searchParams } = new URL(req.url);
+    const includeInactive = searchParams.get('includeInactive') === '1';
+    const statusFilter = includeInactive ? {} : { status: 'active' as const };
+
     const allLeaveTypes = await db.leaveType.findMany({
-      where: { status: 'active', ...companyFilter },
+      where: { ...statusFilter, ...companyFilter },
       orderBy: { name: 'asc' },
     });
 
@@ -353,7 +358,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const { searchParams } = new URL(req.url);
     const isDebug = searchParams.get('debug') === '1';
     if (isDebug) {
       return NextResponse.json({
