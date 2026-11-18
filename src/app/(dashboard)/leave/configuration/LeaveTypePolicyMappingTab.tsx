@@ -158,8 +158,8 @@ export default function LeaveTypePolicyMappingTab() {
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button onClick={() => { setEditItem(null); setShowDialog(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-            <FiPlus className="w-4 h-4" /> Add Mapping
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/25">
+            <FiPlus className="w-4 h-4" /> Create Mapping
           </button>
         </div>
       </div>
@@ -226,8 +226,8 @@ export default function LeaveTypePolicyMappingTab() {
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-1">
                         <button onClick={() => { setEditItem(m); setShowDialog(true); }}
-                          className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit">
-                          <FiEdit2 className="w-4 h-4" />
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-gray-300 text-gray-700 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors" title="Edit this mapping">
+                          <FiEdit2 className="w-3 h-3" /> Edit
                         </button>
                         <button onClick={() => handleDelete(m)}
                           className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
@@ -358,7 +358,7 @@ function MappingDialog({ mode, editItem, leaveTypes, policies, onClose, onSaved 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h3 className="font-semibold text-gray-900">{mode === 'edit' ? 'Edit Mapping' : 'Add Type–Policy Mapping'}</h3>
+          <h3 className="font-semibold text-gray-900">{mode === 'edit' ? 'Edit Mapping' : 'Create Mapping'}</h3>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded"><FiX className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
