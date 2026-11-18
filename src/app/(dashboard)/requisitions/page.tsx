@@ -87,11 +87,11 @@ function getStatusBadge(status: string) {
 }
 
 function InfoMetric({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70">{label}</p><p className="mt-1 truncate text-sm font-bold text-slate-900" title={value}>{value}</p></div>;
+  return <div className="min-w-0 rounded-xl bg-white/75 px-4 py-3 ring-1 ring-inset ring-emerald-100"><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70">{label}</p><p className="mt-1 break-words text-sm font-bold leading-5 text-slate-900" title={value}>{value}</p></div>;
 }
 
 function DetailField({ label, value, capitalize = false }: { label: string; value: string; capitalize?: boolean }) {
-  return <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className={`mt-1 text-sm font-semibold text-slate-700 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
+  return <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className={`mt-1 break-words text-sm font-semibold leading-5 text-slate-700 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
 }
 
 export default function RequisitionsPage() {
@@ -431,8 +431,8 @@ export default function RequisitionsPage() {
     // Task 165: HR can create job posting from approved requisition
     if (isHr && r.approvalStatus === 'budget_approved') {
       buttons.push(
-        <button key="create_job" onClick={() => handleCreateJobPosting(r)} className="px-2 py-1 text-xs font-medium text-violet-700 bg-violet-50 rounded hover:bg-violet-100 flex items-center gap-1">
-          <FiPlus className="w-3 h-3" />Create Job Posting
+        <button key="create_job" onClick={() => handleCreateJobPosting(r)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">
+          <FiPlus className="h-4 w-4" />Create Job Posting
         </button>
       );
     }
@@ -510,7 +510,7 @@ export default function RequisitionsPage() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><FiCheck className="h-5 w-5" /></span>
           </button>
           <button type="button" onClick={() => setListFilter('all')} className="group flex items-center justify-between rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <span><span className="block text-xs font-semibold uppercase tracking-wider text-amber-700">In Approval</span><span className="mt-1 block text-2xl font-bold text-slate-900">{inApprovalCount}</span></span>
+            <span><span className="block text-xs font-semibold uppercase tracking-wider text-amber-700">Pending Approvals</span><span className="mt-1 block text-2xl font-bold text-slate-900">{inApprovalCount}</span></span>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><FiClock className="h-5 w-5" /></span>
           </button>
           <button type="button" onClick={() => setListFilter('approved')} className="group flex items-center justify-between rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -550,29 +550,31 @@ export default function RequisitionsPage() {
                   <span className={getPriorityBadge(r.priority)}>{r.priority} priority</span>
                 </div>
 
-                <div className="my-5 grid grid-cols-2 gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-white p-4 sm:grid-cols-4">
+                <div className="my-5 grid grid-cols-1 gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-white p-4 sm:grid-cols-2 2xl:grid-cols-4">
                   <InfoMetric label="Openings" value={String(r.numberOfOpenings)} />
                   <InfoMetric label="Salary Budget" value={r.salaryBudget || 'Not specified'} />
                   <InfoMetric label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-IN') : 'Not specified'} />
                   <InfoMetric label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} />
                 </div>
 
-                <div className="grid gap-4 border-b border-slate-100 pb-5 sm:grid-cols-2">
+                <div className="grid auto-rows-fr gap-3 border-b border-slate-100 pb-5 sm:grid-cols-2">
                   <DetailField label="Required Skills" value={r.skillsRequired || 'Not specified'} />
                   <DetailField label="Experience" value={r.experienceRequired || 'Not specified'} />
                   <DetailField label="Qualification" value={r.qualification || 'Not specified'} />
                   <DetailField label="Position Type" value={r.positionType || 'Not specified'} capitalize />
                 </div>
 
-                <div className="py-5"><div className="flex items-center justify-between"><h3 className="text-base font-bold text-slate-900">Approval Timeline</h3><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span></div>
-                  <div className="mt-5 grid grid-cols-4 gap-1">
-                    {['Request Submitted', 'HR Review', 'Finance Review', 'Job Posting'].map((label, index) => { const done = index <= stageIndex && !isFailed; const active = index === stageIndex && r.approvalStatus !== 'budget_approved'; return <div key={label} className="relative text-center"><div className={`absolute left-1/2 top-4 h-0.5 w-full ${index === 3 ? 'hidden' : done && index < stageIndex ? 'bg-emerald-500' : 'bg-slate-200'}`} /><span className={`relative z-10 mx-auto flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold ${isFailed && index === stageIndex ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-emerald-600 bg-emerald-600 text-white' : active ? 'border-amber-500 bg-amber-50 text-amber-600' : 'border-slate-300 bg-white text-slate-400'}`}>{done ? <FiCheck /> : index + 1}</span><p className={`mt-2 text-[11px] font-semibold ${active ? 'text-amber-700' : done ? 'text-slate-800' : 'text-slate-400'}`}>{label}</p></div>; })}
+                <div className="py-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-base font-bold text-slate-900">Approval Timeline</h3><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span></div>
+                  <div className="mt-5 overflow-x-auto pb-1">
+                    <div className="grid min-w-[560px] grid-cols-4 gap-0 px-2">
+                    {['Request Submitted', 'HR Review', 'Finance Review', 'Job Posting'].map((label, index) => { const done = index <= stageIndex && !isFailed; const active = index === stageIndex && r.approvalStatus !== 'budget_approved'; return <div key={label} className="relative px-2 text-center"><div className={`absolute left-1/2 top-5 h-0.5 w-full ${index === 3 ? 'hidden' : done && index < stageIndex ? 'bg-emerald-500' : 'bg-slate-200'}`} /><span className={`relative z-10 mx-auto flex h-10 w-10 items-center justify-center rounded-full border-2 text-xs font-bold shadow-sm ${isFailed && index === stageIndex ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-emerald-600 bg-emerald-600 text-white' : active ? 'border-amber-500 bg-amber-50 text-amber-600' : 'border-slate-300 bg-white text-slate-400'}`}>{done ? <FiCheck /> : index + 1}</span><p className={`mt-2 min-h-8 text-[11px] font-semibold leading-4 ${active ? 'text-amber-700' : done ? 'text-slate-800' : 'text-slate-400'}`}>{label}</p></div>; })}
+                    </div>
                   </div>
                 </div>
 
-                {approvalHistory.length > 0 && <details className="rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Approval history ({approvalHistory.length})</summary><div className="mt-3 max-h-36 space-y-2 overflow-y-auto">{approvalHistory.map((h) => <div key={h.id} className="rounded-lg bg-white p-2 text-xs"><p className="text-slate-700">{h.details}</p><p className="mt-1 text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
+                {approvalHistory.length > 0 && <details className="group rounded-xl border border-slate-200 bg-slate-50"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700"><span>Approval history ({approvalHistory.length})</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary><div className="max-h-44 space-y-2 overflow-y-auto border-t border-slate-200 p-3">{approvalHistory.map((h) => <div key={h.id} className="rounded-lg border border-slate-100 bg-white p-3 text-xs"><p className="text-slate-700">{h.details}</p><p className="mt-1 text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
 
-                <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-5">{getApprovalButtons(r)}{(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><FiEdit2 /> Edit</button>}{r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><FiTrash2 /> Delete</button>}</div>
+                <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-5">{getApprovalButtons(r)}{(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><FiEdit2 /> Edit</button>}{r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><FiTrash2 /> Delete</button>}</div>
                 {deleteConfirmId === r.id && <div className="mt-3 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs font-semibold text-red-700">Delete this draft requisition permanently?</p><div className="flex gap-2"><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">Cancel</button><button type="button" onClick={() => handleDelete(r.id)} disabled={deleting} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete Draft'}</button></div></div>}
               </div>;
             })()}
