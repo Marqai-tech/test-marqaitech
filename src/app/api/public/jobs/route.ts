@@ -36,6 +36,10 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
   try {
+    await db.jobPosting.updateMany({
+      where: { status: 'open', closingDate: { lte: new Date() } },
+      data: { status: 'closed' },
+    }).catch(() => null);
     const url = new URL(req.url);
     // The tenantSlug can come from:
     //   1. Explicit ?tenantSlug=xxx query param (highest priority — used by /careers/[tenantSlug])

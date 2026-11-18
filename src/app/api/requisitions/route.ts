@@ -171,7 +171,7 @@ export async function POST(request: Request) {
     if (interviewPlan !== undefined && interviewPlan !== null && String(interviewPlan).trim()) {
       try {
         const parsed = typeof interviewPlan === 'string' ? JSON.parse(interviewPlan) : interviewPlan;
-        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any) => !r?.name || !['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type))) {
+        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any) => !String(r?.name || '').trim() || !['technical', 'hr', 'ai', 'client'].includes(r?.type))) {
           return NextResponse.json({ error: 'Interview plan must contain at least one round with a name and valid type.' }, { status: 400, headers: corsHeaders() });
         }
         normalizedInterviewPlan = JSON.stringify(parsed.map((r: any, i: number) => ({ sequence: i + 1, name: String(r.name).trim(), type: r.type })));

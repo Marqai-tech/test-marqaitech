@@ -405,7 +405,7 @@ function CreateJobPostingForm() {
       type: params.get('type') || 'full-time',
       experience: params.get('experience') || '',
       salary: params.get('salary') || '',
-      closingDate: '',
+      closingDate: params.get('closingDate') || '',
       vacancies: parseInt(params.get('vacancies') || '1'),
     });
   }, []);

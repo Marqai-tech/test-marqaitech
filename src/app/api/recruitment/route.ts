@@ -89,6 +89,12 @@ export async function GET(request: Request) {
     }
     const decodedRec = decoded as unknown as Record<string, any>;
 
+    // Persist deadline-based closure so HR and candidates see the same status.
+    await db.jobPosting.updateMany({
+      where: { status: 'open', closingDate: { lte: new Date() }, ...tenantWhere(decodedRec, request) },
+      data: { status: 'closed' },
+    }).catch(() => null);
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -476,7 +482,7 @@ export async function POST(request: Request) {
     if (interviewPlan !== undefined && interviewPlan !== null && String(interviewPlan).trim()) {
       try {
         const parsed = typeof interviewPlan === 'string' ? JSON.parse(interviewPlan) : interviewPlan;
-        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any, i: number) => !r?.name || !['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type) || Number(r?.sequence || i + 1) !== i + 1)) {
+        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any, i: number) => !String(r?.name || '').trim() || !['technical', 'hr', 'ai', 'client'].includes(r?.type) || Number(r?.sequence || i + 1) !== i + 1)) {
           return NextResponse.json({ error: 'Interview plan must be an ordered array with name and valid type for every round.' }, { status: 400, headers: corsHeaders() });
         }
         normalizedInterviewPlan = JSON.stringify(parsed.map((r: any, i: number) => ({ sequence: i + 1, name: String(r.name).trim(), type: r.type })));

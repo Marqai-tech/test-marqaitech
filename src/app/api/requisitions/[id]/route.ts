@@ -265,7 +265,17 @@ export async function PATCH(
     if (salaryBudget !== undefined) updateData.salaryBudget = salaryBudget || null;
     if (priority !== undefined) updateData.priority = priority;
     if (expectedJoiningDate !== undefined) updateData.expectedJoiningDate = expectedJoiningDate ? new Date(expectedJoiningDate) : null;
-    if (interviewPlan !== undefined) updateData.interviewPlan = typeof interviewPlan === 'string' ? interviewPlan : JSON.stringify(interviewPlan);
+    if (interviewPlan !== undefined) {
+      try {
+        const parsed = typeof interviewPlan === 'string' ? JSON.parse(interviewPlan) : interviewPlan;
+        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((round: any) => !String(round?.name || '').trim() || !['technical', 'hr', 'ai', 'client'].includes(round?.type))) {
+          return NextResponse.json({ error: 'At least one named interview round with a valid type is required' }, { status: 400 });
+        }
+        updateData.interviewPlan = JSON.stringify(parsed.map((round: any, index: number) => ({ sequence: index + 1, name: String(round.name).trim(), type: round.type })));
+      } catch {
+        return NextResponse.json({ error: 'Interview plan must be valid JSON' }, { status: 400 });
+      }
+    }
 
     // Phase 3 fix: Persist positionTitle and reason in PATCH (were destructured but never stored)
     if (body.positionTitle !== undefined) (updateData as any).positionTitle = body.positionTitle || null;

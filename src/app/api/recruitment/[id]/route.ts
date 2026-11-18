@@ -209,7 +209,7 @@ export async function PUT(
     if (interviewPlan !== undefined) {
       try {
         const parsed = typeof interviewPlan === 'string' ? JSON.parse(interviewPlan) : interviewPlan;
-        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any, i: number) => !r?.name || !['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type))) throw new Error('invalid');
+        if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((r: any) => !String(r?.name || '').trim() || !['technical', 'hr', 'ai', 'client'].includes(r?.type))) throw new Error('invalid');
         updateData.interviewPlan = JSON.stringify(parsed.map((r: any, i: number) => ({ sequence: i + 1, name: String(r.name).trim(), type: r.type })));
       } catch {
         return NextResponse.json({ error: 'Interview plan must be a valid non-empty JSON array with name and type for every round.' }, { status: 400, headers: corsHeaders() });

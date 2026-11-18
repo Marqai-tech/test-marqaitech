@@ -297,13 +297,13 @@ const initialJobForm = {
   interviewPlan: '[{"name":"Technical Interview Round 1","type":"technical"},{"name":"Technical Interview Round 2","type":"technical"},{"name":"HR Interview Round 3","type":"hr"}]',
 };
 
-type InterviewPlanRow = { name: string; type: 'technical' | 'hr' | 'ai' | 'offline_panel' };
+type InterviewPlanRow = { name: string; type: 'technical' | 'hr' | 'ai' | 'client' };
 function parseInterviewPlan(value: string): InterviewPlanRow[] {
   try {
     const parsed = JSON.parse(value);
-    if (Array.isArray(parsed) && parsed.length) return parsed.map((r: any) => ({ name: String(r?.name || 'Interview Round'), type: ['technical', 'hr', 'ai', 'offline_panel'].includes(r?.type) ? r.type : 'technical' }));
+    if (Array.isArray(parsed)) return parsed.map((r: any) => ({ name: String(r?.name || ''), type: r?.type === 'offline_panel' ? 'client' : ['technical', 'hr', 'ai', 'client'].includes(r?.type) ? r.type : 'technical' }));
   } catch { /* use default */ }
-  return [{ name: 'Technical Interview Round 1', type: 'technical' }];
+  return [];
 }
 function serializeInterviewPlan(rows: InterviewPlanRow[]) { return JSON.stringify(rows.map((row, i) => ({ sequence: i + 1, ...row }))); }
 
@@ -1153,6 +1153,23 @@ export default function RecruitmentPage() {
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [jobForm, setJobForm] = useState(initialJobForm);
   const [submittingJob, setSubmittingJob] = useState(false);
+  const [resettingCandidate, setResettingCandidate] = useState(false);
+
+  const handleResetTestCandidate = async () => {
+    const email = window.prompt('Enter the test candidate email whose recruitment, offer, preboarding and BGV data must be deleted:')?.trim().toLowerCase();
+    if (!email) return;
+    const confirmation = window.prompt(`This permanently deletes all test-flow data for ${email}. Type DELETE ${email} to confirm:`);
+    if (confirmation !== `DELETE ${email}`) { toast.error('Confirmation did not match. Nothing was deleted.'); return; }
+    setResettingCandidate(true);
+    try {
+      const res = await fetch('/api/recruitment/test-candidate-reset', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ email, confirmation }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      toast.success(`All available test data for ${email} was deleted`);
+      fetchData();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Reset failed'); }
+    finally { setResettingCandidate(false); }
+  };
 
   // Application form state
   const [showAppForm, setShowAppForm] = useState(false);
@@ -1521,6 +1538,11 @@ export default function RecruitmentPage() {
       toast.error('Please fill in required fields: title, department, description');
       return;
     }
+    const interviewRounds = parseInterviewPlan(jobForm.interviewPlan);
+    if (interviewRounds.length === 0 || interviewRounds.some(round => !round.name.trim())) {
+      toast.error('Add at least one interview round and enter a name for every round');
+      return;
+    }
     try {
       setSubmittingJob(true);
       const payload = { ...jobForm, vacancies: parseInt(jobForm.vacancies) || 1 };
@@ -1835,6 +1857,10 @@ export default function RecruitmentPage() {
               <FiPlus className="w-4 h-4" />
               Create Job
             </button>
+            <button onClick={handleResetTestCandidate} disabled={resettingCandidate} className="inline-flex items-center gap-2 px-3 py-2.5 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 font-medium text-sm disabled:opacity-50" title="Testing only: permanently remove one candidate's complete flow data">
+              {resettingCandidate ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiTrash2 className="w-4 h-4" />}
+              <span className="hidden xl:inline">Reset Test Candidate</span>
+            </button>
           </div>
         )}
       </div>
@@ -1957,8 +1983,9 @@ export default function RecruitmentPage() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description <span className="text-red-500 font-bold">*</span></label>
+              <div className="border-t border-thb-border pt-4">
+                <h3 className="text-base font-semibold text-thb-text-primary mb-3">Job Description</h3>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Role Summary <span className="text-red-500 font-bold">*</span></label>
                 <textarea rows={4} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
               </div>
               <div>
@@ -1966,8 +1993,9 @@ export default function RecruitmentPage() {
                 <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
               </div>
               <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
-                <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-thb-text-primary">Interview Plan <span className="text-red-500">*</span></label><p className="text-[11px] text-thb-text-muted mt-0.5">Configure the required sequence for this position.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(jobForm.interviewPlan); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan([...rows, { name: `Interview Round ${rows.length + 1}`, type: 'technical' }]) })); }} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">+ Add Round</button></div>
-                <div className="space-y-2">{parseInterviewPlan(jobForm.interviewPlan).map((row, i, rows) => <div key={`${i}-${row.name}`} className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 p-2"><span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">{i + 1}</span><input value={row.name} onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="ai">AI</option><option value="offline_panel">Panel</option></select><button type="button" disabled={rows.length === 1} onClick={() => { const next = rows.filter((_, index) => index !== i); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50 disabled:opacity-30" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
+                <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-thb-text-primary">Number of Interview Rounds for This Role <span className="text-red-500">*</span></label><p className="text-[11px] text-thb-text-muted mt-0.5">{parseInterviewPlan(jobForm.interviewPlan).length} round(s) configured.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(jobForm.interviewPlan); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan([...rows, { name: '', type: 'technical' }]) })); }} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">+ Add Round</button></div>
+                <div className="space-y-2">{parseInterviewPlan(jobForm.interviewPlan).map((row, i, rows) => <div key={i} className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 p-2"><span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">{i + 1}</span><input required value={row.name} placeholder="Enter your own round name" onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="client">Client</option><option value="ai">AI</option></select><button type="button" onClick={() => { const next = rows.filter((_, index) => index !== i); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
+                {parseInterviewPlan(jobForm.interviewPlan).length === 0 && <p className="rounded-lg border border-dashed border-red-200 bg-red-50 p-3 text-center text-xs text-red-700">At least one named interview round is required.</p>}
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
