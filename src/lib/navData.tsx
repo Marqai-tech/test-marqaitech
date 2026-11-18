@@ -401,28 +401,24 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-
-      // ── Pipeline ──
-      { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
-      { label: 'Jobs', href: '/recruitment?tab=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Find Candidates', href: '/recruitment?tab=candidates&single=candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Pipeline (Kanban)', href: '/recruitment?tab=candidates&view=kanban&single=candidates', icon: <FiColumns className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      // ── Primary recruitment workflow (kept in operational order) ──
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
-      { label: 'Schedule Interview', href: '/interviews', icon: <FiClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Create Jobs', href: '/recruitment?tab=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Find Candidates', href: '/recruitment?tab=candidates&single=candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Scheduled Interviews', href: '/interviews', icon: <FiClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
-      { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-
-      // ── Talent Tools ──
-      { label: 'Talent Tools', href: '#talent-divider', icon: <FiUserCheck className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
       { label: 'Talent Pool', href: '/recruitment/talent-pool', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Resumes', href: '/recruitment?tab=candidates&view=resumes&single=candidates', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Offer Dashboard', href: '/offers', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+
+      // ── Additional recruitment tools ──
+      { label: 'Additional Tools', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
 
       // ── Offer Management ──
       { label: 'Offer Management', href: '#offer-divider', icon: <FiStar className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
-      { label: 'Offer Dashboard', href: '/offers', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Create Offer', href: '/offers', icon: <FiPlus className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Offer Templates', href: '/offers/templates', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Offer Rules', href: '/recruitment/workflow-config', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
