@@ -183,7 +183,7 @@ export default function LeaveSetupPage() {
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(policyId) => go('mapping', 'form', policyId)} />}
-      {mode === 'form' && tab === 'mapping' && <MappingForm editPolicyId={editId} types={types} policies={policies} rules={rules} mappings={mappings} onCancel={() => go('mapping')} onSaved={onSaved} sq={sq} />}
+      {mode === 'form' && tab === 'mapping' && <MappingForm editPolicyId={editId} types={types} policies={policies} rules={rules} mappings={mappings} onCancel={() => go('mapping')} onSaved={onSaved} onGoToRules={() => go('rules', 'form')} sq={sq} />}
       {/* BUG_234 FIX: bottom padding so floating AI icon doesn't cover buttons */}
       <div className="h-16" />
     </div>
@@ -1046,7 +1046,7 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
 }
 
 /* ═══ Mapping Form — Create/Edit with Effective from + Policy banner + Replace logic ═══ */
-function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel, onSaved, sq }: {
+function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel, onSaved, onGoToRules, sq }: {
   editPolicyId: string | null;
   types: LType[];
   policies: LPolicy[];
@@ -1054,6 +1054,7 @@ function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel,
   mappings: any[];
   onCancel: () => void;
   onSaved: () => void;
+  onGoToRules?: () => void;
   sq: string;
 }) {
   const [selectedPolicyId, setSelectedPolicyId] = useState(editPolicyId || '');
@@ -1316,7 +1317,10 @@ function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel,
                             {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} color={row.calendarColor} />}
                             <span className={`font-medium text-[13px] ${row.included ? 'text-slate-900' : 'text-slate-500'}`}>{row.leaveTypeName}</span>
                           </div>
-                          {ltRules.length === 0 && <span className="text-[10px] text-amber-600 font-medium ml-1">No rule — create in Step 3</span>}
+                          {ltRules.length === 0 && (onGoToRules
+                            ? <button type="button" onClick={onGoToRules} className="text-[10px] text-amber-600 font-semibold ml-1 underline underline-offset-2 hover:text-amber-700 hover:no-underline cursor-pointer transition-colors">No rule — create in Step 3 →</button>
+                            : <span className="text-[10px] text-amber-600 font-medium ml-1">No rule — create in Step 3</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <select value={row.ruleId} onChange={e => updateRule(row.leaveTypeId, e.target.value)} disabled={!row.included || ltRules.length === 0} className={`w-full text-xs px-2 py-1.5 rounded border bg-white outline-none focus:ring-2 focus:ring-violet-500/20 disabled:bg-slate-50 disabled:text-slate-400 ${hasRuleError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}>
