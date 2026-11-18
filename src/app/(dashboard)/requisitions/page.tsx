@@ -123,7 +123,7 @@ export default function RequisitionsPage() {
   const [form, setForm] = useState(initialForm);
   const [scope, setScope] = useState<'all' | 'mine'>(typeof window !== 'undefined' ? (localStorage.getItem('tb_req_scope') as 'all' | 'mine') || 'all' : 'all');
   const [search, setSearch] = useState('');
-  const [listFilter, setListFilter] = useState<'all' | 'action' | 'draft' | 'approved'>('all');
+  const [listFilter, setListFilter] = useState<'all' | 'action' | 'pending' | 'draft' | 'approved'>('all');
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
   // C-30: designations now carry their departmentId so the dropdown can
   // be cascaded by the selected department (only show designations that
@@ -455,6 +455,7 @@ export default function RequisitionsPage() {
         .some((value) => String(value || '').toLowerCase().includes(query));
       const matchesFilter = listFilter === 'all'
         || (listFilter === 'action' && needsAction(r))
+        || (listFilter === 'pending' && ['pending', 'hr_approved'].includes(r.approvalStatus))
         || (listFilter === 'draft' && ['draft', 'returned'].includes(r.approvalStatus))
         || (listFilter === 'approved' && r.approvalStatus === 'budget_approved');
       return matchesSearch && matchesFilter;
@@ -509,7 +510,7 @@ export default function RequisitionsPage() {
             <span><span className="block text-xs font-semibold uppercase tracking-wider text-emerald-700">Needs My Action</span><span className="mt-1 block text-2xl font-bold text-slate-900">{needsActionCount}</span></span>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><FiCheck className="h-5 w-5" /></span>
           </button>
-          <button type="button" onClick={() => setListFilter('all')} className="group flex items-center justify-between rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          <button type="button" onClick={() => setListFilter('pending')} className="group flex items-center justify-between rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <span><span className="block text-xs font-semibold uppercase tracking-wider text-amber-700">Pending Approvals</span><span className="mt-1 block text-2xl font-bold text-slate-900">{inApprovalCount}</span></span>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><FiClock className="h-5 w-5" /></span>
           </button>
@@ -525,7 +526,7 @@ export default function RequisitionsPage() {
               <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold text-slate-900">Requisition List</h2><span className="text-xs font-medium text-slate-500">{filteredRequisitions.length} of {requisitions.length}</span></div>
               <div className="relative mt-3"><FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by Req ID, job title, or department" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10" /></div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {([['all', 'All'], ['action', 'Needs Action'], ['draft', 'Draft'], ['approved', 'Approved']] as const).map(([key, label]) => <button type="button" key={key} onClick={() => setListFilter(key)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${listFilter === key ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{label}</button>)}
+                {([['all', 'All'], ['action', 'Needs Action'], ['pending', 'Pending Approval'], ['draft', 'Draft'], ['approved', 'Approved']] as const).map(([key, label]) => <button type="button" key={key} onClick={() => setListFilter(key)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${listFilter === key ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{label}</button>)}
               </div>
             </div>
             <div className="max-h-[530px] space-y-2 overflow-y-auto p-3">
