@@ -1112,6 +1112,7 @@ export default function RecruitmentPage() {
   const [showJobForm, setShowJobForm] = useState(false);
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [jobForm, setJobForm] = useState(initialJobForm);
+  const [jobFormStep, setJobFormStep] = useState(1);
   const [submittingJob, setSubmittingJob] = useState(false);
   const [resettingCandidate, setResettingCandidate] = useState(false);
 
@@ -1456,6 +1457,7 @@ export default function RecruitmentPage() {
   const handleOpenAddJobForm = () => {
     setEditingJobId(null);
     setJobForm(initialJobForm);
+    setJobFormStep(1);
     setShowJobForm(true);
     setShowAppForm(false);
     setDeleteConfirmId(null);
@@ -1480,6 +1482,7 @@ export default function RecruitmentPage() {
       status: job.status || 'open',
       interviewPlan: job.interviewPlan || initialJobForm.interviewPlan,
     });
+    setJobFormStep(1);
     setShowJobForm(true);
     setShowAppForm(false);
     setDeleteConfirmId(null);
@@ -1490,10 +1493,30 @@ export default function RecruitmentPage() {
     setShowJobForm(false);
     setEditingJobId(null);
     setJobForm(initialJobForm);
+    setJobFormStep(1);
+  };
+
+  const goToNextJobStep = () => {
+    if (jobFormStep === 1 && (!jobForm.title.trim() || !jobForm.departmentId)) {
+      toast.error('Job title and department are required');
+      return;
+    }
+    if (jobFormStep === 2 && !jobForm.description.trim()) {
+      toast.error('Role summary is required');
+      return;
+    }
+    if (jobFormStep === 3) {
+      const rounds = parseInterviewPlan(jobForm.interviewPlan);
+      if (rounds.length === 0 || rounds.some((round) => !round.name.trim())) {
+        toast.error('Add at least one named interview round');
+        return;
+      }
+    }
+    setJobFormStep((step) => Math.min(5, step + 1));
   };
 
   /* Create / Update Job Posting */
-  const handleSaveJob = async () => {
+  const handleSaveJob = async (statusOverride?: string) => {
     if (!jobForm.title || !jobForm.departmentId || !jobForm.description) {
       toast.error('Please fill in required fields: title, department, description');
       return;
@@ -1505,7 +1528,7 @@ export default function RecruitmentPage() {
     }
     try {
       setSubmittingJob(true);
-      const payload = { ...jobForm, vacancies: parseInt(jobForm.vacancies) || 1 };
+      const payload = { ...jobForm, status: statusOverride || jobForm.status, vacancies: parseInt(jobForm.vacancies) || 1 };
 
       if (editingJobId) {
         const res = await fetch(`/api/recruitment/${editingJobId}`, {
@@ -1514,7 +1537,7 @@ export default function RecruitmentPage() {
           body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-        toast.success('Job posting updated successfully');
+        toast.success(statusOverride === 'on_hold' ? 'Job saved for later' : 'Job posting updated successfully');
       } else {
         const res = await fetch('/api/recruitment', {
           method: 'POST',
@@ -1522,7 +1545,7 @@ export default function RecruitmentPage() {
           body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-        toast.success('Job posting created successfully');
+        toast.success(statusOverride === 'on_hold' ? 'Job saved for later' : 'Job posting created successfully');
       }
       handleCancelJobForm();
       fetchData();
@@ -1836,8 +1859,10 @@ export default function RecruitmentPage() {
               </button>
             </div>
           </div>
-          <div className="grid gap-5 p-4 xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)] xl:p-5">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-4 sm:px-6"><div className="grid grid-cols-5 gap-2">{['Basics', 'Description & Requirements', 'Compensation & Interviews', 'Review', 'Publish'].map((label, index) => { const number = index + 1; const complete = number < jobFormStep; const active = number === jobFormStep; return <button type="button" key={label} onClick={() => number < jobFormStep && setJobFormStep(number)} className={`relative flex min-w-0 flex-col items-center gap-1 text-center ${number < jobFormStep ? 'cursor-pointer' : 'cursor-default'}`}><span className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold ${complete ? 'border-emerald-600 bg-emerald-600 text-white' : active ? 'border-emerald-600 bg-white text-emerald-700' : 'border-slate-300 bg-white text-slate-400'}`}>{complete ? <FiCheckCircle className="h-4 w-4" /> : number}</span><span className={`hidden text-[11px] font-semibold leading-4 sm:block ${active ? 'text-emerald-700' : complete ? 'text-slate-700' : 'text-slate-400'}`}>{label}</span>{index < 4 && <span className={`absolute left-[60%] top-4 h-0.5 w-[80%] ${complete ? 'bg-emerald-500' : 'bg-slate-200'}`} />}</button>; })}</div></div>
+          <div className={`grid gap-5 p-4 xl:p-5 ${jobFormStep === 4 ? 'xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)]' : 'xl:grid-cols-[minmax(0,1fr)_280px]'}`}>
             <div className="space-y-4">
+              {jobFormStep === 1 && (
               <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
                 <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2"><FiBriefcase className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Job Details</h3></div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1874,10 +1899,6 @@ export default function RecruitmentPage() {
                   <input type="text" value={jobForm.experience} onChange={e => setJobForm(p => ({ ...p, experience: e.target.value }))} placeholder="e.g., 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Range</label>
-                  <input type="text" value={jobForm.salary} onChange={e => setJobForm(p => ({ ...p, salary: e.target.value }))} placeholder="e.g., $80K - $120K" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
-                </div>
-                <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Vacancies</label>
                   <input type="number" min="1" value={jobForm.vacancies} onChange={e => setJobForm(p => ({ ...p, vacancies: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
@@ -1896,6 +1917,8 @@ export default function RecruitmentPage() {
                 </div>
               </div>
               </section>
+              )}
+              {jobFormStep === 2 && (
               <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
                 <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2"><FiFileText className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Job Description</h3></div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Role Summary <span className="text-red-500 font-bold">*</span></label>
@@ -1903,23 +1926,31 @@ export default function RecruitmentPage() {
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requirements</label>
                 <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
               </section>
+              )}
+              {jobFormStep === 3 && (
               <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <div className="mb-5 grid gap-4 border-b border-slate-100 pb-5 sm:grid-cols-2"><div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Range</label><input type="text" value={jobForm.salary} onChange={e => setJobForm(p => ({ ...p, salary: e.target.value }))} placeholder="e.g., 1800000-2400000 INR/year" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" /></div><div className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800"><b>Compensation</b><p className="mt-1">Enter the approved salary range exactly as candidates should see it.</p></div></div>
                 <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-thb-text-primary">Number of Interview Rounds for This Role <span className="text-red-500">*</span></label><p className="text-[11px] text-thb-text-muted mt-0.5">{parseInterviewPlan(jobForm.interviewPlan).length} round(s) configured.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(jobForm.interviewPlan); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan([...rows, { name: '', type: 'technical' }]) })); }} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">+ Add Round</button></div>
                 <div className="space-y-2">{parseInterviewPlan(jobForm.interviewPlan).map((row, i, rows) => <div key={i} className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 p-2"><span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">{i + 1}</span><input required value={row.name} placeholder="Enter your own round name" onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="client">Client</option><option value="ai">AI</option></select><button type="button" onClick={() => { const next = rows.filter((_, index) => index !== i); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
                 {parseInterviewPlan(jobForm.interviewPlan).length === 0 && <p className="rounded-lg border border-dashed border-red-200 bg-red-50 p-3 text-center text-xs text-red-700">At least one named interview round is required.</p>}
               </section>
+              )}
+              {jobFormStep === 4 && <section className="space-y-3"><div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800"><FiCheckCircle className="mr-2 inline h-4 w-4" />Review the information below before continuing to publish.</div>{[{ label: 'Basics', value: `${jobForm.title || 'No title'} · ${departments.find(d => d.id === jobForm.departmentId)?.name || 'No department'} · ${jobForm.location || 'No location'} · ${jobForm.vacancies} opening(s)`, step: 1 }, { label: 'Description & Requirements', value: `${jobForm.description.trim().split(/\s+/).filter(Boolean).length} description words · ${jobForm.requirements ? 'Requirements added' : 'No requirements added'}`, step: 2 }, { label: 'Compensation & Interview Plan', value: `${jobForm.salary || 'Salary not specified'} · ${parseInterviewPlan(jobForm.interviewPlan).length} interview round(s)`, step: 3 }].map((item) => <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><h3 className="font-bold text-slate-900">{item.label}</h3><p className="mt-1 text-sm text-slate-500">{item.value}</p></div><button type="button" onClick={() => setJobFormStep(item.step)} className="text-xs font-bold text-emerald-700 hover:text-emerald-800">Edit</button></div></div>)}</section>}
+              {jobFormStep === 5 && <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-lg font-bold text-slate-900">Publish to Company Careers Portal</h3><p className="mt-1 text-sm text-slate-500">Publishing makes this job available to candidates in Browse Jobs. External channels can be managed from Job Boards after this posting is created.</p><div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex items-center justify-between gap-4"><div><p className="font-bold text-emerald-900">Company Careers Portal</p><p className="mt-1 text-xs text-emerald-700">Ready to publish immediately</p></div><FiCheckCircle className="h-6 w-6 text-emerald-600" /></div></div><div className="mt-4 rounded-xl border border-slate-200 p-4 text-sm"><p><b>{jobForm.title}</b></p><p className="mt-1 text-slate-500">{departments.find(d => d.id === jobForm.departmentId)?.name} · {jobForm.location || 'Location not specified'} · {jobForm.type}</p><p className="mt-2 text-slate-500">{parseInterviewPlan(jobForm.interviewPlan).length} interview round(s) · {jobForm.vacancies} opening(s)</p></div></section>}
             </div>
-            <aside className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-3 xl:sticky xl:top-20">
+            {jobFormStep === 4 ? <aside className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-3 xl:sticky xl:top-20">
               <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><FiEye className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Candidate Preview</h3></div><span className="text-[11px] text-slate-500">Desktop preview</span></div>
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="bg-gradient-to-r from-emerald-900 to-emerald-600 px-5 py-5 text-lg font-bold text-white">3Boxes Careers</div>
                 <div className="space-y-4 p-5"><div><h3 className="text-2xl font-extrabold text-slate-950">{jobForm.title || 'Job title'}</h3><p className="mt-1 text-sm text-slate-500">{departments.find(d => d.id === jobForm.departmentId)?.name || 'Department'} · {jobForm.location || 'Location'} · <span className="capitalize">{jobForm.type}</span></p></div><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.experience || 'Experience'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.salary || 'Salary not specified'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.vacancies || 1} opening(s)</span></div><div><h4 className="font-bold text-slate-900">About the Role</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.description || 'Add a role summary to preview the candidate-facing description.'}</p></div><div><h4 className="font-bold text-slate-900">Requirements</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.requirements || 'Add role requirements to preview them here.'}</p></div><div><h4 className="font-bold text-slate-900">Interview Process</h4><div className="mt-2 flex flex-wrap gap-2">{parseInterviewPlan(jobForm.interviewPlan).map((round, index) => <span key={`${round.name}-${index}`} className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div></div><button type="button" disabled className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white opacity-70">Apply Now (Preview)</button></div>
               </div>
-            </aside>
+            </aside> : <aside className="h-fit space-y-3 xl:sticky xl:top-20"><div className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="font-bold text-slate-900">Step {jobFormStep} of 5</h3><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${jobFormStep * 20}%` }} /></div><p className="mt-2 text-xs text-slate-500">Your entries remain available while moving between steps.</p></div><div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-xs leading-5 text-emerald-800">Required fields are validated before you can continue. You can return to a completed step using the progress bar.</div></aside>}
           </div>
           <div className="sticky bottom-0 z-10 flex flex-col-reverse justify-end gap-3 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:flex-row">
             <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-            <button onClick={handleSaveJob} disabled={submittingJob} className="px-6 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-sm shadow-emerald-500/25 transition-colors">{submittingJob ? 'Saving...' : editingJobId ? 'Update Job' : 'Publish Job'}</button>
+            {jobFormStep > 1 && <button type="button" onClick={() => setJobFormStep((step) => Math.max(1, step - 1))} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>}
+            <button type="button" onClick={() => handleSaveJob('on_hold')} disabled={submittingJob} className="rounded-lg border border-emerald-300 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">Save as Draft</button>
+            {jobFormStep < 5 ? <button type="button" onClick={goToNextJobStep} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-500/25 hover:bg-emerald-700">Continue</button> : <button type="button" onClick={() => handleSaveJob()} disabled={submittingJob} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-500/25 hover:bg-emerald-700 disabled:opacity-50">{submittingJob ? 'Publishing...' : editingJobId ? 'Update & Publish' : 'Publish Job'}</button>}
           </div>
         </div>
       )}
