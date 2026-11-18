@@ -916,9 +916,11 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
   sq: string;
 }) {
   const [selectedPolicyId, setSelectedPolicyId] = useState('');
+  // Each entry = one leave type with a SET of checked rule ids
   const [rows, setRows] = useState<Array<{
     leaveTypeId: string; leaveTypeName: string; leaveTypeCode: string;
-    defaultDays: number; included: boolean; ruleId: string; daysPerYear: number;
+    defaultDays: number;
+    checkedRuleIds: string[]; // rules the user has ticked for this leave type
   }>>([]);
   const [saving, setSaving] = useState(false);
 
@@ -932,46 +934,62 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
         setSelectedPolicyId(rule.policyId || policies[0]?.id || '');
         setRows([{
           leaveTypeId: lt.id, leaveTypeName: lt.name, leaveTypeCode: lt.code,
-          defaultDays: lt.defaultDays || 0, included: true, ruleId: rule.id,
-          daysPerYear: rule.entitledDaysPerYear || lt.defaultDays || 0,
+          defaultDays: lt.defaultDays || 0, checkedRuleIds: [rule.id],
         }]);
       }
     } else {
-      // Add mode: all leave types, pre-populate with existing rule if any
+      // Add mode: all leave types, pre-populate checked rules from existing mappings
       setRows(types.filter(t => t.status === 'active').map(lt => {
-        const existingRule = rules.find(r => (r.leaveTypeId || r.typeId) === lt.id);
+        // Find all rules already linked to this leave type (existing mappings)
+        const existingRuleIds = rules.filter(r => (r.leaveTypeId || r.typeId) === lt.id).map(r => r.id);
         return {
           leaveTypeId: lt.id, leaveTypeName: lt.name, leaveTypeCode: lt.code,
-          defaultDays: lt.defaultDays || 0, included: false,
-          ruleId: existingRule?.id || '', daysPerYear: existingRule?.entitledDaysPerYear || lt.defaultDays || 0,
+          defaultDays: lt.defaultDays || 0, checkedRuleIds: existingRuleIds,
         };
       }));
     }
   }, [editId, types, rules, policies]);
 
-  const updateRowRule = (leaveTypeId: string, ruleId: string) => {
+  // Toggle a rule checkbox for a leave type
+  const toggleRule = (leaveTypeId: string, ruleId: string) => {
     setRows(prev => prev.map(row => {
       if (row.leaveTypeId !== leaveTypeId) return row;
-      if (!ruleId) return { ...row, ruleId: '', daysPerYear: row.defaultDays };
-      const rule = rules.find(r => r.id === ruleId);
-      return { ...row, ruleId, daysPerYear: rule?.entitledDaysPerYear || row.defaultDays };
+      const isChecked = row.checkedRuleIds.includes(ruleId);
+      return {
+        ...row,
+        checkedRuleIds: isChecked
+          ? row.checkedRuleIds.filter(id => id !== ruleId)
+          : [...row.checkedRuleIds, ruleId],
+      };
     }));
   };
-  const updateRowDays = (ltId: string, days: number) => setRows(prev => prev.map(r => r.leaveTypeId === ltId ? { ...r, daysPerYear: days } : r));
-  const toggleRow = (ltId: string) => setRows(prev => prev.map(r => r.leaveTypeId === ltId ? { ...r, included: !r.included } : r));
+
+  // Get all checked (leaveType, rule) pairs — each becomes a mapping on save
+  const checkedPairs: Array<{ leaveTypeId: string; leaveTypeName: string; leaveTypeCode: string; ruleId: string; daysPerYear: number }> = [];
+  for (const row of rows) {
+    for (const ruleId of row.checkedRuleIds) {
+      const rule = rules.find(r => r.id === ruleId);
+      checkedPairs.push({
+        leaveTypeId: row.leaveTypeId,
+        leaveTypeName: row.leaveTypeName,
+        leaveTypeCode: row.leaveTypeCode,
+        ruleId,
+        daysPerYear: rule?.entitledDaysPerYear || row.defaultDays || 0,
+      });
+    }
+  }
 
   const handleSave = async () => {
     if (!editId && !selectedPolicyId) { toast.error('Please select a policy'); return; }
-    const includedRows = rows.filter(r => r.included && r.ruleId);
-    if (includedRows.length === 0) { toast.error('Please tick at least one leave type and select a rule'); return; }
+    if (checkedPairs.length === 0) { toast.error('Please tick at least one rule for a leave type'); return; }
     setSaving(true);
     let ok = 0, fail = 0;
     try {
-      for (const row of includedRows) {
-        const rule = rules.find(r => r.id === row.ruleId);
+      for (const pair of checkedPairs) {
+        const rule = rules.find(r => r.id === pair.ruleId);
         const payload = {
-          leaveTypeId: row.leaveTypeId,
-          policyRuleId: row.ruleId,
+          leaveTypeId: pair.leaveTypeId,
+          policyRuleId: pair.ruleId,
           priority: 10,
           employmentType: rule?.employmentType || 'all',
           genderApplicability: rule?.genderApplicability || rule?.gender || 'all',
@@ -993,7 +1011,7 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
   };
 
   const selectedPolicy = policies.find(p => p.id === selectedPolicyId);
-  const includedCount = rows.filter(r => r.included && r.ruleId).length;
+  const totalChecked = checkedPairs.length;
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
@@ -1042,47 +1060,18 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
           </div>
         )}
 
-        {/* Step 2 — Leave Types & Rules */}
+        {/* Step 2 — Leave Types & Rules (checkboxes for rules, matching screenshot) */}
         <div className="bg-slate-50/70 border border-slate-200 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">{editId ? '2' : '2'}</span>
+            <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">2</span>
             <h3 className="text-sm font-semibold text-slate-900">Leave Types &amp; Rules</h3>
-            <span className="text-xs text-slate-500">— {editId ? 'update the rule for this leave type' : 'tick the leave types to include under this policy'}</span>
+            <span className="text-xs text-slate-500">— tick the box next to each rule you want to include</span>
           </div>
-          {/* Info note: one leave type can have multiple policy+rule mappings */}
+          {/* Info note */}
           {!editId && (
             <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex items-start gap-2">
               <FiInfo className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-              <span><b>Multiple policies per leave type:</b> A single leave type (e.g. Casual Leave) can be mapped to different policies with different rules + days. Run "Create Mapping" once per policy — existing mappings are not overwritten.</span>
-            </div>
-          )}
-          {/* Show existing mappings for each leave type (so user sees what's already mapped) */}
-          {!editId && rows.some(r => r.ruleId) && (
-            <div className="mb-3 overflow-x-auto border border-slate-200 rounded-lg bg-white">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Leave Type</th>
-                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Existing Rule</th>
-                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Days/Yr</th>
-                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-slate-400">Policy</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {rows.filter(r => r.ruleId).map(r => {
-                    const rule = rules.find(rr => rr.id === r.ruleId);
-                    const policy = rule?.policyId ? policies.find(p => p.id === rule.policyId) : undefined;
-                    return (
-                      <tr key={r.leaveTypeId} className="text-xs">
-                        <td className="px-3 py-2 font-medium text-slate-700">{r.leaveTypeName}</td>
-                        <td className="px-3 py-2 text-slate-600">{rule?.name || '—'}</td>
-                        <td className="px-3 py-2 text-slate-600">{r.daysPerYear}</td>
-                        <td className="px-3 py-2 text-slate-600">{policy?.title || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <span><b>Multiple rules per leave type:</b> A single leave type (e.g. Casual Leave) can have multiple rules — tick all the rules you want to map under the selected policy. Each checked rule creates a separate mapping.</span>
             </div>
           )}
           {types.length === 0 ? (
@@ -1094,44 +1083,94 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase w-16 text-center">Include</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Leave Type</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Applicable Rule</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase w-32">Days/Year</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Applicable To</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider w-16 text-center">Include</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Leave Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Rule to Apply</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider w-28">Days/Year</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Who</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {rows.map(row => {
-                    const rule = rules.find(r => r.id === row.ruleId);
-                    return (
-                      <tr key={row.leaveTypeId} className={`transition-colors ${row.included ? 'bg-violet-50/40' : 'hover:bg-slate-50/50'}`}>
-                        <td className="px-4 py-3 text-center"><input type="checkbox" checked={row.included} onChange={() => toggleRow(row.leaveTypeId)} className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 cursor-pointer" /></td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
-                            <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
-                          </div>
-                          <p className="text-xs text-slate-400 mt-0.5">default {row.defaultDays} days/year</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <select value={row.ruleId} onChange={e => updateRowRule(row.leaveTypeId, e.target.value)} disabled={!!editId} className="w-full text-xs px-2 py-1.5 rounded border border-slate-300 bg-white outline-none focus:ring-2 focus:ring-violet-500/20 disabled:bg-slate-50 disabled:text-slate-400">
-                            <option value="">— Select rule —</option>
-                            {rules.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-4 py-3"><input type="number" min={0} value={row.daysPerYear} onChange={e => updateRowDays(row.leaveTypeId, parseInt(e.target.value) || 0)} disabled={!row.ruleId} className="w-24 px-2 py-1 rounded border border-slate-300 text-sm disabled:bg-slate-50 disabled:text-slate-400" /></td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {rule?.genderApplicability && rule.genderApplicability !== 'all' && <span className={`text-xs px-1.5 py-0.5 rounded ${rule.genderApplicability === 'male' ? 'bg-blue-50 text-blue-700' : rule.genderApplicability === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-amber-50 text-amber-700'}`}>{rule.genderApplicability}</span>}
-                            {rule?.employmentType && rule.employmentType !== 'all' && <span className="text-xs px-1.5 py-0.5 rounded bg-teal-50 text-teal-700">{rule.employmentType}</span>}
-                            {rule?.branch?.name && <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{rule.branch.name}</span>}
-                            {rule?.department?.name && <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{rule.department.name}</span>}
-                            {(!rule || (!rule.genderApplicability || rule.genderApplicability === 'all') && (!rule.employmentType || rule.employmentType === 'all') && !rule?.branch?.name && !rule?.department?.name) && <span className="text-xs text-slate-400">All Employees</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    );
+                    // Find all rules for this leave type
+                    const ltRules = rules.filter(r => (r.leaveTypeId || r.typeId) === row.leaveTypeId);
+                    if (ltRules.length === 0) {
+                      // No rules defined for this leave type — show a placeholder row
+                      return (
+                        <tr key={row.leaveTypeId} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3 text-center text-slate-300">—</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
+                              <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">default {row.defaultDays} days/year</p>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-400 italic" colSpan={3}>No rules defined for this leave type — create one in Step 3</td>
+                        </tr>
+                      );
+                    }
+                    // Render one row per rule (each with its own checkbox)
+                    // But the leave type name only shows on the first rule row (rowSpan)
+                    return ltRules.map((rule, idx) => {
+                      const isChecked = row.checkedRuleIds.includes(rule.id);
+                      const daysPerYear = rule.entitledDaysPerYear || row.defaultDays || 0;
+                      // Derive "Who" badges from the rule's scope
+                      const whoBadges: Array<{ label: string; cls: string }> = [];
+                      const g = (rule.genderApplicability || rule.gender || 'all').toLowerCase();
+                      if (g === 'male') whoBadges.push({ label: 'Male', cls: 'bg-blue-50 text-blue-700' });
+                      else if (g === 'female') whoBadges.push({ label: 'Female', cls: 'bg-pink-50 text-pink-700' });
+                      else if (g === 'other') whoBadges.push({ label: 'Other', cls: 'bg-amber-50 text-amber-700' });
+                      if (rule.employmentType && rule.employmentType !== 'all') {
+                        if (rule.employmentType === 'internship') whoBadges.push({ label: 'Probation', cls: 'bg-amber-50 text-amber-700' });
+                        else whoBadges.push({ label: rule.employmentType.charAt(0).toUpperCase() + rule.employmentType.slice(1), cls: 'bg-teal-50 text-teal-700' });
+                      }
+                      if (rule.branch?.name) whoBadges.push({ label: rule.branch.name, cls: 'bg-emerald-50 text-emerald-700' });
+                      if (rule.department?.name) whoBadges.push({ label: rule.department.name, cls: 'bg-indigo-50 text-indigo-700' });
+                      if (whoBadges.length === 0) whoBadges.push({ label: 'All', cls: 'bg-slate-100 text-slate-600' });
+
+                      return (
+                        <tr key={`${row.leaveTypeId}-${rule.id}`} className={`transition-colors ${isChecked ? 'bg-violet-50/40' : 'hover:bg-slate-50/50'} ${idx > 0 ? 'border-t border-slate-50' : ''}`}>
+                          {/* Include checkbox */}
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleRule(row.leaveTypeId, rule.id)}
+                              className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                            />
+                          </td>
+                          {/* Leave Type — only show on the first rule row for this leave type (rowSpan) */}
+                          {idx === 0 && (
+                            <td className="px-4 py-3 align-top" rowSpan={ltRules.length}>
+                              <div className="flex items-center gap-2">
+                                {row.leaveTypeCode && <CodeChip code={row.leaveTypeCode} />}
+                                <span className="font-medium text-slate-900">{row.leaveTypeName}</span>
+                              </div>
+                              <p className="text-xs text-slate-400 mt-0.5">default {row.defaultDays} days/year</p>
+                              {ltRules.length > 1 && <p className="text-[10px] text-violet-500 mt-1 font-medium">{ltRules.length} rules available</p>}
+                            </td>
+                          )}
+                          {/* Rule to Apply — show the rule name as a label next to the checkbox */}
+                          <td className="px-4 py-3">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm" onClick={() => toggleRule(row.leaveTypeId, rule.id)}>
+                              <span className={`font-medium ${isChecked ? 'text-violet-700' : 'text-slate-700'}`}>{rule.name}</span>
+                            </label>
+                          </td>
+                          {/* Days/Year */}
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-slate-900 text-sm">{daysPerYear}</span>
+                            <span className="text-xs text-slate-400 ml-1">days</span>
+                          </td>
+                          {/* Who */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {whoBadges.map(b => <span key={b.label} className={`text-xs px-1.5 py-0.5 rounded ${b.cls}`}>{b.label}</span>)}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
                   })}
                 </tbody>
               </table>
@@ -1142,8 +1181,8 @@ function MappingForm({ editId, types, policies, rules, onCancel, onSaved, sq }: 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
           <button onClick={onCancel} className="px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-          <button onClick={handleSave} disabled={saving || (!editId && (!selectedPolicyId || includedCount === 0))} className="px-6 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-violet-500/25 flex items-center gap-2">
-            <FiPlus className="w-4 h-4" /> {saving ? 'Saving...' : editId ? 'Save Changes' : `Save Mapping${includedCount > 0 ? ` (${includedCount})` : ''}`}
+          <button onClick={handleSave} disabled={saving || (!editId && (!selectedPolicyId || totalChecked === 0))} className="px-6 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-violet-500/25 flex items-center gap-2">
+            <FiPlus className="w-4 h-4" /> {saving ? 'Saving...' : editId ? 'Save Changes' : `Save Mapping${totalChecked > 0 ? ` (${totalChecked})` : ''}`}
           </button>
         </div>
       </div>
