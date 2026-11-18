@@ -451,7 +451,7 @@ function CreateJobPostingForm() {
           <div>
             <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-100"><FiBriefcase className="h-4 w-4" /> Approved requisition</div>
             <h2 className="text-xl font-bold">Create Job Posting</h2>
-            <p className="mt-1 text-sm text-violet-100">Review the prefilled role details, add candidate-facing information, and publish.</p>
+            <p className="mt-1 text-sm text-violet-100">Review the prefilled role details, complete the job description, and publish.</p>
           </div>
           <span className="w-fit rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold ring-1 ring-white/25">{requisitionId || 'New posting'}</span>
         </div>
@@ -502,8 +502,7 @@ function CreateJobPostingForm() {
             <input type="date" value={form.closingDate} onChange={(e) => setForm({ ...form, closingDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
-            <div className="mb-3 mt-2 flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">2</span> Candidate-facing content</div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Description <span className="text-red-500">*</span></label>
+            <div className="mb-3 mt-2 flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">2</span> Job Description <span className="text-red-500">*</span></div>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} placeholder="Describe the role, responsibilities, and what the candidate will do..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
