@@ -121,6 +121,12 @@ export default function JobBoardsAdminPage() {
     closed: postings.filter((p) => p.status === 'closed').length,
     failed: postings.filter((p) => p.status === 'failed').length,
   }), [postings]);
+  const boardOverview = useMemo(() => Object.entries(BOARD_LABELS).map(([id, label]) => {
+    const rows = postings.filter((posting) => posting.board === id);
+    const active = rows.filter((posting) => posting.status === 'posted' || posting.status === 'pending').length;
+    const failed = rows.filter((posting) => posting.status === 'failed').length;
+    return { id, label, active, failed, connected: rows.length > 0 };
+  }), [postings]);
 
   /* Bulk close */
   const selectedIds = Object.keys(selected).filter((id) => selected[id]);
@@ -206,15 +212,15 @@ export default function JobBoardsAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Link href="/recruitment" className="inline-flex items-center gap-2 text-sm text-thb-text-secondary hover:text-thb-text-primary mb-2">
-            <FiArrowLeft className="w-4 h-4" /> Back to Recruitment
+          <Link href="/recruitment?tab=jobs" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800 mb-2">
+            <FiArrowLeft className="w-4 h-4" /> Back to Job Postings
           </Link>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
+          <h1 className="text-3xl font-bold tracking-tight text-thb-text-primary flex items-center gap-2">
             <FiExternalLink className="w-6 h-6 text-teal-500" />
-            Job Board Multi-Posting
+            Job Boards
           </h1>
           <p className="text-thb-text-secondary mt-1">
-            Manage all external job board postings across all jobs
+            Connect and manage where your jobs are published
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -237,8 +243,21 @@ export default function JobBoardsAdminPage() {
         </div>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Connected Channels</p><p className="mt-1 text-3xl font-extrabold text-slate-950">{boardOverview.filter((board) => board.connected).length}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Active Postings</p><p className="mt-1 text-3xl font-extrabold text-slate-950">{stats.posted + stats.pending}</p></div>
+        <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4"><p className="text-xs font-bold uppercase tracking-wider text-red-600">Sync Issues</p><p className="mt-1 text-3xl font-extrabold text-slate-950">{stats.failed}</p></div>
+      </div>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-bold text-slate-900">Publishing Channels</h2><span className="text-xs text-slate-500">Channels appear after their first posting is configured.</span></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          {boardOverview.map((board) => <article key={board.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><span className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-extrabold text-white" style={{ backgroundColor: BOARD_COLORS[board.id] }}>{board.label.slice(0, 2).toUpperCase()}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${board.connected ? board.failed ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{board.connected ? board.failed ? 'Needs attention' : 'Connected' : 'Not connected'}</span></div><h3 className="mt-3 font-bold text-slate-900">{board.label}</h3><p className="mt-1 text-xs text-slate-500">{board.active} active posting{board.active === 1 ? '' : 's'}</p></article>)}
+        </div>
+      </section>
+
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="hidden grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: 'Total', value: stats.total, color: 'text-thb-text-primary', bg: 'bg-slate-100' },
           { label: 'Posted', value: stats.posted, color: 'text-emerald-600', bg: 'bg-emerald-50' },

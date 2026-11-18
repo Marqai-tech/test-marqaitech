@@ -121,7 +121,6 @@ export default function RequisitionsPage() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [form, setForm] = useState(initialForm);
-  const [scope, setScope] = useState<'all' | 'mine'>(typeof window !== 'undefined' ? (localStorage.getItem('tb_req_scope') as 'all' | 'mine') || 'all' : 'all');
   const [search, setSearch] = useState('');
   const [listFilter, setListFilter] = useState<'all' | 'action' | 'pending' | 'draft' | 'approved'>('all');
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
@@ -225,18 +224,11 @@ export default function RequisitionsPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/requisitions?limit=100${scope === 'mine' ? '&scope=mine' : ''}`, { headers: getAuthHeaders() });
+      const res = await fetch('/api/requisitions?limit=100', { headers: getAuthHeaders() });
       if (res.ok) { const data = await res.json(); setRequisitions(Array.isArray(data) ? data : data.requisitions || []); }
     } catch { toast.error('Failed to load requisitions'); }
     finally { setLoading(false); }
-  }, [scope]);
-
-  // Persist scope to localStorage so it survives browser refresh
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tb_req_scope', scope);
-    }
-  }, [scope]);
+  }, []);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -476,27 +468,6 @@ export default function RequisitionsPage() {
           <p className="text-thb-text-secondary mt-1">Raise and approve hiring requests</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Task 164: scope filter — show BOTH buttons with active highlighting */}
-          <button
-            onClick={() => setScope('all')}
-            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
-              scope === 'all'
-                ? 'bg-green-500 text-white border-green-500'
-                : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'
-            }`}
-          >
-            All Requests
-          </button>
-          <button
-            onClick={() => setScope('mine')}
-            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
-              scope === 'mine'
-                ? 'bg-green-500 text-white border-green-500'
-                : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'
-            }`}
-          >
-            My Requests
-          </button>
           <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
             <FiPlus className="w-4 h-4" /> Raise Requisition
           </button>

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
   FiBarChart2, FiClock, FiTrendingUp, FiBriefcase, FiUsers,
-  FiCheckCircle, FiXCircle, FiArrowLeft, FiRefreshCw,
+  FiCheckCircle, FiXCircle, FiRefreshCw,
   FiTarget, FiDollarSign, FiExternalLink,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -137,20 +137,27 @@ export default function RecruitmentAnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/recruitment?tab=jobs" className="hover:text-emerald-700">Recruitment</Link><span>/</span><span>Create Jobs</span><span>/</span><span className="text-emerald-700">Analytics</span></div>
+          <h1 className="text-3xl font-bold tracking-tight text-thb-text-primary flex items-center gap-2">
             <FiBarChart2 className="w-6 h-6 text-teal-500" />
-            Recruitment Analytics
+            Job Posting Analytics
           </h1>
           <p className="text-thb-text-secondary mt-1">
-            Cost per Hire, Time to Fill, funnel conversion, and source effectiveness
+            Measure posting performance, hiring speed, source effectiveness and candidate conversion
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/recruitment"
+            href="/recruitment?tab=jobs"
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
           >
-            <FiArrowLeft className="w-4 h-4" /> Back to Recruitment
+            <FiBriefcase className="w-4 h-4" /> Job Postings
+          </Link>
+          <Link
+            href="/recruitment/job-boards"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
+          >
+            <FiExternalLink className="w-4 h-4" /> Job Boards
           </Link>
           <button
             onClick={() => fetchData(true)}

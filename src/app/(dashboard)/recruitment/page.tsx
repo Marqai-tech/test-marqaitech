@@ -33,7 +33,6 @@ import {
   FiEye,
   FiCheckCircle,
   FiTarget,
-  FiSend,
   FiGrid,
   FiList,
   FiUserCheck,
@@ -43,51 +42,12 @@ import {
 import toast from 'react-hot-toast';
 import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
-import ModuleTips from '@/components/ModuleTips';
-import ModuleWorkflow from '@/components/ModuleWorkflow';
-import ModuleIntro from '@/components/ModuleIntro';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   maskCandidateFields,
   buildPiiMaskTooltip,
   PiiPolicyEntry,
 } from '@/lib/pii-mask';
-
-/* ── Recruitment Tips ── */
-const recruitmentTips = [
-  {
-    title: 'Create Requisitions First',
-    description: 'Create job requisitions first, then post them to the Job Portal',
-  },
-  {
-    title: 'Use AI Interview',
-    description: 'Use AI Interview to automatically screen candidates with customizable question sets',
-  },
-  {
-    title: 'Track the Hiring Funnel',
-    description: 'Track candidates through the hiring funnel: Applied → Screened → Interviewed → Offered → Hired',
-  },
-  {
-    title: 'Source Effectiveness Report',
-    description: 'The Source Effectiveness report helps identify which job boards yield the best candidates',
-  },
-  {
-    title: 'Offer Letter Templates',
-    description: 'Set up offer letter templates to speed up the hiring process',
-  },
-];
-
-/* ── Recruitment Workflow Steps ── */
-const recruitmentWorkflowSteps = [
-  { step: 1, title: 'Create Job Requisition', description: 'Define the role, department, and hiring requirements' },
-  { step: 2, title: 'Post Job Opening', description: 'Publish the job listing to attract candidates' },
-  { step: 3, title: 'Receive Applications', description: 'Candidates apply through the portal or external sources' },
-  { step: 4, title: 'Screen Candidates', description: 'Review applications and shortlist qualified candidates' },
-  { step: 5, title: 'Schedule Interviews', description: 'Set up interview rounds with the hiring team' },
-  { step: 6, title: 'Make Offer', description: 'Extend an offer letter to the selected candidate' },
-  { step: 7, title: 'Hire Candidate', description: 'Candidate accepts and is onboarded into the system' },
-  { step: 8, title: 'Update Employee Records', description: 'Create the employee profile from the hired candidate data' },
-];
 
 /* ── Types ── */
 interface JobPosting {
@@ -1865,70 +1825,22 @@ export default function RecruitmentPage() {
         )}
       </div>
 
-      {/* Module Intro */}
-      <ModuleIntro
-        title="Recruitment & ATS"
-        subtitle="Requisitions → Job postings → Applications → Interviews → Offers → Onboarding"
-        srsRef="REQ-ATS-01..12 · REQ-SEC-REC-01..03"
-        icon={<FiBriefcase className="w-4 h-4" />}
-        accent="violet"
-        quickStats={
-          <>
-            <span><b className="text-slate-700">{displayJobs.length}</b> jobs</span>
-            <span><b className="text-teal-600">{displayJobs.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
-          </>
-        }
-      >
-        <p>
-          The Recruitment module is a full Applicant Tracking System (ATS) covering the end-to-end hiring
-          funnel — from raising a job requisition with department / hiring manager approval, posting the
-          job internally and externally, receiving applications, screening, scheduling interviews (manual
-          and AI-proctored), rolling out offers, and converting accepted candidates into employees.
-        </p>
-        <p>
-          PII is masked for hiring panel members per REQ-SEC-REC-03 by default; only authorized recruiters
-          and HR admins see full candidate contact details. All candidate activity — applications, interview
-          feedback, sentiment scores, AI interview sessions, and offer history — is consolidated into a
-          single candidate timeline that recruiters can audit at any time.
-        </p>
-        <p>
-          The Candidate Portal (separate login) lets external candidates self-serve: dashboard with their
-          application status, upcoming interviews, resume insights, skill matrix, AI suggestions, and
-          recommended learning courses for skills they&apos;re missing for the jobs they applied to.
-        </p>
-      </ModuleIntro>
-
-      {/* Module Tips */}
-      <ModuleTips
-        moduleKey="recruitment"
-        title="Recruitment Tips"
-        tips={recruitmentTips}
-        userRole={user?.role}
-      />
-
-      <ModuleWorkflow
-        moduleKey="recruitment"
-        title="How to Hire Through Recruitment"
-        subtitle="Follow this workflow to manage the full hiring process"
-        steps={recruitmentWorkflowSteps}
-        accentColor="violet"
-        userRole={user?.role}
-      />
-
       {/* Embedded Job Posting Form (Add/Edit) */}
       {showJobForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-teal-500 transition-all duration-300 ease-in-out">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-thb-text-primary">
-                {editingJobId ? 'Edit Job Posting' : 'Post New Job'}
-              </h2>
+        <div id="crud-form" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/40 transition-all duration-300">
+          <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+            <div className="flex items-start justify-between gap-4">
+              <div><h2 className="text-2xl font-bold tracking-tight text-slate-950">{editingJobId ? 'Edit Job Posting' : 'Create Job Posting'}</h2><p className="mt-1 text-sm text-slate-500">Complete the posting details and review exactly what candidates will see.</p></div>
               <button onClick={handleCancelJobForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
+          </div>
+          <div className="grid gap-5 p-4 xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)] xl:p-5">
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2"><FiBriefcase className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Job Details</h3></div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
@@ -1983,27 +1895,31 @@ export default function RecruitmentPage() {
                   </select>
                 </div>
               </div>
-              <div className="border-t border-thb-border pt-4">
-                <h3 className="text-base font-semibold text-thb-text-primary mb-3">Job Description</h3>
+              </section>
+              <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2"><FiFileText className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Job Description</h3></div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Role Summary <span className="text-red-500 font-bold">*</span></label>
-                <textarea rows={4} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
-              </div>
-              <div>
+                <textarea rows={3} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requirements</label>
                 <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
-              </div>
-              <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
+              </section>
+              <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-thb-text-primary">Number of Interview Rounds for This Role <span className="text-red-500">*</span></label><p className="text-[11px] text-thb-text-muted mt-0.5">{parseInterviewPlan(jobForm.interviewPlan).length} round(s) configured.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(jobForm.interviewPlan); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan([...rows, { name: '', type: 'technical' }]) })); }} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">+ Add Round</button></div>
                 <div className="space-y-2">{parseInterviewPlan(jobForm.interviewPlan).map((row, i, rows) => <div key={i} className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 p-2"><span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">{i + 1}</span><input required value={row.name} placeholder="Enter your own round name" onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="client">Client</option><option value="ai">AI</option></select><button type="button" onClick={() => { const next = rows.filter((_, index) => index !== i); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
                 {parseInterviewPlan(jobForm.interviewPlan).length === 0 && <p className="rounded-lg border border-dashed border-red-200 bg-red-50 p-3 text-center text-xs text-red-700">At least one named interview round is required.</p>}
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
-                <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleSaveJob} disabled={submittingJob} className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors">
-                  {submittingJob ? 'Saving...' : editingJobId ? 'Update Job' : 'Post Job'}
-                </button>
-              </div>
+              </section>
             </div>
+            <aside className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-3 xl:sticky xl:top-20">
+              <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><FiEye className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Candidate Preview</h3></div><span className="text-[11px] text-slate-500">Desktop preview</span></div>
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="bg-gradient-to-r from-emerald-900 to-emerald-600 px-5 py-5 text-lg font-bold text-white">3Boxes Careers</div>
+                <div className="space-y-4 p-5"><div><h3 className="text-2xl font-extrabold text-slate-950">{jobForm.title || 'Job title'}</h3><p className="mt-1 text-sm text-slate-500">{departments.find(d => d.id === jobForm.departmentId)?.name || 'Department'} · {jobForm.location || 'Location'} · <span className="capitalize">{jobForm.type}</span></p></div><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.experience || 'Experience'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.salary || 'Salary not specified'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.vacancies || 1} opening(s)</span></div><div><h4 className="font-bold text-slate-900">About the Role</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.description || 'Add a role summary to preview the candidate-facing description.'}</p></div><div><h4 className="font-bold text-slate-900">Requirements</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.requirements || 'Add role requirements to preview them here.'}</p></div><div><h4 className="font-bold text-slate-900">Interview Process</h4><div className="mt-2 flex flex-wrap gap-2">{parseInterviewPlan(jobForm.interviewPlan).map((round, index) => <span key={`${round.name}-${index}`} className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div></div><button type="button" disabled className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white opacity-70">Apply Now (Preview)</button></div>
+              </div>
+            </aside>
+          </div>
+          <div className="sticky bottom-0 z-10 flex flex-col-reverse justify-end gap-3 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:flex-row">
+            <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <button onClick={handleSaveJob} disabled={submittingJob} className="px-6 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-sm shadow-emerald-500/25 transition-colors">{submittingJob ? 'Saving...' : editingJobId ? 'Update Job' : 'Publish Job'}</button>
           </div>
         </div>
       )}
@@ -2285,9 +2201,6 @@ export default function RecruitmentPage() {
                                     >
                                       <FiEye className="w-4 h-4" />
                                     </Link>
-                                    <button onClick={() => handleOpenApplyForm(job.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-sky-600 hover:bg-sky-50 transition-colors" title="Apply">
-                                      <FiSend className="w-4 h-4" />
-                                    </button>
                                     {isAdmin && (
                                       <>
                                         <button onClick={() => handleOpenEditJobForm(job)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit">
