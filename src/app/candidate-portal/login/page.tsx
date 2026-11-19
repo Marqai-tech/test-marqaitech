@@ -97,7 +97,7 @@ export default function CandidateLoginPage() {
         localStorage.setItem('tb_candidate_email', email);
       }
       toast.success('Welcome back!');
-      router.push('/candidate-portal/dashboard');
+      router.push('/candidate-portal/home');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -149,7 +149,7 @@ export default function CandidateLoginPage() {
       if (d.needsPasswordSetup) {
         router.push(`/candidate-portal/set-password?token=${encodeURIComponent(d.token)}&email=${encodeURIComponent(email)}`);
       } else {
-        router.push('/candidate-portal/dashboard');
+        router.push('/candidate-portal/home');
       }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed');
@@ -182,9 +182,13 @@ export default function CandidateLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-sky-50 p-4">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+      <header className="flex h-16 items-center justify-between bg-gradient-to-r from-[#092744] via-[#103454] to-[#0f766e] px-6 text-white shadow-md">
+        <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-xs font-black tracking-[-.15em]">•••</span><span className="text-xl font-bold">3Boxes <span className="text-emerald-300">HRMS</span></span><span className="ml-3 border-l border-white/30 pl-4 text-sm text-slate-200">Candidate Portal</span></div>
+        <Link href="/careers" className="rounded-lg border border-white/25 px-4 py-2 text-sm font-semibold hover:bg-white/10">Browse Jobs</Link>
+      </header>
       {/* Back navigation */}
-      <div className="fixed top-4 left-4 flex items-center gap-2 text-xs">
+      <div className="hidden">
         <Link
           href="/careers"
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-teal-700 hover:border-teal-200 transition-colors shadow-sm"
@@ -192,7 +196,7 @@ export default function CandidateLoginPage() {
           <FiArrowLeft className="w-3.5 h-3.5" /> Back to Careers
         </Link>
       </div>
-      <div className="fixed top-4 right-4 flex items-center gap-2 text-xs">
+      <div className="hidden">
         <Link
           href="/login"
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-sky-700 hover:border-sky-200 transition-colors shadow-sm"
@@ -202,16 +206,20 @@ export default function CandidateLoginPage() {
         </Link>
       </div>
 
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-sky-500 text-white mb-3 shadow-lg">
-            <FiMail className="w-8 h-8" />
+      <main className="mx-auto grid h-[calc(100vh-64px)] max-w-7xl grid-cols-[minmax(360px,.9fr)_minmax(440px,1.1fr)] items-center gap-8 px-8 py-3">
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+          <div className="relative h-48 bg-cover bg-center p-8 text-white" style={{ backgroundImage: "linear-gradient(105deg, rgba(8,36,59,.94), rgba(13,49,82,.70)), url('/images/hr-team.png')" }}>
+            <FiGrid className="mb-4 h-9 w-9"/><h2 className="text-3xl font-bold">Welcome back</h2><p className="mt-3 max-w-md text-sm leading-6 text-slate-100">Sign in to track applications, respond to interviews, review offers, and complete preboarding.</p>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Candidate Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">Track your applications, interviews, and resume insights</p>
+          <div className="grid grid-cols-2 gap-3 p-6 text-sm"><div className="rounded-xl bg-emerald-50 p-4 font-semibold text-emerald-800">Application updates</div><div className="rounded-xl bg-sky-50 p-4 font-semibold text-sky-800">Interview schedule</div><div className="rounded-xl bg-violet-50 p-4 font-semibold text-violet-800">Offers & responses</div><div className="rounded-xl bg-amber-50 p-4 font-semibold text-amber-800">Secure preboarding</div></div>
+        </section>
+      <div className="w-full max-w-xl justify-self-end">
+        <div className="mb-2 text-left">
+          <h1 className="text-3xl font-bold text-slate-900">Sign in to Candidate Portal</h1>
+          <p className="text-sm text-slate-500 mt-1">Use your registered email and password or a secure OTP.</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-4 space-y-3">
           {/* Email — always visible */}
           <div>
             <label className="text-xs font-medium text-slate-700 uppercase tracking-wider">Email Address</label>
@@ -401,6 +409,16 @@ export default function CandidateLoginPage() {
               Google sign-in failed: {oauthError}. Please try another method.
             </p>
           )}
+
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+            <p className="text-xs text-slate-600">New to the candidate portal?</p>
+            <Link
+              href="/candidate-portal/register"
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
+            >
+              Create Candidate Account <FiArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
 
         <p className="text-center text-[11px] text-slate-400 mt-4">
@@ -412,6 +430,7 @@ export default function CandidateLoginPage() {
           <Link href="/login" className="text-slate-500 hover:text-sky-600 hover:underline">HR / Admin login</Link>
         </p>
       </div>
+      </main>
     </div>
   );
 }

@@ -58,7 +58,7 @@ export default function CandidateRegisterPage() {
       localStorage.setItem('tb_candidate_token', data.token);
       localStorage.setItem('tb_candidate_email', data.user.email);
       toast.success('Email verified. Your candidate account is ready.');
-      router.push('/candidate-portal/dashboard');
+      router.push('/candidate-portal/home');
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Email verification failed.');
     } finally { setSubmitting(false); }

@@ -42,8 +42,8 @@ export async function GET(request: Request) {
     // Active preboarding record for this candidate (latest, non-terminal).
     // preboardingStage: initiated | details_pending | verification | ready_to_join | joined | did_not_join | cancelled
     const pbRows = await db.$queryRawUnsafe(
-      `SELECT "id","jobTitle","joiningDate","preboardingStage","status","portalSubmittedAt",
-              "correctionNote","preboardingId","createdAt"
+      `SELECT "id","jobTitle","joiningDate","preboardingStage","status","onboardingStatus",
+              "backgroundCheckStatus","portalSubmittedAt","correctionNote","preboardingId","createdAt"
        FROM "PreboardingCandidate"
        WHERE "candidateEmail" = $1
          AND COALESCE("preboardingStage",'') NOT IN ('cancelled','did_not_join')
@@ -63,6 +63,8 @@ export async function GET(request: Request) {
         joiningDate: pb.joiningDate || null,
         stage: pb.preboardingStage || 'initiated',
         status: pb.status || null,
+        onboardingStatus: pb.onboardingStatus || 'pending',
+        bgvStatus: pb.backgroundCheckStatus || 'pending',
         submittedAt: pb.portalSubmittedAt || null,
         correctionPending: !!(pb.correctionNote && pb.correctionNote.trim()),
       };

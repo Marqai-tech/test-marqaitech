@@ -27,7 +27,7 @@ export default function OAuthBridgePage() {
       if (email) localStorage.setItem('tb_candidate_email', email);
       if (name) localStorage.setItem('tb_candidate_name', name);
     }
-    router.replace('/candidate-portal/dashboard');
+    router.replace('/candidate-portal/home');
   }, [router, searchParams]);
 
   return (
