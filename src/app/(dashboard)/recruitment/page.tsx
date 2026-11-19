@@ -1158,8 +1158,8 @@ export default function RecruitmentPage() {
     if (format === 'bold') document.execCommand('bold');
     else if (format === 'italic') document.execCommand('italic');
     else if (format === 'underline') document.execCommand('underline');
-    else if (format === 'h1') document.execCommand('formatBlock', false, activeDescriptionFormat === 'h1' ? '<div>' : '<h1>');
-    else if (format === 'h2') document.execCommand('formatBlock', false, activeDescriptionFormat === 'h2' ? '<div>' : '<h2>');
+    else if (format === 'h1') { const normal = activeDescriptionFormat === 'h1'; document.execCommand('formatBlock', false, normal ? 'div' : 'h1'); document.execCommand('fontSize', false, normal ? '3' : '7'); }
+    else if (format === 'h2') { const normal = activeDescriptionFormat === 'h2'; document.execCommand('formatBlock', false, normal ? 'div' : 'h2'); document.execCommand('fontSize', false, normal ? '3' : '5'); }
     else if (format === 'bullet') document.execCommand('insertUnorderedList');
     else if (format === 'number') document.execCommand('insertOrderedList');
     else if (format === 'link') {
