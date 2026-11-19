@@ -391,8 +391,81 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ─── NEW JOINERS ───
+    if (type === 'newJoiners') {
+      const where: Record<string, unknown> = isSelfOnly && selfEmployeeId
+        ? { id: selfEmployeeId }
+        : { ...companyFilter, status: 'active' };
+      if (rangeStart) (where as any).dateOfJoining = { gte: rangeStart, lte: rangeEnd };
+      try {
+        const rows = await db.employee.findMany({
+          where,
+          select: { id: true, employeeId: true, firstName: true, lastName: true, dateOfJoining: true, status: true, department: { select: { name: true } }, designation: { select: { title: true } }, branch: { select: { name: true } } },
+          orderBy: { dateOfJoining: 'desc' }, take: 500,
+        });
+        const data = rows.map(r => ({ employeeId: r.employeeId || '—', name: `${r.firstName || ''} ${r.lastName || ''}`.trim() || '—', department: r.department?.name || '—', designation: r.designation?.title || '—', branch: r.branch?.name || '—', joiningDate: prettyDate(r.dateOfJoining), status: r.status || '—' }));
+        return NextResponse.json({ type, rows: data, total: data.length }, { headers: corsHeaders() });
+      } catch { return NextResponse.json({ type, rows: [], total: 0 }, { headers: corsHeaders() }); }
+    }
+
+    // ─── PENDING UPDATE REQUESTS ───
+    if (type === 'pendingRequests') {
+      try {
+        const where: Record<string, unknown> = { status: 'pending' };
+        if (isSelfOnly && selfEmployeeId) (where as any).employeeId = selfEmployeeId;
+        else if (effectiveCompanyId) (where as any).employee = { companyId: effectiveCompanyId };
+        const rows = await db.employeeUpdateRequest.findMany({ where, orderBy: { createdAt: 'desc' }, take: 500, include: { employee: { select: { employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } } } } }).catch(() => []);
+        const data = (rows as any[]).map(r => ({ employeeId: r.employee?.employeeId || '—', name: `${r.employee?.firstName || ''} ${r.employee?.lastName || ''}`.trim() || '—', requestType: r.requestType || r.fieldName || 'Profile Update', submittedDate: prettyDate(r.createdAt), status: r.status || 'pending' }));
+        return NextResponse.json({ type, rows: data, total: data.length }, { headers: corsHeaders() });
+      } catch { return NextResponse.json({ type, rows: [], total: 0 }, { headers: corsHeaders() }); }
+    }
+
+    // ─── PROBATION ───
+    if (type === 'probation') {
+      try {
+        const where: Record<string, unknown> = isSelfOnly && selfEmployeeId
+          ? { id: selfEmployeeId }
+          : { ...companyFilter, employeeStatus: 'probation' };
+        const rows = await db.employee.findMany({
+          where,
+          select: { id: true, employeeId: true, firstName: true, lastName: true, dateOfJoining: true, employeeStatus: true, status: true, department: { select: { name: true } }, designation: { select: { title: true } } },
+          orderBy: { dateOfJoining: 'desc' }, take: 500,
+        }).catch(() => []);
+        const data = (rows as any[]).map(r => {
+          const joinDate = r.dateOfJoining ? new Date(r.dateOfJoining) : null;
+          const probationEnd = joinDate ? new Date(joinDate.getTime() + 180 * 24 * 60 * 60 * 1000) : null;
+          return { employeeId: r.employeeId || '—', name: `${r.firstName || ''} ${r.lastName || ''}`.trim() || '—', department: r.department?.name || '—', designation: r.designation?.title || '—', joiningDate: prettyDate(r.dateOfJoining), probationEndDate: prettyDate(probationEnd), status: r.employeeStatus || r.status || 'probation' };
+        });
+        return NextResponse.json({ type, rows: data, total: data.length }, { headers: corsHeaders() });
+      } catch { return NextResponse.json({ type, rows: [], total: 0 }, { headers: corsHeaders() }); }
+    }
+
+    // ─── UPCOMING BIRTHDAYS ───
+    if (type === 'birthdays') {
+      try {
+        const where: Record<string, unknown> = isSelfOnly && selfEmployeeId
+          ? { id: selfEmployeeId }
+          : { ...companyFilter, status: 'active', NOT: { dateOfBirth: null } };
+        const allEmps = await db.employee.findMany({
+          where,
+          select: { id: true, employeeId: true, firstName: true, lastName: true, dateOfBirth: true, department: { select: { name: true } }, designation: { select: { title: true } } },
+          take: 500,
+        }).catch(() => []);
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const data = (allEmps as any[]).filter(e => e.dateOfBirth).map(e => {
+          const dob = new Date(e.dateOfBirth);
+          let nextBirthday = new Date(currentYear, dob.getMonth(), dob.getDate());
+          if (nextBirthday < now) nextBirthday = new Date(currentYear + 1, dob.getMonth(), dob.getDate());
+          const daysUntil = Math.ceil((nextBirthday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          return { employeeId: e.employeeId || '—', name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || '—', department: e.department?.name || '—', designation: e.designation?.title || '—', birthday: nextBirthday.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), daysUntil: String(daysUntil) };
+        }).filter(e => parseInt(e.daysUntil) <= 30).sort((a, b) => parseInt(a.daysUntil) - parseInt(b.daysUntil));
+        return NextResponse.json({ type, rows: data, total: data.length }, { headers: corsHeaders() });
+      } catch { return NextResponse.json({ type, rows: [], total: 0 }, { headers: corsHeaders() }); }
+    }
+
     return NextResponse.json(
-      { error: 'Unknown detail type. Supported: total | active | onLeave | exits | myLeaveBalance | myPendingRequests | myAttendance | myRecentLeaves' },
+      { error: 'Unknown detail type. Supported: total | active | newJoiners | onLeave | exits | pendingRequests | probation | birthdays | myLeaveBalance | myPendingRequests | myAttendance | myRecentLeaves' },
       { status: 400, headers: corsHeaders() },
     );
   } catch (error) {

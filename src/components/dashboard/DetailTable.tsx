@@ -42,8 +42,12 @@ export interface DetailColumn {
 export type CardType =
   | 'total'
   | 'active'
+  | 'newJoiners'
   | 'onLeave'
   | 'exits'
+  | 'pendingRequests'
+  | 'probation'
+  | 'birthdays'
   | 'myLeaveBalance'
   | 'myPendingRequests'
   | 'myAttendance'
@@ -87,6 +91,39 @@ const COLUMN_CONFIG: Record<CardType, DetailColumn[]> = {
     { key: 'exitDate', label: 'Exit Date' },
     { key: 'exitType', label: 'Exit Type' },
     { key: 'exitStatus', label: 'Exit Status', format: (v) => <StatusPill value={String(v ?? '—')} /> },
+  ],
+  newJoiners: [
+    { key: 'employeeId', label: 'Employee ID' },
+    { key: 'name', label: 'Name', wide: true },
+    { key: 'department', label: 'Department' },
+    { key: 'designation', label: 'Designation' },
+    { key: 'branch', label: 'Branch' },
+    { key: 'joiningDate', label: 'Joining Date' },
+    { key: 'status', label: 'Status', format: (v) => <StatusPill value={String(v ?? '—')} /> },
+  ],
+  pendingRequests: [
+    { key: 'employeeId', label: 'Employee ID' },
+    { key: 'name', label: 'Requester', wide: true },
+    { key: 'requestType', label: 'Request Type' },
+    { key: 'submittedDate', label: 'Submitted Date' },
+    { key: 'status', label: 'Status', format: (v) => <StatusPill value={String(v ?? '—')} /> },
+  ],
+  probation: [
+    { key: 'employeeId', label: 'Employee ID' },
+    { key: 'name', label: 'Name', wide: true },
+    { key: 'department', label: 'Department' },
+    { key: 'designation', label: 'Designation' },
+    { key: 'joiningDate', label: 'Joining Date' },
+    { key: 'probationEndDate', label: 'Probation End' },
+    { key: 'status', label: 'Status', format: (v) => <StatusPill value={String(v ?? '—')} /> },
+  ],
+  birthdays: [
+    { key: 'employeeId', label: 'Employee ID' },
+    { key: 'name', label: 'Name', wide: true },
+    { key: 'department', label: 'Department' },
+    { key: 'designation', label: 'Designation' },
+    { key: 'birthday', label: 'Birthday' },
+    { key: 'daysUntil', label: 'In (days)' },
   ],
   myLeaveBalance: [
     { key: 'leaveType', label: 'Leave Type', wide: true },

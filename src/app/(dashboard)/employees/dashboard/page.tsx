@@ -62,6 +62,7 @@ interface EmployeeStats {
   inactiveEmployees: number;
   newHiresThisMonth: number;
   exitsThisMonth: number;
+  upcomingBirthdays: number;
   avgTenureMonths: number;
   genderRatio: { male: number; female: number; other: number };
 }
@@ -378,6 +379,20 @@ export default function EmployeeDashboardPage() {
           rejoins: rejoinsCount,
         });
 
+        // Count upcoming birthdays (next 30 days)
+        let birthdayCount = 0;
+        const nowDate = new Date();
+        const currentYear = nowDate.getFullYear();
+        (allEmps as any[]).forEach((emp: any) => {
+          if (emp.dateOfBirth) {
+            const dob = new Date(emp.dateOfBirth);
+            let nextBday = new Date(currentYear, dob.getMonth(), dob.getDate());
+            if (nextBday < nowDate) nextBday = new Date(currentYear + 1, dob.getMonth(), dob.getDate());
+            const daysUntil = Math.ceil((nextBday.getTime() - nowDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (daysUntil <= 30) birthdayCount++;
+          }
+        });
+
         setStats({
           totalEmployees: total,
           activeEmployees: activeCount,
@@ -385,6 +400,7 @@ export default function EmployeeDashboardPage() {
           inactiveEmployees: inactiveCount,
           newHiresThisMonth: newHires,
           exitsThisMonth: exits,
+          upcomingBirthdays: birthdayCount,
           avgTenureMonths: tenureCount > 0 ? Math.round(totalTenure / tenureCount) : 0,
           genderRatio: genderCounts,
         });
@@ -507,7 +523,7 @@ export default function EmployeeDashboardPage() {
   function getSampleStats(): EmployeeStats {
     return {
       totalEmployees: 0, activeEmployees: 0, onLeaveEmployees: 0, inactiveEmployees: 0,
-      newHiresThisMonth: 0, exitsThisMonth: 0, avgTenureMonths: 0,
+      newHiresThisMonth: 0, exitsThisMonth: 0, upcomingBirthdays: 0, avgTenureMonths: 0,
       genderRatio: { male: 0, female: 0, other: 0 },
     };
   }
@@ -650,8 +666,12 @@ export default function EmployeeDashboardPage() {
   const cardMeta: Record<CardType, { title: string; subtitle: string; accent: string }> = {
     total: { title: 'Total Employees', subtitle: 'Every employee in your scope (headcount snapshot)', accent: 'text-[#3A57C4]' },
     active: { title: 'Active Employees', subtitle: 'Employees with status = active', accent: 'text-emerald-600' },
+    newJoiners: { title: 'New Joiners', subtitle: 'Employees who joined in the selected range', accent: 'text-[#10B981]' },
     onLeave: { title: 'Employees On Leave', subtitle: 'Approved leave records overlapping the selected range', accent: 'text-amber-600' },
     exits: { title: 'Employee Exits', subtitle: 'Terminated / resigned employees in the selected range', accent: 'text-rose-600' },
+    pendingRequests: { title: 'Pending Update Requests', subtitle: 'Employee update requests awaiting action', accent: 'text-[#FF9B44]' },
+    probation: { title: 'Employees on Probation', subtitle: 'Employees currently in their probation period', accent: 'text-amber-600' },
+    birthdays: { title: 'Upcoming Birthdays', subtitle: 'Birthdays in the next 30 days', accent: 'text-[#6C4FD6]' },
     myLeaveBalance: { title: 'My Leave Balance', subtitle: 'Your leave entitlement for the selected year', accent: 'text-[#3A57C4]' },
     myPendingRequests: { title: 'My Pending Requests', subtitle: 'Your leave requests awaiting approval', accent: 'text-amber-600' },
     myAttendance: { title: 'My Attendance', subtitle: 'Your attendance records in the selected range', accent: 'text-emerald-600' },
@@ -882,6 +902,16 @@ export default function EmployeeDashboardPage() {
                 clickableHint="View active employees"
               />
               <StatCard
+                label="New Joiners"
+                value={stats?.newHiresThisMonth ?? 0}
+                sub="Joined in selected range"
+                icon={<FiUserPlus className="w-5 h-5" />}
+                bg="bg-[#10B981]/10 text-[#10B981]"
+                ring="ring-[#10B981]/20"
+                onClick={() => setSelectedCard('newJoiners')}
+                clickableHint="View new joiners"
+              />
+              <StatCard
                 label="On Leave"
                 value={stats?.onLeaveEmployees ?? 0}
                 sub={stats?.totalEmployees ? `${Math.round((stats.onLeaveEmployees / stats.totalEmployees) * 100)}% of total` : '—'}
@@ -900,6 +930,36 @@ export default function EmployeeDashboardPage() {
                 ring="ring-rose-100"
                 onClick={() => setSelectedCard('exits')}
                 clickableHint="View exit records"
+              />
+              <StatCard
+                label="Pending Requests"
+                value={personalStats.pendingRequests || 0}
+                sub="Update requests awaiting action"
+                icon={<FiFileText className="w-5 h-5" />}
+                bg="bg-[#FF9B44]/10 text-[#FF9B44]"
+                ring="ring-[#FF9B44]/20"
+                onClick={() => setSelectedCard('pendingRequests')}
+                clickableHint="View pending requests"
+              />
+              <StatCard
+                label="On Probation"
+                value={lifecycleCounts.onProbation || 0}
+                sub="In probation period"
+                icon={<FiClock className="w-5 h-5" />}
+                bg="bg-amber-50 text-amber-600"
+                ring="ring-amber-100"
+                onClick={() => setSelectedCard('probation')}
+                clickableHint="View probation employees"
+              />
+              <StatCard
+                label="Upcoming Birthdays"
+                value={stats?.upcomingBirthdays ?? 0}
+                sub="In next 30 days"
+                icon={<FiAward className="w-5 h-5" />}
+                bg="bg-[#6C4FD6]/10 text-[#6C4FD6]"
+                ring="ring-[#6C4FD6]/20"
+                onClick={() => setSelectedCard('birthdays')}
+                clickableHint="View birthdays"
               />
             </div>
           )}
