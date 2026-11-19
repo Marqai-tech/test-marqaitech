@@ -69,7 +69,7 @@ export default function CandidateRegisterPage() {
       <header className="relative overflow-hidden bg-[#0d3152] px-6 py-5 text-white sm:px-10">
         <div className="absolute -right-20 -top-24 h-48 w-96 rotate-[-20deg] bg-gradient-to-r from-cyan-400/60 to-emerald-400/60 blur-2xl" />
         <div className="relative mx-auto flex max-w-7xl items-center gap-5">
-          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-emerald-500 text-xl font-bold">↗</span><span className="text-2xl font-bold tracking-tight">HR Portal</span></div>
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-sm font-black tracking-[-0.15em] text-white">•••</span><span className="text-2xl font-bold tracking-tight">3Boxes <span className="text-emerald-300">HRMS</span></span></div>
           <span className="h-8 w-px bg-white/40" /><span className="text-xl text-white/90">Careers</span>
         </div>
       </header>
