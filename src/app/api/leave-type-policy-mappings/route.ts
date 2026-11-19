@@ -38,11 +38,16 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const leaveTypeId = searchParams.get('leaveTypeId');
     const policyRuleId = searchParams.get('policyRuleId');
+    const includeInactive = searchParams.get('includeInactive') === '1';
 
     // Raw SQL because Prisma client may not have the new model cached on first run
     const companyId = (companyFilter as any).companyId;
     let rows: any[] = [];
-    const conditions = [`m.status = 'active'`];
+    // BUG 240 FIX: When includeInactive=1 is passed, return both active and
+    // inactive mappings so the admin can see and re-activate deactivated ones.
+    // Without this, deactivated mappings vanish from the list entirely and
+    // can never be activated again.
+    const conditions = [includeInactive ? `m.status IN ('active', 'inactive')` : `m.status = 'active'`];
     const params: any[] = [];
 
     if (companyId) {
@@ -79,7 +84,7 @@ export async function GET(req: NextRequest) {
           FROM "LeaveTypePolicyMapping" m
           LEFT JOIN "LeaveType" lt ON lt.id = m."leaveTypeId"
           LEFT JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
-          WHERE m.status = 'active'
+          WHERE ${includeInactive ? `m.status IN ('active', 'inactive')` : `m.status = 'active'`}
           ORDER BY m.priority DESC, m."createdAt" DESC
         `);
         if (allRows.length > 0) {

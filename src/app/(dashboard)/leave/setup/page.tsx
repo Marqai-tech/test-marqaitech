@@ -119,7 +119,9 @@ export default function LeaveSetupPage() {
         fetch(`/api/leave-types?limit=100${sep}&includeInactive=1`, { headers: h }).catch(() => null),
         fetch(`/api/leave-policy-rules?limit=100${sep}`, { headers: h }).catch(() => null),
         fetch(`/api/policies?category=leave&limit=100${sep ? `&${sq}` : ''}`, { headers: h }).catch(() => null),
-        fetch(`/api/leave-type-policy-mappings${qsep}`, { headers: h }).catch(() => null),
+        // BUG 240 FIX: pass includeInactive=1 so deactivated mappings show in the
+        // list with an Activate button (otherwise they vanish and can't be re-activated).
+        fetch(`/api/leave-type-policy-mappings${qsep ? qsep + '&includeInactive=1' : '?includeInactive=1'}`, { headers: h }).catch(() => null),
       ]);
       if (t?.ok) { const d = await t.json(); setTypes(d.data || []); }
       if (r?.ok) { const d = await r.json(); setRules(d.data || []); }
@@ -1168,13 +1170,15 @@ function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel,
       const policy = policies.find(p => p.id === selectedPolicyId);
       const mappingStatus = (policy?.status || '').toLowerCase() === 'active' ? 'active' : 'draft';
 
-      // REPLACE logic: delete old mappings for this policy, then create new ones
+      // BUG 240/CR-01 FIX: Deactivate (not delete) old mappings for this policy
+      // before creating new ones. Per CR-01, no mapping is ever deleted — only
+      // deactivated. History and balances are preserved.
       const oldMappings = mappings.filter(m => {
         const rule = rules.find(r => r.id === m.policyRuleId);
         return rule?.policyId === selectedPolicyId;
       });
       for (const old of oldMappings) {
-        try { await fetch(`/api/leave-type-policy-mappings/${old.id}`, { method: 'DELETE', headers: getAuthHeaders() }); } catch {}
+        try { await fetch(`/api/leave-type-policy-mappings/${old.id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status: 'inactive' }) }); } catch {}
       }
 
       // Create new mappings
