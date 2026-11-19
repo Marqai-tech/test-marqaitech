@@ -884,31 +884,42 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
 }
 
 
-/* ═══ Mapping Overview with List + Matrix + Side Panel + Remove ═══ */
+/* ═══ Mapping Overview — List view only (Matrix removed BUG 246) ═══ */
 function MappingOverview({ types, policies, rules, mappings, loading, onCreate, onEdit }: {
   types: LType[]; policies: LPolicy[]; rules: LRule[]; mappings: any[];
   loading: boolean; onCreate: () => void; onEdit: (policyId: string) => void;
 }) {
-  const [view, setView] = useState<'List' | 'Matrix'>('List');
   const [pf, setPf] = useState('');
   const [selRow, setSelRow] = useState<number | null>(null);
   const activeTypes = types.filter(t => t.status === 'active');
 
   // Build mapping rows from actual LeaveTypePolicyMapping data
+  // BUG 244 FIX: Look up the policy from the mapping's policyRuleId → rule → policyId,
+  // and as a fallback check the mapping row itself for a policyId column.
   const mappingRows: Array<{ policy: LPolicy | undefined; type: LType | undefined; rule: LRule | undefined; mapping: any }> = [];
   for (const m of mappings) {
     const lt = types.find(t => t.id === m.leaveTypeId);
     const rule = rules.find(r => r.id === m.policyRuleId);
-    const policy = rule?.policyId ? policies.find(p => p.id === rule.policyId) : policies.find(p => p.id === m.policyId);
+    // Try multiple paths to find the policy: rule.policyId, mapping.policyId, mapping.policyRuleId→rule→policyId
+    const policyId = rule?.policyId || m.policyId || m.policyId_;
+    const policy = policyId ? policies.find(p => p.id === policyId) : undefined;
     mappingRows.push({ policy, type: lt, rule, mapping: m });
   }
+  // BUG 242 FIX: Sort inactive mappings to the bottom. Active first (alphabetical
+  // by policy then type), then inactive (alphabetical).
   mappingRows.sort((a, b) => {
-    const pa = (a.policy?.title || '').toLowerCase();
-    const pb = (b.policy?.title || '').toLowerCase();
+    const sa = (a.mapping?.status || 'active') === 'active' ? 0 : 1;
+    const sb = (b.mapping?.status || 'active') === 'active' ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    const pa = (a.policy?.title || '—').toLowerCase();
+    const pb = (b.policy?.title || '—').toLowerCase();
     if (pa !== pb) return pa.localeCompare(pb);
     return (a.type?.name || '').toLowerCase().localeCompare((b.type?.name || '').toLowerCase());
   });
-  const filtered = pf ? mappingRows.filter(m => m.policy?.id === pf) : mappingRows;
+  // BUG 245 FIX: When a policy filter is selected, show mappings for that policy.
+  // Previously the filter checked m.policy?.id which was undefined when the policy
+  // wasn't found via rule.policyId. Now also match by the mapping's own policyId.
+  const filtered = pf ? mappingRows.filter(m => m.policy?.id === pf || m.mapping?.policyId === pf) : mappingRows;
 
   // Side panel selected row
   const selected = selRow !== null ? filtered[selRow] : null;
@@ -931,9 +942,10 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
     return parts.join('. ') + '.';
   }
 
-  // BUG 240 FIX (CR-01): Replace Remove/Delete with Deactivate/Activate.
-  // No mapping is ever deleted — only toggled between 'active' and 'inactive'.
-  // Existing balances and history are always preserved.
+  // BUG 240/243 FIX (CR-01): Replace Remove/Delete with Deactivate/Activate.
+  // No mapping is ever deleted — only toggled. BUG 243: do NOT reload the page
+  // (that sends the user back to Leave Types). Instead, update the mapping's
+  // status in-place so the user stays on the Mapping tab and the row moves.
   const handleToggleStatus = async (mappingId: string, currentStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const next = currentStatus === 'active' ? 'inactive' : 'active';
@@ -950,7 +962,11 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
       if (!res.ok) throw new Error('Failed');
       toast.success(next === 'inactive' ? 'Mapping deactivated' : 'Mapping activated');
       setSelRow(null);
-      window.location.reload();
+      // BUG 243 FIX: Update the mapping status in-place instead of reloading.
+      // This keeps the user on the Mapping tab; the row re-sorts to the bottom
+      // (inactive) or top (active) thanks to the BUG 242 sort fix.
+      const idx = mappings.findIndex((m: any) => m.id === mappingId);
+      if (idx >= 0) { mappings[idx] = { ...mappings[idx], status: next }; }
     } catch { toast.error('Failed to update mapping'); }
   };
 
@@ -968,69 +984,50 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
         <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-slate-100">
           <h2 className="text-[15px] font-extrabold">Policy Mapping</h2><span className="text-[12px] text-slate-500">{mappings.length} mappings</span>
           <span className="flex-1" />
-          <div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
-            {['List', 'Matrix'].map(o => <button key={o} className={`h-7 px-3 rounded-md text-[12px] font-bold ${view === o ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => setView(o as 'List' | 'Matrix')}>{o}</button>)}
-          </div>
-          {view === 'List' && <select className="h-8 border border-slate-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-slate-600 outline-none" value={pf} onChange={e => setPf(e.target.value)}>
+          {/* BUG 246 FIX: Matrix tab removed — list view only. */}
+          <select className="h-8 border border-slate-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-slate-600 outline-none" value={pf} onChange={e => setPf(e.target.value)}>
             <option value="">All policies</option>{policies.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-          </select>}
-          <button onClick={onCreate} className="h-8 px-3.5 rounded-lg bg-violet-600 text-white text-[12.5px] font-bold flex items-center gap-1.5 hover:bg-violet-700 shadow-sm shadow-violet-500/25">
+          </select>
+          {/* BUG 252 FIX: Use navy/slate-900 button to match other Create buttons. */}
+          <button onClick={onCreate} className="h-8 px-3.5 rounded-lg bg-slate-900 text-white text-[12.5px] font-bold flex items-center gap-1.5 hover:bg-slate-800 shadow-sm">
             <FiPlus className="w-3.5 h-3.5" /> Create Mapping
           </button>
         </div>
 
-        {view === 'List' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead><tr>{['Policy', 'Leave type', 'Rule applied', 'Days/year', 'Effective from', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 3 && i <= 4 ? 'text-center' : i === 6 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
-              <tbody>
-                {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-                 filtered.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No mappings yet. Click <b>+ Create Mapping</b> to attach leave types and rules to a policy.</td></tr> :
-                 filtered.map((m, i) => (
-                  <tr key={m.mapping?.id || i} className={`border-b border-slate-50 cursor-pointer transition-colors ${selRow === i ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSelRow(i)}>
-                    <td className="px-3.5 py-3 font-bold text-[13px]">{m.policy?.title || '—'}</td>
-                    <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{m.type && <CodeChip code={m.type.code} color={m.type.calendarColor} />}<span className="text-[13px]">{m.type?.name || m.mapping?.leaveTypeName || '—'}</span></div></td>
-                    <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || m.mapping?.policyRuleName || '—'}</td>
-                    <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule?.entitledDaysPerYear || m.rule?.entitledDays || '—'}</td>
-                    <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{m.policy?.effectiveDate ? fmtDate(m.policy.effectiveDate) : (m.mapping?.effectiveFrom ? fmtDate(m.mapping.effectiveFrom) : '—')}</td>
-                    <td className="px-3.5 py-3"><StatusPill s={(m.mapping?.status || 'active') === 'active' ? 'Active' : 'Inactive'} /></td>
-                    <td className="px-3.5 py-3 text-right">
-                      <div className="flex items-center gap-1 ml-auto justify-end">
-                        <button onClick={e => { e.stopPropagation(); if (m.policy?.id) onEdit(m.policy.id); }} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50" title="Edit this policy's mapping"><FiEdit2 className="w-3 h-3" />Edit</button>
-                        {m.mapping?.id && (m.mapping?.status || 'active') === 'active'
-                          ? <button onClick={e => handleToggleStatus(m.mapping.id, 'active', e)} className="h-8 px-2 rounded-lg border border-amber-200 text-amber-700 text-[11px] font-bold hover:bg-amber-50" title="Deactivate this mapping — hides leave from new applications, keeps history"><FiX className="w-3 h-3" />Deactivate</button>
-                          : m.mapping?.id && <button onClick={e => handleToggleStatus(m.mapping.id, 'inactive', e)} className="h-8 px-2 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-50" title="Activate this mapping — makes leave available again"><FiCheck className="w-3 h-3" />Activate</button>
-                        }
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          /* Matrix view — rows clickable → edit that policy's mapping */
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead><tr>
-                <th className="text-left text-[10.5px] font-bold uppercase text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50">Policy</th>
-                {activeTypes.map(t => <th key={t.id} className="text-center text-[10px] font-bold text-slate-400 px-1 py-2.5 border-b border-slate-100 bg-slate-50/50" title={t.name}>{t.code}</th>)}
-              </tr></thead>
-              <tbody>
-                {policies.map(p => (
-                  <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer" onClick={() => onEdit(p.id)}>
-                    <td className="px-3.5 py-3"><div className="font-bold text-[13px]">{p.title}</div><div className="text-[11px] text-slate-500">{p.status}</div></td>
-                    {activeTypes.map(t => {
-                      const match = mappingRows.find(m => m.type?.id === t.id && m.policy?.id === p.id);
-                      return <td key={t.id} className="text-center py-3">{match ? <span className="inline-grid place-items-center w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-extrabold">{match.rule?.entitledDaysPerYear || match.rule?.entitledDays || '✓'}</span> : <span className="inline-grid place-items-center w-7 h-7 rounded-lg text-slate-300 border border-dashed border-slate-200 text-[11px]">—</span>}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="text-[12px] text-slate-500 px-4 py-3 border-t border-slate-100">Number = days per year · ✓ = mapped without fixed days · — = not mapped · Click a row to edit that policy's mapping</p>
-          </div>
-        )}
+        {/* BUG 246 FIX: Matrix view removed — list view only. */}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead><tr>{['Policy', 'Leave type', 'Rule applied', 'Days/year', 'Effective from', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 3 && i <= 4 ? 'text-center' : i === 6 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+            <tbody>
+              {/* BUG 253 FIX: Add pb-16 to the table so the floating AI icon doesn't overlap the last row's action buttons. */}
+              {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+               filtered.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">{pf ? 'No mappings for this policy yet. Click + Create Mapping to add one.' : 'No mappings yet. Click + Create Mapping to attach leave types and rules to a policy.'}</td></tr> :
+               filtered.map((m, i) => (
+                <tr key={m.mapping?.id || i} className={`border-b border-slate-50 cursor-pointer transition-colors ${selRow === i ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSelRow(i)}>
+                  <td className="px-3.5 py-3 font-bold text-[13px]">{m.policy?.title || m.mapping?.policyName || '—'}</td>
+                  <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{m.type && <CodeChip code={m.type.code} color={m.type.calendarColor} />}<span className="text-[13px]">{m.type?.name || m.mapping?.leaveTypeName || '—'}</span></div></td>
+                  <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || m.mapping?.policyRuleName || '—'}</td>
+                  {/* BUG 250 FIX: Show days/year from the rule even when the rule object is found but entitledDaysPerYear is 0 — use 0 not '—'. Only show '—' when there's genuinely no rule. */}
+                  <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule ? (m.rule.entitledDaysPerYear || m.rule.entitledDays || 0) : '—'}</td>
+                  {/* BUG 249 FIX: Show effective from from the mapping's own effectiveFrom field (stored on LeaveTypePolicyMapping), not just from the policy. */}
+                  <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{m.mapping?.effectiveFrom ? fmtDate(m.mapping.effectiveFrom) : (m.policy?.effectiveDate ? fmtDate(m.policy.effectiveDate) : '—')}</td>
+                  <td className="px-3.5 py-3"><StatusPill s={(m.mapping?.status || 'active') === 'active' ? 'Active' : 'Inactive'} /></td>
+                  <td className="px-3.5 py-3 text-right">
+                    {/* BUG 241 FIX: The Edit button is a real clickable button (not just a hover icon) with a solid border and label. */}
+                    <div className="flex items-center gap-1 ml-auto justify-end">
+                      <button onClick={e => { e.stopPropagation(); if (m.policy?.id) onEdit(m.policy.id); else if (m.mapping?.policyId) onEdit(m.mapping.policyId); }} className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 hover:border-slate-400 transition-colors" title="Edit this policy's mapping"><FiEdit2 className="w-3 h-3" />Edit</button>
+                      {m.mapping?.id && (m.mapping?.status || 'active') === 'active'
+                        ? <button onClick={e => handleToggleStatus(m.mapping.id, 'active', e)} className="h-8 px-2 rounded-lg border border-amber-200 text-amber-700 text-[11px] font-bold hover:bg-amber-50" title="Deactivate this mapping — hides leave from new applications, keeps history"><FiX className="w-3 h-3" />Deactivate</button>
+                        : m.mapping?.id && <button onClick={e => handleToggleStatus(m.mapping.id, 'inactive', e)} className="h-8 px-2 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-50" title="Activate this mapping — makes leave available again"><FiCheck className="w-3 h-3" />Activate</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              <tr><td colSpan={7} className="h-16" /></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Side panel — plain-words rule summary */}
