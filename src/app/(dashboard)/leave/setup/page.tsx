@@ -184,7 +184,7 @@ export default function LeaveSetupPage() {
       {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
-      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(policyId) => go('mapping', 'form', policyId)} />}
+      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(policyId) => go('mapping', 'form', policyId)} onRefresh={fetchAll} />}
       {mode === 'form' && tab === 'mapping' && <MappingForm editPolicyId={editId} types={types} policies={policies} rules={rules} mappings={mappings} onCancel={() => go('mapping')} onSaved={onSaved} onGoToRules={() => go('rules', 'form')} sq={sq} />}
       {/* BUG_234 FIX: bottom padding so floating AI icon doesn't cover buttons */}
       <div className="h-16" />
@@ -885,9 +885,10 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
 
 
 /* ═══ Mapping Overview — List view only (Matrix removed BUG 246) ═══ */
-function MappingOverview({ types, policies, rules, mappings, loading, onCreate, onEdit }: {
+function MappingOverview({ types, policies, rules, mappings, loading, onCreate, onEdit, onRefresh }: {
   types: LType[]; policies: LPolicy[]; rules: LRule[]; mappings: any[];
   loading: boolean; onCreate: () => void; onEdit: (policyId: string) => void;
+  onRefresh?: () => void;
 }) {
   const [pf, setPf] = useState('');
   const [selRow, setSelRow] = useState<number | null>(null);
@@ -962,11 +963,10 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
       if (!res.ok) throw new Error('Failed');
       toast.success(next === 'inactive' ? 'Mapping deactivated' : 'Mapping activated');
       setSelRow(null);
-      // BUG 243 FIX: Update the mapping status in-place instead of reloading.
+      // BUG 243 FIX: Refresh data from the server instead of reloading the page.
       // This keeps the user on the Mapping tab; the row re-sorts to the bottom
       // (inactive) or top (active) thanks to the BUG 242 sort fix.
-      const idx = mappings.findIndex((m: any) => m.id === mappingId);
-      if (idx >= 0) { mappings[idx] = { ...mappings[idx], status: next }; }
+      if (onRefresh) { onRefresh(); }
     } catch { toast.error('Failed to update mapping'); }
   };
 
