@@ -736,7 +736,12 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
         encashLimit: Number(f.encashLimit) || 0,
       };
       const sep = sq ? '&' + sq : '';
-      const url = editId ? '/api/leave-policy-rules/' + editId + '?' + sep : '/api/leave-policy-rules' + (sq ? '?' + sq : '');
+      // BUG FIX: There is no /api/leave-policy-rules/[id]/route.ts — the PUT
+      // handler lives in route.ts and reads `id` from the JSON body. Sending
+      // PUT to /api/leave-policy-rules/{id} causes a 404 in Next.js App Router.
+      // Send PUT to /api/leave-policy-rules with id in the body instead.
+      if (editId) { body.id = editId; }
+      const url = '/api/leave-policy-rules' + (sq ? '?' + sq : '');
       const method = editId ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
