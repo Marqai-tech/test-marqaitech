@@ -586,7 +586,7 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
                 <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective from</label><input type="date" className={inp} value={f.effectiveDate} onChange={e=>set('effectiveDate',e.target.value)}/></div>
                 <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Effective to</label><input type="date" className={inp} value={f.expiryDate} onChange={e=>set('expiryDate',e.target.value)}/></div>
               </div>
-              <div className="flex gap-2.5 bg-blue-50 border border-blue-100 rounded-xl p-3 mt-3 text-[12.5px] text-blue-800"><FiInfo className="w-4 h-4 flex-shrink-0 mt-0.5"/><span>Leave year: <b>{f.yearStart} \u2013 {months[(months.indexOf(f.yearStart)+11)%12]}</b>. Year-end processing (carry forward, lapse, encashment) runs at the end of this period.</span></div>
+              <div className="flex gap-2.5 bg-blue-50 border border-blue-100 rounded-xl p-3 mt-3 text-[12.5px] text-blue-800"><FiInfo className="w-4 h-4 flex-shrink-0 mt-0.5"/><span>Leave year: <b>{f.yearStart} – {months[(months.indexOf(f.yearStart)+11)%12]}</b>. Year-end processing (carry forward, lapse, encashment) runs at the end of this period.</span></div>
             </div>
           )}
 
@@ -769,7 +769,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
           {sec(1, 'Rule details', 'Which leave type these rules are for.', 'ru-basic',
             <div className="grid grid-cols-2 gap-x-6">
               {fld('Leave type', true, undefined, show('leaveTypeId'), false, <select className={inp + (show('leaveTypeId')?' border-red-300 bg-red-50':'')} value={f.leaveTypeId} onChange={e => { set('leaveTypeId', e.target.value); if (!f.name) { const ty = types.find(x => x.id === e.target.value); ty && set('name', ty.code + ' \u2013 Standard'); } }}><option value="">Select leave type…</option>{types.filter(x => x.status === 'active').map(x => <option key={x.id} value={x.id}>{x.code} \u2013 {x.name}</option>)}</select>)}
-              {fld('Rule name', true, undefined, show('name'), false, <input className={inp + (show('name')?' border-red-300 bg-red-50':'')} value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. CL \u2013 Standard"/>)}
+              {fld('Rule name', true, undefined, show('name'), false, <input className={inp + (show('name')?' border-red-300 bg-red-50':'')} value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. CL – Standard"/>)}
               {fld('Status', undefined, undefined, undefined, false, seg('status', ['Draft', 'Active', 'Inactive']))}
             </div>
           )}
@@ -867,7 +867,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
               <div><div className="text-[11px] font-extrabold tracking-wide uppercase text-slate-400">Live summary</div><div className="font-bold text-[13px]">{f.name || 'New rule'}</div></div>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-[12.5px] leading-relaxed"><ul className="list-disc pl-4 space-y-1 m-0">{summary}</ul></div>
-            <p className="text-[11.5px] text-slate-500 mt-2.5">This is how the rule will read to HR and in the employee\u2019s leave policy page.</p>
+            <p className="text-[11.5px] text-slate-500 mt-2.5">This is how the rule will read to HR and in the employee's leave policy page.</p>
           </div>
         </aside>
       </div>
