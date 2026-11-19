@@ -44,7 +44,7 @@ export default function CandidateHomePage() {
     <CandidatePortalNav state={state} active="home" />
     <main className="h-[calc(100vh-64px)] overflow-hidden p-4 lg:p-5">
       <div className="grid h-full grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
-        <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Metric icon={<FiBriefcase />} label="Applications" value={data.stats.total} href="/candidate-portal/dashboard" />
           <Metric icon={<FiCalendar />} label="Interviews" value={data.stats.interviewing} href="/candidate-portal/interviews" />
           <Metric icon={<FiAward />} label="Offers" value={data.stats.offered} href="/candidate-portal/offers" />
@@ -53,7 +53,7 @@ export default function CandidateHomePage() {
 
         {!preboarding && (state?.awaitingHR?.length || 0) > 0 && <section className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"><div><p className="text-sm font-bold text-amber-900">Offer accepted — awaiting HR initiation</p><p className="text-xs text-amber-700">Preboarding, complete profile and documents will activate automatically after HR starts the process.</p></div><FiClock className="h-6 w-6 text-amber-600" /></section>}
 
-        <section className="grid min-h-0 gap-3 xl:grid-cols-[1.25fr_.75fr]">
+        <section className="grid min-h-0 gap-3 lg:grid-cols-[1.25fr_.75fr]">
           <div className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between"><h2 className="font-bold text-slate-900">Current Application</h2><Link href="/candidate-portal/dashboard" className="text-xs font-semibold text-emerald-700">View all</Link></div>
             {active ? <div className="flex h-[calc(100%-36px)] flex-col">

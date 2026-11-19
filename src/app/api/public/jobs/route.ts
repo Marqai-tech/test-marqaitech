@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
       req.headers.get('x-tenant-slug') ||
       null;
     const companyId = url.searchParams.get('companyId');
+    const jobId = url.searchParams.get('jobId');
     const search = url.searchParams.get('search');
     const type = url.searchParams.get('type');
     const location = url.searchParams.get('location');
@@ -68,6 +69,8 @@ export async function GET(req: NextRequest) {
         { closingDate: { gte: new Date() } },
       ],
     };
+
+    if (jobId) where.id = jobId;
 
     if (tenantSlug) {
       where.department = { company: { companyGroup: { tenant: { slug: tenantSlug } } } };

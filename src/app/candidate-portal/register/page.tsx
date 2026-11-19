@@ -9,19 +9,40 @@ import toast from 'react-hot-toast';
 export default function CandidateRegisterPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const job = {
-    title: params.get('title') || 'Software Engineer',
-    company: params.get('company') || 'Pioneer Tech Solutions',
-    location: params.get('location') || 'Remote (US)',
-    department: params.get('department') || 'Engineering',
-    type: params.get('type') || 'Full-time',
-  };
+  const jobId = params.get('jobId');
+  const [job, setJob] = useState<{ title: string; company: string; location: string; department: string; type: string } | null>(null);
+  const [jobLoading, setJobLoading] = useState(!!jobId);
+  const [jobError, setJobError] = useState('');
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<'details' | 'verify'>('details');
   const [otp, setOtp] = useState('');
   const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!jobId) {
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/public/jobs?jobId=${encodeURIComponent(jobId)}&limit=1`)
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load the selected position.');
+        const data = await response.json();
+        const selected = data.jobs?.[0];
+        if (!selected) throw new Error('This position is closed, expired, or no longer available.');
+        if (!cancelled) setJob({
+          title: selected.title || selected.position || 'Open Position',
+          company: selected.company?.name || selected.tenant?.name || '3Boxes HRMS',
+          location: selected.location || 'Not specified',
+          department: selected.department?.name || 'Not specified',
+          type: String(selected.type || 'Full-time').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase()),
+        });
+      })
+      .catch(error => { if (!cancelled) setJobError(error instanceof Error ? error.message : 'Could not load this position.'); })
+      .finally(() => { if (!cancelled) setJobLoading(false); });
+    return () => { cancelled = true; };
+  }, [jobId]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -87,7 +108,7 @@ export default function CandidateRegisterPage() {
               className="relative overflow-hidden bg-cover bg-center p-4 text-white"
               style={{ backgroundImage: "linear-gradient(105deg, rgba(8,36,59,.94), rgba(13,49,82,.78)), url('/images/hr-team.png')" }}
             ><div className="absolute -right-8 top-8 h-40 w-40 rounded-full bg-emerald-400/20 blur-2xl" /><div className="relative"><FiBriefcase className="mb-2 h-6 w-6" /><h2 className="text-xl font-bold">Job Application Summary</h2><p className="mt-1 max-w-md text-sm leading-relaxed text-slate-100">You&apos;re setting up your candidate account to continue with this application.</p></div></div>
-            <div className="p-4"><h2 className="break-words text-xl font-bold tracking-tight">{job.title}</h2><div className="mt-2 divide-y divide-slate-200">{[[FiBriefcase, 'Company', job.company], [FiMapPin, 'Location', job.location], [FiLayers, 'Department', job.department], [FiCalendar, 'Job Type', job.type]].map(([Icon, label, value]) => <div key={label as string} className="grid min-w-0 grid-cols-[20px_82px_minmax(0,1fr)] items-center gap-2 py-2"><Icon className="h-4 w-4 shrink-0 text-slate-700" /><span className="text-sm font-semibold text-slate-600">{label as string}</span><span className="min-w-0 break-words text-sm font-medium text-slate-900">{value as string}</span></div>)}</div><div className="mt-3 flex gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-900"><FiShield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /><div><p className="font-bold">No resume is required during account creation.</p><p className="mt-0.5 leading-relaxed">You&apos;ll provide your application details and resume in the next step.</p></div></div></div>
+            <div className="p-4">{jobLoading ? <div className="flex h-48 items-center justify-center text-sm text-slate-500">Loading selected position…</div> : job ? <><h2 className="break-words text-xl font-bold tracking-tight">{job.title}</h2><div className="mt-2 divide-y divide-slate-200">{[[FiBriefcase, 'Company', job.company], [FiMapPin, 'Location', job.location], [FiLayers, 'Department', job.department], [FiCalendar, 'Job Type', job.type]].map(([Icon, label, value]) => <div key={label as string} className="grid min-w-0 grid-cols-[20px_82px_minmax(0,1fr)] items-center gap-2 py-2"><Icon className="h-4 w-4 shrink-0 text-slate-700" /><span className="text-sm font-semibold text-slate-600">{label as string}</span><span className="min-w-0 break-words text-sm font-medium text-slate-900">{value as string}</span></div>)}</div><div className="mt-3 flex gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-900"><FiShield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /><div><p className="font-bold">No resume is required during account creation.</p><p className="mt-0.5 leading-relaxed">You&apos;ll provide your application details and resume in the next step.</p></div></div></> : jobId ? <div className="flex h-48 flex-col items-center justify-center text-center"><p className="font-bold text-red-700">Position unavailable</p><p className="mt-2 max-w-sm text-sm text-slate-600">{jobError}</p><Link href="/careers" className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Browse Open Jobs</Link></div> : <div className="flex h-48 flex-col items-center justify-center text-center"><FiBriefcase className="h-10 w-10 text-emerald-600"/><h2 className="mt-3 text-xl font-bold">Create your candidate profile</h2><p className="mt-2 max-w-sm text-sm text-slate-600">After verification, browse open positions and upload your resume only when you apply.</p><Link href="/careers" className="mt-4 text-sm font-bold text-emerald-700">Browse jobs first</Link></div>}</div>
           </section>
 
           <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -99,7 +120,7 @@ export default function CandidateRegisterPage() {
               <div className="relative"><Field icon={<FiLock />} label="Password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={value => setForm(current => ({ ...current, password: value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowPassword(value => !value)} className="absolute right-4 top-10 text-slate-500" aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <FiEyeOff /> : <FiEye />}</button></div>
               <p className="text-xs text-slate-500">Use at least 8 characters, including a letter and a number.</p>
               <Field icon={<FiLock />} label="Confirm password" type="password" value={form.confirmPassword} onChange={value => setForm(current => ({ ...current, confirmPassword: value }))} autoComplete="new-password" />
-              <button disabled={submitting} className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-60"><FiCheckCircle />{submitting ? 'Sending code…' : 'Create Account & Verify Email'}</button>
+              <button disabled={submitting || jobLoading || (!!jobId && !job)} className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"><FiCheckCircle />{submitting ? 'Sending code…' : 'Create Account & Verify Email'}</button>
               <p className="text-center text-sm text-slate-600">Already registered? <Link href="/login?mode=candidate" className="font-bold text-teal-700 underline underline-offset-2">Candidate login</Link></p>
             </form> : <form onSubmit={verify} className="space-y-5"><div className="text-center"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><FiMail className="h-7 w-7" /></span><h2 className="mt-4 text-2xl font-bold text-slate-900">Verify your email</h2><p className="mt-2 text-slate-500">We sent a six-digit code to <strong className="text-slate-700">{form.email}</strong>.</p></div><label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Verification code</span><input autoFocus required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={otp} onChange={event => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} className="w-full rounded-xl border border-slate-300 px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15" placeholder="000000" /></label><div className="flex gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800"><FiCheckCircle className="mt-0.5 shrink-0" />Your account will be activated only after this code is verified. The code expires in 15 minutes.</div><button disabled={submitting || otp.length !== 6} className="w-full rounded-xl bg-emerald-600 py-4 text-lg font-bold text-white hover:bg-emerald-700 disabled:opacity-60">{submitting ? 'Verifying…' : 'Verify & Open Candidate Portal'}</button><div className="flex items-center justify-between text-sm"><button type="button" onClick={() => { setStep('details'); setOtp(''); }} className="text-slate-600 hover:text-slate-900">Change email</button><button type="button" disabled={submitting || cooldown > 0} onClick={() => void requestVerification()} className="font-semibold text-emerald-700 disabled:text-slate-400">{cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}</button></div></form>}
           </section>
