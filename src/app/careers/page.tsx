@@ -396,7 +396,7 @@ export default function CareersPage() {
     // confusing post-submit account setup step.
     if (typeof window !== 'undefined' && !localStorage.getItem('tb_candidate_token')) {
       toast.error('Create and verify a candidate account before applying.');
-      router.push('/candidate-portal/register');
+      router.push(`/candidate-portal/register?jobId=${encodeURIComponent(job.id)}&title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company?.name || job.tenant?.name || '3Boxes')}&location=${encodeURIComponent(job.location || 'Not specified')}&department=${encodeURIComponent(job.department?.name || 'Not specified')}&type=${encodeURIComponent(JOB_TYPE_LABELS[job.type] || job.type || 'Full-time')}`);
       return;
     }
     setApplyJob(job);
