@@ -768,7 +768,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
           {/* Section 1: Rule details */}
           {sec(1, 'Rule details', 'Which leave type these rules are for.', 'ru-basic',
             <div className="grid grid-cols-2 gap-x-6">
-              {fld('Leave type', true, undefined, show('leaveTypeId'), false, <select className={inp + (show('leaveTypeId')?' border-red-300 bg-red-50':'')} value={f.leaveTypeId} onChange={e => { set('leaveTypeId', e.target.value); if (!f.name) { const ty = types.find(x => x.id === e.target.value); ty && set('name', ty.code + ' \u2013 Standard'); } }}><option value="">Select leave type\u2026</option>{types.filter(x => x.status === 'active').map(x => <option key={x.id} value={x.id}>{x.code} \u2013 {x.name}</option>)}</select>)}
+              {fld('Leave type', true, undefined, show('leaveTypeId'), false, <select className={inp + (show('leaveTypeId')?' border-red-300 bg-red-50':'')} value={f.leaveTypeId} onChange={e => { set('leaveTypeId', e.target.value); if (!f.name) { const ty = types.find(x => x.id === e.target.value); ty && set('name', ty.code + ' \u2013 Standard'); } }}><option value="">Select leave type…</option>{types.filter(x => x.status === 'active').map(x => <option key={x.id} value={x.id}>{x.code} \u2013 {x.name}</option>)}</select>)}
               {fld('Rule name', true, undefined, show('name'), false, <input className={inp + (show('name')?' border-red-300 bg-red-50':'')} value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. CL \u2013 Standard"/>)}
               {fld('Status', undefined, undefined, undefined, false, seg('status', ['Draft', 'Active', 'Inactive']))}
             </div>
@@ -787,7 +787,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
                 {fld('Credit days', undefined, f.creditFrequency === 'Monthly' ? 'Auto = yearly \u00F7 12' : '', undefined, false, <input type="number" className={inp} value={f.creditDays} onChange={e => set('creditDays', e.target.value)} placeholder="1"/>)}
               </div>}
               <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3 border-b border-dashed border-slate-100"><div><b className="block text-[13px] font-bold">Pro-rata applicable?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">Mid-year joiners get days in proportion</span></div>{yn('prorata')}</div>
-              <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3"><div><b className="block text-[13px] font-bold">Can employees apply for next year\u2019s leave?</b></div>{yn('applyNextYear')}</div>
+              <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3"><div><b className="block text-[13px] font-bold">Can employees apply for next year's leave?</b></div>{yn('applyNextYear')}</div>
             </div>
           )}
 
@@ -1332,7 +1332,8 @@ function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel,
                     return (
                       <tr key={row.leaveTypeId} className={`transition-colors ${row.included ? '' : 'bg-slate-50/30 opacity-60'}`}>
                         <td className="px-4 py-3 text-center">
-                          <input type="checkbox" checked={row.included} onChange={() => toggleInclude(row.leaveTypeId)} className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 cursor-pointer" />
+                          {/* BUG-LM-013 FIX: Disable the include checkbox when the leave type has no active rules. */}
+                          <input type="checkbox" checked={row.included} onChange={() => toggleInclude(row.leaveTypeId)} disabled={ltRules.length === 0} className={`w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 ${ltRules.length === 0 ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`} />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">

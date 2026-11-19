@@ -358,10 +358,17 @@ export async function PUT(req: NextRequest) {
     // Split into Prisma-known fields and spec fields (raw SQL columns added
     // at runtime via ALTER TABLE). Prisma.update throws "Unknown arg" if
     // spec fields are passed in data.
+    // BUG-LM-004 FIX: The frontend sends `marital` but the DB column is `maritalStatus`.
+    // Map it before splitting so it goes into specData, not prismaData.
+    const FIELD_ALIASES: Record<string, string> = {
+      marital: 'maritalStatus',
+    };
     const prismaData: Record<string, unknown> = {};
     const specData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(cleanData)) {
-      if (RULE_SPEC_FIELD_NAMES.has(key)) specData[key] = value;
+      const fieldName = FIELD_ALIASES[key] || key;
+      if (RULE_SPEC_FIELD_NAMES.has(fieldName)) specData[fieldName] = value;
+      else if (fieldName !== key) { /* aliased field already handled above */ }
       else prismaData[key] = value;
     }
 
@@ -378,7 +385,16 @@ export async function PUT(req: NextRequest) {
         if (updateErr?.code === 'P2002') {
           throw new Error('A rule with this name already exists. Please use a unique name.');
         }
-        throw new Error(`Failed to update: ${updateErr?.message || 'Unknown Prisma error'}`);
+        // BUG-LM-005 FIX: Never dump raw Prisma errors to the UI. Log server-side,
+        // return a short friendly message with a code the user can give support.
+        console.error('[LeavePolicyRules PUT] Prisma update failed:', updateErr?.message || updateErr);
+        if (updateErr?.code === 'P2025') {
+          throw new Error('Leave policy rule not found. It may have been deleted. Please refresh the page and try again.');
+        }
+        if (updateErr?.code === 'P2002') {
+          throw new Error('A rule with this name already exists. Please use a unique name.');
+        }
+        throw new Error('Could not save the rule. Please try again or contact support with code LV-R01.');
       });
     }
 
