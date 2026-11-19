@@ -1127,6 +1127,24 @@ export default function RecruitmentPage() {
       editor.innerText = jobForm.description;
     }
   }, [jobForm.description, jobFormStep, showJobForm]);
+
+  useEffect(() => {
+    const editor = descriptionInputRef.current;
+    if (!editor || jobFormStep !== 2 || !showJobForm) return;
+    const syncToolbarState = () => {
+      if (!editor.contains(document.activeElement) && !editor.contains(document.getSelection()?.anchorNode)) {
+        setActiveDescriptionFormat(null);
+        return;
+      }
+      const block = String(document.queryCommandValue('formatBlock') || '').toLowerCase().replace(/[<>]/g, '');
+      const active = block === 'h1' ? 'h1' : block === 'h2' ? 'h2' : document.queryCommandState('insertUnorderedList') ? 'bullet' : document.queryCommandState('insertOrderedList') ? 'number' : document.queryCommandState('bold') ? 'bold' : document.queryCommandState('italic') ? 'italic' : document.queryCommandState('underline') ? 'underline' : null;
+      setActiveDescriptionFormat(active);
+    };
+    document.addEventListener('selectionchange', syncToolbarState);
+    editor.addEventListener('keyup', syncToolbarState);
+    editor.addEventListener('mouseup', syncToolbarState);
+    return () => { document.removeEventListener('selectionchange', syncToolbarState); editor.removeEventListener('keyup', syncToolbarState); editor.removeEventListener('mouseup', syncToolbarState); };
+  }, [jobFormStep, showJobForm]);
   const [submittingJob, setSubmittingJob] = useState(false);
   const descriptionInputRef = useRef<HTMLDivElement>(null);
   const [activeDescriptionFormat, setActiveDescriptionFormat] = useState<string | null>(null);
@@ -1139,8 +1157,8 @@ export default function RecruitmentPage() {
     if (format === 'bold') document.execCommand('bold');
     else if (format === 'italic') document.execCommand('italic');
     else if (format === 'underline') document.execCommand('underline');
-    else if (format === 'h1') document.execCommand('formatBlock', false, 'h1');
-    else if (format === 'h2') document.execCommand('formatBlock', false, 'h2');
+    else if (format === 'h1') document.execCommand('formatBlock', false, activeDescriptionFormat === 'h1' ? '<div>' : '<h1>');
+    else if (format === 'h2') document.execCommand('formatBlock', false, activeDescriptionFormat === 'h2' ? '<div>' : '<h2>');
     else if (format === 'bullet') document.execCommand('insertUnorderedList');
     else if (format === 'number') document.execCommand('insertOrderedList');
     else if (format === 'link') {
