@@ -6,6 +6,61 @@ import { validateCompanyOwnership } from '@/lib/company-ownership';
 import { getLeaveCategory } from '@/lib/leave-balance-rules';
 import { ensureLeaveSetupSchema } from '@/lib/leave-setup-schema';
 
+// BUG-LM-001/002/003 FIX: Employee ↔ Mapping scope matcher.
+// Checks if an employee matches a LeaveTypePolicyMapping's scope fields.
+// The mapping inherits scope from both itself and its linked rule.
+// Returns true only if ALL applicable filters pass.
+function employeeMatchesMapping(emp: any, mapping: any): boolean {
+  if (!emp) return false;
+
+  // employmentType: 'all' matches; otherwise must equal employee's type (normalized)
+  const et = mapping.employmentType || 'all';
+  if (et !== 'all') {
+    const normalized = et.replace(/-/g, '_');
+    if (emp.employmentType && emp.employmentType !== normalized && emp.employmentType !== et) {
+      return false;
+    }
+  }
+
+  // branchId: null = all branches; otherwise must match
+  if (mapping.branchId && emp.branchId !== mapping.branchId) return false;
+
+  // departmentId: null = all departments; otherwise must match
+  if (mapping.departmentId && emp.departmentId !== mapping.departmentId) return false;
+
+  // genderApplicability: check both the mapping's and the rule's field.
+  // 'all' or 'both' matches everyone; otherwise must match employee gender.
+  const gender = mapping.genderApplicability || mapping.ruleGenderApplicability || mapping.ruleGender || 'all';
+  if (gender && gender !== 'all' && gender !== 'both') {
+    if (emp.gender && emp.gender.toLowerCase() !== gender.toLowerCase()) return false;
+  }
+
+  // employeeIds: JSON array — if set, employee must be in the list
+  if (mapping.employeeIds) {
+    try {
+      const ids: string[] = JSON.parse(mapping.employeeIds);
+      if (Array.isArray(ids) && ids.length > 0 && !ids.includes(emp.id)) return false;
+    } catch { /* ignore malformed */ }
+  }
+
+  // empStatusJson: from the linked rule — JSON array of allowed employee statuses.
+  // If set, employee's status must be in the list.
+  if (mapping.empStatusJson) {
+    try {
+      const statuses: string[] = JSON.parse(mapping.empStatusJson);
+      if (Array.isArray(statuses) && statuses.length > 0) {
+        const lower = statuses.map(s => s.toLowerCase());
+        if (!lower.includes('all')) {
+          const empStatus = (emp.employeeStatus || '').toLowerCase();
+          if (empStatus && !lower.includes(empStatus)) return false;
+        }
+      }
+    } catch { /* ignore malformed */ }
+  }
+
+  return true; // All checks passed
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -97,34 +152,63 @@ export async function GET(req: NextRequest) {
         } catch { /* table might not exist yet — no filtering */ }
 
         if (mappingsExist) {
-          // Mapping enforcement is ACTIVE — only show types where the resolver
-          // finds a match for THIS employee. Try the employee's company first,
-          // then every other company that has mappings (handles cross-company
-          // scenarios where the leave type / mapping is in a different company).
+          // BUG-LM-001/002/003 FIX: The mapping is the SOLE gatekeeper.
+          // Previously we called resolveLeavePolicy() which has a fallback to
+          // LeavePolicyRule rows — that meant unmapped leave types still showed
+          // if they had a rule. Now we check the mapping table directly:
+          // a leave type is visible ONLY if an ACTIVE LeaveTypePolicyMapping
+          // exists for (this leaveType + this company) AND the employee matches
+          // the mapping's scope (employmentType, gender, branch, dept, employeeIds).
           const companiesToCheck = [emp.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
           const uniqueCompanies = [...new Set(companiesToCheck)];
 
+          // Fetch the employee's full profile for scope matching
+          const empFull = await db.employee.findFirst({
+            where: { userId: scope.userId, status: 'active' },
+            select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
+          }).catch(() => emp);
+
+          // Get ALL active mappings across the companies we're checking,
+          // joined with the rule's eligibility fields for matching.
+          let allMappings: any[] = [];
+          try {
+            allMappings = await db.$queryRawUnsafe(`
+              SELECT m.*, r."empStatusJson", r."gender" as "ruleGender", r."genderApplicability" as "ruleGenderApplicability"
+              FROM "LeaveTypePolicyMapping" m
+              LEFT JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
+              WHERE m.status = 'active'
+                AND m."companyId" = ANY($1::text[])
+            `, uniqueCompanies);
+          } catch (e) {
+            console.warn('[leave-types] Failed to fetch mappings for enforcement:', e);
+          }
+
+          // Group mappings by leaveTypeId for fast lookup
+          const mappingsByLeaveType = new Map<string, any[]>();
+          for (const m of allMappings) {
+            const arr = mappingsByLeaveType.get(m.leaveTypeId) || [];
+            arr.push(m);
+            mappingsByLeaveType.set(m.leaveTypeId, arr);
+          }
+
+          // For each leave type, check if ANY mapping matches this employee
           const visibleTypes = [];
           for (const lt of allLeaveTypes) {
+            const ltMappings = mappingsByLeaveType.get(lt.id);
+            if (!ltMappings || ltMappings.length === 0) {
+              // No mapping for this leave type → HIDDEN (mapping is the gatekeeper)
+              continue;
+            }
+            // Check if the employee matches at least one mapping's scope
             let matched = false;
-            for (const cId of uniqueCompanies) {
-              try {
-                const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: cId });
-                if (policy.source !== 'none') { matched = true; break; }
-              } catch {
-                // If resolver fails for one company, try the next
-              }
+            for (const m of ltMappings) {
+              if (employeeMatchesMapping(empFull, m)) { matched = true; break; }
             }
-            if (matched) {
-              visibleTypes.push(lt);
-            }
+            if (matched) { visibleTypes.push(lt); }
           }
-          // Respect the mapping enforcement result — even if it's empty.
-          // The admin configured mappings; if this employee doesn't match any,
-          // they don't see those leave types. This is the intended behavior.
           filteredTypes = visibleTypes;
           console.log(
-            `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (checked ${uniqueCompanies.length} companies for mappings).`
+            `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (${allMappings.length} mappings across ${uniqueCompanies.length} companies).`
           );
         }
         // If no mappings exist → filteredTypes stays = allLeaveTypes (backward-compat)
@@ -172,18 +256,40 @@ export async function GET(req: NextRequest) {
             } catch { /* table might not exist */ }
 
             if (mappingsExist) {
+              // BUG-LM-001/002/003 FIX: Same direct-mapping check as above.
               const companiesToCheck = [emp.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
               const uniqueCompanies = [...new Set(companiesToCheck)];
+
+              const empFull = await db.employee.findFirst({
+                where: { userId: scope.userId, status: 'active' },
+                select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
+              }).catch(() => emp);
+
+              let allMappings: any[] = [];
+              try {
+                allMappings = await db.$queryRawUnsafe(`
+                  SELECT m.*, r."empStatusJson", r."gender" as "ruleGender", r."genderApplicability" as "ruleGenderApplicability"
+                  FROM "LeaveTypePolicyMapping" m
+                  LEFT JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
+                  WHERE m.status = 'active'
+                    AND m."companyId" = ANY($1::text[])
+                `, uniqueCompanies);
+              } catch {}
+
+              const mappingsByLeaveType = new Map<string, any[]>();
+              for (const m of allMappings) {
+                const arr = mappingsByLeaveType.get(m.leaveTypeId) || [];
+                arr.push(m);
+                mappingsByLeaveType.set(m.leaveTypeId, arr);
+              }
+
               const enforcedTypes = [];
               for (const lt of fallback) {
-                let matched = false;
-                for (const cId of uniqueCompanies) {
-                  try {
-                    const policy = await resolveLeavePolicy(db, { employeeId: emp.id, leaveTypeId: lt.id, companyId: cId });
-                    if (policy.source !== 'none') { matched = true; break; }
-                  } catch { /* try next */ }
+                const ltMappings = mappingsByLeaveType.get(lt.id);
+                if (!ltMappings || ltMappings.length === 0) continue; // No mapping → hidden
+                for (const m of ltMappings) {
+                  if (employeeMatchesMapping(empFull, m)) { enforcedTypes.push(lt); break; }
                 }
-                if (matched) enforcedTypes.push(lt);
               }
               filteredTypes = enforcedTypes;
               console.log(
