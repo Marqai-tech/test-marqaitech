@@ -84,15 +84,36 @@ export interface ResolvedPolicy {
 }
 
 function matchesEmployee(
-  emp: { id: string; employmentType: string | null; branchId: string | null; departmentId: string | null; gender: string | null },
+  emp: { id: string; employmentType: string | null; branchId: string | null; departmentId: string | null; gender: string | null; employeeStatus?: string | null },
   scope: {
     employmentType?: string;
     branchId?: string | null;
     departmentId?: string | null;
     genderApplicability?: string;
     employeeIds?: string | null;
+    empStatusJson?: string | null; // BUG 237/238 FIX: rule's employee-status eligibility (JSON array e.g. ["Probation","Confirmed"])
   },
 ): { match: boolean; reason: string } {
+  // BUG 237/238 FIX: employee status (probation / confirmed / intern) check.
+  // The rule's empStatusJson stores a JSON array of allowed statuses. If the
+  // employee's status isn't in that list, the rule doesn't apply to them.
+  // Empty/null/["all"] means all statuses are eligible.
+  if (scope.empStatusJson) {
+    try {
+      const statuses: string[] = JSON.parse(scope.empStatusJson);
+      if (Array.isArray(statuses) && statuses.length > 0) {
+        const lowerStatuses = statuses.map(s => s.toLowerCase());
+        if (!lowerStatuses.includes('all')) {
+          const empStatus = (emp.employeeStatus || '').toLowerCase();
+          if (empStatus && !lowerStatuses.includes(empStatus)) {
+            return { match: false, reason: `employee status '${emp.employeeStatus}' not in rule's eligibility [${statuses.join(', ')}]` };
+          }
+        }
+      }
+    } catch {
+      // ignore malformed JSON
+    }
+  }
   // employmentType: 'all' matches; otherwise must equal employee's type
   if (scope.employmentType && scope.employmentType !== 'all') {
     // Normalize: schema uses 'full-time'/'part-time' etc., employee uses 'full_time'/'part_time'
@@ -151,7 +172,7 @@ export async function resolveLeavePolicy(
 
   const { employeeId, leaveTypeId } = params;
 
-  // Fetch employee
+  // Fetch employee — include employeeStatus for BUG 237/238 probation/confirmed check
   const employee = await db.employee.findUnique({
     where: { id: employeeId },
     select: {
@@ -161,6 +182,7 @@ export async function resolveLeavePolicy(
       departmentId: true,
       gender: true,
       companyId: true,
+      employeeStatus: true,
     },
   });
   if (!employee) {
@@ -185,7 +207,7 @@ export async function resolveLeavePolicy(
              r."carryForwardGlobal", r."maxCarryForwardDays", r."yearEndProcessingMode",
              r."yearEndMaxCarryForward", r."yearEndMaxEncashment", r."yearEndExpiryDays",
              r."encashmentBasis", r."encashmentMaxDays", r."encashmentAutoYearEnd",
-             r."encashmentEmployeeInitiated"
+             r."encashmentEmployeeInitiated", r."empStatusJson"
       FROM "LeaveTypePolicyMapping" m
       JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
       WHERE m."leaveTypeId" = $1
@@ -205,6 +227,7 @@ export async function resolveLeavePolicy(
       departmentId: m.departmentId,
       genderApplicability: m.genderApplicability,
       employeeIds: m.employeeIds,
+      empStatusJson: m.empStatusJson,
     });
     if (scopeCheck.match) {
       allMatches.push({
@@ -306,6 +329,7 @@ export async function resolveLeavePolicy(
       departmentId: r.departmentId,
       genderApplicability: r.genderApplicability || 'all',
       employeeIds: r.employeeIds,
+      empStatusJson: r.empStatusJson,
     });
     if (scopeCheck.match) {
       allMatches.push({

@@ -799,6 +799,18 @@ export async function POST(request: Request) {
       console.warn('[leave] Policy resolution for snapshot failed (non-fatal):', policyErr);
     }
 
+    // BUG 238 FIX: Server-side eligibility enforcement.
+    // If no matching policy/mapping was resolved for this (employee, leaveType),
+    // the employee is NOT eligible for this leave type — reject the application
+    // with a clear 403 message. This prevents probation employees from applying
+    // for confirmed-only leave types via direct API calls, even if the UI hides it.
+    if (!resolvedPolicyForSnapshot) {
+      return NextResponse.json(
+        { error: 'This leave type is not available for you. It may be restricted to a different employee status (e.g. probation vs confirmed), department, or gender. Please contact HR if you believe this is an error.' },
+        { status: 403, headers: corsHeaders() },
+      );
+    }
+
     // BUG FIX: Prisma's generated client does NOT know about the appliedByUserId
     // column (it's not in schema.prisma), so passing it in `data` throws a
     // Prisma UnknownArg error → 500 Internal server error. Create the row first

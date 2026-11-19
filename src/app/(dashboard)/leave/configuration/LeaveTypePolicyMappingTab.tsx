@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiEdit2, FiTrash2, FiX, FiRefreshCw, FiSearch, FiAlertCircle,
+  FiPlus, FiEdit2, FiTrash2, FiX, FiCheck, FiRefreshCw, FiSearch, FiAlertCircle,
   FiLink2, FiLayers, FiClipboard, FiSettings, FiSave, FiGrid, FiList,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -200,16 +200,23 @@ export default function LeaveTypePolicyMappingTab() {
   };
 
   /* ── Handlers ── */
-  const handleDelete = async (item: Mapping) => {
-    if (!confirm(`Delete mapping "${item.leaveTypeName}" → "${item.policyRuleName}"?`)) return;
+  // BUG 240 FIX (CR-01): Replace Delete with Deactivate/Activate toggle.
+  // No mapping is ever deleted — only status-toggled. History is preserved.
+  const handleToggleStatus = async (item: Mapping) => {
+    const next = (item.status || 'active') === 'active' ? 'inactive' : 'active';
+    const msg = next === 'inactive'
+      ? `Deactivate mapping "${item.leaveTypeName}" → "${item.policyRuleName}"? This hides the leave type from new applications. Existing balances and history are preserved.`
+      : `Activate mapping "${item.leaveTypeName}" → "${item.policyRuleName}"? This makes the leave type available again for new applications.`;
+    if (!confirm(msg)) return;
     try {
       const res = await fetch(`/api/leave-type-policy-mappings/${item.id}`, {
-        method: 'DELETE', headers: getAuthHeaders(),
+        method: 'PUT', headers: getAuthHeaders(),
+        body: JSON.stringify({ status: next }),
       });
-      if (!res.ok) throw new Error('Failed to delete');
-      toast.success('Mapping deleted');
+      if (!res.ok) throw new Error('Failed to update');
+      toast.success(next === 'inactive' ? 'Mapping deactivated' : 'Mapping activated');
       fetchAll();
-    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to update'); }
   };
 
   const openCreate = () => { setEditMapping(null); setShowCreateForm(true); };
@@ -338,8 +345,8 @@ export default function LeaveTypePolicyMappingTab() {
                           <button onClick={() => openEdit(m)} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-300 text-slate-700 hover:text-violet-600 hover:border-violet-300 hover:bg-violet-50 transition-colors" title="Edit this mapping">
                             <FiEdit2 className="w-3 h-3" /> Edit
                           </button>
-                          <button onClick={() => handleDelete(m)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
-                            <FiTrash2 className="w-4 h-4" />
+                          <button onClick={() => handleToggleStatus(m)} className={`p-1.5 rounded transition-colors ${(m.status || 'active') === 'active' ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} title={(m.status || 'active') === 'active' ? 'Deactivate (hide from new applications, keep history)' : 'Activate (make available again)'}>
+                            {(m.status || 'active') === 'active' ? <FiX className="w-4 h-4" /> : <FiCheck className="w-4 h-4" />}
                           </button>
                         </div>
                       </td>

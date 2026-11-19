@@ -158,21 +158,11 @@ export async function POST(req: NextRequest) {
     if (!lt) return NextResponse.json({ error: 'Leave type not found. Please refresh the Leave Types tab and try again.' }, { status: 404, headers: cors() });
     if (!pr) return NextResponse.json({ error: 'Leave policy rule not found. Please refresh the Leave Policies tab and try again.' }, { status: 404, headers: cors() });
 
-    // If the leave type / policy rule are in a different company than the
-    // selected one, reassign them to the selected company so everything is
-    // consistent. This auto-fixes the misfiled-records issue.
-    if (lt.companyId !== resolvedCompanyId) {
-      try {
-        await db.leaveType.update({ where: { id: leaveTypeId }, data: { companyId: resolvedCompanyId } });
-        console.warn(`[mappings POST] Reassigned leave type ${leaveTypeId} from company ${lt.companyId} to ${resolvedCompanyId}`);
-      } catch (e) { /* non-fatal */ }
-    }
-    if (pr.companyId !== resolvedCompanyId) {
-      try {
-        await db.leavePolicyRule.update({ where: { id: policyRuleId }, data: { companyId: resolvedCompanyId } });
-        console.warn(`[mappings POST] Reassigned policy rule ${policyRuleId} from company ${pr.companyId} to ${resolvedCompanyId}`);
-      } catch (e) { /* non-fatal */ }
-    }
+    // BUG 235 FIX: Do NOT reassign the leave type's or rule's companyId when
+    // creating a mapping. Previously this block moved the leave type into the
+    // selected company, which caused the leave type to disappear from the
+    // Leave Types list (company-scoped GET stopped returning it). The mapping
+    // itself stores companyId — the leave type and rule must stay where they are.
 
     // Prevent duplicate (leaveTypeId, policyRuleId, companyId) — the unique index enforces this
     const id = `ltpm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;

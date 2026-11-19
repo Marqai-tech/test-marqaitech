@@ -924,17 +924,27 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
     return parts.join('. ') + '.';
   }
 
-  // Remove a mapping
-  const handleRemove = async (mappingId: string, e: React.MouseEvent) => {
+  // BUG 240 FIX (CR-01): Replace Remove/Delete with Deactivate/Activate.
+  // No mapping is ever deleted — only toggled between 'active' and 'inactive'.
+  // Existing balances and history are always preserved.
+  const handleToggleStatus = async (mappingId: string, currentStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Remove this leave type from the policy?')) return;
+    const next = currentStatus === 'active' ? 'inactive' : 'active';
+    const msg = next === 'inactive'
+      ? 'Deactivating this mapping will hide the leave type from new applications for affected employees. Existing balances and history are preserved. Continue?'
+      : 'Activating this mapping will make the leave type available again for new applications. Continue?';
+    if (!confirm(msg)) return;
     try {
-      const res = await fetch(`/api/leave-type-policy-mappings/${mappingId}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/leave-type-policy-mappings/${mappingId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: next }),
+      });
       if (!res.ok) throw new Error('Failed');
-      toast.success('Mapping removed');
+      toast.success(next === 'inactive' ? 'Mapping deactivated' : 'Mapping activated');
       setSelRow(null);
       window.location.reload();
-    } catch { toast.error('Failed to remove'); }
+    } catch { toast.error('Failed to update mapping'); }
   };
 
   return (
@@ -980,7 +990,10 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
                     <td className="px-3.5 py-3 text-right">
                       <div className="flex items-center gap-1 ml-auto justify-end">
                         <button onClick={e => { e.stopPropagation(); if (m.policy?.id) onEdit(m.policy.id); }} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50" title="Edit this policy's mapping"><FiEdit2 className="w-3 h-3" />Edit</button>
-                        {m.mapping?.id && <button onClick={e => handleRemove(m.mapping.id, e)} className="h-8 px-2 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-bold hover:bg-rose-50" title="Remove this leave type from the policy"><FiX className="w-3 h-3" />Remove</button>}
+                        {m.mapping?.id && (m.mapping?.status || 'active') === 'active'
+                          ? <button onClick={e => handleToggleStatus(m.mapping.id, 'active', e)} className="h-8 px-2 rounded-lg border border-amber-200 text-amber-700 text-[11px] font-bold hover:bg-amber-50" title="Deactivate this mapping — hides leave from new applications, keeps history"><FiX className="w-3 h-3" />Deactivate</button>
+                          : m.mapping?.id && <button onClick={e => handleToggleStatus(m.mapping.id, 'inactive', e)} className="h-8 px-2 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-50" title="Activate this mapping — makes leave available again"><FiCheck className="w-3 h-3" />Activate</button>
+                        }
                       </div>
                     </td>
                   </tr>
@@ -1022,7 +1035,10 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
           </>}
           foot={<>
             <button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => { if (selected.policy?.id) onEdit(selected.policy.id); }}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit mapping</button>
-            {selected.mapping?.id && <button className="h-9 px-3 rounded-lg border border-rose-200 text-rose-600 text-[12px] font-bold" onClick={() => handleRemove(selected.mapping.id, { stopPropagation: () => {} } as any)}><FiX className="w-3.5 h-3.5 inline mr-1" />Remove</button>}
+            {selected.mapping?.id && ((selected.mapping?.status || 'active') === 'active'
+              ? <button className="h-9 px-3 rounded-lg border border-amber-200 text-amber-700 text-[12px] font-bold" onClick={() => handleToggleStatus(selected.mapping.id, 'active', { stopPropagation: () => {} } as any)}><FiX className="w-3.5 h-3.5 inline mr-1" />Deactivate</button>
+              : <button className="h-9 px-3 rounded-lg border border-emerald-200 text-emerald-700 text-[12px] font-bold" onClick={() => handleToggleStatus(selected.mapping.id, 'inactive', { stopPropagation: () => {} } as any)}><FiCheck className="w-3.5 h-3.5 inline mr-1" />Activate</button>
+            )}
           </>}>
           <div className="mb-5">
             <h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Mapping details</h4>
