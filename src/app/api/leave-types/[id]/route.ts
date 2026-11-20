@@ -1,6 +1,7 @@
 /**
- * Leave Type detail API — update + delete
- *   PATCH /api/leave-types/[id] — update a leave type (admin only)
+ * Leave Type detail API — get + update + delete
+ *   GET    /api/leave-types/[id] — fetch a single leave type by ID (any authed user)
+ *   PATCH  /api/leave-types/[id] — update a leave type (admin only)
  *   DELETE /api/leave-types/[id] — delete a leave type (admin only)
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,6 +19,25 @@ function corsHeaders() {
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
+}
+
+// GET — fetch a single leave type by ID (no company scope filtering)
+// Used by the Apply Leave page to fetch leave types referenced in policies
+// that may be in a different company than the employee.
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(req);
+  try {
+    try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
+    const { id } = await params;
+    const lt = await db.leaveType.findUnique({ where: { id } });
+    if (!lt) {
+      return NextResponse.json({ error: 'Leave type not found' }, { status: 404, headers: corsHeaders() });
+    }
+    return NextResponse.json(lt, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('[leave-types GET by id] error:', error);
+    return NextResponse.json({ error: 'Failed to fetch leave type' }, { status: 500, headers: corsHeaders() });
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
