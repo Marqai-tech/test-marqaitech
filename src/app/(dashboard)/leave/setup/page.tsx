@@ -571,7 +571,7 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
           {/* Section 2: Applies to */}
           {sec(2,'Applies to','Employees matching ALL of these filters get this policy.','po-who',
             <div>
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employee status<span className="text-red-500 ml-0.5">*</span></label>{checks('empStatus',['Probation','Confirmed','Intern','Notice period'])}{show('empStatus')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.empStatus}</div>}</div>
+              {/* <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employee status<span className="text-red-500 ml-0.5">*</span></label>{checks('empStatus',['Probation','Confirmed','Intern','Notice period'])}{show('empStatus')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.empStatus}</div>}</div> */}
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Department</label>{checks('departments',['Engineering','Sales','Operations','Finance','HR & Admin','Customer Success'],'All departments')}</div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Location</label>{checks('locations',['Chennai','Bengaluru','Hyderabad','Mumbai','Remote'],'All locations')}</div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Grade</label>{checks('grades',['G1 \u2013 Associate','G2 \u2013 Senior','G3 \u2013 Lead','G4 \u2013 Manager','G5 \u2013 Director'],'All grades')}</div>
