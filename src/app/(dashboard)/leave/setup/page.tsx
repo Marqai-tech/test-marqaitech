@@ -531,21 +531,27 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
 }
 
 /* ═══ Policy Form (inline, 5-step) ═══ */
-function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: string | null; policies: LPolicy[]; onCancel: () => void; onSaved: () => void; sq: string }) {
+function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId: string | null; policies: LPolicy[]; onCancel: () => void; onSaved: () => void; sq: string }) {
   const orig = editId && policies.find(p => p.id === editId);
+  // Parse original scope fields from the policy (stored as JSON arrays in runtime columns)
+  const parseJsonArray = (val: any): string[] => { try { const a = typeof val === 'string' ? JSON.parse(val) : val; return Array.isArray(a) ? a : []; } catch { return []; } };
   const [f, setF] = useState({
     title: orig?.title || '', code: orig?.code || '', description: orig?.description || '',
     status: orig?.status || 'draft', effectiveDate: orig?.effectiveDate || '',
     expiryDate: orig?.expiryDate || '', category: 'leave',
-    // Section 2: Applies to
-    empStatus: ['Confirmed'] as string[], departments: ['All'] as string[],
-    locations: ['All'] as string[], grades: ['All'] as string[],
+    // Section 2: Applies to — dynamic IDs from company APIs
+    empStatus: parseJsonArray((orig as any)?.empStatus || ['Confirmed']),
+    branchIds: parseJsonArray((orig as any)?.branchIds),
+    departmentIds: parseJsonArray((orig as any)?.departmentIds),
+    designationIds: parseJsonArray((orig as any)?.designationIds),
+    // Section: Leave types — one policy can cover multiple leave types
+    leaveTypeIds: parseJsonArray((orig as any)?.leaveTypeIds),
     // Section 3: Leave period
-    yearStart: 'January',
+    yearStart: (orig as any)?.yearStart || 'January',
     // Section 4: Leave crediting
-    creditMode: 'Pro-rata monthly', creditDay: 'First day of month', roundOff: 'Nearest 0.5', schedulerDate: '',
+    creditMode: (orig as any)?.creditMode || 'Pro-rata monthly', creditDay: (orig as any)?.creditDay || 'First day of month', roundOff: (orig as any)?.roundOff || 'Nearest 0.5', schedulerDate: '',
     // Section 6: Approval & workflow
-    approval: 'Reporting Manager',
+    approval: (orig as any)?.approvalFlow || 'Reporting Manager',
     wfManagerSelf: false, wfAllowHoliday: false, wfShowYearWise: false, wfRequireReason: true,
     wfCheckRules: true, wfAutoMonthly: false, wfShowTeam: false, wfShowEncash: false,
     wfCurrentYearOnly: false, wfYearEndPending: false,
@@ -554,6 +560,10 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
   const [pdfError, setPdfError] = useState('');
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Dynamic dropdown data
+  const [branches, setBranches] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [designations, setDesignations] = useState<any[]>([]);
   const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
   const errs: Record<string, string> = {};
   if (!f.title.trim()) errs.title = 'Enter a policy name';
@@ -568,7 +578,45 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     const list = allLabel ? ['All', ...opts] : opts;
     return <div className="flex flex-wrap gap-2">{list.map(o => { const on = o === 'All' ? isAll : (f as any)[k].includes(o); return <span key={o} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-[12.5px] font-semibold cursor-pointer ${on ? 'border-blue-200 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-600'}`} onClick={() => toggle(o)}><span className={`w-4 h-4 rounded border ${on ? 'bg-blue-500 border-blue-500' : 'border-slate-300'} flex items-center justify-center`}>{on && <FiCheck className="w-2.5 h-2.5 text-white" />}</span>{o === 'All' ? allLabel : o}</span>; })}</div>;
   };
+  // Multi-select for ID-based dropdowns (branches, departments, designations, leave types)
+  const multiSelectIds = (k: string, items: any[], labelKey: string, idKey: string, placeholder: string) => {
+    const selectedIds: string[] = (f as any)[k] || [];
+    const toggle = (id: string) => {
+      const next = selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id];
+      set(k, next);
+    };
+    return (
+      <div className="flex flex-wrap gap-2">
+        {items.length === 0 && <span className="text-[12px] text-slate-400">No {placeholder} available. Create some in Company setup first.</span>}
+        {items.map(item => {
+          const on = selectedIds.includes(item[idKey]);
+          return (
+            <span key={item[idKey]} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-[12.5px] font-semibold cursor-pointer ${on ? 'border-blue-200 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-600'}`} onClick={() => toggle(item[idKey])}>
+              <span className={`w-4 h-4 rounded border ${on ? 'bg-blue-500 border-blue-500' : 'border-slate-300'} flex items-center justify-center`}>{on && <FiCheck className="w-2.5 h-2.5 text-white" />}</span>
+              {item[labelKey]}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
   const wfCheck = (k: string, label: string) => <div className="flex items-center gap-2.5 py-1.5"><span className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer ${(f as any)[k] ? 'bg-blue-500 border-blue-500' : 'border-slate-300'}`} onClick={() => set(k, !(f as any)[k])}>{(f as any)[k] && <FiCheck className="w-2.5 h-2.5 text-white" />}</span><span className="text-[12.5px] font-semibold text-slate-700">{label}</span></div>;
+
+  // Fetch branches, departments, designations when company changes
+  useEffect(() => {
+    const cid = sq ? sq.split('=')[1] : '';
+    if (!cid) return;
+    const h = getAuthHeaders();
+    Promise.all([
+      fetch(`/api/branches?companyId=${cid}`, { headers: h }).catch(() => null),
+      fetch(`/api/departments?companyId=${cid}`, { headers: h }).catch(() => null),
+      fetch(`/api/designations?companyId=${cid}`, { headers: h }).catch(() => null),
+    ]).then(async ([b, d, dg]) => {
+      if (b?.ok) { const data = await b.json(); setBranches(data.data || data.branches || []); }
+      if (d?.ok) { const data = await d.json(); setDepartments(data.data || data.departments || []); }
+      if (dg?.ok) { const data = await dg.json(); setDesignations(data.data || data.designations || []); }
+    });
+  }, [sq]);
 
   const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -586,10 +634,22 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     if (Object.keys(errs).length) return;
     setSaving(true);
     try {
-      const body: any = { title: f.title, code: f.code, description: f.description, status: f.status, category: 'leave', effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null };
+      const body: any = {
+        title: f.title, code: f.code, description: f.description, status: f.status, category: 'leave',
+        effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null,
+        // Scope fields — stored as JSON arrays in runtime columns
+        empStatus: f.empStatus,
+        branchIds: f.branchIds,
+        departmentIds: f.departmentIds,
+        designationIds: f.designationIds,
+        leaveTypeIds: f.leaveTypeIds,
+        creditMode: f.creditMode, creditDay: f.creditDay, roundOff: f.roundOff, yearStart: f.yearStart,
+        approvalFlow: f.approval,
+      };
       if (pdfFile) { body.fileUrl = pdfFile.dataUrl; body.fileName = pdfFile.name; body.fileMimeType = 'application/pdf'; body.fileSize = pdfFile.dataUrl.length; }
+      if (editId) { body.id = editId; }
       const companyId = sq ? sq.split('=')[1] : '';
-      const url = editId ? `/api/policies/${editId}?${sq || ''}` : `/api/policies${companyId ? `?companyId=${companyId}` : ''}`;
+      const url = '/api/policies' + (companyId ? `?companyId=${companyId}` : '');
       const method = editId ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
@@ -603,7 +663,7 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
     <div>
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5 items-start">
         <nav className="hidden lg:block sticky top-4 bg-white border border-slate-100 rounded-2xl shadow-sm p-2">
-          {[{id:'po-basic',l:'Policy details'},{id:'po-who',l:'Applies to'},{id:'po-period',l:'Leave period'},{id:'po-credit',l:'Leave crediting'},{id:'po-doc',l:'Policy document'},{id:'po-flow',l:'Approval & workflow'}].map((it,i) => (
+          {[{id:'po-basic',l:'Policy details'},{id:'po-types',l:'Leave types'},{id:'po-who',l:'Applies to'},{id:'po-period',l:'Leave period'},{id:'po-credit',l:'Leave crediting'},{id:'po-doc',l:'Policy document'},{id:'po-flow',l:'Approval & workflow'}].map((it,i) => (
             <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({behavior:'smooth',block:'start'})}>
               <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i+1}</span>{it.l}
             </a>
@@ -620,18 +680,30 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
             </div>
           )}
 
-          {/* Section 2: Applies to */}
-          {sec(2,'Applies to','Employees matching ALL of these filters get this policy.','po-who',
-            <div>
-              {/* <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employee status<span className="text-red-500 ml-0.5">*</span></label>{checks('empStatus',['Probation','Confirmed','Intern','Notice period'])}{show('empStatus')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.empStatus}</div>}</div> */}
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Department</label>{checks('departments',['Engineering','Sales','Operations','Finance','HR & Admin','Customer Success'],'All departments')}</div>
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Location</label>{checks('locations',['Chennai','Bengaluru','Hyderabad','Mumbai','Remote'],'All locations')}</div>
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Grade</label>{checks('grades',['G1 \u2013 Associate','G2 \u2013 Senior','G3 \u2013 Lead','G4 \u2013 Manager','G5 \u2013 Director'],'All grades')}</div>
+          {/* Section 2: Leave types — one policy can cover multiple leave types */}
+          {sec(2,'Leave types','Select which leave types this policy covers. One policy can be used for multiple leave types.','po-types',
+            <div className="pt-3.5">
+              <label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Applicable leave types</label>
+              {types.filter(t => t.status === 'active').length === 0
+                ? <p className="text-[12px] text-slate-400">No active leave types found. Create leave types in Step 1 first.</p>
+                : multiSelectIds('leaveTypeIds', types.filter(t => t.status === 'active'), 'name', 'id', 'leave types')
+              }
+              <p className="text-[11.5px] text-slate-500 mt-2">Selected: {f.leaveTypeIds.length} leave type(s)</p>
             </div>
           )}
 
-          {/* Section 3: Leave period */}
-          {sec(3,'Leave period','The leave accounting year \u2014 balances reset or carry forward at its end.','po-period',
+          {/* Section 3: Applies to — dynamic dropdowns from company APIs */}
+          {sec(3,'Applies to','Employees matching ALL of these filters get this policy. Data is fetched from your company setup.','po-who',
+            <div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employee status<span className="text-red-500 ml-0.5">*</span></label>{checks('empStatus',['Probation','Confirmed','Intern','Notice period'])}{show('empStatus')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.empStatus}</div>}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Branches</label>{multiSelectIds('branchIds', branches, 'name', 'id', 'branches')}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Departments</label>{multiSelectIds('departmentIds', departments, 'name', 'id', 'departments')}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Designations</label>{multiSelectIds('designationIds', designations, 'title', 'id', 'designations')}</div>
+            </div>
+          )}
+
+          {/* Section 4: Leave period */}
+          {sec(4,'Leave period','The leave accounting year — balances reset or carry forward at its end.','po-period',
             <div>
               <div className="grid grid-cols-3 gap-x-6">
                 <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Leave year starts in</label><select className={inp} value={f.yearStart} onChange={e=>set('yearStart',e.target.value)}>{months.map(m=><option key={m}>{m}</option>)}</select></div>
@@ -642,18 +714,18 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
             </div>
           )}
 
-          {/* Section 4: Leave crediting */}
-          {sec(4,'Leave crediting','When the leave balance is added to employee accounts.','po-credit',
+          {/* Section 5: Leave crediting */}
+          {sec(5,'Leave crediting','When the leave balance is added to employee accounts.','po-credit',
             <div className="grid grid-cols-2 gap-x-6">
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Credit method</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Pro-rata monthly','Advance (on joining)'].map(o=><button key={o} type="button" className={`h-8 px-3.5 rounded-md text-[12px] font-bold ${f.creditMode===o?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`} onClick={()=>set('creditMode',o)}>{o}</button>)}</div><p className="text-[11.5px] text-slate-500 mt-1">{f.creditMode==='Pro-rata monthly'?'Yearly entitlement \u00F7 12, credited every month':'Full yearly entitlement credited upfront'}</p></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Credit method</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Pro-rata monthly','Advance (on joining)'].map(o=><button key={o} type="button" className={`h-8 px-3.5 rounded-md text-[12px] font-bold ${f.creditMode===o?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`} onClick={()=>set('creditMode',o)}>{o}</button>)}</div><p className="text-[11.5px] text-slate-500 mt-1">{f.creditMode==='Pro-rata monthly'?'Yearly entitlement ÷ 12, credited every month':'Full yearly entitlement credited upfront'}</p></div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Credited on</label><select className={inp} value={f.creditDay} onChange={e=>set('creditDay',e.target.value)}>{f.creditMode==='Pro-rata monthly'?<><option>First day of month</option><option>Last day of month</option><option>Specific date of month</option></>:<><option>On policy assignment</option><option>Start of leave year</option><option>Specific date</option></>}</select></div>
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Round off fractional days</label><select className={inp} value={f.roundOff} onChange={e=>set('roundOff',e.target.value)}><option>Nearest 0.5</option><option>Lower (0.5)</option><option>Higher (0.5)</option><option>Nearest whole day</option><option>No rounding</option></select><p className="text-[11.5px] text-slate-500 mt-1">e.g. 1.25 \u2192 1.5 (nearest 0.5)</p></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Round off fractional days</label><select className={inp} value={f.roundOff} onChange={e=>set('roundOff',e.target.value)}><option>Nearest 0.5</option><option>Lower (0.5)</option><option>Higher (0.5)</option><option>Nearest whole day</option><option>No rounding</option></select><p className="text-[11.5px] text-slate-500 mt-1">e.g. 1.25 → 1.5 (nearest 0.5)</p></div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Balance scheduler start date</label><input type="date" className={inp} value={f.schedulerDate} onChange={e=>set('schedulerDate',e.target.value)}/><p className="text-[11.5px] text-slate-500 mt-1">First date the system credits leave automatically</p></div>
             </div>
           )}
 
-          {/* Section 5: Policy document (PDF upload, max 3MB) */}
-          {sec(5,'Policy document','Upload the policy PDF (max 3MB, PDF only)','po-doc',
+          {/* Section 6: Policy document (PDF upload, max 3MB) */}
+          {sec(6,'Policy document','Upload the policy PDF (max 3MB, PDF only)','po-doc',
             <div className="pt-3.5">
               <label className={`flex items-center gap-3 border-2 border-dashed rounded-xl p-4 cursor-pointer transition-colors ${pdfError?'border-red-300 bg-red-50':pdfFile?'border-emerald-400 bg-emerald-50':'border-slate-200 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'}`}>
                 <input type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload}/>
@@ -668,10 +740,10 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
             </div>
           )}
 
-          {/* Section 6: Approval & workflow */}
-          {sec(6,'Approval & workflow','How leave requests under this policy are approved and shown.','po-flow',
+          {/* Section 7: Approval & workflow */}
+          {sec(7,'Approval & workflow','How leave requests under this policy are approved and shown.','po-flow',
             <div>
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Approval flow</label><select className={inp} value={f.approval} onChange={e=>set('approval',e.target.value)}><option>Reporting Manager</option><option>Reporting Manager \u2192 HR</option><option>Reporting Manager \u2192 Dept. Head</option><option>Auto-approve</option></select></div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Approval flow</label><select className={inp} value={f.approval} onChange={e=>set('approval',e.target.value)}><option>Reporting Manager</option><option>Reporting Manager → HR</option><option>Reporting Manager → Dept. Head</option><option>Auto-approve</option></select></div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Workflow settings</label><div className="grid grid-cols-2 gap-x-4">
                 {wfCheck('wfManagerSelf','Manager can approve their own leave')}
                 {wfCheck('wfAllowHoliday','Allow exceptions for holidays / working days')}
@@ -692,7 +764,7 @@ function PolicyForm({ editId, policies, onCancel, onSaved, sq }: { editId: strin
         <span className={'text-[12.5px] '+(Object.keys(errs).length&&tried?'text-red-500 font-semibold':'text-slate-500')}>{Object.keys(errs).length&&tried?Object.keys(errs).length+' required field(s) missing':<>Fields marked <b className="text-red-500">*</b> are required</>}</span>
         <span className="flex-1"/>
         <button className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-[13px] font-bold hover:bg-slate-50" onClick={onCancel}>Cancel</button>
-        <button className="h-10 px-5 rounded-xl bg-slate-800 text-white text-[13px] font-bold hover:bg-slate-900 shadow-md disabled:opacity-50" onClick={save} disabled={saving}>{saving?'Saving\u2026':(editId?'Save changes':'Create policy')}</button>
+        <button className="h-10 px-5 rounded-xl bg-slate-800 text-white text-[13px] font-bold hover:bg-slate-900 shadow-md disabled:opacity-50" onClick={save} disabled={saving}>{saving?'Saving…':(editId?'Save changes':'Create policy')}</button>
       </div>
     </div>
   );

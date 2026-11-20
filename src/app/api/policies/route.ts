@@ -3,6 +3,29 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 
+// ─── Runtime columns for Policy scope + leave type selection ───
+// These columns are NOT in schema.prisma — added at runtime via ALTER TABLE.
+// Stores the "Applies to" filters (branch/department/designation/grade IDs)
+// and the selected leave type IDs (one policy → multiple leave types).
+const POLICY_SCOPE_COLS = [
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "empStatus" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "branchIds" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "departmentIds" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "designationIds" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "gradeIds" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "leaveTypeIds" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "creditMode" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "creditDay" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "roundOff" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "yearStart" TEXT`,
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "approvalFlow" TEXT`,
+];
+async function ensurePolicyScopeColumns(db: any) {
+  for (const sql of POLICY_SCOPE_COLS) {
+    try { await db.$executeRawUnsafe(sql); } catch {}
+  }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -39,7 +62,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const db = await getDb(req);
+  const db = await getDb(req); try { await ensurePolicyScopeColumns(db); } catch {}
   try {
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
@@ -118,7 +141,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const db = await getDb(req);
+  const db = await getDb(req); try { await ensurePolicyScopeColumns(db); } catch {}
   try {
     const auth = await getAuthInfo(req);
     if (!auth) {
@@ -231,6 +254,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // ─── Store scope fields + leave type IDs via raw SQL (runtime columns) ───
+    // These columns are added at runtime via ALTER TABLE in ensurePolicyScopeColumns().
+    try {
+      const scopeFields = ['empStatus', 'branchIds', 'departmentIds', 'designationIds', 'gradeIds', 'leaveTypeIds', 'creditMode', 'creditDay', 'roundOff', 'yearStart', 'approvalFlow'];
+      const sets: string[] = [];
+      const vals: any[] = [];
+      for (const field of scopeFields) {
+        if (body[field] !== undefined) {
+          vals.push(Array.isArray(body[field]) ? JSON.stringify(body[field]) : String(body[field]));
+          sets.push(`"${field}" = $${vals.length}`);
+        }
+      }
+      if (sets.length > 0) {
+        vals.push(policy.id);
+        await db.$executeRawUnsafe(
+          `UPDATE "Policy" SET ${sets.join(', ')} WHERE "id" = $${vals.length}`,
+          ...vals
+        );
+      }
+    } catch (e) {
+      console.warn('[policies POST] scope field update failed (non-fatal):', e);
+    }
+
     return NextResponse.json({ policy }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Policies POST error:', error);
@@ -239,7 +285,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const db = await getDb(req);
+  const db = await getDb(req); try { await ensurePolicyScopeColumns(db); } catch {}
   try {
     const auth = await getAuthInfo(req);
     if (!auth) {
@@ -280,6 +326,28 @@ export async function PUT(req: NextRequest) {
     const existing = await db.policy.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Policy not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // ─── Store scope fields + leave type IDs via raw SQL (runtime columns) ───
+    try {
+      const scopeFields = ['empStatus', 'branchIds', 'departmentIds', 'designationIds', 'gradeIds', 'leaveTypeIds', 'creditMode', 'creditDay', 'roundOff', 'yearStart', 'approvalFlow'];
+      const sets: string[] = [];
+      const vals: any[] = [];
+      for (const field of scopeFields) {
+        if (rest[field] !== undefined) {
+          vals.push(Array.isArray(rest[field]) ? JSON.stringify(rest[field]) : String(rest[field]));
+          sets.push(`"${field}" = $${vals.length}`);
+        }
+      }
+      if (sets.length > 0) {
+        vals.push(id);
+        await db.$executeRawUnsafe(
+          `UPDATE "Policy" SET ${sets.join(', ')} WHERE "id" = $${vals.length}`,
+          ...vals
+        );
+      }
+    } catch (e) {
+      console.warn('[policies PUT] scope field update failed (non-fatal):', e);
     }
 
     // Non-admin users can only update policies in their own company
@@ -352,7 +420,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const db = await getDb(req);
+  const db = await getDb(req); try { await ensurePolicyScopeColumns(db); } catch {}
   try {
     const auth = await getAuthInfo(req);
     if (!auth) {
