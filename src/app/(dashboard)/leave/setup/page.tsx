@@ -35,6 +35,11 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
 
 /* Multi-select dropdown with built-in Search + Select All.
    Used for branches, departments, designations, leave types. */
+/* ── Shared helper: parse JSON array from runtime column (string or array) ── */
+function parseJsonArray(val: any): string[] {
+  try { const a = typeof val === 'string' ? JSON.parse(val) : val; return Array.isArray(a) ? a : []; } catch { return []; }
+}
+
 function MultiSelectDropdown({ value = [], onChange, items, labelKey, idKey, placeholder }: {
   value: string[];
   onChange: (v: string[]) => void;
@@ -646,8 +651,7 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
 /* ═══ Policy Form (inline, 5-step) ═══ */
 function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId: string | null; policies: LPolicy[]; types: LType[]; onCancel: () => void; onSaved: () => void; sq: string }) {
   const orig = editId && policies.find(p => p.id === editId);
-  // Parse original scope fields from the policy (stored as JSON arrays in runtime columns)
-  const parseJsonArray = (val: any): string[] => { try { const a = typeof val === 'string' ? JSON.parse(val) : val; return Array.isArray(a) ? a : []; } catch { return []; } };
+  // parseJsonArray is now defined at module level (shared by PolicyList + PolicyForm)
   const [f, setF] = useState({
     title: orig?.title || '', code: orig?.code || '', description: orig?.description || '',
     status: orig?.status || 'draft', effectiveDate: orig?.effectiveDate || '',
