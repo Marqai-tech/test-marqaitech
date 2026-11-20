@@ -1,69 +1,71 @@
 'use client';
-
 import { useState, useEffect, useCallback } from 'react';
-import { FiDownload, FiSearch, FiRefreshCw, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
+import { FiDownload, FiSearch, FiRefreshCw, FiArrowLeft, FiFilter } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 
-function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
-  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
+function getAuthHeaders() { const t = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null; return { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }; }
 
 export default function LeaveBalanceReport() {
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const [loading, setLoading] = useState(true);
-  const [balances, setBalances] = useState<any[]>([]);
+  const [data, setData] = useState<any>({ rows: [], summary: {} });
   const [q, setQ] = useState('');
-  const [fy, setFy] = useState('FY 2026-27');
+  const [deptFilter, setDeptFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
+  const [depts, setDepts] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const sq = scopeQuery();
-      const res = await fetch(`/api/leave/balance?${sq || ''}&limit=500`, { headers: getAuthHeaders() });
-      if (res.ok) { const d = await res.json(); setBalances(d.balances || d.data || []); }
+      const sep = sq ? '&' : '?';
+      const params = new URLSearchParams();
+      if (sq) { const [k,v] = sq.split('='); params.set(k, v); }
+      if (deptFilter) params.set('departmentId', deptFilter);
+      if (branchFilter) params.set('branchId', branchFilter);
+      const res = await fetch(`/api/leave/reports/balance?${params.toString()}`, { headers: getAuthHeaders() });
+      if (res.ok) { const d = await res.json(); setData(d); }
+      // Fetch depts + branches for filters
+      const [dRes, bRes] = await Promise.all([
+        fetch(`/api/departments${sq ? '?' + sq : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/branches${sq ? '?' + sq : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+      ]);
+      if (dRes?.ok) { const dd = await dRes.json(); setDepts(dd.data || dd || []); }
+      if (bRes?.ok) { const bd = await bRes.json(); setBranches(bd.data || bd || []); }
     } catch { toast.error('Failed to load balance data'); }
     finally { setLoading(false); }
-  }, [scopeQuery]);
+  }, [scopeQuery, deptFilter, branchFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Group balances by employee
-  const byEmp: Record<string, { empName: string; dept: string; balances: Record<string, number> }> = {};
-  for (const b of balances) {
-    const empId = b.employeeId || b.empId || 'unknown';
-    const empName = b.employeeName || b.employee?.name || b.employee?.firstName || 'Unknown';
-    const dept = b.department || b.employee?.department?.name || '—';
-    if (!byEmp[empId]) byEmp[empId] = { empName, dept, balances: {} };
-    const ltName = b.leaveTypeName || b.leaveTypeCode || 'Unknown';
-    byEmp[empId].balances[ltName] = b.remaining || b.total - b.used || 0;
+  const rows = data.rows || [];
+  const summary = data.summary || {};
+  const filtered = rows.filter((r: any) => r.employeeName.toLowerCase().includes(q.toLowerCase()));
+  const allTypes = [...new Set(rows.map((r: any) => r.leaveTypeCode).filter((c: string) => c !== '—'))].sort();
+
+  // Group by employee
+  const byEmp: Record<string, any> = {};
+  for (const r of filtered) {
+    if (!byEmp[r.employeeId]) byEmp[r.employeeId] = { name: r.employeeName, dept: r.department, branch: r.branch, desig: r.designation, types: {} };
+    if (r.leaveTypeCode && r.leaveTypeCode !== '—') {
+      byEmp[r.employeeId].types[r.leaveTypeCode] = { entitled: r.entitled, taken: r.taken, remaining: r.remaining, rule: r.ruleApplied };
+    }
   }
   const empRows = Object.values(byEmp);
-  const filtered = empRows.filter(e => e.empName.toLowerCase().includes(q.toLowerCase()));
-
-  // All leave types for table headers
-  const allTypes = [...new Set(empRows.flatMap(e => Object.keys(e.balances)))].sort();
-
-  // KPIs
-  const totalBalance = empRows.reduce((sum, e) => sum + Object.values(e.balances).reduce((a, b) => a + b, 0), 0);
-  const avgPerEmp = empRows.length > 0 ? (totalBalance / empRows.length).toFixed(1) : '0';
-  const negativeBalance = empRows.filter(e => Object.values(e.balances).some(v => v < 0)).length;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link href="/leave/reports" className="text-slate-500 hover:text-slate-700"><FiArrowLeft className="w-5 h-5" /></Link>
-          <div><h1 className="text-xl font-bold text-slate-900">Leave Balance Report</h1><p className="text-sm text-slate-500">Employee-wise leave balances across all leave types</p></div>
+          <div><h1 className="text-xl font-bold text-slate-900">Leave Balance Report</h1><p className="text-sm text-slate-500">Entitled vs Taken vs Remaining — from policy rules + mappings</p></div>
         </div>
         <div className="flex items-center gap-2">
-          <select value={fy} onChange={e => setFy(e.target.value)} className="h-9 border border-slate-200 rounded-lg px-3 text-sm font-semibold text-slate-700 bg-white">
-            <option>FY 2026-27</option><option>FY 2025-26</option>
-          </select>
-          <button onClick={fetchData} className="h-9 px-3 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5"><FiRefreshCw className="w-4 h-4" />Refresh</button>
-          <button onClick={() => toast.success('Export started')} className="h-9 px-4 rounded-lg bg-slate-900 text-white text-sm font-bold flex items-center gap-1.5 hover:bg-slate-800"><FiDownload className="w-4 h-4" />Export</button>
+          <button onClick={fetchData} className="h-9 px-3 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
+          <button onClick={() => { const csv = ['Employee,Department,LeaveType,Rule,Entitled,Taken,Remaining']; filtered.forEach((r:any) => csv.push(`${r.employeeName},${r.department},${r.leaveTypeName},${r.ruleApplied},${r.entitled},${r.taken},${r.remaining}`)); const blob = new Blob([csv.join('\n')], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'leave-balance.csv'; a.click(); }} className="h-9 px-4 rounded-lg bg-slate-900 text-white text-sm font-bold flex items-center gap-1.5 hover:bg-slate-800"><FiDownload className="w-4 h-4" />Export CSV</button>
         </div>
       </div>
 
@@ -74,39 +76,60 @@ export default function LeaveBalanceReport() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{totalBalance.toLocaleString()}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total Balance (days)</p></div>
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{avgPerEmp}</p><p className="text-xs font-semibold text-slate-500 mt-1">Avg Balance / Employee</p></div>
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{allTypes.length}</p><p className="text-xs font-semibold text-slate-500 mt-1">Leave Types Tracked</p></div>
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-rose-600">{negativeBalance}</p><p className="text-xs font-semibold text-slate-500 mt-1">Negative Balance Employees</p></div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{summary.totalEmployees || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">Employees</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-blue-600">{summary.totalEntitled || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total Entitled (days)</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-amber-600">{summary.totalTaken || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total Taken (days)</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-emerald-600">{summary.totalRemaining || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total Remaining</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-rose-600">{summary.negativeBalance || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">Negative Balance</p></div>
       </div>
 
-      {/* Search + table */}
+      {/* Filters + table */}
       <div className="bg-white border border-slate-100 rounded-xl shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 flex-wrap">
           <div className="relative flex-1 max-w-xs">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search employee…" className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-400" />
           </div>
-          <span className="text-sm text-slate-400">{filtered.length} employees</span>
+          <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="h-9 border border-slate-200 rounded-lg px-2 text-sm font-semibold text-slate-700 bg-white">
+            <option value="">All Departments</option>
+            {depts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="h-9 border border-slate-200 rounded-lg px-2 text-sm font-semibold text-slate-700 bg-white">
+            <option value="">All Branches</option>
+            {branches.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          <span className="text-sm text-slate-400">{empRows.length} employees</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead><tr className="bg-slate-50/50">
               <th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Employee</th>
               <th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Department</th>
-              {allTypes.map(t => <th key={t} className="text-center text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3 py-2.5 border-b border-slate-100">{t}</th>)}
+              <th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Branch</th>
+              {allTypes.map(t => <th key={t} className="text-center text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3 py-2.5 border-b border-slate-100" colSpan={3}>{t}</th>)}
+            </tr>
+            <tr className="bg-slate-50/30">
+              <th colSpan={3}></th>
+              {allTypes.map(t => <><th className="text-center text-[9px] font-bold text-slate-300 px-1 py-1 border-b border-slate-100">Ent</th><th className="text-center text-[9px] font-bold text-slate-300 px-1 py-1 border-b border-slate-100">Used</th><th className="text-center text-[9px] font-bold text-slate-300 px-1 py-1 border-b border-slate-100">Rem</th></>)}
             </tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={2 + allTypes.length} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-               filtered.length === 0 ? <tr><td colSpan={2 + allTypes.length} className="text-center py-10 text-slate-500">No balance data found.</td></tr> :
-               filtered.map((e, i) => (
+              {loading ? <tr><td colSpan={3 + allTypes.length * 3} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+               empRows.length === 0 ? <tr><td colSpan={3 + allTypes.length * 3} className="text-center py-10 text-slate-500">No balance data found. Create policies + rules + mappings first.</td></tr> :
+               empRows.map((e: any, i: number) => (
                 <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="px-3.5 py-3 text-sm font-semibold text-slate-700">{e.empName}</td>
+                  <td className="px-3.5 py-3 text-sm font-semibold text-slate-700">{e.name}</td>
                   <td className="px-3.5 py-3 text-sm text-slate-500">{e.dept}</td>
+                  <td className="px-3.5 py-3 text-sm text-slate-500">{e.branch}</td>
                   {allTypes.map(t => {
-                    const val = e.balances[t] ?? 0;
-                    return <td key={t} className="px-3 py-3 text-center text-sm font-bold text-slate-700">{val !== 0 ? val : '—'}</td>;
+                    const v = e.types[t];
+                    return v ? (
+                      <>
+                        <td className="px-1 py-3 text-center text-xs font-bold text-slate-600">{v.entitled}</td>
+                        <td className="px-1 py-3 text-center text-xs font-bold text-amber-600">{v.taken}</td>
+                        <td className="px-1 py-3 text-center text-xs font-bold text-emerald-600">{v.remaining}</td>
+                      </>
+                    ) : <><td className="px-1 py-3 text-center text-xs text-slate-300">—</td><td className="px-1 py-3 text-center text-xs text-slate-300">—</td><td className="px-1 py-3 text-center text-xs text-slate-300">—</td></>;
                   })}
                 </tr>
               ))}
