@@ -131,11 +131,102 @@ function ApplyLeaveContent() {
           fetch(`/api/leave?view=self&limit=100${sq ? `&${sq}` : ''}`, { headers }).catch(() => null),
         ]);
         const ltData = await ltRes.json();
-        const activeTypes = (ltData.data || []).filter((t: any) => t.status === 'active' || t.status === undefined);
+        let activeTypes = (ltData.data || []).filter((t: any) => t.status === 'active' || t.status === undefined);
         setLeaveTypes(activeTypes);
         const empData = await empRes.json();
         const myEmp = empData.employees?.find((e: any) => e.email === user?.email || e.userId === user?.id || (user?.employee?.id && e.id === user.employee.id)) || null;
         if (myEmp) setEmployee(myEmp);
+
+        // ─── Policy-based leave type filtering ───
+        // Fetch policies + mappings for this employee's company.
+        // Find which policy applies to this employee (by empStatus, branch, dept).
+        // Show only the leave types that are in that policy's leaveTypeIds
+        // OR that have an active mapping matching the employee.
+        if (myEmp) {
+          try {
+            const sep = sq ? `&${sq}` : '';
+            const [polRes, mapRes] = await Promise.all([
+              fetch(`/api/policies?category=leave&limit=100${sep ? `&${sq}` : ''}`, { headers }).catch(() => null),
+              fetch(`/api/leave-type-policy-mappings?includeInactive=1${sep ? `&${sq}` : ''}`, { headers }).catch(() => null),
+            ]);
+
+            // Collect allowed leave type IDs from:
+            // 1. Policy.leaveTypeIds (set in the Policy Form's Leave Types section)
+            // 2. LeaveTypePolicyMapping rows where the employee matches the mapping's scope
+            const allowedLeaveTypeIds = new Set<string>();
+            let hasPolicyFilter = false;
+
+            // Source 1: Policy table's leaveTypeIds field
+            if (polRes?.ok) {
+              const polData = await polRes.json();
+              const policies = polData.policies || polData.data || [];
+              for (const p of policies) {
+                if (p.status !== 'active') continue;
+                // Check if this policy applies to the employee
+                // Parse scope fields from the policy (stored as JSON arrays in runtime columns)
+                const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
+                const empStatuses = parseJson(p.empStatus);
+                const branchIds = parseJson(p.branchIds);
+                const deptIds = parseJson(p.departmentIds);
+
+                // Match: if empStatus is set, employee's status must be in it
+                let matches = true;
+                if (empStatuses.length > 0 && !empStatuses.map((s: string) => s.toLowerCase()).includes('all')) {
+                  const empStatus = (myEmp.employeeStatus || '').toLowerCase();
+                  if (empStatus && !empStatuses.map((s: string) => s.toLowerCase()).includes(empStatus)) matches = false;
+                }
+                // Match: if branchIds is set, employee's branch must be in it
+                if (matches && branchIds.length > 0 && myEmp.branchId && !branchIds.includes(myEmp.branchId)) matches = false;
+                // Match: if deptIds is set, employee's dept must be in it
+                if (matches && deptIds.length > 0 && myEmp.departmentId && !deptIds.includes(myEmp.departmentId)) matches = false;
+
+                if (matches) {
+                  const ltIds = parseJson(p.leaveTypeIds);
+                  if (ltIds.length > 0) {
+                    hasPolicyFilter = true;
+                    ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
+                  }
+                }
+              }
+            }
+
+            // Source 2: LeaveTypePolicyMapping rows
+            if (mapRes?.ok) {
+              const mapData = await mapRes.json();
+              const mappings = mapData.data || [];
+              if (mappings.length > 0) {
+                hasPolicyFilter = true; // mappings exist → enforce them
+                for (const m of mappings) {
+                  if (m.status !== 'active') continue;
+                  // Check if the employee matches the mapping's scope
+                  const empType = m.employmentType || 'all';
+                  if (empType !== 'all' && myEmp.employmentType && myEmp.employmentType !== empType.replace(/-/g, '_') && myEmp.employmentType !== empType) continue;
+                  if (m.branchId && myEmp.branchId !== m.branchId) continue;
+                  if (m.departmentId && myEmp.departmentId !== m.departmentId) continue;
+                  const gender = (m.genderApplicability || 'all').toLowerCase();
+                  if (gender !== 'all' && gender !== 'both' && myEmp.gender && myEmp.gender.toLowerCase() !== gender) continue;
+                  // Employee matches → add the leave type to allowed set
+                  allowedLeaveTypeIds.add(m.leaveTypeId);
+                }
+              }
+            }
+
+            // If we found policy/mapping data, filter the leave types
+            if (hasPolicyFilter && allowedLeaveTypeIds.size > 0) {
+              activeTypes = activeTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
+              setLeaveTypes(activeTypes);
+              console.log(`[apply-leave] Policy filter: employee sees ${activeTypes.length} of ${ltData.data?.length || 0} leave types (matched ${allowedLeaveTypeIds.size} allowed IDs).`);
+            } else if (hasPolicyFilter && allowedLeaveTypeIds.size === 0) {
+              // Mappings/policies exist but this employee matches none → show nothing
+              activeTypes = [];
+              setLeaveTypes([]);
+              console.log('[apply-leave] Policy filter: employee matches no policy/mapping → 0 leave types shown.');
+            }
+          } catch (e) {
+            console.warn('[apply-leave] Policy filter failed (non-fatal):', e);
+          }
+        }
+
         if (balRes?.ok) {
           const balData = await balRes.json();
           const probation = isActiveProbation(myEmp);
