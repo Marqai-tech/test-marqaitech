@@ -198,7 +198,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const targetEmployee = await db.employee.findUnique({ where: { id: employeeId }, select: { employeeStatus: true, dateOfJoining: true, gender: true } });
+    const targetEmployee = await db.employee.findUnique({ where: { id: employeeId }, select: { id: true, companyId: true, employeeStatus: true, dateOfJoining: true, gender: true, employeeType: true, branchId: true, departmentId: true } });
     const isProbation = isProbationEmployee(targetEmployee?.employeeStatus, targetEmployee?.dateOfJoining);
     const balances = await db.leaveBalance.findMany({
       where: { employeeId, year },
@@ -280,29 +280,108 @@ export async function GET(request: Request) {
         activeLeaveTypes = [];
         result = [] as typeof result;
       } else {
-        // Mappings exist → filter to only mapped types
-        const visibleTypes = [];
-        for (const lt of activeLeaveTypes) {
-          try {
-            const policy = await resolveLeavePolicy(db, { employeeId: targetEmployee.id, leaveTypeId: lt.id, companyId: targetEmployee.companyId });
-            if (policy.source !== 'none') {
-              // Use the rule's entitledDaysPerYear as the quota (not defaultDays)
-              const ruleQuota = policy.effective?.annualQuota || policy.allocation?.quota || lt.defaultDays || 0;
-              visibleTypes.push({ ...lt, defaultDays: ruleQuota });
-            }
-          } catch { /* don't block on resolver error */ }
-        }
-        activeLeaveTypes = visibleTypes;
+        // Mappings exist → use direct SQL query (same as leave-types API) for robust filtering
+        try {
+          const ltIds = activeLeaveTypes.map((lt: any) => lt.id);
+          if (ltIds.length > 0) {
+            const placeholders = ltIds.map((_: any, i: number) => `$${i + 1}`).join(',');
+            const mappingRows: any[] = await db.$queryRawUnsafe(
+              `SELECT "leaveTypeId", "employmentType", "genderApplicability", "branchId", "departmentId", "employeeIds"
+               FROM "LeaveTypePolicyMapping"
+               WHERE "leaveTypeId" IN (${placeholders})
+                 AND status = 'active'`,
+              ...ltIds
+            );
 
-        // Also filter existing balance rows
-        const filteredResult = [];
-        for (const b of result) {
-          try {
-            const policy = await resolveLeavePolicy(db, { employeeId: targetEmployee.id, leaveTypeId: b.leaveTypeId, companyId: targetEmployee.companyId });
-            if (policy.source !== 'none') filteredResult.push(b);
-          } catch { filteredResult.push(b); }
+            if (mappingRows.length === 0) {
+              // No mappings for these specific leave types → show nothing
+              activeLeaveTypes = [];
+              result = [] as typeof result;
+            } else {
+              // Group mappings by leaveTypeId
+              const mappingsByLt = new Map<string, any[]>();
+              for (const m of mappingRows) {
+                const arr = mappingsByLt.get(m.leaveTypeId) || [];
+                arr.push(m);
+                mappingsByLt.set(m.leaveTypeId, arr);
+              }
+
+              // Filter: only keep leave types where at least one mapping matches the employee
+              const empGender = (targetEmployee?.gender || '').toLowerCase();
+              const empEmpType = (targetEmployee?.employeeType || '').toLowerCase().replace('_', '-');
+              const empBranchId = targetEmployee?.branchId || null;
+              const empDeptId = targetEmployee?.departmentId || null;
+
+              // Also fetch rule's entitledDaysPerYear for each mapped leave type
+              let ruleRows: any[] = [];
+              try {
+                ruleRows = await db.$queryRawUnsafe(
+                  `SELECT r."leaveTypeId", r."entitledDaysPerYear", r.name as "ruleName"
+                   FROM "LeavePolicyRule" r
+                   JOIN "LeaveTypePolicyMapping" m ON m."policyRuleId" = r.id
+                   WHERE r.status = 'active' AND m.status = 'active'`
+                );
+              } catch {}
+              const ruleMap = new Map<string, number>();
+              for (const r of ruleRows) {
+                const ltId = r.leaveTypeId;
+                const entitled = Number(r.entitledDaysPerYear || 0);
+                if (!ruleMap.has(ltId) || ruleMap.get(ltId)! < entitled) {
+                  ruleMap.set(ltId, entitled);
+                }
+              }
+
+              const visibleTypes = activeLeaveTypes.filter((lt: any) => {
+                const ltMappings = mappingsByLt.get(lt.id) || [];
+                if (ltMappings.length === 0) return false;
+                return ltMappings.some((m: any) => {
+                  // Employment type check
+                  const mEmpType = (m.employmentType || 'all').toLowerCase();
+                  if (mEmpType !== 'all') {
+                    const rt = mEmpType.replace('_', '-');
+                    if (rt === 'full-time' && empEmpType !== 'full-time') return false;
+                    if (rt === 'part-time' && empEmpType !== 'part-time') return false;
+                    if (rt === 'contract' && empEmpType !== 'contract') return false;
+                    if (rt === 'internship' && empEmpType !== 'internship' && empEmpType !== 'intern') return false;
+                    if (rt !== empEmpType) return false;
+                  }
+                  // Gender check
+                  const mGender = (m.genderApplicability || 'all').toLowerCase();
+                  if (mGender !== 'all' && mGender !== 'both') {
+                    if (empGender === 'male' && mGender !== 'male' && mGender !== 'm') return false;
+                    if (empGender === 'female' && mGender !== 'female' && mGender !== 'f') return false;
+                    if (empGender === 'other' && mGender !== 'other' && mGender !== 'o') return false;
+                    if (!empGender) return false;
+                  }
+                  // Branch check
+                  if (m.branchId && m.branchId !== empBranchId) return false;
+                  // Department check
+                  if (m.departmentId && m.departmentId !== empDeptId) return false;
+                  // Employee IDs check
+                  if (m.employeeIds) {
+                    try {
+                      const ids = JSON.parse(m.employeeIds);
+                      if (Array.isArray(ids) && ids.length > 0 && !ids.includes(targetEmployee?.id)) return false;
+                    } catch {}
+                  }
+                  return true;
+                });
+              }).map((lt: any) => {
+                // Override defaultDays with the rule's entitledDaysPerYear
+                const ruleQuota = ruleMap.get(lt.id) || lt.defaultDays || 0;
+                return { ...lt, defaultDays: ruleQuota };
+              });
+
+              activeLeaveTypes = visibleTypes;
+
+              // Also filter existing balance rows
+              const visibleTypeIds = new Set(visibleTypes.map((lt: any) => lt.id));
+              result = result.filter((b: any) => visibleTypeIds.has(b.leaveTypeId)) as typeof result;
+            }
+          }
+        } catch (mappingErr) {
+          console.warn('[leave/balance] mapping filter failed (non-fatal):', mappingErr);
         }
-        result = filteredResult as typeof result;
       }
     }
 
