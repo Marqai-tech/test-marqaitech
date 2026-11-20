@@ -149,7 +149,7 @@ export default function ApprovalWorkflowsPage() {
           id: e.id,
           name: `${e.firstName || ''} ${e.lastName || ''}`.trim(),
           email: e.email || '',
-          role: e.role || '',
+          role: e.user?.role || e.role || '',
           employeeId: e.employeeId || '',
         }));
         setEmployees(emps);
@@ -518,7 +518,7 @@ export default function ApprovalWorkflowsPage() {
                   </div>
                 </div>
 
-                {/* Result selector */}
+                {/* Result selector — flow shows immediately, no "Run Test" button */}
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Simulate Result</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -531,39 +531,25 @@ export default function ApprovalWorkflowsPage() {
                   </div>
                 </div>
 
-                {/* Run test */}
-                <button onClick={() => setTestRun(true)} className="w-full py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 flex items-center justify-center gap-1.5">
-                  <FiPlay className="w-4 h-4" /> Run Test
-                </button>
-
-                {/* Flow visualization */}
-                {testRun && (
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
-                    <h3 className="text-xs font-bold uppercase text-slate-400">Approval Flow</h3>
-                    {testSteps.map((step, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${step.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : step.status === 'rejected' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
-                          {step.status === 'approved' ? <FiCheck className="w-3.5 h-3.5" /> : step.status === 'rejected' ? <FiX className="w-3.5 h-3.5" /> : <FiClock className="w-3.5 h-3.5" />}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-slate-700">{step.approverLabel}</p>
-                          {step.approverLabel && <p className="text-[10px] text-slate-400">{step.approverLabel}</p>}
-                        </div>
-                        {i < testSteps.length - 1 && <FiArrowRight className="w-3 h-3 text-slate-300" />}
+                {/* Flow visualization — shows immediately based on selected result */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <h3 className="text-xs font-bold uppercase text-slate-400">Approval Flow</h3>
+                  {testSteps.map((step, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${step.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : step.status === 'rejected' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
+                        {step.status === 'approved' ? <FiCheck className="w-3.5 h-3.5" /> : step.status === 'rejected' ? <FiX className="w-3.5 h-3.5" /> : <FiClock className="w-3.5 h-3.5" />}
                       </div>
-                    ))}
-                    {/* Result */}
-                    <div className={`mt-2 px-3 py-2 rounded-lg text-xs font-bold ${testResult === 'all_approve' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                      {testResult === 'all_approve' ? '✓ Approved — calendar updated' : '✗ Rejected — employee notified'}
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-slate-700">{step.approverLabel}</p>
+                      </div>
+                      {i < testSteps.length - 1 && <FiArrowRight className="w-3 h-3 text-slate-300" />}
                     </div>
-                    {/* Stats */}
-                    <div className="grid grid-cols-3 gap-2 pt-2">
-                      <div className="text-center"><p className="text-lg font-bold text-slate-700">{testResult === 'all_approve' ? editConfig?.tiers.length || 0 : (editConfig?.tiers.length || 1) - 1}</p><p className="text-[10px] text-slate-400">Approved</p></div>
-                      <div className="text-center"><p className="text-lg font-bold text-slate-700">{testResult === 'one_rejects' ? 1 : 0}</p><p className="text-[10px] text-slate-400">Rejected</p></div>
-                      <div className="text-center"><p className="text-lg font-bold text-slate-700">{editConfig?.tiers.length || 0}</p><p className="text-[10px] text-slate-400">Approval Tiers</p></div>
-                    </div>
+                  ))}
+                  {/* Result */}
+                  <div className={`mt-2 px-3 py-2 rounded-lg text-xs font-bold ${testResult === 'all_approve' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                    {testResult === 'all_approve' ? '✓ Approved — calendar updated' : '✗ Rejected — employee notified'}
                   </div>
-                )}
+                </div>
 
                 {/* Recent changes */}
                 <div className="pt-3 border-t border-slate-100">
