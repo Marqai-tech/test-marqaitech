@@ -64,8 +64,8 @@ const DEFAULT_WORKFLOW: WorkflowConfig = {
   leaveTypeIds: [],
   isActive: true,
   tiers: [
-    { tier: 1, approverType: 'reporting_manager', label: 'Reporting Manager' },
-    { tier: 2, approverType: 'hr_admin', label: 'HR Admin' },
+    { tier: 1, approverType: 'tenant_admin', label: 'Tenant Admin' },
+    { tier: 2, approverType: 'employee', label: 'Employee' },
   ],
   requireAllTiers: true,
   autoApproveShortLeave: false,
@@ -190,7 +190,7 @@ export default function ApprovalWorkflowsPage() {
   const addTier = () => {
     setEditConfig(prev => {
       if (!prev) return prev;
-      const newTier: WorkflowTier = { tier: prev.tiers.length + 1, approverType: 'hr_admin', label: 'HR Admin' };
+      const newTier: WorkflowTier = { tier: prev.tiers.length + 1, approverType: '', label: '' };
       return { ...prev, tiers: [...prev.tiers, newTier] };
     });
     setDirty(true);
@@ -402,13 +402,9 @@ export default function ApprovalWorkflowsPage() {
                               }
                             }} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
                               <option value="">— Select role —</option>
-                              {/* Dynamic roles derived from fetched employees */}
+                              {/* Dynamic roles derived from fetched employees only — every role has at least one employee */}
                               {[...new Set(employees.map(e => e.role).filter(Boolean))].sort().map(role => (
                                 <option key={role} value={role}>{String(role).charAt(0).toUpperCase() + String(role).slice(1)}</option>
-                              ))}
-                              {/* Also include predefined roles not in employee data */}
-                              {ROLE_OPTIONS.filter(r => !employees.some(e => e.role === r.value)).map(a => (
-                                <option key={a.value} value={a.value}>{a.label}</option>
                               ))}
                             </select>
                           </div>
