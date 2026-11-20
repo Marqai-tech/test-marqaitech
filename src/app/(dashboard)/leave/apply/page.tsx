@@ -256,17 +256,17 @@ function ApplyLeaveContent() {
               }
             }
 
-            // If we found policy/mapping data, filter the leave types
+            // If we found policy/mapping data AND the employee matched at least one,
+            // filter the leave types to only show allowed ones.
+            // If the employee matched NONE, fall back to showing all types
+            // (don't clear the list — that would make the page unusable).
             if (hasPolicyFilter && allowedLeaveTypeIds.size > 0) {
               activeTypes = activeTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
               setLeaveTypes(activeTypes);
               console.log(`[apply-leave] Policy filter: employee sees ${activeTypes.length} of ${ltData.data?.length || 0} leave types (matched ${allowedLeaveTypeIds.size} allowed IDs).`);
-            } else if (hasPolicyFilter && allowedLeaveTypeIds.size === 0) {
-              // Mappings/policies exist but this employee matches none → show nothing
-              activeTypes = [];
-              setLeaveTypes([]);
-              console.log('[apply-leave] Policy filter: employee matches no policy/mapping → 0 leave types shown.');
             }
+            // If hasPolicyFilter is true but allowedLeaveTypeIds is empty (employee matched nothing),
+            // do NOT clear — keep showing all types as fallback.
           } catch (e) {
             console.warn('[apply-leave] Policy filter failed (non-fatal):', e);
           }
