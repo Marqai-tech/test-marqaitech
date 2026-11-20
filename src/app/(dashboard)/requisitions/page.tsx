@@ -174,6 +174,14 @@ export default function RequisitionsPage() {
   const [activeTab, setActiveTab] = useState<'requisitions' | 'approvals'>('requisitions');
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [listFilter, setListFilter] = useState<'all' | 'action' | 'pending' | 'draft' | 'approved'>('all');
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') === '1') {
+      setEditingId(null);
+      setForm(initialForm);
+      setShowForm(true);
+    }
+  }, []);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
   const [designations, setDesignations] = useState<Array<{ id: string; title: string; departmentId: string | null }>>([]);
 
