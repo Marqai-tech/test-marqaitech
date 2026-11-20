@@ -499,12 +499,20 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead><tr>{['Policy Name', 'Applies To', 'Leave Types', 'Employees', 'Effective Date', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 4 ? '' : i === 6 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+          {/* Removed "Employees" column per user request */}
+          <thead><tr>{['Policy Name', 'Applies To', 'Leave Types', 'Effective Date', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 3 ? '' : i === 5 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-             rows.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No policies found. Click <b>+ Create Policy</b> to define who gets which leaves.</td></tr> :
+            {loading ? <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+             rows.length === 0 ? <tr><td colSpan={6} className="text-center py-10 text-slate-500">No policies found. Click <b>+ Create Policy</b> to define who gets which leaves.</td></tr> :
              rows.map(r => {
                const info = policyInfo(r.id);
+               // Get leave type objects with calendarColor for colour-coded chips
+               const policyMappings = mappings.filter(m => {
+                 const rule = rules.find(rr => rr.id === m.policyRuleId);
+                 return rule?.policyId === r.id || m.policyId === r.id;
+               });
+               const ltIds = [...new Set(policyMappings.map(m => m.leaveTypeId).filter(Boolean))];
+               const ltObjects = ltIds.map(id => types.find(t => t.id === id)).filter(Boolean) as LType[];
                return (
                 <tr key={r.id} className={`border-b border-slate-50 cursor-pointer transition-colors ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSel(r.id)}>
                   <td className="px-3.5 py-3">
@@ -515,16 +523,14 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
                     <span className="text-[12px] font-medium text-slate-700">{info.appliesTo}</span>
                   </td>
                   <td className="px-3.5 py-3">
-                    {info.leaveTypeCodes.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {info.leaveTypeCodes.map((code, i) => (
-                          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">{code}</span>
+                    {/* Colour-coded leave type chips using CodeChip with calendarColor */}
+                    {ltObjects.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {ltObjects.map((lt, i) => (
+                          <CodeChip key={i} code={lt.code} color={lt.calendarColor} />
                         ))}
                       </div>
                     ) : <span className="text-[12px] text-slate-300">—</span>}
-                  </td>
-                  <td className="px-3.5 py-3 text-center">
-                    <span className="text-[13px] font-bold text-slate-700">—</span>
                   </td>
                   <td className="px-3.5 py-3 text-[12px] text-slate-500">{fmtDate(r.effectiveDate)}</td>
                   <td className="px-3.5 py-3"><StatusPill s={r.status === 'active' ? 'Active' : r.status === 'draft' ? 'Draft' : 'Inactive'} /></td>
@@ -537,7 +543,20 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
           </tbody>
         </table>
       </div>
-      {p && <Drawer onClose={() => setSel(null)} head={<div><h3 className="text-lg font-extrabold">{p.title}</h3><div className="text-[12px] text-slate-500">{p.code || ''}</div></div>} foot={<button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => onEdit(p.id)}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit policy</button>}><KV items={[['Policy name', p.title], ['Applies to', policyInfo(p.id).appliesTo], ['Leave types', policyInfo(p.id).leaveTypeNames.join(', ') || '—'], ['Status', p.status], ['Effective', fmtDate(p.effectiveDate)], ['Description', p.description || '—', true]]} /></Drawer>}
+      {/* Side panel with policy details — includes branch/dept/designation info */}
+      {p && <Drawer onClose={() => setSel(null)} head={<div><h3 className="text-lg font-extrabold">{p.title}</h3><div className="text-[12px] text-slate-500">{p.code || ''}</div></div>} foot={<button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => onEdit(p.id)}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit policy</button>}>
+        <KV items={[
+          ['Policy name', p.title],
+          ['Applies to', policyInfo(p.id).appliesTo],
+          ['Leave types', policyInfo(p.id).leaveTypeNames.join(', ') || '—'],
+          ['Branches', parseJsonArray((p as any).branchIds).length > 0 ? `${parseJsonArray((p as any).branchIds).length} selected` : 'All branches'],
+          ['Departments', parseJsonArray((p as any).departmentIds).length > 0 ? `${parseJsonArray((p as any).departmentIds).length} selected` : 'All departments'],
+          ['Designations', parseJsonArray((p as any).designationIds).length > 0 ? `${parseJsonArray((p as any).designationIds).length} selected` : 'All designations'],
+          ['Status', p.status],
+          ['Effective', fmtDate(p.effectiveDate)],
+          ['Description', p.description || '—', true],
+        ]} />
+      </Drawer>}
     </div>
   );
 }
