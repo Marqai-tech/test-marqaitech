@@ -62,6 +62,10 @@ interface LeaveBalance { id: string; total: number; used: number; remaining: num
 interface Employee {
   id: string; employeeId: string; firstName: string; lastName: string; employeeStatus?: string;
   dateOfJoining?: string | null; gender?: string | null;
+  employmentType?: string | null;
+  branchId?: string | null;
+  departmentId?: string | null;
+  leavePolicyId?: string | null;
   reportingManager?: { id: string; firstName: string; lastName: string } | null;
   leaveBalances?: LeaveBalance[];
 }
@@ -151,20 +155,47 @@ function ApplyLeaveContent() {
             ]);
 
             // Collect allowed leave type IDs from:
-            // 1. Policy.leaveTypeIds (set in the Policy Form's Leave Types section)
-            // 2. LeaveTypePolicyMapping rows where the employee matches the mapping's scope
+            // 1. Employee.leavePolicyId — direct attachment (set in the
+            //    Employee add/edit form's "Leave Policy" dropdown). This
+            //    OVERRIDES scope-based matching: if HR explicitly attached
+            //    a policy to this employee, its leave types must show up
+            //    regardless of empStatus / branch / dept scope filters.
+            // 2. Policy.leaveTypeIds — matched by empStatus / branch / dept
+            // 3. LeaveTypePolicyMapping rows where the employee matches the mapping's scope
             const allowedLeaveTypeIds = new Set<string>();
             let hasPolicyFilter = false;
+            const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
 
             // Source 1: Policy table's leaveTypeIds field
             if (polRes?.ok) {
               const polData = await polRes.json();
               const policies = polData.policies || polData.data || [];
+
+              // ─── Direct attachment: Employee.leavePolicyId ───
+              // Takes priority over scope matching. If HR pinned a policy
+              // to this employee in the Employee add/edit form, that
+              // policy's leave types are shown regardless of scope.
+              if (myEmp.leavePolicyId) {
+                const attachedPolicy = policies.find((p: any) => p.id === myEmp.leavePolicyId);
+                if (attachedPolicy && attachedPolicy.status === 'active') {
+                  const ltIds = parseJson(attachedPolicy.leaveTypeIds);
+                  if (ltIds.length > 0) {
+                    hasPolicyFilter = true;
+                    ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
+                    console.log(`[apply-leave] Direct policy attachment: employee.leavePolicyId=${myEmp.leavePolicyId} → ${ltIds.length} leave type(s) added (scope bypassed).`);
+                  }
+                } else {
+                  console.warn(`[apply-leave] Direct policy attachment: employee.leavePolicyId=${myEmp.leavePolicyId} not found in active leave policies (policies seen: ${policies.length}).`);
+                }
+              }
+
               for (const p of policies) {
                 if (p.status !== 'active') continue;
+                // Skip the directly-attached policy here — already handled above
+                if (myEmp.leavePolicyId && p.id === myEmp.leavePolicyId) continue;
+
                 // Check if this policy applies to the employee
                 // Parse scope fields from the policy (stored as JSON arrays in runtime columns)
-                const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
                 const empStatuses = parseJson(p.empStatus);
                 const branchIds = parseJson(p.branchIds);
                 const deptIds = parseJson(p.departmentIds);
