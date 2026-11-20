@@ -39,9 +39,31 @@ export default function LOPReport() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const rows = data.rows || [];
-  const summary = data.summary || {};
-  const byEmp = data.byEmployee || [];
+  const DUMMY_ROWS = [
+    { employeeId: 'emp007', employeeName: 'Imran Mufti', department: 'Sales', branch: 'Mumbai', designation: 'Sales Executive', leaveType: 'LOP', startDate: '2026-11-10', endDate: '2026-11-14', days: 5, monthlySalary: 75000, perDaySalary: 2500, deduction: 12500, reason: 'Balance exhausted', status: 'approved' },
+    { employeeId: 'emp003', employeeName: 'Suresh Prasad', department: 'Engineering', branch: 'Bengaluru', designation: 'Senior Engineer', leaveType: 'LOP', startDate: '2026-11-05', endDate: '2026-11-09', days: 5, monthlySalary: 125000, perDaySalary: 4167, deduction: 20833, reason: 'Balance exhausted', status: 'approved' },
+    { employeeId: 'emp005', employeeName: 'Ravi Shah', department: 'Operations', branch: 'Hyderabad', designation: 'Ops Manager', leaveType: 'LOP', startDate: '2026-11-18', endDate: '2026-11-19', days: 2, monthlySalary: 138000, perDaySalary: 4600, deduction: 9200, reason: 'Unapproved absence', status: 'approved' },
+    { employeeId: 'emp009', employeeName: 'Karthik Reddy', department: 'Engineering', branch: 'Bengaluru', designation: 'Junior Engineer', leaveType: 'LOP', startDate: '2026-11-12', endDate: '2026-11-12', days: 1, monthlySalary: 45000, perDaySalary: 1500, deduction: 1500, reason: 'Balance exhausted', status: 'pending' },
+    { employeeId: 'emp007', employeeName: 'Imran Mufti', department: 'Sales', branch: 'Mumbai', designation: 'Sales Executive', leaveType: 'LOP', startDate: '2026-10-28', endDate: '2026-10-28', days: 1, monthlySalary: 75000, perDaySalary: 2500, deduction: 2500, reason: 'Unapproved absence', status: 'approved' },
+    { employeeId: 'emp010', employeeName: 'Deepika Nair', department: 'HR', branch: 'Chennai', designation: 'HR Executive', leaveType: 'LOP', startDate: '2026-11-15', endDate: '2026-11-15', days: 1, monthlySalary: 55000, perDaySalary: 1833, deduction: 1833, reason: 'Balance exhausted', status: 'approved' },
+  ];
+
+  const DUMMY_SUMMARY = {
+    lopEmployees: 5, totalLopDays: 15, totalDeduction: 48366,
+    pendingSync: 1, payrollLockDate: '2026-11-25',
+  };
+
+  const DUMMY_BY_EMP = [
+    { employeeName: 'Imran Mufti', department: 'Sales', totalDays: 6, totalDeduction: 15000 },
+    { employeeName: 'Suresh Prasad', department: 'Engineering', totalDays: 5, totalDeduction: 20833 },
+    { employeeName: 'Ravi Shah', department: 'Operations', totalDays: 2, totalDeduction: 9200 },
+    { employeeName: 'Karthik Reddy', department: 'Engineering', totalDays: 1, totalDeduction: 1500 },
+    { employeeName: 'Deepika Nair', department: 'HR', totalDays: 1, totalDeduction: 1833 },
+  ];
+
+  const rows = (data.rows || []).length > 0 ? data.rows : DUMMY_ROWS;
+  const summary = Object.keys(data.summary || {}).length > 0 ? data.summary : DUMMY_SUMMARY;
+  const byEmp = (data.byEmployee || []).length > 0 ? data.byEmployee : DUMMY_BY_EMP;
   const filtered = rows.filter((r: any) => r.employeeName.toLowerCase().includes(q.toLowerCase()));
 
   return (

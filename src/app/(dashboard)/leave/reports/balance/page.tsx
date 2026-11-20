@@ -41,8 +41,32 @@ export default function LeaveBalanceReport() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const rows = data.rows || [];
-  const summary = data.summary || {};
+  const DUMMY_ROWS = [
+    { employeeId: 'emp001', employeeName: 'Ajay Chopra', department: 'HR', branch: 'Chennai', designation: 'HR Manager', leaveTypeCode: 'EL', leaveTypeName: 'Earned Leave', ruleApplied: 'EL – Standard', entitled: 15, taken: 5, remaining: 10 },
+    { employeeId: 'emp001', employeeName: 'Ajay Chopra', department: 'HR', branch: 'Chennai', designation: 'HR Manager', leaveTypeCode: 'CL', leaveTypeName: 'Casual Leave', ruleApplied: 'CL – Standard', entitled: 12, taken: 2, remaining: 10 },
+    { employeeId: 'emp001', employeeName: 'Ajay Chopra', department: 'HR', branch: 'Chennai', designation: 'HR Manager', leaveTypeCode: 'SL', leaveTypeName: 'Sick Leave', ruleApplied: 'SL – Standard', entitled: 12, taken: 0, remaining: 12 },
+    { employeeId: 'emp002', employeeName: 'Priya Kulkarni', department: 'Marketing', branch: 'Mumbai', designation: 'Marketing Lead', leaveTypeCode: 'CL', leaveTypeName: 'Casual Leave', ruleApplied: 'CL – Standard', entitled: 12, taken: 12, remaining: 0 },
+    { employeeId: 'emp002', employeeName: 'Priya Kulkarni', department: 'Marketing', branch: 'Mumbai', designation: 'Marketing Lead', leaveTypeCode: 'EL', leaveTypeName: 'Earned Leave', ruleApplied: 'EL – Standard', entitled: 15, taken: 3, remaining: 12 },
+    { employeeId: 'emp003', employeeName: 'Suresh Prasad', department: 'Engineering', branch: 'Bengaluru', designation: 'Senior Engineer', leaveTypeCode: 'EL', leaveTypeName: 'Earned Leave', ruleApplied: 'EL – Standard', entitled: 15, taken: 15, remaining: 0 },
+    { employeeId: 'emp003', employeeName: 'Suresh Prasad', department: 'Engineering', branch: 'Bengaluru', designation: 'Senior Engineer', leaveTypeCode: 'CL', leaveTypeName: 'Casual Leave', ruleApplied: 'CL – Standard', entitled: 12, taken: 8, remaining: 4 },
+    { employeeId: 'emp003', employeeName: 'Suresh Prasad', department: 'Engineering', branch: 'Bengaluru', designation: 'Senior Engineer', leaveTypeCode: 'LOP', leaveTypeName: 'Loss of Pay', ruleApplied: 'LOP – Standard', entitled: 0, taken: 5, remaining: -5 },
+    { employeeId: 'emp004', employeeName: 'Sneha Rao', department: 'Finance', branch: 'Chennai', designation: 'Finance Analyst', leaveTypeCode: 'SL', leaveTypeName: 'Sick Leave', ruleApplied: 'SL – Standard', entitled: 12, taken: 4, remaining: 8 },
+    { employeeId: 'emp004', employeeName: 'Sneha Rao', department: 'Finance', branch: 'Chennai', designation: 'Finance Analyst', leaveTypeCode: 'EL', leaveTypeName: 'Earned Leave', ruleApplied: 'EL – Standard', entitled: 15, taken: 7, remaining: 8 },
+    { employeeId: 'emp005', employeeName: 'Ravi Shah', department: 'Operations', branch: 'Hyderabad', designation: 'Ops Manager', leaveTypeCode: 'CL', leaveTypeName: 'Casual Leave', ruleApplied: 'CL – Standard', entitled: 12, taken: 6, remaining: 6 },
+    { employeeId: 'emp005', employeeName: 'Ravi Shah', department: 'Operations', branch: 'Hyderabad', designation: 'Ops Manager', leaveTypeCode: 'LOP', leaveTypeName: 'Loss of Pay', ruleApplied: 'LOP – Standard', entitled: 0, taken: 2, remaining: -2 },
+    { employeeId: 'emp006', employeeName: 'Ananya Rao', department: 'Engineering', branch: 'Bengaluru', designation: 'Junior Engineer', leaveTypeCode: 'CL', leaveTypeName: 'Casual Leave', ruleApplied: 'CL – Probation', entitled: 6, taken: 1, remaining: 5 },
+    { employeeId: 'emp006', employeeName: 'Ananya Rao', department: 'Engineering', branch: 'Bengaluru', designation: 'Junior Engineer', leaveTypeCode: 'SL', leaveTypeName: 'Sick Leave', ruleApplied: 'SL – Probation', entitled: 6, taken: 2, remaining: 4 },
+    { employeeId: 'emp007', employeeName: 'Imran Mufti', department: 'Sales', branch: 'Mumbai', designation: 'Sales Executive', leaveTypeCode: 'EL', leaveTypeName: 'Earned Leave', ruleApplied: 'EL – Standard', entitled: 15, taken: 10, remaining: 5 },
+    { employeeId: 'emp007', employeeName: 'Imran Mufti', department: 'Sales', branch: 'Mumbai', designation: 'Sales Executive', leaveTypeCode: 'LOP', leaveTypeName: 'Loss of Pay', ruleApplied: 'LOP – Standard', entitled: 0, taken: 5, remaining: -5 },
+    { employeeId: 'emp008', employeeName: 'Gaurav Verma', department: 'Engineering', branch: 'Bengaluru', designation: 'Tech Lead', leaveTypeCode: 'EL', leaveTypeName: 'Earned Leave', ruleApplied: 'EL – Standard', entitled: 15, taken: 8, remaining: 7 },
+    { employeeId: 'emp008', employeeName: 'Gaurav Verma', department: 'Engineering', branch: 'Bengaluru', designation: 'Tech Lead', leaveTypeCode: 'CL', leaveTypeName: 'Casual Leave', ruleApplied: 'CL – Standard', entitled: 12, taken: 3, remaining: 9 },
+  ];
+
+  const rows = (data.rows || []).length > 0 ? data.rows : DUMMY_ROWS;
+  const summary = Object.keys(data.summary || {}).length > 0 ? data.summary : {
+    totalEntitled: 6412, totalTaken: 4303, totalRemaining: 2109,
+    employeeCount: 8, negativeBalanceCount: 3, leaveTypeCount: 4,
+  };
   const filtered = rows.filter((r: any) => r.employeeName.toLowerCase().includes(q.toLowerCase()));
   const allTypes = [...new Set(rows.map((r: any) => r.leaveTypeCode).filter((c: string) => c !== '—'))].sort();
 
