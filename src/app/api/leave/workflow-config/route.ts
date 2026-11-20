@@ -182,7 +182,24 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { leaveTypeId, name, description, config } = body;
+    const { leaveTypeId, name, description } = body;
+    let config = body.config;
+
+    // Tolerate config sent as a JSON string — the frontend serializes it
+    // with JSON.stringify before POSTing. Without this, config.tiers is
+    // undefined and the validation below fails with "Config must have at
+    // least one tier" even when the user has added tiers.
+    if (typeof config === 'string') {
+      try {
+        config = JSON.parse(config);
+      } catch {
+        return NextResponse.json(
+          { error: 'Config is not valid JSON' },
+          { status: 400, headers: corsHeaders() },
+        );
+      }
+    }
+
     // Scope fields (new — unification pass)
     const policyDocumentId = (body.policyDocumentId as string) || null;
     const employmentType = ['all', 'full-time', 'part-time', 'contract', 'internship'].includes(String(body.employmentType))
@@ -199,18 +216,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate tiers
+    // Drop incomplete tiers (no approverType AND no approverId) — these
+    // happen when the user clicks "Add Tier" but doesn't pick a role.
+    // We silently filter them out instead of failing the whole save.
+    config.tiers = (config.tiers as WorkflowTier[]).filter(
+      (t) => t && (t.approverType || t.approverId),
+    );
+    if (config.tiers.length === 0) {
+      return NextResponse.json(
+        { error: 'Each tier must have a selected approver (role or specific person)' },
+        { status: 400, headers: corsHeaders() },
+      );
+    }
+
+    // Validate tiers. approverType is now a free-form role label (any
+    // role that exists in the tenant's User table is allowed, since the
+    // frontend dropdown is dynamically populated from employees). The
+    // actual approver resolution happens via approverId (employee ID →
+    // userId) in lib/leave-workflow.ts.
     for (const tier of config.tiers as WorkflowTier[]) {
-      if (!tier.tier || !tier.approverType) {
+      if (!tier.tier) tier.tier = 1; // auto-assign if missing
+      if (!tier.approverType && !tier.approverId) {
         return NextResponse.json(
-          { error: `Each tier must have a tier number and approverType` },
-          { status: 400, headers: corsHeaders() },
-        );
-      }
-      const validTypes = ['reporting_manager', 'department_head', 'hr_admin', 'tenant_admin', 'ceo', 'specific_user', 'specific_employee'];
-      if (!validTypes.includes(tier.approverType)) {
-        return NextResponse.json(
-          { error: `Invalid approverType: ${tier.approverType}. Must be one of: ${validTypes.join(', ')}` },
+          { error: `Each tier must have a selected approver` },
           { status: 400, headers: corsHeaders() },
         );
       }

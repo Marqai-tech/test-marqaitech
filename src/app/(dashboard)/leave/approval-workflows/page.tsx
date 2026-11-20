@@ -214,7 +214,19 @@ export default function ApprovalWorkflowsPage() {
   const handleSave = async () => {
     if (!editConfig) return;
     if (!editConfig.name.trim()) { toast.error('Workflow name is required'); return; }
-    if (editConfig.tiers.length === 0) { toast.error('At least one approval tier is required'); return; }
+    // Filter out incomplete tiers (user clicked "Add Tier" but didn't pick a role).
+    // The backend also does this, but doing it here lets us show a helpful toast.
+    const validTiers = editConfig.tiers.filter(t => (t.approverType && t.approverType.trim()) || t.approverId);
+    if (validTiers.length === 0) {
+      toast.error('Add at least one approval tier and pick a role for it');
+      return;
+    }
+    const skippedCount = editConfig.tiers.length - validTiers.length;
+    if (skippedCount > 0) {
+      toast(`${skippedCount} incomplete tier${skippedCount > 1 ? 's' : ''} skipped — pick a role to include them next time`);
+    }
+    // Re-number tiers sequentially after filtering
+    const renumberedTiers = validTiers.map((t, i) => ({ ...t, tier: i + 1 }));
     setSaving(true);
     try {
       const payload = {
@@ -223,8 +235,10 @@ export default function ApprovalWorkflowsPage() {
         description: editConfig.description,
         leaveTypeId: editConfig.leaveTypeIds && editConfig.leaveTypeIds.length === 1 ? editConfig.leaveTypeIds[0] : (editConfig.leaveTypeId || null),
         isActive: editConfig.isActive,
+        // Send config as a JSON string — the backend tolerates both string
+        // and object forms (parses string if needed).
         config: JSON.stringify({
-          tiers: editConfig.tiers,
+          tiers: renumberedTiers,
           requireAllTiers: editConfig.requireAllTiers,
           autoApproveShortLeave: editConfig.autoApproveShortLeave,
           shortLeaveMaxDays: editConfig.shortLeaveMaxDays,

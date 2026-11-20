@@ -23,8 +23,13 @@ import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
 
 export interface WorkflowTier {
   tier: number;
-  approverType: 'reporting_manager' | 'department_head' | 'hr_admin' | 'tenant_admin' | 'ceo' | 'specific_user' | 'specific_employee';
-  approverId?: string | null; // user ID (for specific_user) or employee ID (for specific_employee)
+  // approverType is now a free-form role label (any role that exists in the
+  // tenant's User table). The canonical resolver is approverId below.
+  approverType: string;
+  // Employee ID (preferred) — the frontend "Approver (by role)" dropdown
+  // always stores an Employee.id here. Resolved to User.id at runtime.
+  // For 'specific_user' (legacy) it may already be a User.id — handled below.
+  approverId?: string | null;
   label?: string;
 }
 
@@ -161,6 +166,41 @@ export async function resolveApproverForTier(
     });
     if (!emp) return null;
 
+    // ─── Primary resolver: approverId ───
+    // The approval-workflows UI always stores the picked employee's ID in
+    // approverId (regardless of the role label). Resolve it to a User.id
+    // so the workflow actually routes to the person the admin selected.
+    // This makes 'tenant_admin', 'hr_admin', 'manager', 'employee', etc.
+    // all work — the role is just a category label.
+    if (tier.approverId) {
+      // 1. Try as Employee.id (the common case from the UI dropdown)
+      try {
+        const targetEmp = await db.employee.findUnique({
+          where: { id: tier.approverId },
+          select: { userId: true, status: true },
+        });
+        if (targetEmp?.userId) {
+          // Allow inactive employees too — they may still have an active
+          // user account (e.g. someone transitioning roles). If the user
+          // is fully deactivated the canUserApproveCurrentTier check will
+          // still gate the action.
+          return targetEmp.userId;
+        }
+      } catch { /* fall through */ }
+
+      // 2. Try as User.id directly (legacy 'specific_user' configs)
+      try {
+        const targetUser = await db.user.findUnique({
+          where: { id: tier.approverId },
+          select: { id: true },
+        });
+        if (targetUser) return tier.approverId;
+      } catch { /* fall through to role-based resolution */ }
+    }
+
+    // ─── Fallback: role-based resolution ───
+    // Used when approverId is null (e.g. older configs, or 'reporting_manager'
+    // which is inherently relative to the requesting employee).
     switch (tier.approverType) {
       case 'reporting_manager': {
         if (!emp.reportingManagerId) return null;
@@ -194,6 +234,24 @@ export async function resolveApproverForTier(
         });
         return admin?.id || null;
       }
+      case 'admin': {
+        // 'admin' role (separate from 'hr_admin' label) — same lookup
+        const admin = await db.user.findFirst({
+          where: { tenantId, role: 'admin', status: 'active' },
+          select: { id: true },
+        });
+        return admin?.id || null;
+      }
+      case 'manager': case 'employee': {
+        // Generic role fallback — find any active user with this role.
+        // This is rarely hit because the UI always sets approverId, but
+        // it keeps the engine functional for legacy configs.
+        const user = await db.user.findFirst({
+          where: { tenantId, role: tier.approverType, status: 'active' },
+          select: { id: true },
+        });
+        return user?.id || null;
+      }
       case 'specific_user': {
         return tier.approverId || null;
       }
@@ -205,8 +263,20 @@ export async function resolveApproverForTier(
         });
         return target?.userId || null;
       }
-      default:
-        return null;
+      default: {
+        // Unknown role label — last-ditch attempt: find any active user
+        // in the tenant whose role matches the label. Returns null if no
+        // such user exists, which the caller handles gracefully.
+        try {
+          const user = await db.user.findFirst({
+            where: { tenantId, role: tier.approverType, status: 'active' },
+            select: { id: true },
+          });
+          return user?.id || null;
+        } catch {
+          return null;
+        }
+      }
     }
   } catch (err) {
     console.error('[LeaveWorkflow] resolveApproverForTier failed:', err);
