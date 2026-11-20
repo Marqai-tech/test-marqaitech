@@ -467,19 +467,30 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
   const p = sel && policies.find(x => x.id === sel);
 
   // Derive "Applies To" and "Leave Types" for each policy from mappings + rules
-  function policyInfo(policyId: string): { appliesTo: string; leaveTypeCodes: string[]; leaveTypeNames: string[] } {
-    // Find mappings where the linked rule's policyId matches this policy
+  function policyInfo(policyId: string): { appliesTo: string; leaveTypeCodes: string[]; leaveTypeNames: string[]; leaveTypeObjects: LType[] } {
+    const policy = policies.find(p => p.id === policyId);
+    // Source 1: leave types from the policy's own leaveTypeIds field (stored when creating the policy)
+    const policyLtIds = parseJsonArray((policy as any)?.leaveTypeIds);
+    // Source 2: leave types from mappings (LeaveTypePolicyMapping records)
     const policyMappings = mappings.filter(m => {
       const rule = rules.find(r => r.id === m.policyRuleId);
       return rule?.policyId === policyId || m.policyId === policyId;
     });
-    // Get leave type codes from the mappings
-    const ltIds = [...new Set(policyMappings.map(m => m.leaveTypeId).filter(Boolean))];
-    const ltCodes = ltIds.map(id => types.find(t => t.id === id)?.code).filter(Boolean) as string[];
-    const ltNames = ltIds.map(id => types.find(t => t.id === id)?.name).filter(Boolean) as string[];
-    // Derive "Applies To" from the rules' empStatusJson
-    const policyRules = policyMappings.map(m => rules.find(r => r.id === m.policyRuleId)).filter(Boolean) as LRule[];
+    const mappingLtIds = policyMappings.map(m => m.leaveTypeId).filter(Boolean);
+    // Merge both sources + deduplicate
+    const ltIds = [...new Set([...policyLtIds, ...mappingLtIds])];
+    const ltObjects = ltIds.map(id => types.find(t => t.id === id)).filter(Boolean) as LType[];
+    const ltCodes = ltObjects.map(t => t.code);
+    const ltNames = ltObjects.map(t => t.name);
+    // Derive "Applies To" from the policy's empStatus field + the rules' empStatusJson
     let appliesTo = 'All employees';
+    // Check policy's own empStatus first
+    const policyEmpStatus = parseJsonArray((policy as any)?.empStatus);
+    if (policyEmpStatus.length > 0 && !policyEmpStatus.map(s => s.toLowerCase()).includes('all')) {
+      appliesTo = policyEmpStatus.join(', ');
+    }
+    // Then check rules' empStatusJson (overrides if found)
+    const policyRules = policyMappings.map(m => rules.find(r => r.id === m.policyRuleId)).filter(Boolean) as LRule[];
     for (const r of policyRules) {
       const esj = (r as any).empStatusJson;
       if (esj) {
@@ -492,7 +503,7 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
         } catch {}
       }
     }
-    return { appliesTo, leaveTypeCodes: ltCodes, leaveTypeNames: ltNames };
+    return { appliesTo, leaveTypeCodes: ltCodes, leaveTypeNames: ltNames, leaveTypeObjects: ltObjects };
   }
 
   return (
@@ -511,13 +522,6 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
              rows.length === 0 ? <tr><td colSpan={6} className="text-center py-10 text-slate-500">No policies found. Click <b>+ Create Policy</b> to define who gets which leaves.</td></tr> :
              rows.map(r => {
                const info = policyInfo(r.id);
-               // Get leave type objects with calendarColor for colour-coded chips
-               const policyMappings = mappings.filter(m => {
-                 const rule = rules.find(rr => rr.id === m.policyRuleId);
-                 return rule?.policyId === r.id || m.policyId === r.id;
-               });
-               const ltIds = [...new Set(policyMappings.map(m => m.leaveTypeId).filter(Boolean))];
-               const ltObjects = ltIds.map(id => types.find(t => t.id === id)).filter(Boolean) as LType[];
                return (
                 <tr key={r.id} className={`border-b border-slate-50 cursor-pointer transition-colors ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSel(r.id)}>
                   <td className="px-3.5 py-3">
@@ -528,10 +532,10 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
                     <span className="text-[12px] font-medium text-slate-700">{info.appliesTo}</span>
                   </td>
                   <td className="px-3.5 py-3">
-                    {/* Colour-coded leave type chips using CodeChip with calendarColor */}
-                    {ltObjects.length > 0 ? (
+                    {/* Colour-coded leave type chips — from policy's leaveTypeIds + mappings */}
+                    {info.leaveTypeObjects.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
-                        {ltObjects.map((lt, i) => (
+                        {info.leaveTypeObjects.map((lt, i) => (
                           <CodeChip key={i} code={lt.code} color={lt.calendarColor} />
                         ))}
                       </div>
