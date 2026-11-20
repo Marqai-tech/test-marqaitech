@@ -180,7 +180,7 @@ export default function LeaveSetupPage() {
       {/* Content */}
       {mode === 'list' && tab === 'types' && <TypesList types={types} rules={rules} loading={loading} onCreate={() => go('types', 'form')} onEdit={(id) => go('types', 'form', id)} />}
       {mode === 'form' && tab === 'types' && <TypeForm editId={editId} types={types} onCancel={() => go('types')} onSaved={onSaved} scopeQuery={sq} />}
-      {mode === 'list' && tab === 'policy' && <PolicyList policies={policies} loading={loading} onCreate={() => go('policy', 'form')} onEdit={(id) => go('policy', 'form', id)} />}
+      {mode === 'list' && tab === 'policy' && <PolicyList policies={policies} types={types} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('policy', 'form')} onEdit={(id) => go('policy', 'form', id)} />}
       {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
@@ -361,37 +361,89 @@ function TypeForm({ editId, types, onCancel, onSaved, scopeQuery: sq }: { editId
 /* ════════════════════════════════════════════════════════════════
    Policy List
    ════════════════════════════════════════════════════════════════ */
-function PolicyList({ policies, loading, onCreate, onEdit }: { policies: LPolicy[]; loading: boolean; onCreate: () => void; onEdit: (id: string) => void }) {
+function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdit }: { policies: LPolicy[]; types: LType[]; rules: LRule[]; mappings: any[]; loading: boolean; onCreate: () => void; onEdit: (id: string) => void }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<string | null>(null);
   const rows = policies.filter(p => (p.title + (p.code || '')).toLowerCase().includes(q.toLowerCase()));
   const p = sel && policies.find(x => x.id === sel);
+
+  // Derive "Applies To" and "Leave Types" for each policy from mappings + rules
+  function policyInfo(policyId: string): { appliesTo: string; leaveTypeCodes: string[]; leaveTypeNames: string[] } {
+    // Find mappings where the linked rule's policyId matches this policy
+    const policyMappings = mappings.filter(m => {
+      const rule = rules.find(r => r.id === m.policyRuleId);
+      return rule?.policyId === policyId || m.policyId === policyId;
+    });
+    // Get leave type codes from the mappings
+    const ltIds = [...new Set(policyMappings.map(m => m.leaveTypeId).filter(Boolean))];
+    const ltCodes = ltIds.map(id => types.find(t => t.id === id)?.code).filter(Boolean) as string[];
+    const ltNames = ltIds.map(id => types.find(t => t.id === id)?.name).filter(Boolean) as string[];
+    // Derive "Applies To" from the rules' empStatusJson
+    const policyRules = policyMappings.map(m => rules.find(r => r.id === m.policyRuleId)).filter(Boolean) as LRule[];
+    let appliesTo = 'All employees';
+    for (const r of policyRules) {
+      const esj = (r as any).empStatusJson;
+      if (esj) {
+        try {
+          const statuses: string[] = JSON.parse(esj);
+          if (Array.isArray(statuses) && statuses.length > 0 && !statuses.map(s => s.toLowerCase()).includes('all')) {
+            appliesTo = statuses.join(', ');
+            break;
+          }
+        } catch {}
+      }
+    }
+    return { appliesTo, leaveTypeCodes: ltCodes, leaveTypeNames: ltNames };
+  }
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-slate-100">
         <h2 className="text-[15px] font-extrabold">Leave Policies</h2><span className="text-[12px] text-slate-500">{policies.length} policies</span>
         <span className="flex-1" /><SearchBox value={q} onChange={setQ} placeholder="Search policy" />
-        <button className="h-8 px-3 rounded-lg bg-slate-800 text-white text-[12px] font-bold flex items-center gap-1.5 hover:bg-slate-900" onClick={onCreate}><FiPlus className="w-3.5 h-3.5" />Create Policy</button>
+        <button className="h-8 px-3 rounded-lg bg-slate-900 text-white text-[12px] font-bold flex items-center gap-1.5 hover:bg-slate-800" onClick={onCreate}><FiPlus className="w-3.5 h-3.5" />Create Policy</button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead><tr>{['Policy', 'Status', 'Effective', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 2 ? '' : i === 3 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+          <thead><tr>{['Policy Name', 'Applies To', 'Leave Types', 'Employees', 'Effective Date', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 4 ? '' : i === 6 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={4} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-             rows.length === 0 ? <tr><td colSpan={4} className="text-center py-10 text-slate-500">No policies found.</td></tr> :
-             rows.map(r => (
-              <tr key={r.id} className={`border-b border-slate-50 cursor-pointer ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSel(r.id)}>
-                <td className="px-3.5 py-3"><div className="font-bold text-[13px]">{r.title}</div><div className="text-[11.5px] text-slate-500">{r.code || r.category || ''}</div></td>
-                <td className="px-3.5 py-3"><StatusPill s={r.status === 'active' ? 'Active' : r.status === 'draft' ? 'Draft' : 'Inactive'} /></td>
-                <td className="px-3.5 py-3 text-[13px] text-slate-500">{fmtDate(r.effectiveDate)}</td>
-                <td className="px-3.5 py-3 text-right"><button className="h-8 px-2.5 rounded-lg border border-slate-200 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 ml-auto" onClick={e => { e.stopPropagation(); onEdit(r.id); }}><FiEdit2 className="w-3 h-3" />Edit</button></td>
-              </tr>
-            ))}
+            {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+             rows.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No policies found. Click <b>+ Create Policy</b> to define who gets which leaves.</td></tr> :
+             rows.map(r => {
+               const info = policyInfo(r.id);
+               return (
+                <tr key={r.id} className={`border-b border-slate-50 cursor-pointer transition-colors ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`} onClick={() => setSel(r.id)}>
+                  <td className="px-3.5 py-3">
+                    <div className="font-bold text-[13px] text-slate-900">{r.title}</div>
+                    {r.code && <div className="text-[11px] text-slate-400 font-mono">{r.code}</div>}
+                  </td>
+                  <td className="px-3.5 py-3">
+                    <span className="text-[12px] font-medium text-slate-700">{info.appliesTo}</span>
+                  </td>
+                  <td className="px-3.5 py-3">
+                    {info.leaveTypeCodes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {info.leaveTypeCodes.map((code, i) => (
+                          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">{code}</span>
+                        ))}
+                      </div>
+                    ) : <span className="text-[12px] text-slate-300">—</span>}
+                  </td>
+                  <td className="px-3.5 py-3 text-center">
+                    <span className="text-[13px] font-bold text-slate-700">—</span>
+                  </td>
+                  <td className="px-3.5 py-3 text-[12px] text-slate-500">{fmtDate(r.effectiveDate)}</td>
+                  <td className="px-3.5 py-3"><StatusPill s={r.status === 'active' ? 'Active' : r.status === 'draft' ? 'Draft' : 'Inactive'} /></td>
+                  <td className="px-3.5 py-3 text-right">
+                    <button className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[12px] font-bold flex items-center gap-1 hover:bg-slate-50 hover:border-slate-400 transition-colors ml-auto" onClick={e => { e.stopPropagation(); onEdit(r.id); }}><FiEdit2 className="w-3 h-3" />Edit</button>
+                  </td>
+                </tr>
+               );
+             })}
           </tbody>
         </table>
       </div>
-      {p && <Drawer onClose={() => setSel(null)} head={<div><h3 className="text-lg font-extrabold">{p.title}</h3><div className="text-[12px] text-slate-500">{p.code || ''}</div></div>} foot={<button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => onEdit(p.id)}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit policy</button>}><KV items={[['Policy name', p.title], ['Status', p.status], ['Effective', fmtDate(p.effectiveDate)], ['Description', p.description || '—', true]]} /></Drawer>}
+      {p && <Drawer onClose={() => setSel(null)} head={<div><h3 className="text-lg font-extrabold">{p.title}</h3><div className="text-[12px] text-slate-500">{p.code || ''}</div></div>} foot={<button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => onEdit(p.id)}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit policy</button>}><KV items={[['Policy name', p.title], ['Applies to', policyInfo(p.id).appliesTo], ['Leave types', policyInfo(p.id).leaveTypeNames.join(', ') || '—'], ['Status', p.status], ['Effective', fmtDate(p.effectiveDate)], ['Description', p.description || '—', true]]} /></Drawer>}
     </div>
   );
 }
