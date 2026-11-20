@@ -191,7 +191,6 @@ const STEPS = [
   { key: 'types', n: 1, label: 'Leave Types', desc: 'Name, code and category of each leave' },
   { key: 'policy', n: 2, label: 'Leave Policy', desc: 'Who it applies to, leave year, crediting' },
   { key: 'rules', n: 3, label: 'Leave Rules', desc: 'Entitlement, limits, carry forward' },
-  { key: 'mapping', n: 4, label: 'Mapping', desc: 'Attach types + rules to a policy' },
 ];
 
 export default function LeaveSetupPage() {
@@ -272,7 +271,7 @@ export default function LeaveSetupPage() {
       ) : (
         <div className="flex items-end gap-4 flex-wrap">
           <button onClick={() => go(tab)} className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold flex items-center gap-1.5 hover:bg-slate-50"><FiArrowLeft className="w-4 h-4" />Back</button>
-          <div><h1 className="text-2xl font-extrabold tracking-tight">{editId ? `Edit ${step.label}` : `Create ${step.label}`}</h1><p className="text-[13px] text-slate-500 mt-1">Step {step.n} of 4 · {step.desc}</p></div>
+          <div><h1 className="text-2xl font-extrabold tracking-tight">{editId ? `Edit ${step.label}` : `Create ${step.label}`}</h1><p className="text-[13px] text-slate-500 mt-1">Step {step.n} of 3 · {step.desc}</p></div>
         </div>
       )}
 
@@ -283,8 +282,7 @@ export default function LeaveSetupPage() {
       {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} types={types} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} policies={policies} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
-      {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(policyId) => go('mapping', 'form', policyId)} onRefresh={fetchAll} />}
-      {mode === 'form' && tab === 'mapping' && <MappingForm editPolicyId={editId} types={types} policies={policies} rules={rules} mappings={mappings} onCancel={() => go('mapping')} onSaved={onSaved} onGoToRules={() => go('rules', 'form')} sq={sq} />}
+      {/* Mapping tab removed — mapping is now done via the standalone /leave/configuration page */}
       {/* BUG_234 FIX: bottom padding so floating AI icon doesn't cover buttons */}
       <div className="h-16" />
     </div>
