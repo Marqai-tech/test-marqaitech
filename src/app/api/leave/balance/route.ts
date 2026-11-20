@@ -265,40 +265,36 @@ export async function GET(request: Request) {
     }).catch(() => []);
 
     // Filter by mapping (same logic as /api/leave-types GET)
+    // If NO mappings exist → show NOTHING (user requirement: only mapped leave types)
     if (targetEmployee?.id) {
       let mappingsExist = false;
       try {
         const rows: any[] = await db.$queryRawUnsafe(
-          `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
-          targetEmployee.companyId
+          `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE status = 'active'`
         );
         mappingsExist = rows[0]?.cnt > 0;
-      } catch { /* table might not exist — no filtering */ }
+      } catch { /* table might not exist */ }
 
-      if (mappingsExist) {
+      if (!mappingsExist) {
+        // No mappings → employee sees no leave types + no balances
+        activeLeaveTypes = [];
+        result = [] as typeof result;
+      } else {
+        // Mappings exist → filter to only mapped types
         const visibleTypes = [];
         for (const lt of activeLeaveTypes) {
           try {
             const policy = await resolveLeavePolicy(db, { employeeId: targetEmployee.id, leaveTypeId: lt.id, companyId: targetEmployee.companyId });
-            if (policy.source !== 'none') visibleTypes.push(lt);
-          } catch { visibleTypes.push(lt); /* don't block on resolver error */ }
+            if (policy.source !== 'none') {
+              // Use the rule's entitledDaysPerYear as the quota (not defaultDays)
+              const ruleQuota = policy.effective?.annualQuota || policy.allocation?.quota || lt.defaultDays || 0;
+              visibleTypes.push({ ...lt, defaultDays: ruleQuota });
+            }
+          } catch { /* don't block on resolver error */ }
         }
         activeLeaveTypes = visibleTypes;
-      }
-    }
 
-    const existingLeaveTypeIds = new Set(result.map((b) => b.leaveTypeId));
-    // Also filter existing balance rows to only mapped types
-    if (targetEmployee?.id) {
-      let mappingsExist = false;
-      try {
-        const rows: any[] = await db.$queryRawUnsafe(
-          `SELECT COUNT(*)::int as cnt FROM "LeaveTypePolicyMapping" WHERE "companyId" = $1 AND status = 'active'`,
-          targetEmployee.companyId
-        );
-        mappingsExist = rows[0]?.cnt > 0;
-      } catch {}
-      if (mappingsExist) {
+        // Also filter existing balance rows
         const filteredResult = [];
         for (const b of result) {
           try {
@@ -310,6 +306,7 @@ export async function GET(request: Request) {
       }
     }
 
+    const existingLeaveTypeIds = new Set(result.map((b: any) => b.leaveTypeId));
     for (const leaveType of activeLeaveTypes) {
       if (existingLeaveTypeIds.has(leaveType.id)) continue;
       result.push({

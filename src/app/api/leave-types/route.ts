@@ -211,9 +211,13 @@ export async function GET(req: NextRequest) {
             `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (${allMappings.length} mappings across ${uniqueCompanies.length} companies).`
           );
         }
-        // If no mappings exist → filteredTypes stays = allLeaveTypes (backward-compat)
-      }
-    }
+        // If no mappings exist → show NOTHING (only mapped leave types visible to employees)
+        if (mappingsExist) {
+          filteredTypes = visibleTypes;
+        } else {
+          filteredTypes = [];
+          console.log(`[leave-types] No mappings exist — hiding all leave types for employee=${emp.id}`);
+        }
 
     // ─── FALLBACK (2026-11-06) ───
     // If the company-scoped query returned 0 leave types (the company has no
@@ -456,8 +460,13 @@ export async function GET(req: NextRequest) {
               );
               filteredTypes = enforcedTypes;
             }
-            // If NO mappings exist at all → don't filter (backward compat)
-          }
+        // If no mappings exist → show NOTHING (user requirement: only mapped leave types visible)
+        // Previously this was "backward-compat: show all" but the user explicitly wants
+        // employees to see ONLY leave types that have an active mapping matching their profile.
+        if (!mappingsExist || mappingRows.length === 0) {
+          filteredTypes = [];
+          console.log(`[leave-types] No mappings exist — hiding all leave types for employee=${empId}`);
+        }
         }
       } catch (finalFilterErr) {
         console.warn('[leave-types] FINAL mapping enforcement failed (non-fatal):', finalFilterErr);
