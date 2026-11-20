@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEdit2, FiTrash2,
   FiArrowLeft, FiRotateCcw, FiClock, FiSearch, FiBriefcase, FiCalendar,
-  FiFileText, FiUsers, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle,
+  FiFileText, FiUsers, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle, FiHome, FiVolume2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -129,6 +129,21 @@ function stepDescription(index: number, stageIndex: number, history: ApprovalHis
   return stageIndex >= 3 ? 'Job posting published' : 'Will start after all approvals are completed';
 }
 
+
+// --- Merged from mock form screen: input/badge helpers + salary range split ---
+function parseSalaryRange(value: string | null | undefined): [string, string] {
+  const raw = String(value || '').trim();
+  if (!raw) return ['', ''];
+  const idx = raw.indexOf('-');
+  if (idx === -1) return [raw, ''];
+}
+function composeSalaryRange(min: string, max: string): string {
+  const a = min.trim(), b = max.trim();
+  if (a && b) return `${a}-${b}`;
+  return a || b;
+}
+const INPUT_CLS = 'h-[34px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
+const BADGE = 'inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold';
 export default function RequisitionsPage() {
   const { user } = useAuthStore();
   // C-30: company context store — single source of truth for which
@@ -482,6 +497,212 @@ export default function RequisitionsPage() {
     return actions;
   };
 
+  if (showForm) {
+    const roundRows = parseInterviewPlan(form.interviewPlan);
+    return (
+      <div className="-m-3 flex flex-col gap-2 overflow-y-auto bg-slate-50 p-3 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-slate-500">
+          <a href="/dashboard" className="text-slate-400 transition hover:text-green-700" aria-label="Home"><FiHome className="h-3.5 w-3.5" /></a>
+          <span className="text-slate-300">/</span>
+          <a href="/recruitment" className="transition hover:text-green-700">Recruitment</a>
+          <span className="text-slate-300">/</span>
+          <button type="button" onClick={handleCancelForm} className="transition hover:text-green-700">Requisitions</button>
+          <span className="text-slate-300">/</span>
+          <span className="font-semibold text-green-700">{editingId ? 'Edit Requisition' : 'Raise Requisition'}</span>
+        </nav>
+
+        {/* Compact title row */}
+        <div className="flex shrink-0 items-center gap-2.5">
+          <h1 className="text-[22px] font-bold leading-[26px] text-slate-900">{editingId ? 'Edit Requisition' : 'Raise New Requisition'}</h1>
+          <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-100 px-2 text-[10px] font-bold text-green-700"><FiFileText className="h-3 w-3" />{editingId ? 'Editing' : 'Draft'}</span>
+        </div>
+        <p className="shrink-0 text-[12px] leading-4 text-slate-500">Create a hiring request with role details, requirements, budget and interview rounds.</p>
+
+        {/* Required-field note + compact approval path */}
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-[10px] border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <span className="text-[11px] text-slate-500">Required fields are marked with <span className="font-bold text-red-500">*</span></span>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="font-bold text-slate-600">Approval Path:</span>
+            <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-50 px-2 font-bold text-green-700 ring-1 ring-inset ring-green-100"><FiUser className="h-3 w-3" />HR</span>
+            <span className="text-slate-400">→</span>
+            <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-50 px-2 font-bold text-green-700 ring-1 ring-inset ring-green-100"><FiDollarSign className="h-3 w-3" />Finance</span>
+            <span className="text-slate-400">→</span>
+            <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-50 px-2 font-bold text-green-700 ring-1 ring-inset ring-green-100"><FiVolume2 className="h-3 w-3" />Job Posting</span>
+          </div>
+        </div>
+
+        {/* Two-column cards */}
+        <div className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
+          {/* Role & Position */}
+          <section className="rounded-[10px] border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiBriefcase className="h-4 w-4" /></span>
+              <h2 className="text-[15px] font-bold text-slate-900">Role &amp; Position</h2>
+            </div>
+            <div className="mt-2.5 grid grid-cols-[124px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-600">Department <span className="text-red-500">*</span></label>
+              {departments.length > 0 ? (
+                <select required value={form.departmentId} onChange={(e) => {
+                  const newDeptId = e.target.value;
+                  const stillValid = visibleDesignations.some(d => d.id === form.designationId);
+                  setForm({ ...form, departmentId: newDeptId, designationId: stillValid ? form.designationId : '', positionTitle: stillValid ? form.positionTitle : '' });
+                }} className={INPUT_CLS}>
+                  <option value="">Select department…</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.companyName ? ` — ${d.companyName}` : ''}</option>)}
+                </select>
+              ) : (
+                <input required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} placeholder="Department name" className={INPUT_CLS} />
+              )}
+
+              <label className="text-[11px] font-semibold text-slate-600">Position / Designation <span className="text-red-500">*</span></label>
+              {designations.length > 0 ? (
+                <select value={form.designationId} disabled={!form.departmentId} onChange={(e) => {
+                  const desig = visibleDesignations.find(d => d.id === e.target.value);
+                  setForm({ ...form, designationId: e.target.value, positionTitle: desig?.title || form.positionTitle });
+                }} className={INPUT_CLS}>
+                  <option value="">{form.departmentId ? 'Select designation…' : 'Pick a department first…'}</option>
+                  {visibleDesignations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                </select>
+              ) : (
+                <input value={form.positionTitle} onChange={(e) => setForm({ ...form, positionTitle: e.target.value, designationId: e.target.value })} placeholder="e.g. Data Engineer 2" className={INPUT_CLS} />
+              )}
+
+              <label className="text-[11px] font-semibold text-slate-600">Position Type <span className="text-red-500">*</span></label>
+              <select value={form.positionType} onChange={(e) => setForm({ ...form, positionType: e.target.value })} className={INPUT_CLS}>
+                <option value="new">New</option>
+                <option value="replacement">Replacement</option>
+              </select>
+
+              <label className="text-[11px] font-semibold text-slate-600">Vacancies <span className="text-red-500">*</span></label>
+              <input type="number" min={1} value={form.numberOfOpenings} onChange={(e) => setForm({ ...form, numberOfOpenings: parseInt(e.target.value) || 1 })} className={INPUT_CLS} />
+
+              <label className="text-[11px] font-semibold text-slate-600">Employment Type <span className="text-red-500">*</span></label>
+              <select value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value })} className={INPUT_CLS}>
+                <option value="full-time">Full-time</option>
+                <option value="part-time">Part-time</option>
+                <option value="contract">Contract</option>
+                <option value="internship">Internship</option>
+              </select>
+
+              <label className="text-[11px] font-semibold text-slate-600">Priority <span className="text-red-500">*</span></label>
+              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={INPUT_CLS}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+          </section>
+
+          {/* Requirements & Budget */}
+          <section className="rounded-[10px] border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiDollarSign className="h-4 w-4" /></span>
+              <h2 className="text-[15px] font-bold text-slate-900">Requirements &amp; Budget</h2>
+            </div>
+            <div className="mt-2.5 grid grid-cols-[124px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-600">Salary Range / Budget <span className="text-red-500">*</span></label>
+              <div className="flex items-center gap-1.5">
+                <input value={salaryMin} onChange={(e) => { const v = e.target.value; setSalaryMin(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(v, salaryMax) })); }} placeholder="Min" className={INPUT_CLS} inputMode="text" />
+                <span className="shrink-0 text-[12px] text-slate-400">−</span>
+                <input value={salaryMax} onChange={(e) => { const v = e.target.value; setSalaryMax(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(salaryMin, v) })); }} placeholder="Max" className={INPUT_CLS} inputMode="text" />
+              </div>
+
+              <label className="text-[11px] font-semibold text-slate-600">Required Skills <span className="text-red-500">*</span></label>
+              <div className="flex min-h-[34px] w-full flex-wrap items-center gap-1 rounded-[7px] border border-slate-300 bg-white px-1.5 py-1 transition focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/15">
+                {skillChips.map((chip) => (
+                  <span key={chip} className="inline-flex items-center gap-1 rounded-md bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-800">
+                    {chip}
+                    <button type="button" onClick={() => removeSkillChip(chip)} className="text-green-600 transition hover:text-red-500" aria-label={`Remove skill ${chip}`}><FiX className="h-3 w-3" /></button>
+                  </span>
+                ))}
+                <input
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addSkillChips(skillInput); } else if (e.key === 'Backspace' && !skillInput && skillChips.length > 0) { removeSkillChip(skillChips[skillChips.length - 1]); } }}
+                  onBlur={() => { if (skillInput.trim()) addSkillChips(skillInput); }}
+                  placeholder={skillChips.length === 0 ? 'Type a skill and press Enter' : 'Add skill…'}
+                  className="h-6 min-w-[100px] flex-1 border-0 bg-transparent text-[12px] text-slate-800 outline-none placeholder:text-slate-400"
+                  aria-label="Add required skill"
+                />
+              </div>
+
+              <label className="text-[11px] font-semibold text-slate-600">Experience Required <span className="text-red-500">*</span></label>
+              <input value={form.experienceRequired} onChange={(e) => setForm({ ...form, experienceRequired: e.target.value })} placeholder="e.g. 3-5 years" list="exp-suggestions" className={INPUT_CLS} />
+              <datalist id="exp-suggestions">
+                <option value="0-1 years" /><option value="1-3 years" /><option value="3-5 years" /><option value="5-8 years" /><option value="8+ years" />
+              </datalist>
+
+              <label className="text-[11px] font-semibold text-slate-600">Qualification <span className="text-red-500">*</span></label>
+              <input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. B.E. / B.Tech" list="qual-suggestions" className={INPUT_CLS} />
+              <datalist id="qual-suggestions">
+                <option value="B.E. / B.Tech" /><option value="M.Tech" /><option value="MBA" /><option value="Any Graduate" /><option value="Post Graduate" />
+              </datalist>
+
+              <label className="text-[11px] font-semibold text-slate-600">Position Closing Date <span className="text-red-500">*</span></label>
+              <input type="date" value={form.expectedJoiningDate} onChange={(e) => setForm({ ...form, expectedJoiningDate: e.target.value })} className={INPUT_CLS} />
+            </div>
+          </section>
+        </div>
+
+        {/* Interview Rounds — full width, compact table */}
+        <section className="flex min-h-0 flex-col rounded-[10px] border border-slate-200 bg-white p-3 shadow-sm lg:flex-1">
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiUsers className="h-4 w-4" /></span>
+            <h2 className="text-[15px] font-bold text-slate-900">Interview Rounds <span className="text-red-500">*</span></h2>
+          </div>
+          <div className="mt-2 min-h-0 overflow-y-auto rounded-[8px] border border-slate-200">
+            <div className="grid grid-cols-[36px_minmax(0,1fr)_150px_80px] gap-2 rounded-t-[8px] bg-green-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-700">
+              <span>#</span><span>Round Name</span><span>Round Type</span><span className="text-center">Actions</span>
+            </div>
+            {roundRows.map((row, i) => (
+              <div key={i} className="grid grid-cols-[36px_minmax(0,1fr)_150px_80px] items-center gap-2 border-t border-slate-100 px-2.5 py-1">
+                <span className="text-[12px] font-semibold text-slate-500">{i + 1}</span>
+                <input
+                  id={`round-name-${i}`}
+                  value={row.name}
+                  placeholder="Enter round name"
+                  onChange={e => { const next = [...roundRows]; next[i] = { ...row, name: e.target.value }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }}
+                  className="h-[30px] w-full rounded-[7px] border border-slate-300 bg-white px-2 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15"
+                  aria-label={`Round ${i + 1} name`}
+                />
+                <select
+                  value={row.type}
+                  onChange={e => { const next = [...roundRows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }}
+                  className="h-[30px] w-full rounded-[7px] border border-slate-300 bg-white px-1.5 text-[12px] text-slate-800 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/15"
+                  aria-label={`Round ${i + 1} type`}
+                >
+                  <option value="technical">Technical</option>
+                  <option value="hr">HR</option>
+                  <option value="client">Client</option>
+                  <option value="ai">AI</option>
+                </select>
+                <div className="flex items-center justify-center gap-1">
+                  <button type="button" onClick={() => focusRoundName(i)} className="flex h-7 w-7 items-center justify-center rounded-md text-green-600 transition hover:bg-green-50" aria-label={`Edit round ${i + 1}`}><FiEdit2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan(roundRows.filter((_, index) => index !== i)) })} className="flex h-7 w-7 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50" aria-label={`Delete round ${i + 1}`}><FiTrash2 className="h-3.5 w-3.5" /></button>
+                </div>
+              </div>
+            ))}
+            {roundRows.length === 0 && <div className="border-t border-slate-100 px-3 py-4 text-center text-[11px] text-red-600">No interview rounds configured. Click <b>Add Round</b> and enter a round name.</div>}
+          </div>
+          <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
+            <button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan([...roundRows, { name: '', type: 'technical' }]) })} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-600 bg-white px-3 text-[11px] font-bold text-green-700 transition hover:bg-green-50"><FiPlus className="h-3.5 w-3.5" />Add Round</button>
+            <p className="text-[10px] text-slate-400">{roundRows.length} round(s) configured · at least one named round is required to submit</p>
+          </div>
+        </section>
+
+        {/* Bottom action bar */}
+        <div className="flex shrink-0 items-center justify-end gap-2 rounded-[10px] border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <button onClick={handleCancelForm} className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-4 text-[12px] font-bold text-slate-600 transition hover:bg-slate-50">Cancel</button>
+          <button onClick={() => handleSave('draft')} disabled={submitting} className="inline-flex h-9 items-center rounded-md border-2 border-green-600 bg-white px-4 text-[12px] font-bold text-green-700 transition hover:bg-green-50 disabled:opacity-50">{submitting ? 'Saving…' : 'Save as Draft'}</button>
+          <button onClick={() => handleSave('submit')} disabled={submitting} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-green-600 px-5 text-[12px] font-bold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50"><FiCheck className="h-3.5 w-3.5" />{submitting ? 'Saving…' : 'Submit for Approval'}</button>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
     <div className="space-y-2.5">
       {/* Breadcrumb */}
@@ -693,179 +914,6 @@ export default function RequisitionsPage() {
       })()}
 
       {/* Embedded Form */}
-      {showForm && (
-        <div id="crud-form" className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/60 shadow-xl shadow-slate-200/40">
-          <div className="border-b border-slate-200 bg-gradient-to-r from-white via-white to-emerald-50/60 px-5 py-5 sm:px-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-                    {editingId ? 'Edit Requisition' : 'Raise New Requisition'}
-                  </h2>
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">
-                    <FiEdit2 className="h-3.5 w-3.5" /> {editingId ? 'Editing' : 'Draft'}
-                  </span>
-                </div>
-                <p className="mt-1.5 text-sm text-slate-500">Create a hiring request with role details, requirements, budget and a position-specific interview plan.</p>
-              </div>
-              <button onClick={handleCancelForm} className="rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-white hover:text-slate-700 hover:shadow-sm" aria-label="Close requisition form"><FiX className="h-5 w-5" /></button>
-            </div>
-          </div>
-
-          <div className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:mx-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><FiAlertCircle className="h-4 w-4" /></span>
-              Required fields are marked with <span className="font-bold text-red-500">*</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold sm:text-sm">
-              <span className="mr-1 text-slate-600">Approval Path:</span>
-              <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-emerald-700 ring-1 ring-emerald-100">HR</span>
-              <span className="text-slate-400">→</span>
-              <span className="rounded-lg bg-amber-50 px-3 py-1.5 text-amber-700 ring-1 ring-amber-100">Finance</span>
-              <span className="text-slate-400">→</span>
-              <span className="rounded-lg bg-blue-50 px-3 py-1.5 text-blue-700 ring-1 ring-blue-100">Job Posting</span>
-            </div>
-          </div>
-
-          <div className="space-y-4 p-4 sm:p-5">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiBriefcase className="h-5 w-5" /></span>
-                <div><h3 className="text-lg font-bold text-slate-900">Role &amp; Position</h3><p className="text-xs text-slate-500 sm:text-sm">Define the department, designation and position details.</p></div>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500 font-bold">*</span></label>
-                {departments.length > 0 ? (
-                  <select
-                    required
-                    value={form.departmentId}
-                    onChange={(e) => {
-                      const newDeptId = e.target.value;
-                      const stillValid = visibleDesignations.some(d => d.id === form.designationId);
-                      setForm({
-                        ...form,
-                        departmentId: newDeptId,
-                        designationId: stillValid ? form.designationId : '',
-                        positionTitle: stillValid ? form.positionTitle : '',
-                      });
-                    }}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                  >
-                    <option value="">Select department…</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.companyName ? ` — ${d.companyName}` : ''}</option>)}
-                  </select>
-                ) : (
-                  <input required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} placeholder="Department name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position / Designation <span className="text-red-500 font-bold">*</span></label>
-                {designations.length > 0 ? (
-                  <select
-                    value={form.designationId}
-                    disabled={!form.departmentId}
-                    onChange={(e) => {
-                      const desig = visibleDesignations.find(d => d.id === e.target.value);
-                      setForm({ ...form, designationId: e.target.value, positionTitle: desig?.title || form.positionTitle });
-                    }}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 disabled:bg-slate-50 disabled:text-thb-text-muted disabled:cursor-not-allowed"
-                  >
-                    <option value="">{form.departmentId ? 'Select designation…' : 'Pick a department first…'}</option>
-                    {visibleDesignations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-                  </select>
-                ) : (
-                  <input value={form.positionTitle} onChange={(e) => setForm({ ...form, positionTitle: e.target.value, designationId: e.target.value })} placeholder="e.g. Data Engineer 2" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                )}
-                {form.departmentId && visibleDesignations.length === 0 && designations.length > 0 && (
-                  <p className="text-[10px] text-amber-600 mt-1">No designations configured for this department yet.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position Type</label>
-                <select value={form.positionType} onChange={(e) => setForm({ ...form, positionType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                  <option value="new">New</option>
-                  <option value="replacement">Replacement</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Number of Vacancies</label>
-                <input type="number" min={1} value={form.numberOfOpenings} onChange={(e) => setForm({ ...form, numberOfOpenings: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employment Type</label>
-                <select value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                  <option value="full-time">Full-time</option>
-                  <option value="part-time">Part-time</option>
-                  <option value="contract">Contract</option>
-                  <option value="internship">Internship</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority</label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-              </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiCalendar className="h-5 w-5" /></span>
-                <div><h3 className="text-lg font-bold text-slate-900">Requirements &amp; Budget</h3><p className="text-xs text-slate-500 sm:text-sm">Capture compensation, skills, experience and closing details.</p></div>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Range / Budget</label>
-                <input value={form.salaryBudget} onChange={(e) => setForm({ ...form, salaryBudget: e.target.value })} placeholder="e.g. 500000-700000 INR/year" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Required Skills</label>
-                <input value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} placeholder="e.g. React, Node.js, Python, PostgreSQL" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Experience Required</label>
-                <input value={form.experienceRequired} onChange={(e) => setForm({ ...form, experienceRequired: e.target.value })} placeholder="e.g. 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Qualification</label>
-                <input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. B.Tech / M.Tech" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position Closing Date</label>
-                <input type="date" value={form.expectedJoiningDate} onChange={(e) => setForm({ ...form, expectedJoiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
-                <p className="text-[10px] text-thb-text-muted mt-1">The linked job posting will automatically close when this date is reached.</p>
-              </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiClock className="h-5 w-5" /></span>
-                  <div><h3 className="text-lg font-bold text-slate-900">Interview Rounds <span className="text-red-500">*</span></h3><p className="text-xs text-slate-500 sm:text-sm">Define and order the interview rounds for this position.</p></div>
-                </div>
-                <button type="button" onClick={() => { const rows = parseInterviewPlan(form.interviewPlan); setForm({ ...form, interviewPlan: serializeInterviewPlan([...rows, { name: '', type: 'technical' }]) }); }} className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"><FiPlus className="h-4 w-4" /> Add Round</button>
-              </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200">
-                <div className="hidden grid-cols-[52px_minmax(0,1fr)_minmax(180px,0.65fr)_76px] gap-3 bg-slate-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 sm:grid"><span>#</span><span>Round Name</span><span>Interview Type</span><span className="text-center">Action</span></div>
-                <div className="divide-y divide-slate-100">{parseInterviewPlan(form.interviewPlan).map((row, i, rows) => <div key={i} className="grid grid-cols-1 items-center gap-2 p-3 sm:grid-cols-[52px_minmax(0,1fr)_minmax(180px,0.65fr)_76px] sm:gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-700">{i + 1}</span><input required value={row.name} placeholder="Enter round name" onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="min-w-0 rounded-lg border border-thb-border px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="rounded-lg border border-thb-border px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="client">Client</option><option value="ai">AI</option></select><button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan(rows.filter((_, index) => index !== i)) })} className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2.5 text-red-600 transition hover:bg-red-50" aria-label={`Remove round ${i + 1}`}><FiTrash2 className="h-4 w-4" /></button></div>)}</div>
-                {parseInterviewPlan(form.interviewPlan).length === 0 && <div className="m-3 rounded-lg border border-dashed border-red-200 bg-red-50 p-5 text-center text-xs text-red-700">No interview rounds configured. Click <b>Add Round</b> and enter a round name.</div>}
-              </div>
-              <p className="mt-3 text-xs text-slate-500">{parseInterviewPlan(form.interviewPlan).length} round(s) configured. At least one named round is required.</p>
-            </section>
-          </div>
-            <div className="sticky bottom-0 z-10 flex flex-col-reverse items-stretch justify-end gap-3 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center">
-              <button onClick={handleCancelForm} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">Cancel</button>
-              <button onClick={() => handleSave('draft')} disabled={submitting} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50">{submitting ? 'Saving...' : 'Save as Draft'}</button>
-              <button onClick={() => handleSave('submit')} disabled={submitting} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-colors hover:bg-emerald-700 disabled:opacity-50"><FiCheck className="h-4 w-4" /> {submitting ? 'Saving...' : 'Submit for Approval'}</button>
-            </div>
-        </div>
-      )}
     </div>
   );
 }
