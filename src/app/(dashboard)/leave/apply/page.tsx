@@ -263,16 +263,17 @@ function ApplyLeaveContent() {
               // First try filtering from the already-fetched types
               let filtered = activeTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
               // If the API returned 0 types (due to company scope filtering),
-              // fetch ALL leave types without company filter and then filter by policy
+              // fetch each leave type by ID directly using the [id] endpoint
               if (filtered.length === 0) {
-                try {
-                  const allLtRes = await fetch(`/api/leave-types?limit=100&includeInactive=1`, { headers });
-                  if (allLtRes.ok) {
-                    const allLtData = await allLtRes.json();
-                    const allTypes = (allLtData.data || []).filter((t: any) => t.status === 'active' || t.status === undefined);
-                    filtered = allTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
-                  }
-                } catch {}
+                console.log('[apply-leave] API returned 0 types, fetching by ID from policy leaveTypeIds...');
+                const ids = Array.from(allowedLeaveTypeIds);
+                const results = await Promise.all(
+                  ids.map(id => fetch(`/api/leave-types/${id}`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null))
+                );
+                filtered = results
+                  .filter((r: any) => r && (r.status === 'active' || r.status === undefined))
+                  .map((r: any) => r.leaveType || r);
+                console.log(`[apply-leave] Fetched ${filtered.length} leave types by ID from policy.`);
               }
               activeTypes = filtered;
               setLeaveTypes(activeTypes);
