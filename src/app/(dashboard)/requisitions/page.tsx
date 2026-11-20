@@ -136,6 +136,7 @@ function parseSalaryRange(value: string | null | undefined): [string, string] {
   if (!raw) return ['', ''];
   const idx = raw.indexOf('-');
   if (idx === -1) return [raw, ''];
+  return [raw.slice(0, idx).trim(), raw.slice(idx + 1).trim()];
 }
 function composeSalaryRange(min: string, max: string): string {
   const a = min.trim(), b = max.trim();
@@ -165,6 +166,10 @@ export default function RequisitionsPage() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [form, setForm] = useState(initialForm);
+  const [salaryMin, setSalaryMin] = useState('');
+  const [salaryMax, setSalaryMax] = useState('');
+  const [skillChips, setSkillChips] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'requisitions' | 'approvals'>('requisitions');
   const [showFullDetails, setShowFullDetails] = useState(false);
@@ -238,8 +243,11 @@ export default function RequisitionsPage() {
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
+  const resetFormExtras = () => { setSkillChips([]); setSkillInput(''); setSalaryMin(''); setSalaryMax(''); };
+
   const handleAddNew = () => {
     setForm(initialForm);
+    resetFormExtras();
     setEditingId(null);
     setShowForm(true);
     setViewingId(null);
@@ -263,6 +271,11 @@ export default function RequisitionsPage() {
       reason: '',
       interviewPlan: item.interviewPlan || initialForm.interviewPlan,
     });
+    const [sm, sx] = parseSalaryRange(item.salaryBudget);
+    setSalaryMin(sm);
+    setSalaryMax(sx);
+    setSkillChips((item.skillsRequired || '').split(',').map(s => s.trim()).filter(Boolean));
+    setSkillInput('');
     setEditingId(item.id);
     setShowForm(true);
     setViewingId(null);
@@ -273,11 +286,31 @@ export default function RequisitionsPage() {
     setShowForm(false);
     setEditingId(null);
     setForm(initialForm);
+    resetFormExtras();
+  };
+
+  const addSkillChips = (raw: string) => {
+    const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    const next = Array.from(new Set([...skillChips, ...parts]));
+    setSkillChips(next);
+    setForm(f => ({ ...f, skillsRequired: next.join(', ') }));
+    setSkillInput('');
+  };
+  const removeSkillChip = (chip: string) => {
+    const next = skillChips.filter(c => c !== chip);
+    setSkillChips(next);
+    setForm(f => ({ ...f, skillsRequired: next.join(', ') }));
+  };
+  const focusRoundName = (i: number) => {
+    const el = document.getElementById(`round-name-${i}`) as HTMLInputElement | null;
+    if (el) { el.focus(); el.select(); }
   };
 
   const handleSave = async (action: 'draft' | 'submit') => {
     if (!form.departmentId) { toast.error('Department is required'); return; }
     if (!form.designationId) { toast.error('Position/Designation is required'); return; }
+    if (skillChips.length === 0) { toast.error('Add at least one required skill'); return; }
     const interviewRounds = parseInterviewPlan(form.interviewPlan);
     if (interviewRounds.length === 0 || interviewRounds.some(round => !round.name.trim())) { toast.error('Add at least one interview round and enter a name for every round'); return; }
     setSubmitting(true);
@@ -286,7 +319,7 @@ export default function RequisitionsPage() {
         const res = await fetch(`/api/requisitions/${editingId}`, {
           method: 'PATCH',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ ...form, action: action === 'submit' ? 'submit' : undefined }),
+          body: JSON.stringify({ ...form, skillsRequired: skillChips.join(', '), action: action === 'submit' ? 'submit' : undefined }),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success(action === 'draft' ? 'Draft saved' : 'Requisition submitted for HR approval');
@@ -294,7 +327,7 @@ export default function RequisitionsPage() {
         const res = await fetch('/api/requisitions', {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ ...form, companyId, action }),
+          body: JSON.stringify({ ...form, skillsRequired: skillChips.join(', '), companyId, action }),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success(action === 'draft' ? 'Draft saved' : 'Requisition submitted for HR approval');
