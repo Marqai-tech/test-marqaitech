@@ -29,6 +29,7 @@ interface WorkflowConfig {
   name: string;
   description?: string;
   leaveTypeId?: string | null;
+  leaveTypeIds?: string[]; // multiple leave types selection
   isActive: boolean;
   tiers: WorkflowTier[];
   requireAllTiers: boolean;
@@ -37,6 +38,8 @@ interface WorkflowConfig {
   skipDuplicateApprovers: boolean;
   rejectRequiresReason: boolean;
   notifyEmployeeEachStep: boolean;
+  autoApproveOnTimeout: boolean; // auto-approve if SLA exceeded
+  timeoutAutoApproveHours: number; // hours before auto-approve kicks in
 }
 
 interface LeaveType { id: string; name: string; code: string; }
@@ -46,8 +49,10 @@ const APPROVER_OPTIONS = [
   { value: 'department_head', label: 'Department Head', icon: FiUsers },
   { value: 'hr_admin', label: 'HR Admin', icon: FiShield },
   { value: 'tenant_admin', label: 'Tenant Admin', icon: FiShield },
-  { value: 'specific_user', label: 'Specific User', icon: FiUser },
+  { value: 'specific_employee', label: 'Specific Employee', icon: FiUser },
 ];
+
+interface EmpOption { id: string; name: string; email: string; role?: string; employeeId?: string; }
 
 const SLA_OPTIONS = [
   { value: 1, label: '1 hour' },
@@ -63,6 +68,7 @@ const DEFAULT_WORKFLOW: WorkflowConfig = {
   name: 'New Workflow',
   description: '',
   leaveTypeId: null,
+  leaveTypeIds: [],
   isActive: true,
   tiers: [
     { tier: 1, approverType: 'reporting_manager', label: 'Reporting Manager', slaHours: 48 },
@@ -74,6 +80,8 @@ const DEFAULT_WORKFLOW: WorkflowConfig = {
   skipDuplicateApprovers: true,
   rejectRequiresReason: true,
   notifyEmployeeEachStep: true,
+  autoApproveOnTimeout: false,
+  timeoutAutoApproveHours: 48,
 };
 
 export default function ApprovalWorkflowsPage() {
@@ -85,6 +93,7 @@ export default function ApprovalWorkflowsPage() {
 
   const [workflows, setWorkflows] = useState<WorkflowConfig[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [employees, setEmployees] = useState<EmpOption[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,9 +112,10 @@ export default function ApprovalWorkflowsPage() {
     setLoading(true);
     try {
       const h = getAuthHeaders();
-      const [wfRes, ltRes] = await Promise.all([
+      const [wfRes, ltRes, empRes] = await Promise.all([
         fetch(`/api/leave/workflow-config${qsep}`, { headers: h }).catch(() => null),
         fetch(`/api/leave-types?limit=100${sep}`, { headers: h }).catch(() => null),
+        fetch(`/api/employees?limit=200${sep}`, { headers: h }).catch(() => null),
       ]);
       if (wfRes?.ok) {
         const d = await wfRes.json();
@@ -117,6 +127,7 @@ export default function ApprovalWorkflowsPage() {
             name: c.name || 'Unnamed Workflow',
             description: c.description || '',
             leaveTypeId: c.leaveTypeId || null,
+            leaveTypeIds: parsedConfig.leaveTypeIds || (c.leaveTypeId ? [c.leaveTypeId] : []),
             isActive: c.isActive !== false,
             tiers: parsedConfig.tiers || DEFAULT_WORKFLOW.tiers,
             requireAllTiers: parsedConfig.requireAllTiers ?? true,
@@ -125,6 +136,8 @@ export default function ApprovalWorkflowsPage() {
             skipDuplicateApprovers: parsedConfig.skipDuplicateApprovers ?? true,
             rejectRequiresReason: parsedConfig.rejectRequiresReason ?? true,
             notifyEmployeeEachStep: parsedConfig.notifyEmployeeEachStep ?? true,
+            autoApproveOnTimeout: parsedConfig.autoApproveOnTimeout ?? false,
+            timeoutAutoApproveHours: parsedConfig.timeoutAutoApproveHours ?? 48,
           };
         });
         if (configs.length === 0) {
@@ -136,6 +149,17 @@ export default function ApprovalWorkflowsPage() {
       if (ltRes?.ok) {
         const d = await ltRes.json();
         setLeaveTypes((d.data || []).filter((t: any) => t.status === 'active'));
+      }
+      if (empRes?.ok) {
+        const d = await empRes.json();
+        const emps = (d.employees || d.data || []).map((e: any) => ({
+          id: e.id,
+          name: `${e.firstName || ''} ${e.lastName || ''}`.trim(),
+          email: e.email || '',
+          role: e.role || '',
+          employeeId: e.employeeId || '',
+        }));
+        setEmployees(emps);
       }
     } catch { toast.error('Failed to load workflows'); }
     finally { setLoading(false); }
@@ -204,7 +228,7 @@ export default function ApprovalWorkflowsPage() {
         id: editConfig.id,
         name: editConfig.name,
         description: editConfig.description,
-        leaveTypeId: editConfig.leaveTypeId || null,
+        leaveTypeId: editConfig.leaveTypeIds && editConfig.leaveTypeIds.length === 1 ? editConfig.leaveTypeIds[0] : (editConfig.leaveTypeId || null),
         isActive: editConfig.isActive,
         config: JSON.stringify({
           tiers: editConfig.tiers,
@@ -214,6 +238,9 @@ export default function ApprovalWorkflowsPage() {
           skipDuplicateApprovers: editConfig.skipDuplicateApprovers,
           rejectRequiresReason: editConfig.rejectRequiresReason,
           notifyEmployeeEachStep: editConfig.notifyEmployeeEachStep,
+          autoApproveOnTimeout: editConfig.autoApproveOnTimeout,
+          timeoutAutoApproveHours: editConfig.timeoutAutoApproveHours,
+          leaveTypeIds: editConfig.leaveTypeIds || [],
         }),
         companyId: effectiveCompanyId() || undefined,
         tenantId: selectedTenantId || undefined,
@@ -316,12 +343,38 @@ export default function ApprovalWorkflowsPage() {
                     className="text-sm text-slate-500 w-full bg-transparent outline-none focus:bg-slate-50 rounded px-1 -mx-1 mt-1"
                     placeholder="Description"
                   />
-                  <div className="flex items-center gap-3 mt-3">
-                    <select value={editConfig.leaveTypeId || ''} onChange={e => updateField('leaveTypeId', e.target.value || null)} className="h-8 px-2 text-xs border border-slate-200 rounded-lg bg-white outline-none">
-                      <option value="">All leave types</option>
-                      {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.code})</option>)}
-                    </select>
-                    <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                  <div className="flex items-start gap-3 mt-3 flex-wrap">
+                    {/* Multiple leave types selection */}
+                    <div className="flex-1 min-w-[200px]">
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Applies to Leave Types</label>
+                      <div className="flex flex-wrap gap-1.5 mb-1.5">
+                        {/* All leave types toggle */}
+                        <button
+                          onClick={() => { updateField('leaveTypeIds', []); updateField('leaveTypeId', null); }}
+                          className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${(!editConfig.leaveTypeIds || editConfig.leaveTypeIds.length === 0) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                        >All Types</button>
+                        {/* Individual leave type chips */}
+                        {leaveTypes.map(lt => {
+                          const isSelected = editConfig.leaveTypeIds?.includes(lt.id);
+                          return (
+                            <button
+                              key={lt.id}
+                              onClick={() => {
+                                const current = editConfig.leaveTypeIds || [];
+                                const newList = isSelected ? current.filter(id => id !== lt.id) : [...current, lt.id];
+                                updateField('leaveTypeIds', newList);
+                                updateField('leaveTypeId', newList.length === 1 ? newList[0] : null);
+                              }}
+                              className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${isSelected ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                            >{lt.code}</button>
+                          );
+                        })}
+                      </div>
+                      {editConfig.leaveTypeIds && editConfig.leaveTypeIds.length > 0 && (
+                        <p className="text-[10px] text-slate-400">{editConfig.leaveTypeIds.length} leave type(s) selected</p>
+                      )}
+                    </div>
+                    <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer mt-4">
                       <input type="checkbox" checked={editConfig.isActive} onChange={e => updateField('isActive', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-blue-600" />
                       Active
                     </label>
@@ -338,10 +391,17 @@ export default function ApprovalWorkflowsPage() {
                         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">{tier.tier}</div>
                         <div className="flex-1 grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Approver</label>
-                            <select value={tier.approverType} onChange={e => { updateTier(idx, 'approverType', e.target.value); updateTier(idx, 'label', APPROVER_OPTIONS.find(a => a.value === e.target.value)?.label || ''); }} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Approver Role</label>
+                            <select value={tier.approverType} onChange={e => { updateTier(idx, 'approverType', e.target.value); updateTier(idx, 'label', APPROVER_OPTIONS.find(a => a.value === e.target.value)?.label || ''); if (e.target.value !== 'specific_employee') updateTier(idx, 'approverId', null); }} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
                               {APPROVER_OPTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                             </select>
+                            {/* Specific employee picker — shows when 'specific_employee' is selected */}
+                            {tier.approverType === 'specific_employee' && (
+                              <select value={tier.approverId || ''} onChange={e => { updateTier(idx, 'approverId', e.target.value); const emp = employees.find(emp => emp.id === e.target.value); if (emp) updateTier(idx, 'label', emp.name); }} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20 mt-1">
+                                <option value="">— Select employee —</option>
+                                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} {emp.employeeId ? `(${emp.employeeId})` : ''}</option>)}
+                              </select>
+                            )}
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">SLA</label>
@@ -367,6 +427,7 @@ export default function ApprovalWorkflowsPage() {
                   {[
                     { key: 'requireAllTiers', label: 'Require all tiers to approve', desc: 'Every tier must approve before the leave is finalized' },
                     { key: 'autoApproveShortLeave', label: 'Auto-approve short leave', desc: `Leaves ≤ ${editConfig.shortLeaveMaxDays} day(s) skip the approval chain` },
+                    { key: 'autoApproveOnTimeout', label: 'Auto-approve on SLA timeout', desc: `If an approver doesn't act within ${editConfig.timeoutAutoApproveHours}h, the request auto-approves and moves to the next tier` },
                     { key: 'skipDuplicateApprovers', label: 'Skip duplicate approvers', desc: 'If the same person appears in multiple tiers, approve only once' },
                     { key: 'rejectRequiresReason', label: 'Reject requires reason', desc: 'Approvers must enter a reason when rejecting' },
                     { key: 'notifyEmployeeEachStep', label: 'Notify employee at each step', desc: 'Send notification to the employee after each tier action' },
@@ -383,6 +444,13 @@ export default function ApprovalWorkflowsPage() {
                     <div className="px-3 py-2 ml-7">
                       <label className="text-xs font-medium text-slate-600">Max days for auto-approval: </label>
                       <input type="number" min={0.5} step={0.5} value={editConfig.shortLeaveMaxDays} onChange={e => updateField('shortLeaveMaxDays', parseFloat(e.target.value) || 1)} className="w-16 px-2 py-1 text-xs border border-slate-200 rounded ml-1" />
+                    </div>
+                  )}
+                  {editConfig.autoApproveOnTimeout && (
+                    <div className="px-3 py-2 ml-7">
+                      <label className="text-xs font-medium text-slate-600">Auto-approve after (hours): </label>
+                      <input type="number" min={1} step={1} value={editConfig.timeoutAutoApproveHours} onChange={e => updateField('timeoutAutoApproveHours', parseInt(e.target.value) || 48)} className="w-16 px-2 py-1 text-xs border border-slate-200 rounded ml-1" />
+                      <span className="text-[10px] text-slate-400 ml-2">If an approver doesn't act within this time, the request auto-approves</span>
                     </div>
                   )}
                 </div>
