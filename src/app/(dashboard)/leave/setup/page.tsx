@@ -181,7 +181,7 @@ export default function LeaveSetupPage() {
       {mode === 'list' && tab === 'types' && <TypesList types={types} rules={rules} loading={loading} onCreate={() => go('types', 'form')} onEdit={(id) => go('types', 'form', id)} />}
       {mode === 'form' && tab === 'types' && <TypeForm editId={editId} types={types} onCancel={() => go('types')} onSaved={onSaved} scopeQuery={sq} />}
       {mode === 'list' && tab === 'policy' && <PolicyList policies={policies} types={types} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('policy', 'form')} onEdit={(id) => go('policy', 'form', id)} />}
-      {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
+      {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} types={types} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
       {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(policyId) => go('mapping', 'form', policyId)} onRefresh={fetchAll} />}
@@ -531,7 +531,7 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
 }
 
 /* ═══ Policy Form (inline, 5-step) ═══ */
-function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId: string | null; policies: LPolicy[]; onCancel: () => void; onSaved: () => void; sq: string }) {
+function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId: string | null; policies: LPolicy[]; types: LType[]; onCancel: () => void; onSaved: () => void; sq: string }) {
   const orig = editId && policies.find(p => p.id === editId);
   // Parse original scope fields from the policy (stored as JSON arrays in runtime columns)
   const parseJsonArray = (val: any): string[] => { try { const a = typeof val === 'string' ? JSON.parse(val) : val; return Array.isArray(a) ? a : []; } catch { return []; } };
