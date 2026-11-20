@@ -2106,7 +2106,7 @@ export default function RecruitmentPage() {
 
       {/* Tab Navigation — hidden when ?view=resumes or ?view=interviews or ?view=kanban
           (these views are dedicated single-purpose screens, no tab switching needed) */}
-      {!urlView && (
+      {!urlView && !urlSingle && (
         <div className="thb-card p-1.5">
           <div className="flex gap-1">
             {visibleTabs.map((tab) => (
@@ -2135,6 +2135,7 @@ export default function RecruitmentPage() {
           <div className="space-y-4">
           {/* Filter Bar */}
           <div className="thb-card p-3">
+            <div className="mb-2 flex items-center justify-between"><h2 className="text-base font-bold text-thb-text-primary">Job Posting List</h2><span className="text-[11px] text-thb-text-muted">{filteredJobs.length} of {displayJobs.length}</span></div>
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
               <div className="relative flex-1 min-w-0">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
@@ -2256,7 +2257,7 @@ export default function RecruitmentPage() {
                             </tr>
                           ) : (
                             <>
-                              <tr className={`border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors ${isExpanded ? 'bg-teal-50/30' : ''}`}>
+                              <tr onClick={() => setExpandedJob(job.id)} className={`cursor-pointer border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors ${isExpanded ? 'bg-teal-50/30' : ''}`}>
                                 <td className="px-5 py-4">
                                   <div className="min-w-0">
                                     <p className="text-sm font-semibold text-thb-text-primary">{job.title}</p>
