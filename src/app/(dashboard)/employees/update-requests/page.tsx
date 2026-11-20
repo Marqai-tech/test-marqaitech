@@ -99,52 +99,92 @@ function SectionPayloadView({ section, value, current }: { section: string; valu
   );
 }
 
+// Left-edge status bar color (distinct from Requisition's emerald — My Approvals
+// uses a color-coded bar so status is scannable at a glance).
+function diffBarColor(status: string): string {
+  if (status === 'approved' || status === 'applied') return 'bg-emerald-500';
+  if (status === 'rejected') return 'bg-red-500';
+  if (status === 'cancelled') return 'bg-slate-400';
+  return 'bg-amber-500';
+}
+function initialsOf(first?: string, last?: string): string {
+  const a = (first || '').trim().charAt(0).toUpperCase();
+  const b = (last || '').trim().charAt(0).toUpperCase();
+  return (a + b) || '?';
+}
+
 function RequestCard({ r, canAct, onAct }: { r: UpdateRequest; canAct: boolean; onAct: (id: string, action: 'approve' | 'reject') => void }) {
   const [open, setOpen] = useState(false);
+  const bar = diffBarColor(r.status);
+  const inits = initialsOf(r.employee?.firstName, r.employee?.lastName);
   return (
-    <div className="thb-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-thb-text-primary truncate">{r.fieldLabel || r.fieldName}</p>
-          <p className="text-[11px] text-thb-text-muted">
-            {r.employee ? `${r.employee.firstName} ${r.employee.lastName} · ${r.employee.employeeId} · ` : ''}
-            {r.requestedAt ? new Date(r.requestedAt).toLocaleString() : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={statusBadge(r.status)}>{r.status}</span>
-          <button onClick={() => setOpen(!open)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><FiChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} /></button>
-        </div>
-      </div>
-      {SECTION_FIELDS.has(r.fieldName) ? (
-        <SectionPayloadView section={r.fieldName} value={r.newValue} current={r.oldValue} />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
-          <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary break-all">{r.oldValue || '—'}</span></div>
-          <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium break-all">{r.newValue || '—'}</span></div>
-        </div>
-      )}
-      {r.reason && <p className="text-[11px] text-thb-text-muted mt-2"><span className="font-medium">Reason:</span> {r.reason}</p>}
-
-      {open && (
-        <div className="mt-3 border-t border-thb-border pt-3 space-y-1.5">
-          {(r.approvalSteps || []).sort((a, b) => a.tier - b.tier).map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-2 text-[11px]">
-              <span className="text-thb-text-secondary">Tier {s.tier} · {s.approverName || s.approverType}</span>
-              <span className={s.status === 'approved' ? 'text-emerald-600' : s.status === 'rejected' ? 'text-red-500' : s.status === 'pending' ? 'text-amber-600' : 'text-slate-400'}>
-                {s.status}{s.actedAt ? ` · ${new Date(s.actedAt).toLocaleDateString()}` : ''}{s.comments ? ` · "${s.comments}"` : ''}
-              </span>
+    // Diff-style card: [4px color bar] [body] — visually distinct from the
+    // Requisition dashboard's master-detail list.
+    <div className="thb-card overflow-hidden flex">
+      <div className={`w-1 shrink-0 ${bar}`} aria-hidden />
+      <div className="flex-1 p-3 min-w-0">
+        {/* Top row: avatar · field chip · requester · spacer · status · toggle */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0" title={r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : ''}>{inits}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[10px] font-semibold border border-teal-100">{r.fieldLabel || r.fieldName}</span>
+              {r.employee && (
+                <span className="text-[11px] text-thb-text-secondary truncate">{r.employee.firstName} {r.employee.lastName} · <span className="font-mono">{r.employee.employeeId}</span></span>
+              )}
             </div>
-          ))}
+            <p className="text-[10px] text-thb-text-muted mt-0.5">{r.requestedAt ? new Date(r.requestedAt).toLocaleString() : ''}</p>
+          </div>
+          <span className={statusBadge(r.status)}>{r.status}</span>
+          <button onClick={() => setOpen(!open)} className="p-1 rounded-md text-slate-400 hover:bg-slate-100" title="Toggle approval chain"><FiChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} /></button>
         </div>
-      )}
 
-      {canAct && r.status === 'pending' && (
-        <div className="flex items-center gap-2 mt-3">
-          <button onClick={() => onAct(r.id, 'approve')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"><FiCheck className="w-3.5 h-3.5" /> Approve</button>
-          <button onClick={() => onAct(r.id, 'reject')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100"><FiX className="w-3.5 h-3.5" /> Reject</button>
-        </div>
-      )}
+        {SECTION_FIELDS.has(r.fieldName) ? (
+          <SectionPayloadView section={r.fieldName} value={r.newValue} current={r.oldValue} />
+        ) : (
+          // Diff layout: old (struck, muted) → arrow → new (teal, bold)
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap text-xs">
+            <div className="rounded-md bg-slate-50 px-2.5 py-1.5 border border-slate-100 min-w-0">
+              <span className="text-[9px] text-thb-text-muted uppercase tracking-wide block mb-0.5">Current</span>
+              <span className="text-thb-text-secondary line-through decoration-slate-300 break-all">{r.oldValue || '—'}</span>
+            </div>
+            <span className="text-teal-600 text-sm font-bold">→</span>
+            <div className="rounded-md bg-teal-50/70 px-2.5 py-1.5 border border-teal-100 min-w-0">
+              <span className="text-[9px] text-teal-600 uppercase tracking-wide block mb-0.5">Requested</span>
+              <span className="text-teal-900 font-semibold break-all">{r.newValue || '—'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Reason quoted */}
+        {r.reason && (
+          <div className="mt-2 flex items-start gap-1.5 text-[11px] text-thb-text-muted">
+            <span className="text-teal-500 font-bold leading-none mt-px">"</span>
+            <span className="italic">{r.reason}</span>
+          </div>
+        )}
+
+        {open && (
+          <div className="mt-2.5 border-t border-thb-border pt-2 space-y-1">
+            {(r.approvalSteps || []).sort((a, b) => a.tier - b.tier).map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="text-thb-text-secondary">Tier {s.tier} · {s.approverName || s.approverType}</span>
+                <span className={s.status === 'approved' ? 'text-emerald-600' : s.status === 'rejected' ? 'text-red-500' : s.status === 'pending' ? 'text-amber-600' : 'text-slate-400'}>
+                  {s.status}{s.actedAt ? ` · ${new Date(s.actedAt).toLocaleDateString()}` : ''}{s.comments ? ` · "${s.comments}"` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Action buttons — teal accent (NOT emerald like Requisition) */}
+        {canAct && r.status === 'pending' && (
+          <div className="flex items-center gap-2 mt-2.5">
+            <button onClick={() => onAct(r.id, 'approve')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-600 text-white text-[11px] font-medium hover:bg-teal-700 transition-colors"><FiCheck className="w-3 h-3" /> Approve</button>
+            <button onClick={() => onAct(r.id, 'reject')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 text-red-600 text-[11px] font-medium hover:bg-red-100 transition-colors"><FiX className="w-3 h-3" /> Reject</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -360,51 +400,68 @@ export default function UpdateRequestsPage() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-4xl mx-auto">
+    <div className="p-3 sm:p-4 space-y-2.5 max-w-5xl mx-auto">
+      {/* Compact header — same scale as Requisition dashboard */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/employees')} className="p-2 rounded-lg border border-thb-border hover:bg-slate-50"><FiArrowLeft className="w-4 h-4" /></button>
+        <div className="flex items-center gap-2.5">
+          <button onClick={() => router.push('/employees')} className="p-1.5 rounded-lg border border-thb-border hover:bg-slate-50" title="Back to employees"><FiArrowLeft className="w-3.5 h-3.5" /></button>
           <div>
-            <h1 className="text-lg font-semibold text-thb-text-primary">Profile Update Requests</h1>
-            <p className="text-xs text-thb-text-muted">Employee profile-change requests and their approval progress.</p>
+            <h1 className="text-base font-semibold text-thb-text-primary leading-tight">My Approvals</h1>
+            <p className="text-[11px] text-thb-text-muted mt-0.5">Profile-change requests and their approval progress.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => load(scope)} className="p-2 rounded-lg border border-thb-border hover:bg-slate-50" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
-          <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-medium hover:bg-teal-700"><FiPlus className="w-3.5 h-3.5" /> Request Change</button>
+          <button onClick={() => load(scope)} className="p-1.5 rounded-lg border border-thb-border hover:bg-slate-50" title="Refresh"><FiRefreshCw className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-[11px] font-medium hover:bg-teal-700 transition-colors"><FiPlus className="w-3.5 h-3.5" /> Request Change</button>
         </div>
       </div>
 
-      {/* Task 139 — self-service tips */}
+      {/* Task 139 — self-service tips (kept; slightly tighter) */}
       {scope === 'mine' && (
-        <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-900 space-y-1">
-          <p className="font-bold flex items-center gap-1.5"><FiZap className="w-3.5 h-3.5" /> Tips — what you can change yourself</p>
+        <div className="rounded-lg border border-sky-200 bg-sky-50 p-2.5 text-[11px] text-sky-900 space-y-0.5">
+          <p className="font-bold flex items-center gap-1.5"><FiZap className="w-3 h-3" /> Tips — what you can change yourself</p>
           <p><span className="font-semibold">Direct (no approval):</span> phone, personal email, addresses, emergency contacts, interests, technical skills, experience entries, achievements, family details — edit them on My Profile and they save immediately.</p>
           <p><span className="font-semibold">Needs HR/Admin approval:</span> the "Request Change" fields below (bank, KYC, gender, marital status, nationality, Original Birthday…) plus your profile photo (Employee → Update Requests → Photo Approvals is where HR confirms it).</p>
           <p><span className="font-semibold">Locked:</span> first name, last name and Date of Birth — contact HR/Admin to change these.</p>
         </div>
       )}
 
-      <div className="flex gap-2">
-        {tabs.map((t) => (
-          <button key={t.key} onClick={() => setScope(t.key)} className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium ${scope === t.key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-            {t.icon} {t.label}
-          </button>
-        ))}
+      {/* Tab pills with counts — teal active (distinct from Requisition's green) */}
+      <div className="flex gap-1.5 bg-white border border-thb-border rounded-lg p-1 w-fit">
+        {tabs.map((t) => {
+          const active = scope === t.key;
+          const cnt = active ? requests.length : null;
+          return (
+            <button key={t.key} onClick={() => setScope(t.key)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${active ? 'bg-teal-600 text-white' : 'text-thb-text-secondary hover:bg-slate-50'}`}>
+              {t.icon} {t.label}
+              {cnt !== null && <span className={`px-1.5 py-px rounded-full text-[9px] font-bold ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-thb-text-secondary'}`}>{cnt}</span>}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Summary stat chips — same pattern as Requisition dashboard */}
+      {scope !== 'photos' && (
+        <div className="grid grid-cols-4 gap-2">
+          <div className="thb-card px-2.5 py-1.5 flex items-center justify-between"><span className="text-[9px] text-thb-text-muted uppercase tracking-wide">Total</span><span className="text-sm font-bold text-thb-text-primary">{requests.length}</span></div>
+          <div className="thb-card px-2.5 py-1.5 flex items-center justify-between"><span className="text-[9px] text-thb-text-muted uppercase tracking-wide">Pending</span><span className="text-sm font-bold text-amber-600">{requests.filter(r => r.status === 'pending').length}</span></div>
+          <div className="thb-card px-2.5 py-1.5 flex items-center justify-between"><span className="text-[9px] text-thb-text-muted uppercase tracking-wide">Approved</span><span className="text-sm font-bold text-emerald-600">{requests.filter(r => r.status === 'approved' || r.status === 'applied').length}</span></div>
+          <div className="thb-card px-2.5 py-1.5 flex items-center justify-between"><span className="text-[9px] text-thb-text-muted uppercase tracking-wide">Rejected</span><span className="text-sm font-bold text-red-600">{requests.filter(r => r.status === 'rejected').length}</span></div>
+        </div>
+      )}
 
       {scope === 'photos' ? (
         <PhotoApprovals />
       ) : loading ? (
-        <p className="text-sm text-thb-text-muted py-10 text-center">Loading…</p>
+        <p className="text-xs text-thb-text-muted py-10 text-center">Loading…</p>
       ) : requests.length === 0 ? (
-        <div className="thb-card p-10 text-center">
-          {scope === 'inbox' ? <FiInbox className="w-10 h-10 text-slate-300 mx-auto mb-3" /> : <FiCheckCircle className="w-10 h-10 text-slate-300 mx-auto mb-3" />}
-          <p className="text-sm font-medium text-thb-text-secondary">No requests here</p>
-          <p className="text-xs text-thb-text-muted mt-1">{scope === 'inbox' ? 'Nothing is waiting for your approval right now.' : 'Use "Request Change" to submit a profile update.'}</p>
+        <div className="thb-card p-8 text-center">
+          {scope === 'inbox' ? <FiInbox className="w-8 h-8 text-slate-300 mx-auto mb-2" /> : <FiCheckCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />}
+          <p className="text-xs font-medium text-thb-text-secondary">No requests here</p>
+          <p className="text-[11px] text-thb-text-muted mt-1">{scope === 'inbox' ? 'Nothing is waiting for your approval right now.' : 'Use "Request Change" to submit a profile update.'}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {requests.map((r) => <RequestCard key={r.id} r={r} canAct={scope === 'inbox'} onAct={act} />)}
         </div>
       )}

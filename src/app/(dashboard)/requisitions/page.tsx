@@ -93,16 +93,16 @@ function getStatusBadge(status: string) {
 // colored icon on top, gray label, bold value.
 function StatTile({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3">
-      <span className="flex h-6 items-center">{icon}</span>
-      <p className="mt-1 text-[13px] text-slate-500">{label}</p>
-      <p className="mt-0.5 truncate text-[15px] font-bold text-slate-900" title={value}>{value}</p>
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
+      <span className="flex h-4 items-center">{icon}</span>
+      <p className="mt-0.5 text-[10px] text-slate-500">{label}</p>
+      <p className="mt-px truncate text-xs font-bold text-slate-900" title={value}>{value}</p>
     </div>
   );
 }
 
 function DetailField({ label, value, capitalize = false }: { label: string; value: string; capitalize?: boolean }) {
-  return <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3"><p className="text-[13px] text-slate-500">{label}</p><p className={`mt-0.5 break-words text-sm font-semibold text-slate-800 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
+  return <div className="min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5"><p className="text-[10px] text-slate-500">{label}</p><p className={`mt-px break-words text-xs font-semibold text-slate-800 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
 }
 
 // Vertical approval timeline: pick the most relevant history entry for a
@@ -483,65 +483,65 @@ export default function RequisitionsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2.5">
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px]">
         <a href="/recruitment" className="font-semibold text-green-600 hover:text-green-700 hover:underline">Recruitment</a>
         <span className="text-slate-400">/</span>
         <span className="text-slate-600">Requisitions</span>
       </nav>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-[32px] font-bold leading-tight tracking-tight text-slate-900">Requisitions</h1>
-          <p className="mt-1 text-[15px] text-slate-500">Raise, review, and approve hiring requests in one place</p>
+          <h1 className="text-base font-bold leading-tight tracking-tight text-slate-900">Requisitions</h1>
+          <p className="mt-0.5 text-[11px] text-slate-500">Raise, review, and approve hiring requests in one place</p>
         </div>
-        <button onClick={handleAddNew} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-3 text-[15px] font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
-          <FiPlus className="h-4 w-4" /> Raise Requisition
+        <button onClick={handleAddNew} className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-green-600/25 transition hover:bg-green-700">
+          <FiPlus className="h-3.5 w-3.5" /> Raise Requisition
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-end gap-2 border-b border-transparent">
-        <button type="button" onClick={() => setActiveTab('requisitions')} className={`rounded-lg px-5 py-2.5 text-[15px] font-bold transition ${activeTab === 'requisitions' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>Requisitions</button>
-        <button type="button" onClick={() => setActiveTab('approvals')} className={`rounded-lg px-5 py-2.5 text-[15px] font-bold transition ${activeTab === 'approvals' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>My Approvals ({needsActionCount})</button>
+      <div className="flex items-end gap-1 border-b border-transparent">
+        <button type="button" onClick={() => setActiveTab('requisitions')} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${activeTab === 'requisitions' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>Requisitions</button>
+        <button type="button" onClick={() => setActiveTab('approvals')} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${activeTab === 'approvals' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>My Approvals ({needsActionCount})</button>
       </div>
 
       {/* Stat cards */}
-      <section aria-label="Requisition workspace" className="space-y-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('action'); }} className="flex items-center gap-4 rounded-2xl bg-green-50 p-5 text-left transition hover:bg-green-100/70">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-green-600 shadow-sm"><FiCheck className="h-6 w-6" /></span>
-            <span><span className="block text-[15px] font-bold text-slate-900">Needs My Action</span><span className="mt-0.5 block text-3xl font-bold text-slate-900">{needsActionCount}</span></span>
+      <section aria-label="Requisition workspace" className="space-y-2.5">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('action'); }} className="flex items-center gap-2.5 rounded-xl bg-green-50 p-2.5 text-left transition hover:bg-green-100/70">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-green-600 shadow-sm"><FiCheck className="h-4 w-4" /></span>
+            <span><span className="block text-[11px] font-bold text-slate-900">Needs My Action</span><span className="mt-px block text-lg font-bold text-slate-900">{needsActionCount}</span></span>
           </button>
-          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('pending'); }} className="flex items-center gap-4 rounded-2xl bg-amber-50 p-5 text-left transition hover:bg-amber-100/70">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm"><FiClock className="h-6 w-6" /></span>
-            <span><span className="block text-[15px] font-bold text-slate-900">Pending Approvals</span><span className="mt-0.5 block text-3xl font-bold text-slate-900">{inApprovalCount}</span></span>
+          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('pending'); }} className="flex items-center gap-2.5 rounded-xl bg-amber-50 p-2.5 text-left transition hover:bg-amber-100/70">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-amber-500 shadow-sm"><FiClock className="h-4 w-4" /></span>
+            <span><span className="block text-[11px] font-bold text-slate-900">Pending Approvals</span><span className="mt-px block text-lg font-bold text-slate-900">{inApprovalCount}</span></span>
           </button>
-          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('approved'); }} className="flex items-center gap-4 rounded-2xl bg-blue-50 p-5 text-left transition hover:bg-blue-100/70">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-blue-500 shadow-sm"><FiCheckCircle className="h-6 w-6" /></span>
-            <span><span className="block text-[15px] font-bold text-slate-900">Approved This Month</span><span className="mt-0.5 block text-3xl font-bold text-slate-900">{approvedCount}</span></span>
+          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('approved'); }} className="flex items-center gap-2.5 rounded-xl bg-blue-50 p-2.5 text-left transition hover:bg-blue-100/70">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-blue-500 shadow-sm"><FiCheckCircle className="h-4 w-4" /></span>
+            <span><span className="block text-[11px] font-bold text-slate-900">Approved This Month</span><span className="mt-px block text-lg font-bold text-slate-900">{approvedCount}</span></span>
           </button>
         </div>
 
-        <div className="grid min-h-[640px] grid-cols-1 gap-5 xl:grid-cols-[minmax(380px,0.8fr)_minmax(0,1.35fr)]">
+        <div className="grid min-h-[460px] grid-cols-1 gap-2.5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.35fr)]">
           {/* Requisition List */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 p-5">
-              <h2 className="text-xl font-bold text-slate-900">Requisition List</h2>
-              <div className="relative mt-4"><FiSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID, title, or department..." className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10" /></div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { setActiveTab('requisitions'); setListFilter(key); }} className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 p-2.5">
+              <h2 className="text-xs font-bold text-slate-900">Requisition List</h2>
+              <div className="relative mt-2"><FiSearch className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID, title, or department..." className="w-full rounded-md border border-slate-300 bg-white py-1.5 pl-7 pr-2 text-[11px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/10" /></div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { setActiveTab('requisitions'); setListFilter(key); }} className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
               </div>
             </div>
-            <div className="max-h-[560px] space-y-2.5 overflow-y-auto p-4">
-              {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />) : filteredRequisitions.length === 0 ? <div className="px-5 py-16 text-center"><FiSearch className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">No matching requisitions</p><p className="mt-1 text-xs text-slate-400">Try another search or filter.</p></div> : filteredRequisitions.map((r) => {
+            <div className="max-h-[400px] space-y-1.5 overflow-y-auto p-2">
+              {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-slate-100" />) : filteredRequisitions.length === 0 ? <div className="px-4 py-10 text-center"><FiSearch className="mx-auto h-6 w-6 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No matching requisitions</p><p className="mt-1 text-[10px] text-slate-400">Try another search or filter.</p></div> : filteredRequisitions.map((r) => {
                 const selected = selectedRequisition?.id === r.id;
-                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
-                  <span className="w-[74px] shrink-0 text-[15px] font-bold text-slate-900">{r.requisitionId || '—'}</span>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[13px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
-                  <span className="w-14 shrink-0"><span className="block text-[11px] text-slate-500">Openings</span><span className="block text-[15px] font-bold text-slate-900">{r.numberOfOpenings}</span></span>
+                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
+                  <span className="w-[60px] shrink-0 text-[11px] font-bold text-slate-900">{r.requisitionId || '—'}</span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[10px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
+                  <span className="w-10 shrink-0"><span className="block text-[9px] text-slate-500">Open</span><span className="block text-[11px] font-bold text-slate-900">{r.numberOfOpenings}</span></span>
                   <span className="shrink-0"><span className={getPriorityBadge(r.priority)}><span className="capitalize">{r.priority}</span></span></span>
                   <span className="shrink-0"><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span></span>
                 </button>;
@@ -550,63 +550,59 @@ export default function RequisitionsPage() {
           </div>
 
           {/* Requisition Detail */}
-          <div id="view-panel" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {!selectedRequisition ? <div className="flex min-h-[600px] flex-col items-center justify-center p-8 text-center"><FiBriefcase className="h-10 w-10 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Select a requisition</p><p className="mt-1 text-xs text-slate-400">Choose a request from the list to review its details and actions.</p></div> : (() => {
+          <div id="view-panel" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            {!selectedRequisition ? <div className="flex min-h-[440px] flex-col items-center justify-center p-6 text-center"><FiBriefcase className="h-8 w-8 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">Select a requisition</p><p className="mt-1 text-[10px] text-slate-400">Choose a request from the list to review its details and actions.</p></div> : (() => {
               const r = selectedRequisition;
               const stageIndex = r.approvalStatus === 'budget_approved' ? 3 : r.approvalStatus === 'hr_approved' ? 2 : r.approvalStatus === 'pending' ? 1 : 0;
               const isFailed = r.approvalStatus === 'rejected';
               const skillList = (r.skillsRequired || '').split(',').map(s => s.trim()).filter(Boolean);
-              return <div className="p-5 sm:p-6">
+              return <div className="p-3 sm:p-4">
                 {/* Detail header */}
-                <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
-                  <div className="flex min-w-0 items-start gap-4">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600"><FiFileText className="h-6 w-6" /></span>
+                <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2.5">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiFileText className="h-4 w-4" /></span>
                     <div className="min-w-0">
-                      <p className="text-[15px] font-bold text-slate-900">{r.requisitionId || 'REQUISITION'}</p>
-                      <h2 className="truncate text-2xl font-bold tracking-tight text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</h2>
-                      <p className="mt-0.5 text-[15px] text-slate-500">{r.department?.name || 'Department not specified'}</p>
+                      <p className="text-[11px] font-bold text-slate-900">{r.requisitionId || 'REQUISITION'}</p>
+                      <h2 className="truncate text-base font-bold tracking-tight text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</h2>
+                      <p className="mt-px text-[11px] text-slate-500">{r.department?.name || 'Department not specified'}</p>
                     </div>
                   </div>
-                  <span className="shrink-0"><span className="inline-flex items-center rounded-md bg-red-100 px-3 py-1.5 text-[13px] font-bold text-red-600"><span className="capitalize">{r.priority}</span> Priority</span></span>
+                  <span className="shrink-0"><span className="inline-flex items-center rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600"><span className="capitalize">{r.priority}</span> Priority</span></span>
                 </div>
 
                 {/* Mini stat tiles */}
-                <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <StatTile label="Openings" value={String(r.numberOfOpenings)} icon={<FiUsers className="h-5 w-5 text-green-600" />} />
-                  <StatTile label="Salary Budget" value={r.salaryBudget || 'Not specified'} icon={<FiDollarSign className="h-5 w-5 text-amber-500" />} />
-                  <StatTile label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not specified'} icon={<FiCalendar className="h-5 w-5 text-green-600" />} />
-                  <StatTile label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} icon={<FiLayers className="h-5 w-5 text-green-600" />} />
+                <div className="mt-2.5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  <StatTile label="Openings" value={String(r.numberOfOpenings)} icon={<FiUsers className="h-3.5 w-3.5 text-green-600" />} />
+                  <StatTile label="Salary Budget" value={r.salaryBudget || 'Not specified'} icon={<FiDollarSign className="h-3.5 w-3.5 text-amber-500" />} />
+                  <StatTile label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not specified'} icon={<FiCalendar className="h-3.5 w-3.5 text-green-600" />} />
+                  <StatTile label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} icon={<FiLayers className="h-3.5 w-3.5 text-green-600" />} />
                 </div>
 
                 {/* Required skills */}
-                <div className="mt-5">
-                  <h3 className="text-[15px] font-bold text-slate-900">Required Skills</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {skillList.length > 0 ? skillList.map((skill) => <span key={skill} className="rounded-md bg-green-100 px-3 py-1 text-[13px] font-medium text-green-800">{skill}</span>) : <span className="text-sm text-slate-400">Not specified</span>}
+                <div className="mt-2.5">
+                  <h3 className="text-[11px] font-bold text-slate-900">Required Skills</h3>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {skillList.length > 0 ? skillList.map((skill) => <span key={skill} className="rounded-md bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">{skill}</span>) : <span className="text-[10px] text-slate-400">Not specified</span>}
                   </div>
                 </div>
 
-                {/* Approval timeline (vertical) */}
-                <div className="mt-6">
-                  <h3 className="text-[15px] font-bold text-slate-900">Approval Timeline</h3>
-                  <div className="mt-4">
-                    {['Request Submitted', 'HR Review', 'Finance Review', 'Job Posting'].map((label, index) => {
+                {/* Approval timeline (horizontal compact strip, replaces tall vertical) */}
+                <div className="mt-2.5">
+                  <h3 className="text-[11px] font-bold text-slate-900">Approval Timeline</h3>
+                  <div className="mt-1.5 flex items-center gap-1">
+                    {['Submitted', 'HR Review', 'Finance', 'Job Posting'].map((label, index) => {
                       const done = index < stageIndex || (index === 3 && r.approvalStatus === 'budget_approved');
                       const current = index === stageIndex && r.approvalStatus !== 'budget_approved';
                       const isLast = index === 3;
-                      const highlight = current && !isFailed;
                       return (
-                        <div key={label} className={`flex gap-3.5 ${highlight ? 'rounded-xl bg-green-50 p-3.5' : 'pb-5 pl-3.5'}`}>
-                          <div className="flex flex-col items-center">
-                            <span className={`z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${isFailed && current ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-green-600 bg-green-600 text-white' : current ? 'border-green-500 bg-white' : 'border-slate-300 bg-white'}`}>
-                              {done ? <FiCheck className="h-3 w-3" /> : <span className={`h-[9px] w-[9px] rounded-full ${current ? 'bg-green-500' : 'bg-slate-200'}`} />}
+                        <div key={label} className="flex items-center gap-1 flex-1">
+                          <div className="flex items-center gap-1">
+                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${isFailed && current ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-green-600 bg-green-600 text-white' : current ? 'border-green-500 bg-white' : 'border-slate-300 bg-white'}`}>
+                              {done ? <FiCheck className="h-2.5 w-2.5" /> : <span className={`h-1.5 w-1.5 rounded-full ${current ? 'bg-green-500' : 'bg-slate-200'}`} />}
                             </span>
-                            {!isLast && <span className={`w-0.5 flex-1 ${done ? 'bg-green-500' : 'bg-slate-200'}`} />}
+                            <span className={`text-[9px] font-semibold ${current || done ? 'text-slate-900' : 'text-slate-500'}`}>{label}</span>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-[15px] font-bold ${current || done ? 'text-slate-900' : 'text-slate-700'}`}>{label}</p>
-                            <p className={`mt-0.5 text-[13px] ${current ? 'text-slate-600' : 'text-slate-500'}`}>{stepDescription(index, stageIndex, approvalHistory)}</p>
-                          </div>
+                          {!isLast && <span className={`h-px flex-1 ${done ? 'bg-green-500' : 'bg-slate-200'}`} />}
                         </div>
                       );
                     })}
@@ -615,7 +611,7 @@ export default function RequisitionsPage() {
 
                 {/* Full details (toggled by View Full Details) */}
                 {showFullDetails && (
-                  <div className="mt-5 grid auto-rows-fr gap-3 border-t border-slate-100 pt-5 sm:grid-cols-2">
+                  <div className="mt-2.5 grid auto-rows-fr gap-2 border-t border-slate-100 pt-2.5 sm:grid-cols-2">
                     <DetailField label="Experience" value={r.experienceRequired || 'Not specified'} />
                     <DetailField label="Qualification" value={r.qualification || 'Not specified'} />
                     <DetailField label="Position Type" value={r.positionType || 'Not specified'} capitalize />
@@ -624,18 +620,18 @@ export default function RequisitionsPage() {
                 )}
 
                 {/* Approval history */}
-                {approvalHistory.length > 0 && !showFullDetails && <details className="group mt-5 rounded-xl border border-slate-200 bg-slate-50"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700"><span>Approval history ({approvalHistory.length})</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary><div className="max-h-44 space-y-2 overflow-y-auto border-t border-slate-200 p-3">{approvalHistory.map((h) => <div key={h.id} className="rounded-lg border border-slate-100 bg-white p-3 text-xs"><p className="text-slate-700">{h.details}</p><p className="mt-1 text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
+                {approvalHistory.length > 0 && !showFullDetails && <details className="group mt-2.5 rounded-lg border border-slate-200 bg-slate-50"><summary className="flex cursor-pointer list-none items-center justify-between px-2.5 py-1.5 text-[11px] font-semibold text-slate-700"><span>Approval history ({approvalHistory.length})</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary><div className="max-h-32 space-y-1.5 overflow-y-auto border-t border-slate-200 p-2">{approvalHistory.map((h) => <div key={h.id} className="rounded-md border border-slate-100 bg-white p-2 text-[10px]"><p className="text-slate-700">{h.details}</p><p className="mt-px text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
 
                 {/* Actions */}
-                <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
-                  {(() => { const actions = detailActions(r); return actions.length > 0 ? actions : <span className="text-sm text-slate-400">No actions available for your role at this stage.</span>; })()}
-                  <button type="button" onClick={() => setShowFullDetails((v) => !v)} className="inline-flex items-center gap-2 rounded-lg border border-green-600 bg-white px-5 py-2.5 text-sm font-bold text-green-700 transition hover:bg-green-50">
-                    <FiExternalLink className="h-4 w-4" />{showFullDetails ? 'Hide Full Details' : 'View Full Details'}
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
+                  {(() => { const actions = detailActions(r); return actions.length > 0 ? actions : <span className="text-[11px] text-slate-400">No actions available for your role at this stage.</span>; })()}
+                  <button type="button" onClick={() => setShowFullDetails((v) => !v)} className="inline-flex items-center gap-1 rounded-md border border-green-600 bg-white px-2.5 py-1 text-[11px] font-bold text-green-700 transition hover:bg-green-50">
+                    <FiExternalLink className="h-3 w-3" />{showFullDetails ? 'Hide' : 'View Full Details'}
                   </button>
-                  {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"><FiEdit2 className="h-4 w-4" /> Edit</button>}
-                  {r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50"><FiTrash2 className="h-4 w-4" /> Delete</button>}
+                  {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"><FiEdit2 className="h-3 w-3" /> Edit</button>}
+                  {r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"><FiTrash2 className="h-3 w-3" /> Delete</button>}
                 </div>
-                {deleteConfirmId === r.id && <div className="mt-3 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs font-semibold text-red-700">Delete this draft requisition permanently?</p><div className="flex gap-2"><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">Cancel</button><button type="button" onClick={() => handleDelete(r.id)} disabled={deleting} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete Draft'}</button></div></div>}
+                {deleteConfirmId === r.id && <div className="mt-2 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-[10px] font-semibold text-red-700">Delete this draft requisition permanently?</p><div className="flex gap-1.5"><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold">Cancel</button><button type="button" onClick={() => handleDelete(r.id)} disabled={deleting} className="rounded-md bg-red-600 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete Draft'}</button></div></div>}
               </div>;
             })()}
           </div>
