@@ -133,7 +133,7 @@ function ApplyLeaveContent() {
         const headers = getAuthHeaders();
         const sq = scopeQuery();
         const [ltRes, empRes, balRes, holRes, ownRes] = await Promise.all([
-          fetch(`/api/leave-types?limit=50${sq ? `&${sq}` : ''}`, { headers }),
+          fetch(`/api/leave-types?limit=100`, { headers }),
           fetch(`/api/employees?limit=1&own=1&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
           fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers }).catch(() => null),
           fetch(`/api/holidays${sq ? `?${sq}` : ''}`, { headers }).catch(() => null),
