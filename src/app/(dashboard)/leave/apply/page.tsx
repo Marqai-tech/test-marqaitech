@@ -493,33 +493,43 @@ function ApplyLeaveContent() {
                 <p className="text-[12px] leading-relaxed">{policyWarning}</p>
               </div>
             )}
-            {/* Leave type — 3-col grid */}
+            {/* Leave type — dropdown select */}
             <div>
               <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-2">
                 Leave type <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {leaveTypes.length === 0 ? (
-                  <p className="col-span-2 sm:col-span-3 text-sm text-slate-400 py-4 text-center">No leave types configured.</p>
-                ) : leaveTypes.map(lt => {
-                  const bal = leaveBalances.find(b => b.leaveType.id === lt.id);
-                  const available = bal ? Math.max(0, (bal.total || 0) - (bal.used || 0)) : lt.defaultDays || 0;
-                  const selected = form.leaveTypeId === lt.id;
-                  const theme = getLeaveTheme(lt.code, lt.name);
-                  return (
-                    <button
-                      key={lt.id}
-                      onClick={() => set('leaveTypeId', lt.id)}
-                      className={`text-left border rounded-lg p-2.5 flex flex-col gap-1 transition-all relative ${selected ? 'shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
-                      style={selected ? { borderColor: theme.color, background: theme.soft, boxShadow: `0 0 0 1px ${theme.color}` } : undefined}
-                    >
-                      <span className="font-mono text-[10.5px] font-extrabold" style={{ color: theme.color }}>{(lt.code || lt.name).slice(0, 6).toUpperCase()}</span>
-                      <span className="text-[12px] font-semibold text-slate-800 truncate">{lt.name}</span>
-                      <span className="text-[11px] text-slate-500">{fmtNum(available)} <span className="text-slate-400">avail.</span></span>
-                    </button>
-                  );
-                })}
-              </div>
+              {leaveTypes.length === 0 ? (
+                <p className="text-sm text-slate-400 py-4 text-center">No leave types configured.</p>
+              ) : (
+                <select
+                  value={form.leaveTypeId}
+                  onChange={e => set('leaveTypeId', e.target.value)}
+                  className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                >
+                  <option value="">— Select leave type —</option>
+                  {leaveTypes.map(lt => {
+                    const bal = leaveBalances.find(b => b.leaveType.id === lt.id);
+                    const available = bal ? Math.max(0, (bal.total || 0) - (bal.used || 0)) : lt.defaultDays || 0;
+                    return (
+                      <option key={lt.id} value={lt.id}>
+                        {lt.code} — {lt.name} ({fmtNum(available)} avail.)
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+              {/* Show selected leave type info */}
+              {selectedType && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                  <span className="font-semibold" style={{ color: getLeaveTheme(selectedType.code, selectedType.name).color }}>
+                    {selectedType.code}
+                  </span>
+                  <span>{selectedType.name}</span>
+                  {selectedBalance && (
+                    <span className="text-slate-400">| Entitled: {fmtNum(selectedBalance.total || 0)}d, Used: {fmtNum(selectedBalance.used || 0)}d, Remaining: {fmtNum(Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0)))}d</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* From / To dates — 2 columns */}
