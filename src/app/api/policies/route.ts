@@ -163,10 +163,11 @@ export async function POST(req: NextRequest) {
     // covered the first 100 loaded records — the server is now the source
     // of truth.
     const normalizedVersion = String(version || '1.0').trim();
+    const trimmedTitle = String(title).trim();
     const duplicatePolicy = await db.policy.findFirst({
       where: {
         companyId: resolvedCompanyId,
-        title: { equals: String(title).trim(), mode: 'insensitive' },
+        title: { equals: trimmedTitle, mode: 'insensitive' },
         version: { equals: normalizedVersion, mode: 'insensitive' },
       },
       select: { id: true, title: true, version: true, status: true },
@@ -174,6 +175,41 @@ export async function POST(req: NextRequest) {
     if (duplicatePolicy) {
       return NextResponse.json({
         error: `A policy titled "${duplicatePolicy.title}" with version ${duplicatePolicy.version} already exists. Please use a different version number (e.g. bump the version) or edit the existing policy.`,
+      }, { status: 409, headers: corsHeaders() });
+    }
+
+    // ─── FUZZY LOOK-ALIKE CHECK (VAL-P01 / BUG-LM-009) ───
+    // Block look-alike titles: case-insensitive, trimmed, ignoring extra
+    // spaces and trailing digits/punctuation. This prevents 5 probation
+    // policies like "probation", "Probation Policy1", "probation leavess".
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const newNorm = normalize(trimmedTitle);
+    const allCompanyPolicies = await db.policy.findMany({
+      where: { companyId: resolvedCompanyId, category },
+      select: { id: true, title: true, status: true },
+    });
+    const lookAlike = allCompanyPolicies.find(p => {
+      const existingNorm = normalize(p.title);
+      // Exact match after normalization
+      if (existingNorm === newNorm) return true;
+      // One is a prefix of the other (e.g. "probation" vs "probation policy")
+      if (existingNorm.startsWith(newNorm) || newNorm.startsWith(existingNorm)) return true;
+      // Levenshtein distance ≤ 2 for short strings (catches typos like "leavee" vs "leave")
+      if (Math.abs(existingNorm.length - newNorm.length) <= 2 && existingNorm.length >= 5) {
+        let dist = 0;
+        const longer = existingNorm.length >= newNorm.length ? existingNorm : newNorm;
+        const shorter = existingNorm.length >= newNorm.length ? newNorm : existingNorm;
+        for (let i = 0, j = 0; i < longer.length && dist <= 2; i++) {
+          if (j < shorter.length && longer[i] === shorter[j]) { j++; }
+          else { dist++; }
+        }
+        if (dist <= 2) return true;
+      }
+      return false;
+    });
+    if (lookAlike) {
+      return NextResponse.json({
+        error: `A similar policy "${lookAlike.title}" already exists (status: ${lookAlike.status}). Please edit that policy instead of creating a new one, or use a significantly different title.`,
       }, { status: 409, headers: corsHeaders() });
     }
 

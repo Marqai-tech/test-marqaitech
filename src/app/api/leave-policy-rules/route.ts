@@ -159,6 +159,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: ownership.error || 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
+    // ─── DUPLICATE RULE NAME CHECK (VAL-R05) ───
+    // A rule name must be unique within the same company + same leave type.
+    // This prevents duplicates like "MTD – Standard" appearing twice.
+    if (body.leaveTypeId) {
+      const existing = await db.leavePolicyRule.findFirst({
+        where: {
+          companyId: resolvedCompanyId,
+          name: { equals: name, mode: 'insensitive' },
+        },
+        select: { id: true, name: true },
+      }).catch(() => null);
+      // Check via raw SQL since leaveTypeId is a runtime column not in Prisma schema
+      if (existing) {
+        try {
+          const dupeCheck: any[] = await db.$queryRawUnsafe(
+            `SELECT id FROM "LeavePolicyRule" WHERE "companyId" = $1 AND LOWER(name) = LOWER($2) AND "leaveTypeId" = $3`,
+            resolvedCompanyId, name, body.leaveTypeId
+          );
+          if (dupeCheck.length > 0) {
+            return NextResponse.json({ error: `A rule named "${name}" already exists for this leave type. Please use a different name.` }, { status: 409, headers: corsHeaders() });
+          }
+        } catch {
+          // If the raw SQL fails (column doesn't exist yet), fall back to the Prisma check
+          return NextResponse.json({ error: `A rule named "${name}" already exists. Please use a different name.` }, { status: 409, headers: corsHeaders() });
+        }
+      }
+    }
+
     // Step 1: Create with Prisma — only fields that exist in the generated schema
     const rule = await db.leavePolicyRule.create({
       data: {
