@@ -282,7 +282,7 @@ export default function LeaveSetupPage() {
       {mode === 'list' && tab === 'policy' && <PolicyList policies={policies} types={types} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('policy', 'form')} onEdit={(id) => go('policy', 'form', id)} />}
       {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} types={types} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
-      {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
+      {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} policies={policies} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'mapping' && <MappingOverview types={types} policies={policies} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('mapping', 'form')} onEdit={(policyId) => go('mapping', 'form', policyId)} onRefresh={fetchAll} />}
       {mode === 'form' && tab === 'mapping' && <MappingForm editPolicyId={editId} types={types} policies={policies} rules={rules} mappings={mappings} onCancel={() => go('mapping')} onSaved={onSaved} onGoToRules={() => go('rules', 'form')} sq={sq} />}
       {/* BUG_234 FIX: bottom padding so floating AI icon doesn't cover buttons */}
@@ -882,10 +882,11 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
 }
 
 /* ═══ Rule Form (inline) ═══ */
-function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: string | null; rules: LRule[]; types: LType[]; onCancel: () => void; onSaved: () => void; sq: string }) {
+function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { editId: string | null; rules: LRule[]; types: LType[]; policies: LPolicy[]; onCancel: () => void; onSaved: () => void; sq: string }) {
   const orig = editId && rules.find(r => r.id === editId);
   const [f, setF] = useState({
     name: orig?.name || '', leaveTypeId: orig?.leaveTypeId || orig?.typeId || '',
+    policyId: orig?.policyId || '',
     status: orig?.status || 'draft',
     // Section 2: Entitlement & credit
     entitled: true, entitledDaysPerYear: String(orig?.entitledDaysPerYear || ''),
@@ -916,7 +917,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
   const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
   const t = types.find(x => x.id === f.leaveTypeId);
   const errs: Record<string, string> = {};
-  if (!f.leaveTypeId) errs.leaveTypeId = 'Select a leave type';
+  if (!f.policyId) errs.policyId = 'Select a policy';
   if (!f.name.trim()) errs.name = 'Enter a rule name';
   if (f.entitled && !f.entitledDaysPerYear) errs.entitledDaysPerYear = 'Enter days per year';
   if (!f.maxDaysPerRequest) errs.maxDaysPerRequest = 'Enter maximum days';
@@ -949,7 +950,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
     setSaving(true);
     try {
       const body = {
-        name: f.name, leaveTypeId: f.leaveTypeId, status: f.status,
+        name: f.name, leaveTypeId: f.leaveTypeId || null, policyId: f.policyId || null, status: f.status,
         gender: f.gender, entitledDaysPerYear: Number(f.entitledDaysPerYear) || 0,
         minDaysPerRequest: Number(f.minDaysPerRequest) || 0.5, maxDaysPerRequest: Number(f.maxDaysPerRequest) || 0,
         advanceNoticeDays: Number(f.advanceNoticeDays) || 0, halfDayAllowed: f.halfDayAllowed,
@@ -1003,7 +1004,7 @@ function RuleForm({ editId, rules, types, onCancel, onSaved, sq }: { editId: str
           {/* Section 1: Rule details */}
           {sec(1, 'Rule details', 'Which leave type these rules are for.', 'ru-basic',
             <div className="grid grid-cols-2 gap-x-6">
-              {fld('Leave type', true, undefined, show('leaveTypeId'), false, <select className={inp + (show('leaveTypeId')?' border-red-300 bg-red-50':'')} value={f.leaveTypeId} onChange={e => { set('leaveTypeId', e.target.value); if (!f.name) { const ty = types.find(x => x.id === e.target.value); ty && set('name', ty.code + ' \u2013 Standard'); } }}><option value="">Select leave type…</option>{types.filter(x => x.status === 'active').map(x => <option key={x.id} value={x.id}>{x.code} \u2013 {x.name}</option>)}</select>)}
+              {fld('Leave Policy', true, 'Bind this rule to a leave policy', show('policyId'), false, <select className={inp + (show('policyId')?' border-red-300 bg-red-50':'')} value={f.policyId} onChange={e => { set('policyId', e.target.value); if (!f.name) { const pol = policies.find(x => x.id === e.target.value); pol && set('name', pol.title + ' Rule'); } }}><option value="">Select policy…</option>{policies.filter(x => x.status === 'active' || x.status === 'draft').map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>)}
               {fld('Rule name', true, undefined, show('name'), false, <input className={inp + (show('name')?' border-red-300 bg-red-50':'')} value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. CL – Standard"/>)}
               {fld('Status', undefined, undefined, undefined, false, seg('status', ['Draft', 'Active', 'Inactive']))}
             </div>
