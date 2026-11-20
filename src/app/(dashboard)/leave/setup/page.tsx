@@ -277,11 +277,11 @@ export default function LeaveSetupPage() {
 
       {/* Content */}
       {mode === 'list' && tab === 'types' && <TypesList types={types} rules={rules} loading={loading} onCreate={() => go('types', 'form')} onEdit={(id) => go('types', 'form', id)} />}
-      {mode === 'form' && tab === 'types' && <TypeForm editId={editId} types={types} onCancel={() => go('types')} onSaved={onSaved} scopeQuery={sq} />}
+      {mode === 'form' && tab === 'types' && <TypeForm key={editId || 'new'} editId={editId} types={types} onCancel={() => go('types')} onSaved={onSaved} scopeQuery={sq} />}
       {mode === 'list' && tab === 'policy' && <PolicyList policies={policies} types={types} rules={rules} mappings={mappings} loading={loading} onCreate={() => go('policy', 'form')} onEdit={(id) => go('policy', 'form', id)} />}
-      {mode === 'form' && tab === 'policy' && <PolicyForm editId={editId} policies={policies} types={types} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
+      {mode === 'form' && tab === 'policy' && <PolicyForm key={editId || 'new'} editId={editId} policies={policies} types={types} onCancel={() => go('policy')} onSaved={onSaved} sq={sq} />}
       {mode === 'list' && tab === 'rules' && <RulesList rules={rules} types={types} loading={loading} onCreate={() => go('rules', 'form')} onEdit={(id) => go('rules', 'form', id)} />}
-      {mode === 'form' && tab === 'rules' && <RuleForm editId={editId} rules={rules} types={types} policies={policies} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
+      {mode === 'form' && tab === 'rules' && <RuleForm key={editId || 'new'} editId={editId} rules={rules} types={types} policies={policies} onCancel={() => go('rules')} onSaved={onSaved} sq={sq} />}
       {/* Mapping tab removed — mapping is now done via the standalone /leave/configuration page */}
       {/* BUG_234 FIX: bottom padding so floating AI icon doesn't cover buttons */}
       <div className="h-16" />
