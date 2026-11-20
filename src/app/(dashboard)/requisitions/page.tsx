@@ -143,7 +143,7 @@ function composeSalaryRange(min: string, max: string): string {
   if (a && b) return `${a}-${b}`;
   return a || b;
 }
-const INPUT_CLS = 'h-[34px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
+const INPUT_CLS = 'h-[30px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[11px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
 const BADGE = 'inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold';
 export default function RequisitionsPage() {
   const { user } = useAuthStore();
@@ -541,9 +541,9 @@ export default function RequisitionsPage() {
   if (showForm) {
     const roundRows = parseInterviewPlan(form.interviewPlan);
     return (
-      <div className="-m-3 flex flex-col gap-2 overflow-y-auto bg-slate-50 p-3 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
+      <div className="-m-3 flex flex-col gap-1.5 overflow-y-auto bg-slate-50 p-2.5 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
         {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-slate-500">
+        <nav aria-label="Breadcrumb" className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-slate-500 [@media(max-height:760px)]:hidden">
           <a href="/dashboard" className="text-slate-400 transition hover:text-green-700" aria-label="Home"><FiHome className="h-3.5 w-3.5" /></a>
           <span className="text-slate-300">/</span>
           <a href="/recruitment" className="transition hover:text-green-700">Recruitment</a>
@@ -558,10 +558,10 @@ export default function RequisitionsPage() {
           <h1 className="text-[22px] font-bold leading-[26px] text-slate-900">{editingId ? 'Edit Requisition' : 'Raise New Requisition'}</h1>
           <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-100 px-2 text-[10px] font-bold text-green-700"><FiFileText className="h-3 w-3" />{editingId ? 'Editing' : 'Draft'}</span>
         </div>
-        <p className="shrink-0 text-[12px] leading-4 text-slate-500">Create a hiring request with role details, requirements, budget and interview rounds.</p>
+        <p className="shrink-0 text-[11px] leading-4 text-slate-500 [@media(max-height:760px)]:hidden">Create a hiring request with role details, requirements, budget and interview rounds.</p>
 
         {/* Required-field note + compact approval path */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-[10px] border border-slate-200 bg-white px-3 py-2 shadow-sm">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-[10px] border border-slate-200 bg-white px-3 py-1.5 shadow-sm [@media(max-height:680px)]:hidden">
           <span className="text-[11px] text-slate-500">Required fields are marked with <span className="font-bold text-red-500">*</span></span>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             <span className="font-bold text-slate-600">Approval Path:</span>
@@ -574,14 +574,14 @@ export default function RequisitionsPage() {
         </div>
 
         {/* Two-column cards */}
-        <div className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="grid shrink-0 grid-cols-1 gap-2 lg:grid-cols-2">
           {/* Role & Position */}
-          <section className="rounded-[10px] border border-slate-200 bg-white p-3 shadow-sm">
+          <section className="rounded-[10px] border border-slate-200 bg-white p-2.5 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiBriefcase className="h-4 w-4" /></span>
               <h2 className="text-[15px] font-bold text-slate-900">Role &amp; Position</h2>
             </div>
-            <div className="mt-2.5 grid grid-cols-[124px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+            <div className="mt-2 grid grid-cols-[118px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1">
               <label className="text-[11px] font-semibold text-slate-600">Department <span className="text-red-500">*</span></label>
               {departments.length > 0 ? (
                 <select required value={form.departmentId} onChange={(e) => {
@@ -637,12 +637,12 @@ export default function RequisitionsPage() {
           </section>
 
           {/* Requirements & Budget */}
-          <section className="rounded-[10px] border border-slate-200 bg-white p-3 shadow-sm">
+          <section className="rounded-[10px] border border-slate-200 bg-white p-2.5 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiDollarSign className="h-4 w-4" /></span>
               <h2 className="text-[15px] font-bold text-slate-900">Requirements &amp; Budget</h2>
             </div>
-            <div className="mt-2.5 grid grid-cols-[124px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+            <div className="mt-2 grid grid-cols-[118px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1">
               <label className="text-[11px] font-semibold text-slate-600">Salary Range / Budget <span className="text-red-500">*</span></label>
               <div className="flex items-center gap-1.5">
                 <input value={salaryMin} onChange={(e) => { const v = e.target.value; setSalaryMin(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(v, salaryMax) })); }} placeholder="Min" className={INPUT_CLS} inputMode="text" />
@@ -688,12 +688,12 @@ export default function RequisitionsPage() {
         </div>
 
         {/* Interview Rounds — full width, compact table */}
-        <section className="flex min-h-0 flex-col rounded-[10px] border border-slate-200 bg-white p-3 shadow-sm lg:flex-1">
+        <section className="flex min-h-[150px] flex-col rounded-[10px] border border-green-200 bg-white p-2.5 shadow-sm lg:flex-1">
           <div className="flex shrink-0 items-center gap-2">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiUsers className="h-4 w-4" /></span>
             <h2 className="text-[15px] font-bold text-slate-900">Interview Rounds <span className="text-red-500">*</span></h2>
           </div>
-          <div className="mt-2 min-h-0 overflow-y-auto rounded-[8px] border border-slate-200">
+          <div id="interview-rounds-list" className="mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-[8px] border border-slate-200 [scrollbar-width:thin]">
             <div className="grid grid-cols-[36px_minmax(0,1fr)_150px_80px] gap-2 rounded-t-[8px] bg-green-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-700">
               <span>#</span><span>Round Name</span><span>Round Type</span><span className="text-center">Actions</span>
             </div>
@@ -728,7 +728,7 @@ export default function RequisitionsPage() {
             {roundRows.length === 0 && <div className="border-t border-slate-100 px-3 py-4 text-center text-[11px] text-red-600">No interview rounds configured. Click <b>Add Round</b> and enter a round name.</div>}
           </div>
           <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
-            <button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan([...roundRows, { name: '', type: 'technical' }]) })} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-600 bg-white px-3 text-[11px] font-bold text-green-700 transition hover:bg-green-50"><FiPlus className="h-3.5 w-3.5" />Add Round</button>
+            <button type="button" onClick={() => { const next = [...roundRows, { name: '', type: 'technical' as const }]; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); setTimeout(() => { const list = document.getElementById('interview-rounds-list'); if (list) list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' }); }, 50); }} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-600 bg-white px-3 text-[11px] font-bold text-green-700 transition hover:bg-green-50"><FiPlus className="h-3.5 w-3.5" />Add Round</button>
             <p className="text-[10px] text-slate-400">{roundRows.length} round(s) configured · at least one named round is required to submit</p>
           </div>
         </section>
@@ -797,15 +797,18 @@ export default function RequisitionsPage() {
                 {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { setActiveTab('requisitions'); setListFilter(key); }} className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
               </div>
             </div>
-            <div className="max-h-[400px] space-y-1.5 overflow-y-auto p-2">
+            <div className="grid grid-cols-[56px_minmax(0,1fr)_38px_58px_100px] items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+              <span>Req ID</span><span>Position</span><span className="text-center">Open</span><span className="text-center">Priority</span><span className="text-center">Status</span>
+            </div>
+            <div className="max-h-[372px] space-y-1.5 overflow-y-auto p-2">
               {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-slate-100" />) : filteredRequisitions.length === 0 ? <div className="px-4 py-10 text-center"><FiSearch className="mx-auto h-6 w-6 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No matching requisitions</p><p className="mt-1 text-[10px] text-slate-400">Try another search or filter.</p></div> : filteredRequisitions.map((r) => {
                 const selected = selectedRequisition?.id === r.id;
-                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
-                  <span className="w-[60px] shrink-0 text-[11px] font-bold text-slate-900">{r.requisitionId || '—'}</span>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[10px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
-                  <span className="w-10 shrink-0"><span className="block text-[9px] text-slate-500">Open</span><span className="block text-[11px] font-bold text-slate-900">{r.numberOfOpenings}</span></span>
-                  <span className="shrink-0"><span className={getPriorityBadge(r.priority)}><span className="capitalize">{r.priority}</span></span></span>
-                  <span className="shrink-0"><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span></span>
+                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`grid min-h-[46px] w-full grid-cols-[56px_minmax(0,1fr)_38px_58px_100px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
+                  <span className="truncate text-[10px] font-bold text-slate-900" title={r.requisitionId || '—'}>{r.requisitionId || '—'}</span>
+                  <span className="min-w-0" title={`${r.designation?.title || r.positionTitle || 'Position not specified'} — ${r.department?.name || 'Department not specified'}`}><span className="block truncate text-[11px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[9px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
+                  <span className="text-center text-[11px] font-bold tabular-nums text-slate-900">{r.numberOfOpenings}</span>
+                  <span className="min-w-0"><span className={`${getPriorityBadge(r.priority)} w-full justify-center overflow-hidden px-1`} title={r.priority}><span className="truncate capitalize">{r.priority}</span></span></span>
+                  <span className="min-w-0"><span className={`${getApprovalBadge(r.approvalStatus)} w-full justify-center overflow-hidden px-1`} title={getApprovalLabel(r.approvalStatus)}><span className="truncate">{getApprovalLabel(r.approvalStatus)}</span></span></span>
                 </button>;
               })}
             </div>
