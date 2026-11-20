@@ -2116,7 +2116,7 @@ export default function RecruitmentPage() {
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'jobs' && (
         <>
-        <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+        <div className="flex flex-col gap-4">
           <div className="flex min-h-0 h-full flex-col gap-4">
           {/* Filter Bar */}
           <div className="thb-card p-3">
