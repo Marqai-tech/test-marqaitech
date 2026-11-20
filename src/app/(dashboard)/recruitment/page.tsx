@@ -1879,22 +1879,6 @@ export default function RecruitmentPage() {
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <Link
-              href="/recruitment/analytics"
-              className="inline-flex items-center gap-2 px-3 py-2.5 border border-teal-200 text-teal-700 rounded-lg hover:bg-teal-50 font-medium text-sm transition-colors"
-              title="Recruitment Analytics: Cost per Hire, Time to Fill, source effectiveness"
-            >
-              <FiBarChart2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Analytics</span>
-            </Link>
-            <Link
-              href="/recruitment/job-boards"
-              className="inline-flex items-center gap-2 px-3 py-2.5 border border-sky-200 text-sky-700 rounded-lg hover:bg-sky-50 font-medium text-sm transition-colors"
-              title="Manage all external job board postings"
-            >
-              <FiExternalLink className="w-4 h-4" />
-              <span className="hidden sm:inline">Job Boards</span>
-            </Link>
             <button onClick={handleOpenAddJobForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
               <FiPlus className="w-4 h-4" />
               Create Job
@@ -2319,7 +2303,7 @@ export default function RecruitmentPage() {
                                 </td>
                               </tr>
                               {/* Expanded Content */}
-                              {isExpanded && (
+                              {false && isExpanded && (
                                 <tr className="bg-slate-50/50">
                                   <td colSpan={7} className="px-5 py-5">
                                     <div className="space-y-4">
@@ -2444,7 +2428,8 @@ export default function RecruitmentPage() {
               <div><h4 className="text-xs font-bold text-slate-800">Salary Budget</h4><p className="mt-1 text-sm font-semibold text-slate-950">{selectedJob.salary || 'Not specified'}</p></div>
               <div><h4 className="text-xs font-bold text-slate-800">Interview Rounds</h4><div className="mt-1 flex flex-wrap gap-1.5">{parseInterviewPlan(selectedJob.interviewPlan || '').map((round, index) => <span key={`${round.name}-${index}`} className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div></div>
               <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3"><h4 className="text-xs font-bold text-emerald-900">Applications</h4><p className="mt-1 text-2xl font-bold text-emerald-700">{selectedJob._count?.applications || selectedJob.applications?.length || 0}</p></div>
-              <div className="mt-auto flex flex-wrap gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => handleOpenEditJobForm(selectedJob)} className="rounded-lg border border-thb-border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit Job</button><Link href={`/recruitment/${selectedJob.id}`} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50">View Details</Link><button type="button" onClick={() => setDeleteConfirmId(selectedJob.id)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></div>
+              <div className="grid gap-2 sm:grid-cols-2"><div><h4 className="text-xs font-bold text-slate-800">Description</h4><p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">{selectedJob.description || 'No description added.'}</p></div><div><h4 className="text-xs font-bold text-slate-800">Requirements</h4><p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">{selectedJob.requirements || 'No requirements added.'}</p></div></div>
+              <div className="mt-auto flex flex-wrap gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => handleOpenEditJobForm(selectedJob)} className="rounded-lg border border-thb-border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit Job</button><Link href={`/recruitment/${selectedJob.id}`} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50">View Applications</Link><button type="button" onClick={() => setDeleteConfirmId(selectedJob.id)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></div>
             </div> : <div className="flex h-[420px] items-center justify-center p-6 text-center text-sm text-slate-500">No job postings available.</div>}
           </section>
         </div>
