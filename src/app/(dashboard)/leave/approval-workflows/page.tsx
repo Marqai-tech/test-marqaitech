@@ -18,10 +18,9 @@ function getAuthHeaders() {
 
 interface WorkflowTier {
   tier: number;
-  approverType: string;
-  approverId?: string | null;
+  approverType: string; // role name (dynamic)
+  approverId?: string | null; // selected employee ID with that role
   label?: string;
-  slaHours?: number;
 }
 
 interface WorkflowConfig {
@@ -44,25 +43,19 @@ interface WorkflowConfig {
 
 interface LeaveType { id: string; name: string; code: string; }
 
-const APPROVER_OPTIONS = [
+// Dynamic roles — derived from fetched employees at runtime (see useEffect below)
+const ROLE_OPTIONS: Array<{ value: string; label: string; icon: any }> = [
   { value: 'reporting_manager', label: 'Reporting Manager', icon: FiUser },
   { value: 'department_head', label: 'Department Head', icon: FiUsers },
   { value: 'hr_admin', label: 'HR Admin', icon: FiShield },
   { value: 'tenant_admin', label: 'Tenant Admin', icon: FiShield },
-  { value: 'specific_employee', label: 'Specific Employee', icon: FiUser },
+  { value: 'admin', label: 'Admin', icon: FiShield },
+  { value: 'ceo', label: 'CEO', icon: FiShield },
+  { value: 'manager', label: 'Manager', icon: FiUser },
+  { value: 'employee', label: 'Employee', icon: FiUser },
 ];
 
 interface EmpOption { id: string; name: string; email: string; role?: string; employeeId?: string; }
-
-const SLA_OPTIONS = [
-  { value: 1, label: '1 hour' },
-  { value: 4, label: '4 hours' },
-  { value: 8, label: '8 hours' },
-  { value: 24, label: '24 hours' },
-  { value: 48, label: '48 hours' },
-  { value: 72, label: '72 hours' },
-  { value: 168, label: '7 days' },
-];
 
 const DEFAULT_WORKFLOW: WorkflowConfig = {
   name: 'New Workflow',
@@ -71,8 +64,8 @@ const DEFAULT_WORKFLOW: WorkflowConfig = {
   leaveTypeIds: [],
   isActive: true,
   tiers: [
-    { tier: 1, approverType: 'reporting_manager', label: 'Reporting Manager', slaHours: 48 },
-    { tier: 2, approverType: 'hr_admin', label: 'HR Admin', slaHours: 24 },
+    { tier: 1, approverType: 'reporting_manager', label: 'Reporting Manager' },
+    { tier: 2, approverType: 'hr_admin', label: 'HR Admin' },
   ],
   requireAllTiers: true,
   autoApproveShortLeave: false,
@@ -197,7 +190,7 @@ export default function ApprovalWorkflowsPage() {
   const addTier = () => {
     setEditConfig(prev => {
       if (!prev) return prev;
-      const newTier: WorkflowTier = { tier: prev.tiers.length + 1, approverType: 'hr_admin', label: 'HR Admin', slaHours: 24 };
+      const newTier: WorkflowTier = { tier: prev.tiers.length + 1, approverType: 'hr_admin', label: 'HR Admin' };
       return { ...prev, tiers: [...prev.tiers, newTier] };
     });
     setDirty(true);
@@ -264,15 +257,15 @@ export default function ApprovalWorkflowsPage() {
 
   // Test panel simulation
   const testSteps = editConfig?.tiers.map((t, i) => {
-    const approverLabel = APPROVER_OPTIONS.find(a => a.value === t.approverType)?.label || t.approverType;
+    const approverLabel = t.label || t.approverType || 'Unknown';
     const isLast = i === editConfig.tiers.length - 1;
     let status: 'approved' | 'rejected' | 'pending' = 'approved';
     if (testResult === 'one_rejects' && i === editConfig.tiers.length - 1) status = 'rejected';
     if (testResult === 'one_rejects' && i < editConfig.tiers.length - 1) status = 'approved';
-    return { tier: t.tier, approverLabel, status, slaHours: t.slaHours || 24, isLast };
+    return { tier: t.tier, approverLabel, status, isLast };
   }) || [];
   // Prepend employee submission
-  testSteps.unshift({ tier: 0, approverLabel: 'Employee submits', status: 'approved' as const, slaHours: 0, isLast: false });
+  testSteps.unshift({ tier: 0, approverLabel: 'Employee submits', status: 'approved' as const, isLast: false });
 
   return (
     <div className="space-y-4">
@@ -385,29 +378,64 @@ export default function ApprovalWorkflowsPage() {
                 <div className="px-5 py-4 space-y-3">
                   <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2"><FiUsers className="w-4 h-4 text-blue-500" /> Approval Chain</h3>
                   {editConfig.tiers.map((tier, idx) => {
-                    const ApproverIcon = APPROVER_OPTIONS.find(a => a.value === tier.approverType)?.icon || FiUser;
+                    const ApproverIcon = ROLE_OPTIONS.find(a => a.value === tier.approverType)?.icon || FiUser;
                     return (
                       <div key={idx} className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
                         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">{tier.tier}</div>
+                        {/* Role dropdown + employee picker based on selected role (SLA removed per user request) */}
                         <div className="flex-1 grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Approver Role</label>
-                            <select value={tier.approverType} onChange={e => { updateTier(idx, 'approverType', e.target.value); updateTier(idx, 'label', APPROVER_OPTIONS.find(a => a.value === e.target.value)?.label || ''); if (e.target.value !== 'specific_employee') updateTier(idx, 'approverId', null); }} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
-                              {APPROVER_OPTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Role</label>
+                            <select value={tier.approverType} onChange={e => {
+                              const role = e.target.value;
+                              updateTier(idx, 'approverType', role);
+                              updateTier(idx, 'label', ROLE_OPTIONS.find(a => a.value === role)?.label || role);
+                              // Auto-select the first employee with this role (prefer "me")
+                              const candidates = employees.filter(emp => (emp.role || '').toLowerCase() === role.toLowerCase());
+                              if (candidates.length > 0) {
+                                const me = candidates.find(c => c.email === user?.email || c.id === user?.employeeId);
+                                const pick = me || candidates[0];
+                                updateTier(idx, 'approverId', pick.id);
+                                updateTier(idx, 'label', pick.name);
+                              } else {
+                                updateTier(idx, 'approverId', null);
+                              }
+                            }} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
+                              <option value="">— Select role —</option>
+                              {/* Dynamic roles derived from fetched employees */}
+                              {[...new Set(employees.map(e => e.role).filter(Boolean))].sort().map(role => (
+                                <option key={role} value={role}>{String(role).charAt(0).toUpperCase() + String(role).slice(1)}</option>
+                              ))}
+                              {/* Also include predefined roles not in employee data */}
+                              {ROLE_OPTIONS.filter(r => !employees.some(e => e.role === r.value)).map(a => (
+                                <option key={a.value} value={a.value}>{a.label}</option>
+                              ))}
                             </select>
-                            {/* Specific employee picker — shows when 'specific_employee' is selected */}
-                            {tier.approverType === 'specific_employee' && (
-                              <select value={tier.approverId || ''} onChange={e => { updateTier(idx, 'approverId', e.target.value); const emp = employees.find(emp => emp.id === e.target.value); if (emp) updateTier(idx, 'label', emp.name); }} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20 mt-1">
-                                <option value="">— Select employee —</option>
-                                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} {emp.employeeId ? `(${emp.employeeId})` : ''}</option>)}
-                              </select>
-                            )}
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">SLA</label>
-                            <select value={tier.slaHours || 24} onChange={e => updateTier(idx, 'slaHours', parseInt(e.target.value))} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
-                              {SLA_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                            </select>
+                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Approver (by role)</label>
+                            {(() => {
+                              const roleEmps = employees.filter(emp => (emp.role || '').toLowerCase() === (tier.approverType || '').toLowerCase());
+                              return (
+                                <select
+                                  value={tier.approverId || ''}
+                                  onChange={e => {
+                                    updateTier(idx, 'approverId', e.target.value || null);
+                                    const emp = employees.find(emp => emp.id === e.target.value);
+                                    if (emp) updateTier(idx, 'label', emp.name);
+                                  }}
+                                  className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  disabled={!tier.approverType || roleEmps.length === 0}
+                                >
+                                  <option value="">{roleEmps.length === 0 ? 'No employees with this role' : '— Select approver —'}</option>
+                                  {roleEmps.map(emp => (
+                                    <option key={emp.id} value={emp.id}>
+                                      {emp.name} {emp.employeeId ? `(${emp.employeeId})` : ''} {(emp.email === user?.email || emp.id === user?.employeeId) ? '— me' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              );
+                            })()}
                           </div>
                         </div>
                         {editConfig.tiers.length > 1 && (
@@ -519,7 +547,7 @@ export default function ApprovalWorkflowsPage() {
                         </div>
                         <div className="flex-1">
                           <p className="text-xs font-medium text-slate-700">{step.approverLabel}</p>
-                          {step.slaHours > 0 && <p className="text-[10px] text-slate-400">SLA: {step.slaHours}h</p>}
+                          {step.approverLabel && <p className="text-[10px] text-slate-400">{step.approverLabel}</p>}
                         </div>
                         {i < testSteps.length - 1 && <FiArrowRight className="w-3 h-3 text-slate-300" />}
                       </div>
@@ -532,7 +560,7 @@ export default function ApprovalWorkflowsPage() {
                     <div className="grid grid-cols-3 gap-2 pt-2">
                       <div className="text-center"><p className="text-lg font-bold text-slate-700">{testResult === 'all_approve' ? editConfig?.tiers.length || 0 : (editConfig?.tiers.length || 1) - 1}</p><p className="text-[10px] text-slate-400">Approved</p></div>
                       <div className="text-center"><p className="text-lg font-bold text-slate-700">{testResult === 'one_rejects' ? 1 : 0}</p><p className="text-[10px] text-slate-400">Rejected</p></div>
-                      <div className="text-center"><p className="text-lg font-bold text-slate-700">{editConfig?.tiers.reduce((sum, t) => sum + (t.slaHours || 24), 0) || 0}h</p><p className="text-[10px] text-slate-400">Max SLA</p></div>
+                      <div className="text-center"><p className="text-lg font-bold text-slate-700">{editConfig?.tiers.length || 0}</p><p className="text-[10px] text-slate-400">Approval Tiers</p></div>
                     </div>
                   </div>
                 )}
