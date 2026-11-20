@@ -21,11 +21,6 @@ interface WorkflowTier {
   approverType: string; // role name (dynamic)
   approverId?: string | null; // selected employee ID with that role
   label?: string;
-  // Dynamic scope selectors — stored in the workflow config JSON
-  departmentId?: string | null;
-  branchId?: string | null;
-  designationId?: string | null;
-  employeeId?: string | null; // specific employee (overrides role-based selection)
 }
 
 interface WorkflowConfig {
@@ -92,9 +87,6 @@ export default function ApprovalWorkflowsPage() {
   const [workflows, setWorkflows] = useState<WorkflowConfig[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [employees, setEmployees] = useState<EmpOption[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [designations, setDesignations] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,19 +100,15 @@ export default function ApprovalWorkflowsPage() {
   const sq = scopeQuery();
   const sep = sq ? `&${sq}` : '';
   const qsep = sq ? `?${sq}` : '';
-  const companyId = sq ? sq.split('=')[1] : '';
 
   const fetchWorkflows = useCallback(async () => {
     setLoading(true);
     try {
       const h = getAuthHeaders();
-      const [wfRes, ltRes, empRes, brRes, deptRes, desigRes] = await Promise.all([
+      const [wfRes, ltRes, empRes] = await Promise.all([
         fetch(`/api/leave/workflow-config${qsep}`, { headers: h }).catch(() => null),
         fetch(`/api/leave-types?limit=100${sep}`, { headers: h }).catch(() => null),
         fetch(`/api/employees?limit=200&excludeManagement=0${sep}`, { headers: h }).catch(() => null),
-        fetch(`/api/branches?limit=100${sep}`, { headers: h }).catch(() => null),
-        fetch(`/api/departments?limit=100${sep}`, { headers: h }).catch(() => null),
-        fetch(`/api/designations?limit=100${sep}`, { headers: h }).catch(() => null),
       ]);
       if (wfRes?.ok) {
         const d = await wfRes.json();
@@ -166,9 +154,6 @@ export default function ApprovalWorkflowsPage() {
         }));
         setEmployees(emps);
       }
-      if (brRes?.ok) { const d = await brRes.json(); setBranches(d.data || d.branches || []); }
-      if (deptRes?.ok) { const d = await deptRes.json(); setDepartments(d.data || d.departments || []); }
-      if (desigRes?.ok) { const d = await desigRes.json(); setDesignations(d.data || d.designations || []); }
     } catch { toast.error('Failed to load workflows'); }
     finally { setLoading(false); }
   }, [sq, sep, qsep]);
@@ -448,25 +433,6 @@ export default function ApprovalWorkflowsPage() {
                               );
                             })()}
                           </div>
-                        </div>
-                        {/* Dynamic scope selectors — department, branch, designation, specific employee */}
-                        <div className="grid grid-cols-4 gap-1.5 mt-2">
-                          <select value={tier.departmentId || ''} onChange={e => { updateTier(idx, 'departmentId', e.target.value || null); }} className="text-[10px] px-1.5 py-1 border border-slate-200 rounded bg-white outline-none focus:ring-1 focus:ring-blue-500/20" title="Department">
-                            <option value="">Dept: All</option>
-                            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                          </select>
-                          <select value={tier.branchId || ''} onChange={e => { updateTier(idx, 'branchId', e.target.value || null); }} className="text-[10px] px-1.5 py-1 border border-slate-200 rounded bg-white outline-none focus:ring-1 focus:ring-blue-500/20" title="Branch">
-                            <option value="">Branch: All</option>
-                            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                          </select>
-                          <select value={tier.designationId || ''} onChange={e => { updateTier(idx, 'designationId', e.target.value || null); }} className="text-[10px] px-1.5 py-1 border border-slate-200 rounded bg-white outline-none focus:ring-1 focus:ring-blue-500/20" title="Designation/Grade">
-                            <option value="">Grade: All</option>
-                            {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-                          </select>
-                          <select value={tier.employeeId || ''} onChange={e => { updateTier(idx, 'employeeId', e.target.value || null); if (e.target.value) { const emp = employees.find(emp => emp.id === e.target.value); if (emp) { updateTier(idx, 'approverId', emp.id); updateTier(idx, 'label', emp.name); } } }} className="text-[10px] px-1.5 py-1 border border-slate-200 rounded bg-white outline-none focus:ring-1 focus:ring-blue-500/20" title="Specific Employee (overrides role)">
-                            <option value="">Emp: Any</option>
-                            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                          </select>
                         </div>
                         {editConfig.tiers.length > 1 && (
                           <button onClick={() => removeTier(idx)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50" title="Remove tier"><FiTrash2 className="w-4 h-4" /></button>
