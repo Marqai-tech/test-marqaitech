@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEye, FiEdit2, FiTrash2,
+  FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEdit2, FiTrash2,
   FiArrowLeft, FiRotateCcw, FiClock, FiSearch, FiBriefcase, FiCalendar,
+  FiFileText, FiUsers, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -40,58 +41,92 @@ function parseInterviewPlan(value: string): InterviewPlanRow[] {
 }
 function serializeInterviewPlan(rows: InterviewPlanRow[]) { return JSON.stringify(rows.map((row, i) => ({ sequence: i + 1, ...row }))); }
 
-// Task 164: user-facing status labels
+// Mock-screen status labels: the pill vocabulary matches the design —
+// Draft (slate), Pending Approval (amber), In Finance Review (blue),
+// Approved (green), Needs My Action (green, for returned items), Rejected (red).
 function getApprovalLabel(status: string): string {
   const map: Record<string, string> = {
     draft: 'Draft',
-    pending: 'Pending HR Approval',
-    hr_approved: 'Pending Finance Approval',
+    pending: 'Pending Approval',
+    hr_approved: 'In Finance Review',
     budget_approved: 'Approved',
     rejected: 'Rejected',
-    returned: 'Returned for Correction',
+    returned: 'Needs My Action',
   };
   return map[status] || status;
 }
 
 function getApprovalBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'thb-badge bg-slate-100 text-slate-600',
-    pending: 'thb-badge thb-badge-warning',
-    hr_approved: 'thb-badge thb-badge-purple',
-    budget_approved: 'thb-badge thb-badge-success',
-    rejected: 'thb-badge thb-badge-error',
-    returned: 'thb-badge bg-amber-100 text-amber-700',
+    draft: 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600',
+    pending: 'inline-flex items-center rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700',
+    hr_approved: 'inline-flex items-center rounded-md bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700',
+    budget_approved: 'inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700',
+    rejected: 'inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700',
+    returned: 'inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700',
   };
-  return map[status] || 'thb-badge thb-badge-info';
+  return map[status] || 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600';
 }
 
 function getPriorityBadge(priority: string) {
   const map: Record<string, string> = {
-    low: 'thb-badge thb-badge-info',
-    medium: 'thb-badge thb-badge-warning',
-    high: 'thb-badge thb-badge-error',
-    critical: 'thb-badge thb-badge-error',
+    low: 'inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700',
+    medium: 'inline-flex items-center rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700',
+    high: 'inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700',
+    critical: 'inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700',
   };
-  return map[priority] || 'thb-badge thb-badge-info';
+  return map[priority] || 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600';
 }
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'thb-badge bg-slate-100 text-slate-600',
-    open: 'thb-badge thb-badge-info',
-    approved: 'thb-badge thb-badge-success',
-    cancelled: 'thb-badge thb-badge-error',
-    closed: 'thb-badge thb-badge-primary',
+    draft: 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600',
+    open: 'inline-flex items-center rounded-md bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700',
+    approved: 'inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700',
+    cancelled: 'inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700',
+    closed: 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600',
   };
-  return map[status] || 'thb-badge thb-badge-info';
+  return map[status] || 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600';
 }
 
-function InfoMetric({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0 rounded-xl bg-white/75 px-4 py-3 ring-1 ring-inset ring-emerald-100"><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70">{label}</p><p className="mt-1 break-words text-sm font-bold leading-5 text-slate-900" title={value}>{value}</p></div>;
+// Detail mini-stat tile per the mock: white card, hairline border, small
+// colored icon on top, gray label, bold value.
+function StatTile({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3">
+      <span className="flex h-6 items-center">{icon}</span>
+      <p className="mt-1 text-[13px] text-slate-500">{label}</p>
+      <p className="mt-0.5 truncate text-[15px] font-bold text-slate-900" title={value}>{value}</p>
+    </div>
+  );
 }
 
 function DetailField({ label, value, capitalize = false }: { label: string; value: string; capitalize?: boolean }) {
-  return <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className={`mt-1 break-words text-sm font-semibold leading-5 text-slate-700 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
+  return <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3"><p className="text-[13px] text-slate-500">{label}</p><p className={`mt-0.5 break-words text-sm font-semibold text-slate-800 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
+}
+
+// Vertical approval timeline: pick the most relevant history entry for a
+// step (by keyword match) and fall back to stage-aware copy that mirrors
+// the mock's wording.
+function findHistory(history: ApprovalHistoryEntry[], keywords: string[]): ApprovalHistoryEntry | undefined {
+  return history.find((h) => keywords.some((k) => `${h.action} ${h.module} ${h.details}`.toLowerCase().includes(k)));
+}
+function stepDescription(index: number, stageIndex: number, history: ApprovalHistoryEntry[]): string {
+  const keywordSets = [
+    ['submit', 'create', 'requested', 'submitted'],
+    ['hr', 'hr_approve', 'hr_reject'],
+    ['finance', 'budget'],
+    ['posting', 'job'],
+  ];
+  const entry = findHistory(history, keywordSets[index] || []);
+  if (entry) {
+    const when = new Date(entry.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+    return `${entry.details} · ${when}`;
+  }
+  if (index === 0) return 'Requisition submitted by hiring manager';
+  if (index === 1) return stageIndex >= 1 ? 'Approved by HR Team' : 'Waiting for HR review';
+  if (index === 2) return stageIndex >= 2 ? 'Approved by Finance' : stageIndex === 2 ? 'Pending approval from Finance' : 'Waiting for Finance approval';
+  return stageIndex >= 3 ? 'Job posting published' : 'Will start after all approvals are completed';
 }
 
 export default function RequisitionsPage() {
@@ -99,12 +134,6 @@ export default function RequisitionsPage() {
   // C-30: company context store — single source of truth for which
   // company the user is operating in (their own company for non-admins,
   // or the company they picked in the company switcher for admins).
-  // The requisition page now uses this for both:
-  //   1. Resolving the companyId to attach to new requisitions
-  //      (previously it incorrectly used user.tenantId, which is the
-  //       TENANT/group id, not a single company id)
-  //   2. Scoping the Department + Designation dropdowns to that company
-  //      via scopeQuery() — same pattern as the ESS / Employees page.
   const { scopeQuery, effectiveCompanyId } = useCompanyContextStore();
   const companyId = effectiveCompanyId() || user?.company?.id || '';
   const userRole = user?.role || '';
@@ -122,39 +151,16 @@ export default function RequisitionsPage() {
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [form, setForm] = useState(initialForm);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'requisitions' | 'approvals'>('requisitions');
+  const [showFullDetails, setShowFullDetails] = useState(false);
   const [listFilter, setListFilter] = useState<'all' | 'action' | 'pending' | 'draft' | 'approved'>('all');
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
-  // C-30: designations now carry their departmentId so the dropdown can
-  // be cascaded by the selected department (only show designations that
-  // belong to the picked department). The previous implementation showed
-  // ALL designations from ALL departments, which made the dropdown long
-  // and confusing — the user expected a Department → Designation cascade
-  // like in ESS.
   const [designations, setDesignations] = useState<Array<{ id: string; title: string; departmentId: string | null }>>([]);
 
-  // C-30: scope dropdowns to the user's selected company (same source as
-  // ESS / Employees page). Previously the requisition page called the APIs
-  // with no companyId, which returned ALL departments from ALL companies in
-  // the tenant — even with the C-29 dedup safety net, that included
-  // unrelated companies' departments. Now we mirror the ESS pattern: read
-  // scopeQuery() from the company context store and append it to the
-  // department/designation fetch URLs.
-  // (scopeQuery + effectiveCompanyId are destructured at the top of the
-  //  component — see the comment block on the useCompanyContextStore call.)
-
-  // Fetch departments + designations for the dropdowns, scoped to the
-  // user's selected company. Re-fetches whenever the scope changes
-  // (e.g. user picks a different company in the company switcher).
   const fetchDeptDesignations = useCallback(async () => {
     try {
       const sq = scopeQuery();
       const scopeParam = sq ? `&${sq}` : '';
-      // C-31: when no scope (tenant_admin with no company picked in the
-      // switcher), pass `noDedupe=1` so ALL departments from ALL companies
-      // are returned and the dropdown label can show the company suffix
-      // (e.g. "Software Development — Acme Global") for disambiguation.
-      // When a scope IS set, dedup is unnecessary (only one company's
-      // departments are returned), so we don't pass noDedupe in that case.
       const noDedupeParam = sq ? '' : '&noDedupe=1';
       const [deptRes, desigRes] = await Promise.all([
         fetch(`/api/departments?limit=100${scopeParam}${noDedupeParam}`, { headers: getAuthHeaders() }).catch(() => null),
@@ -163,13 +169,6 @@ export default function RequisitionsPage() {
       if (deptRes?.ok) {
         const deptData = await deptRes.json();
         const deptList = deptData.departments || deptData.data || (Array.isArray(deptData) ? deptData : []);
-        // C-31: when noDedupe was set on the API call, the server returns
-        // ALL departments (with company names). We dedup CLIENT-SIDE by
-        // (name + companyName) instead of just name — so "Engineering —
-        // CompanyA" and "Engineering — CompanyB" both survive, but
-        // "Engineering — CompanyA" appears only once even if it has two
-        // rows. This keeps the dropdown free of true duplicates while
-        // surfacing cross-company same-name departments.
         const seenDept = new Set<string>();
         const dedupedDepts: Array<{ id: string; name: string; companyName?: string }> = [];
         for (const d of deptList) {
@@ -197,7 +196,6 @@ export default function RequisitionsPage() {
           const key = String(d.title).toLowerCase().trim();
           if (seenDesig.has(key)) continue;
           seenDesig.add(key);
-          // designation.departmentId OR designation.department?.id — fall back to null
           const deptId = d.departmentId || d.department?.id || null;
           dedupedDesigs.push({ id: d.id, title: d.title, departmentId: deptId });
         }
@@ -207,15 +205,8 @@ export default function RequisitionsPage() {
     } catch { /* non-fatal — fallback to text input */ }
   }, [scopeQuery]);
 
-  // queueMicrotask defers the setState calls inside the async fetch, which
-  // keeps the linter happy (matches the existing fetchData() pattern below)
-  // while still firing on mount. Re-fetch when scope changes.
   useEffect(() => { queueMicrotask(() => fetchDeptDesignations()); }, [fetchDeptDesignations]);
 
-  // C-30: cascade — when the user picks a department, only show the
-  // designations that belong to that department. If no department is
-  // selected, the designation dropdown stays empty (the user must pick
-  // a department first), matching the ESS pattern.
   const visibleDesignations = useMemo(() => {
     if (!form.departmentId) return [];
     return designations.filter(d => d.departmentId === form.departmentId);
@@ -269,7 +260,6 @@ export default function RequisitionsPage() {
     setForm(initialForm);
   };
 
-  // Task 164: handle both 'draft' and 'submit' actions
   const handleSave = async (action: 'draft' | 'submit') => {
     if (!form.departmentId) { toast.error('Department is required'); return; }
     if (!form.designationId) { toast.error('Position/Designation is required'); return; }
@@ -278,7 +268,6 @@ export default function RequisitionsPage() {
     setSubmitting(true);
     try {
       if (editingId) {
-        // Update existing + optionally submit
         const res = await fetch(`/api/requisitions/${editingId}`, {
           method: 'PATCH',
           headers: getAuthHeaders(),
@@ -287,7 +276,6 @@ export default function RequisitionsPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success(action === 'draft' ? 'Draft saved' : 'Requisition submitted for HR approval');
       } else {
-        // Create new
         const res = await fetch('/api/requisitions', {
           method: 'POST',
           headers: getAuthHeaders(),
@@ -315,7 +303,6 @@ export default function RequisitionsPage() {
     finally { setDeleting(false); }
   };
 
-  // Task 164: role-based approval actions
   const handleApproval = async (id: string, action: string) => {
     let comments = '';
     if (action === 'hr_reject' || action === 'finance_reject') {
@@ -325,9 +312,6 @@ export default function RequisitionsPage() {
       comments = window.prompt('Reason for returning (required):') || '';
       if (!comments.trim()) { toast.error('Reason is required'); return; }
     } else if (action === 'hr_approve' || action === 'finance_approve') {
-      // Approval comments are optional. Do not use window.prompt here:
-      // native prompts are blocked/undiscoverable in the embedded browser
-      // and can prevent the approval PATCH from ever being sent.
       comments = '';
     }
     try {
@@ -355,15 +339,13 @@ export default function RequisitionsPage() {
 
   const handleView = (id: string) => {
     setViewingId(id);
+    setShowFullDetails(false);
     fetchHistory(id);
-    setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
-  // Task 165: create job posting from an approved requisition
   const handleCreateJobPosting = async (r: Requisition) => {
     if (!isHr) { toast.error('Only HR can create job postings'); return; }
     if (r.approvalStatus !== 'budget_approved') { toast.error('Requisition must be fully approved'); return; }
-    // Navigate to job-portal with pre-filled data from the requisition
     const params = new URLSearchParams({
       requisitionId: r.id,
       title: r.designation?.title || 'Position',
@@ -379,12 +361,11 @@ export default function RequisitionsPage() {
     window.location.href = `/job-portal?${params.toString()}`;
   };
 
-  // Task 164: determine which approval buttons to show based on role + status
+  // Legacy compact action buttons (kept for the hidden table/mobile views below)
   const getApprovalButtons = (r: Requisition) => {
     const buttons: React.ReactNode[] = [];
     const isRequester = r.hiringManagerId === user?.id;
 
-    // Requester can resubmit if returned
     if (isRequester && r.approvalStatus === 'returned') {
       buttons.push(
         <button key="resubmit" onClick={() => handleApproval(r.id, 'submit')} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 flex items-center gap-1">
@@ -393,7 +374,6 @@ export default function RequisitionsPage() {
       );
     }
 
-    // HR can approve/reject/return when pending
     if (isHr && r.approvalStatus === 'pending') {
       buttons.push(
         <button key="hr_approve" onClick={() => handleApproval(r.id, 'hr_approve')} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1">
@@ -408,7 +388,6 @@ export default function RequisitionsPage() {
       );
     }
 
-    // Finance can approve/reject when hr_approved
     if (isFinance && r.approvalStatus === 'hr_approved') {
       buttons.push(
         <button key="fin_approve" onClick={() => handleApproval(r.id, 'finance_approve')} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1">
@@ -420,7 +399,6 @@ export default function RequisitionsPage() {
       );
     }
 
-    // Task 165: HR can create job posting from approved requisition
     if (isHr && r.approvalStatus === 'budget_approved') {
       buttons.push(
         <button key="create_job" onClick={() => handleCreateJobPosting(r)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">
@@ -431,8 +409,6 @@ export default function RequisitionsPage() {
 
     return buttons.length > 0 ? <div className="flex items-center gap-1">{buttons}</div> : <span className="text-xs text-thb-text-muted">—</span>;
   };
-
-  const colCount = 10;
 
   const needsAction = useCallback((r: Requisition) => {
     if (isHr && r.approvalStatus === 'pending') return true;
@@ -445,108 +421,220 @@ export default function RequisitionsPage() {
     return requisitions.filter((r) => {
       const matchesSearch = !query || [r.requisitionId, r.designation?.title, r.positionTitle, r.department?.name]
         .some((value) => String(value || '').toLowerCase().includes(query));
+      const matchesTab = activeTab === 'requisitions' || needsAction(r);
       const matchesFilter = listFilter === 'all'
         || (listFilter === 'action' && needsAction(r))
         || (listFilter === 'pending' && ['pending', 'hr_approved'].includes(r.approvalStatus))
         || (listFilter === 'draft' && ['draft', 'returned'].includes(r.approvalStatus))
         || (listFilter === 'approved' && r.approvalStatus === 'budget_approved');
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesTab && matchesFilter;
     });
-  }, [listFilter, needsAction, requisitions, search]);
+  }, [activeTab, listFilter, needsAction, requisitions, search]);
 
   const selectedRequisition = requisitions.find((r) => r.id === viewingId) || filteredRequisitions[0] || null;
   const inApprovalCount = requisitions.filter((r) => ['pending', 'hr_approved'].includes(r.approvalStatus)).length;
   const approvedCount = requisitions.filter((r) => r.approvalStatus === 'budget_approved').length;
   const needsActionCount = requisitions.filter(needsAction).length;
+  const draftCount = requisitions.filter((r) => ['draft', 'returned'].includes(r.approvalStatus)).length;
+
+  // Mock-styled primary/negative actions for the detail panel
+  const detailActions = (r: Requisition) => {
+    const actions: React.ReactNode[] = [];
+    const isRequester = r.hiringManagerId === user?.id;
+
+    if (isRequester && r.approvalStatus === 'returned') {
+      actions.push(
+        <button key="resubmit" onClick={() => handleApproval(r.id, 'submit')} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-5 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-50">
+          <FiRotateCcw className="h-4 w-4" />Resubmit
+        </button>
+      );
+    }
+    if (isHr && r.approvalStatus === 'pending') {
+      actions.push(
+        <button key="hr_approve" onClick={() => handleApproval(r.id, 'hr_approve')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
+          <FiCheck className="h-4 w-4" />Approve
+        </button>,
+        <button key="return" onClick={() => handleApproval(r.id, 'return')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
+          <FiRotateCcw className="h-4 w-4" />Return for Changes
+        </button>,
+        <button key="hr_reject" onClick={() => handleApproval(r.id, 'hr_reject')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
+          <FiXCircle className="h-4 w-4" />Reject
+        </button>
+      );
+    }
+    if (isFinance && r.approvalStatus === 'hr_approved') {
+      actions.push(
+        <button key="fin_approve" onClick={() => handleApproval(r.id, 'finance_approve')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
+          <FiCheck className="h-4 w-4" />Approve Finance
+        </button>,
+        <button key="fin_reject" onClick={() => handleApproval(r.id, 'finance_reject')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
+          <FiRotateCcw className="h-4 w-4" />Return for Changes
+        </button>
+      );
+    }
+    if (isHr && r.approvalStatus === 'budget_approved') {
+      actions.push(
+        <button key="create_job" onClick={() => handleCreateJobPosting(r)} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
+          <FiPlus className="h-4 w-4" />Create Job Posting
+        </button>
+      );
+    }
+    return actions;
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Breadcrumb */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+        <a href="/recruitment" className="font-semibold text-green-600 hover:text-green-700 hover:underline">Recruitment</a>
+        <span className="text-slate-400">/</span>
+        <span className="text-slate-600">Requisitions</span>
+      </nav>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary">Manpower Requisitions</h1>
-          <p className="text-thb-text-secondary mt-1">Raise and approve hiring requests</p>
+          <h1 className="text-[32px] font-bold leading-tight tracking-tight text-slate-900">Requisitions</h1>
+          <p className="mt-1 text-[15px] text-slate-500">Raise, review, and approve hiring requests in one place</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
-            <FiPlus className="w-4 h-4" /> Raise Requisition
-          </button>
-        </div>
+        <button onClick={handleAddNew} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-3 text-[15px] font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
+          <FiPlus className="h-4 w-4" /> Raise Requisition
+        </button>
       </div>
 
-      {/* Master-detail requisition workspace */}
-      <section className="space-y-5" aria-label="Requisition workspace">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <button type="button" onClick={() => setListFilter('action')} className="group flex items-center justify-between rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <span><span className="block text-xs font-semibold uppercase tracking-wider text-emerald-700">Needs My Action</span><span className="mt-1 block text-2xl font-bold text-slate-900">{needsActionCount}</span></span>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><FiCheck className="h-5 w-5" /></span>
+      {/* Tabs */}
+      <div className="flex items-end gap-2 border-b border-transparent">
+        <button type="button" onClick={() => setActiveTab('requisitions')} className={`rounded-lg px-5 py-2.5 text-[15px] font-bold transition ${activeTab === 'requisitions' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>Requisitions</button>
+        <button type="button" onClick={() => setActiveTab('approvals')} className={`rounded-lg px-5 py-2.5 text-[15px] font-bold transition ${activeTab === 'approvals' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>My Approvals ({needsActionCount})</button>
+      </div>
+
+      {/* Stat cards */}
+      <section aria-label="Requisition workspace" className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('action'); }} className="flex items-center gap-4 rounded-2xl bg-green-50 p-5 text-left transition hover:bg-green-100/70">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-green-600 shadow-sm"><FiCheck className="h-6 w-6" /></span>
+            <span><span className="block text-[15px] font-bold text-slate-900">Needs My Action</span><span className="mt-0.5 block text-3xl font-bold text-slate-900">{needsActionCount}</span></span>
           </button>
-          <button type="button" onClick={() => setListFilter('pending')} className="group flex items-center justify-between rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <span><span className="block text-xs font-semibold uppercase tracking-wider text-amber-700">Pending Approvals</span><span className="mt-1 block text-2xl font-bold text-slate-900">{inApprovalCount}</span></span>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><FiClock className="h-5 w-5" /></span>
+          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('pending'); }} className="flex items-center gap-4 rounded-2xl bg-amber-50 p-5 text-left transition hover:bg-amber-100/70">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm"><FiClock className="h-6 w-6" /></span>
+            <span><span className="block text-[15px] font-bold text-slate-900">Pending Approvals</span><span className="mt-0.5 block text-3xl font-bold text-slate-900">{inApprovalCount}</span></span>
           </button>
-          <button type="button" onClick={() => setListFilter('approved')} className="group flex items-center justify-between rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <span><span className="block text-xs font-semibold uppercase tracking-wider text-blue-700">Approved</span><span className="mt-1 block text-2xl font-bold text-slate-900">{approvedCount}</span></span>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700"><FiCalendar className="h-5 w-5" /></span>
+          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('approved'); }} className="flex items-center gap-4 rounded-2xl bg-blue-50 p-5 text-left transition hover:bg-blue-100/70">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-blue-500 shadow-sm"><FiCheckCircle className="h-6 w-6" /></span>
+            <span><span className="block text-[15px] font-bold text-slate-900">Approved This Month</span><span className="mt-0.5 block text-3xl font-bold text-slate-900">{approvedCount}</span></span>
           </button>
         </div>
 
-        <div className="grid min-h-[640px] grid-cols-1 gap-5 xl:grid-cols-[minmax(340px,0.82fr)_minmax(0,1.45fr)]">
+        <div className="grid min-h-[640px] grid-cols-1 gap-5 xl:grid-cols-[minmax(380px,0.8fr)_minmax(0,1.35fr)]">
+          {/* Requisition List */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 p-4">
-              <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold text-slate-900">Requisition List</h2><span className="text-xs font-medium text-slate-500">{filteredRequisitions.length} of {requisitions.length}</span></div>
-              <div className="relative mt-3"><FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by Req ID, job title, or department" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10" /></div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {([['all', 'All'], ['action', 'Needs Action'], ['pending', 'Pending Approval'], ['draft', 'Draft'], ['approved', 'Approved']] as const).map(([key, label]) => <button type="button" key={key} onClick={() => setListFilter(key)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${listFilter === key ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{label}</button>)}
+            <div className="border-b border-slate-100 p-5">
+              <h2 className="text-xl font-bold text-slate-900">Requisition List</h2>
+              <div className="relative mt-4"><FiSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID, title, or department..." className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10" /></div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { setActiveTab('requisitions'); setListFilter(key); }} className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
               </div>
             </div>
-            <div className="max-h-[530px] space-y-2 overflow-y-auto p-3">
-              {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-slate-100" />) : filteredRequisitions.length === 0 ? <div className="px-5 py-16 text-center"><FiSearch className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">No matching requisitions</p><p className="mt-1 text-xs text-slate-400">Try another search or filter.</p></div> : filteredRequisitions.map((r) => {
+            <div className="max-h-[560px] space-y-2.5 overflow-y-auto p-4">
+              {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />) : filteredRequisitions.length === 0 ? <div className="px-5 py-16 text-center"><FiSearch className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">No matching requisitions</p><p className="mt-1 text-xs text-slate-400">Try another search or filter.</p></div> : filteredRequisitions.map((r) => {
                 const selected = selectedRequisition?.id === r.id;
-                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`w-full rounded-xl border p-4 text-left transition ${selected ? 'border-emerald-500 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500/10' : 'border-slate-200 bg-white hover:border-emerald-200 hover:bg-slate-50'}`}>
-                  <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-[11px] font-semibold text-slate-500">{r.requisitionId || '—'}</p><h3 className="mt-1 truncate text-sm font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</h3><p className="mt-0.5 truncate text-xs text-slate-500">{r.department?.name || 'Department not specified'}</p></div><span className={getPriorityBadge(r.priority)}>{r.priority}</span></div>
-                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3"><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span><span className="text-[11px] font-medium text-slate-500">{r.numberOfOpenings} opening{r.numberOfOpenings === 1 ? '' : 's'}</span></div>
+                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
+                  <span className="w-[74px] shrink-0 text-[15px] font-bold text-slate-900">{r.requisitionId || '—'}</span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[13px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
+                  <span className="w-14 shrink-0"><span className="block text-[11px] text-slate-500">Openings</span><span className="block text-[15px] font-bold text-slate-900">{r.numberOfOpenings}</span></span>
+                  <span className="shrink-0"><span className={getPriorityBadge(r.priority)}><span className="capitalize">{r.priority}</span></span></span>
+                  <span className="shrink-0"><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span></span>
                 </button>;
               })}
             </div>
           </div>
 
+          {/* Requisition Detail */}
           <div id="view-panel" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {!selectedRequisition ? <div className="flex min-h-[600px] flex-col items-center justify-center p-8 text-center"><FiBriefcase className="h-10 w-10 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Select a requisition</p><p className="mt-1 text-xs text-slate-400">Choose a request from the list to review its details and actions.</p></div> : (() => {
               const r = selectedRequisition;
               const stageIndex = r.approvalStatus === 'budget_approved' ? 3 : r.approvalStatus === 'hr_approved' ? 2 : r.approvalStatus === 'pending' ? 1 : 0;
               const isFailed = r.approvalStatus === 'rejected';
+              const skillList = (r.skillsRequired || '').split(',').map(s => s.trim()).filter(Boolean);
               return <div className="p-5 sm:p-6">
-                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0"><span className="inline-flex rounded-lg bg-emerald-100 px-2.5 py-1 font-mono text-xs font-bold text-emerald-700">{r.requisitionId || 'REQUISITION'}</span><h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</h2><p className="mt-1 text-sm text-slate-500">{r.department?.name || 'Department not specified'} · <span className="capitalize">{r.employmentType}</span></p></div>
-                  <span className={getPriorityBadge(r.priority)}>{r.priority} priority</span>
-                </div>
-
-                <div className="my-5 grid grid-cols-1 gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-white p-4 sm:grid-cols-2 2xl:grid-cols-4">
-                  <InfoMetric label="Openings" value={String(r.numberOfOpenings)} />
-                  <InfoMetric label="Salary Budget" value={r.salaryBudget || 'Not specified'} />
-                  <InfoMetric label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-IN') : 'Not specified'} />
-                  <InfoMetric label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} />
-                </div>
-
-                <div className="grid auto-rows-fr gap-3 border-b border-slate-100 pb-5 sm:grid-cols-2">
-                  <DetailField label="Required Skills" value={r.skillsRequired || 'Not specified'} />
-                  <DetailField label="Experience" value={r.experienceRequired || 'Not specified'} />
-                  <DetailField label="Qualification" value={r.qualification || 'Not specified'} />
-                  <DetailField label="Position Type" value={r.positionType || 'Not specified'} capitalize />
-                </div>
-
-                <div className="py-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-base font-bold text-slate-900">Approval Timeline</h3><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span></div>
-                  <div className="mt-5 overflow-x-auto pb-1">
-                    <div className="grid min-w-[560px] grid-cols-4 gap-0 px-2">
-                    {['Request Submitted', 'HR Review', 'Finance Review', 'Job Posting'].map((label, index) => { const done = index <= stageIndex && !isFailed; const active = index === stageIndex && r.approvalStatus !== 'budget_approved'; return <div key={label} className="relative px-2 text-center"><div className={`absolute left-1/2 top-5 h-0.5 w-full ${index === 3 ? 'hidden' : done && index < stageIndex ? 'bg-emerald-500' : 'bg-slate-200'}`} /><span className={`relative z-10 mx-auto flex h-10 w-10 items-center justify-center rounded-full border-2 text-xs font-bold shadow-sm ${isFailed && index === stageIndex ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-emerald-600 bg-emerald-600 text-white' : active ? 'border-amber-500 bg-amber-50 text-amber-600' : 'border-slate-300 bg-white text-slate-400'}`}>{done ? <FiCheck /> : index + 1}</span><p className={`mt-2 min-h-8 text-[11px] font-semibold leading-4 ${active ? 'text-amber-700' : done ? 'text-slate-800' : 'text-slate-400'}`}>{label}</p></div>; })}
+                {/* Detail header */}
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
+                  <div className="flex min-w-0 items-start gap-4">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600"><FiFileText className="h-6 w-6" /></span>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-bold text-slate-900">{r.requisitionId || 'REQUISITION'}</p>
+                      <h2 className="truncate text-2xl font-bold tracking-tight text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</h2>
+                      <p className="mt-0.5 text-[15px] text-slate-500">{r.department?.name || 'Department not specified'}</p>
                     </div>
+                  </div>
+                  <span className="shrink-0"><span className="inline-flex items-center rounded-md bg-red-100 px-3 py-1.5 text-[13px] font-bold text-red-600"><span className="capitalize">{r.priority}</span> Priority</span></span>
+                </div>
+
+                {/* Mini stat tiles */}
+                <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <StatTile label="Openings" value={String(r.numberOfOpenings)} icon={<FiUsers className="h-5 w-5 text-green-600" />} />
+                  <StatTile label="Salary Budget" value={r.salaryBudget || 'Not specified'} icon={<FiDollarSign className="h-5 w-5 text-amber-500" />} />
+                  <StatTile label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not specified'} icon={<FiCalendar className="h-5 w-5 text-green-600" />} />
+                  <StatTile label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} icon={<FiLayers className="h-5 w-5 text-green-600" />} />
+                </div>
+
+                {/* Required skills */}
+                <div className="mt-5">
+                  <h3 className="text-[15px] font-bold text-slate-900">Required Skills</h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {skillList.length > 0 ? skillList.map((skill) => <span key={skill} className="rounded-md bg-green-100 px-3 py-1 text-[13px] font-medium text-green-800">{skill}</span>) : <span className="text-sm text-slate-400">Not specified</span>}
                   </div>
                 </div>
 
-                {approvalHistory.length > 0 && <details className="group rounded-xl border border-slate-200 bg-slate-50"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700"><span>Approval history ({approvalHistory.length})</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary><div className="max-h-44 space-y-2 overflow-y-auto border-t border-slate-200 p-3">{approvalHistory.map((h) => <div key={h.id} className="rounded-lg border border-slate-100 bg-white p-3 text-xs"><p className="text-slate-700">{h.details}</p><p className="mt-1 text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
+                {/* Approval timeline (vertical) */}
+                <div className="mt-6">
+                  <h3 className="text-[15px] font-bold text-slate-900">Approval Timeline</h3>
+                  <div className="mt-4">
+                    {['Request Submitted', 'HR Review', 'Finance Review', 'Job Posting'].map((label, index) => {
+                      const done = index < stageIndex || (index === 3 && r.approvalStatus === 'budget_approved');
+                      const current = index === stageIndex && r.approvalStatus !== 'budget_approved';
+                      const isLast = index === 3;
+                      const highlight = current && !isFailed;
+                      return (
+                        <div key={label} className={`flex gap-3.5 ${highlight ? 'rounded-xl bg-green-50 p-3.5' : 'pb-5 pl-3.5'}`}>
+                          <div className="flex flex-col items-center">
+                            <span className={`z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${isFailed && current ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-green-600 bg-green-600 text-white' : current ? 'border-green-500 bg-white' : 'border-slate-300 bg-white'}`}>
+                              {done ? <FiCheck className="h-3 w-3" /> : <span className={`h-[9px] w-[9px] rounded-full ${current ? 'bg-green-500' : 'bg-slate-200'}`} />}
+                            </span>
+                            {!isLast && <span className={`w-0.5 flex-1 ${done ? 'bg-green-500' : 'bg-slate-200'}`} />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-[15px] font-bold ${current || done ? 'text-slate-900' : 'text-slate-700'}`}>{label}</p>
+                            <p className={`mt-0.5 text-[13px] ${current ? 'text-slate-600' : 'text-slate-500'}`}>{stepDescription(index, stageIndex, approvalHistory)}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-5">{getApprovalButtons(r)}{(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><FiEdit2 /> Edit</button>}{r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><FiTrash2 /> Delete</button>}</div>
+                {/* Full details (toggled by View Full Details) */}
+                {showFullDetails && (
+                  <div className="mt-5 grid auto-rows-fr gap-3 border-t border-slate-100 pt-5 sm:grid-cols-2">
+                    <DetailField label="Experience" value={r.experienceRequired || 'Not specified'} />
+                    <DetailField label="Qualification" value={r.qualification || 'Not specified'} />
+                    <DetailField label="Position Type" value={r.positionType || 'Not specified'} capitalize />
+                    <DetailField label="Employment Type" value={r.employmentType || 'Not specified'} capitalize />
+                  </div>
+                )}
+
+                {/* Approval history */}
+                {approvalHistory.length > 0 && !showFullDetails && <details className="group mt-5 rounded-xl border border-slate-200 bg-slate-50"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700"><span>Approval history ({approvalHistory.length})</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary><div className="max-h-44 space-y-2 overflow-y-auto border-t border-slate-200 p-3">{approvalHistory.map((h) => <div key={h.id} className="rounded-lg border border-slate-100 bg-white p-3 text-xs"><p className="text-slate-700">{h.details}</p><p className="mt-1 text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
+
+                {/* Actions */}
+                <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
+                  {(() => { const actions = detailActions(r); return actions.length > 0 ? actions : <span className="text-sm text-slate-400">No actions available for your role at this stage.</span>; })()}
+                  <button type="button" onClick={() => setShowFullDetails((v) => !v)} className="inline-flex items-center gap-2 rounded-lg border border-green-600 bg-white px-5 py-2.5 text-sm font-bold text-green-700 transition hover:bg-green-50">
+                    <FiExternalLink className="h-4 w-4" />{showFullDetails ? 'Hide Full Details' : 'View Full Details'}
+                  </button>
+                  {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"><FiEdit2 className="h-4 w-4" /> Edit</button>}
+                  {r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50"><FiTrash2 className="h-4 w-4" /> Delete</button>}
+                </div>
                 {deleteConfirmId === r.id && <div className="mt-3 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs font-semibold text-red-700">Delete this draft requisition permanently?</p><div className="flex gap-2"><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">Cancel</button><button type="button" onClick={() => handleDelete(r.id)} disabled={deleting} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete Draft'}</button></div></div>}
               </div>;
             })()}
@@ -554,7 +642,7 @@ export default function RequisitionsPage() {
         </div>
       </section>
 
-      {/* View Panel */}
+      {/* Hidden legacy sections kept for parity (table / mobile cards / old view panel) */}
       {viewingId && (() => {
         const item = requisitions.find(i => i.id === viewingId);
         if (!item) return null;
@@ -586,8 +674,6 @@ export default function RequisitionsPage() {
                 <div><span className="text-xs font-medium text-thb-text-secondary">Salary Budget</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.salaryBudget || '—'}</p></div>
                 <div><span className="text-xs font-medium text-thb-text-secondary">Position Closing Date</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.expectedJoiningDate ? new Date(item.expectedJoiningDate).toLocaleDateString() : '—'}</p></div>
               </div>
-
-              {/* Approval History */}
               {approvalHistory.length > 0 && (
                 <div className="mt-6 pt-4 border-t border-thb-border">
                   <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiClock className="w-4 h-4" />Approval History</h3>
@@ -601,8 +687,6 @@ export default function RequisitionsPage() {
                   </div>
                 </div>
               )}
-
-              {/* Role-based approval buttons */}
               <div className="mt-6 pt-4 border-t border-thb-border">
                 <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Actions</h3>
                 {getApprovalButtons(item)}
@@ -661,10 +745,6 @@ export default function RequisitionsPage() {
                     required
                     value={form.departmentId}
                     onChange={(e) => {
-                      // C-30: cascade — when department changes, clear any
-                      // previously-picked designation that no longer belongs
-                      // to the new department. This keeps the form state
-                      // consistent with the visible (filtered) dropdown.
                       const newDeptId = e.target.value;
                       const stillValid = visibleDesignations.some(d => d.id === form.designationId);
                       setForm({
@@ -783,7 +863,6 @@ export default function RequisitionsPage() {
               <p className="mt-3 text-xs text-slate-500">{parseInterviewPlan(form.interviewPlan).length} round(s) configured. At least one named round is required.</p>
             </section>
           </div>
-            {/* Task 164: Save as Draft + Submit for Approval */}
             <div className="sticky bottom-0 z-10 flex flex-col-reverse items-stretch justify-end gap-3 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center">
               <button onClick={handleCancelForm} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">Cancel</button>
               <button onClick={() => handleSave('draft')} disabled={submitting} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50">{submitting ? 'Saving...' : 'Save as Draft'}</button>
@@ -791,123 +870,6 @@ export default function RequisitionsPage() {
             </div>
         </div>
       )}
-
-      {/* Table */}
-      <div className="hidden">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Approval pipeline</p>
-          <p className="mt-0.5 text-sm font-medium text-slate-700">HR review <span className="mx-1 text-slate-300">→</span> Finance review <span className="mx-1 text-slate-300">→</span> Job posting</p>
-        </div>
-        <div className="hidden items-center gap-2 text-[11px] font-semibold sm:flex">
-          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-700">Pending</span>
-          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">Approved</span>
-        </div>
-      </div>
-      <div className="hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-thb-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Req ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Department</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Position</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Openings</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Priority</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Approval Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Workflow</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
-                    {Array.from({ length: colCount }).map((_, j) => (
-                      <td key={j} className="px-4 py-3"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
-                    ))}
-                  </tr>
-                ))
-              ) : requisitions.length === 0 ? (
-                <tr>
-                  <td colSpan={colCount} className="px-4 py-12 text-center">
-                    <FiAlertCircle className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
-                    <p className="text-thb-text-secondary font-medium">No requisitions found</p>
-                    <p className="text-sm text-thb-text-muted mt-1">Raise your first requisition to get started</p>
-                  </td>
-                </tr>
-              ) : (
-                requisitions.map((r) => (
-                  <tr key={r.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
-                    {deleteConfirmId === r.id ? (
-                      <td colSpan={colCount} className="px-4 py-3 bg-red-50">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this requisition?</span>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => handleDelete(r.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-                          </div>
-                        </div>
-                      </td>
-                    ) : (
-                      <>
-                        <td className="px-4 py-3 text-sm font-mono text-thb-text-secondary">{r.requisitionId?.slice(0, 8) || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-thb-text-primary">{r.department?.name || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-thb-text-primary">{r.designation?.title || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-thb-text-primary">{r.numberOfOpenings}</td>
-                        <td className="px-4 py-3"><span className="thb-badge thb-badge-primary">{r.employmentType}</span></td>
-                        <td className="px-4 py-3"><span className={getPriorityBadge(r.priority)}>{r.priority}</span></td>
-                        <td className="px-4 py-3"><span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span></td>
-                        <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{r.status}</span></td>
-                        <td className="px-4 py-3">{getApprovalButtons(r)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleView(r.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                            {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && (
-                              <button onClick={() => handleEdit(r)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                            )}
-                            {r.approvalStatus === 'draft' && (
-                              <button onClick={() => setDeleteConfirmId(r.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
-                            )}
-                          </div>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Compact mobile layout: keeps approval status and actions visible without horizontal scrolling. */}
-      <div className="hidden">
-        {loading ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-xl bg-slate-100" />) : requisitions.map((r) => (
-          <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-mono text-[11px] font-semibold text-slate-500">{r.requisitionId || '—'}</p>
-                <h3 className="mt-1 truncate text-sm font-semibold text-slate-800">{r.designation?.title || r.positionTitle || 'Position not specified'}</h3>
-                <p className="mt-0.5 truncate text-xs text-slate-500">{r.department?.name || 'Department not specified'} · {r.numberOfOpenings} opening{r.numberOfOpenings === 1 ? '' : 's'}</p>
-              </div>
-              <span className={getPriorityBadge(r.priority)}>{r.priority}</span>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-              <span className={getApprovalBadge(r.approvalStatus)}>{getApprovalLabel(r.approvalStatus)}</span>
-              <span className={getStatusBadge(r.status)}>{r.status}</span>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-1">{getApprovalButtons(r)}</div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => handleView(r.id)} className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600" title="View"><FiEye className="h-4 w-4" /></button>
-                {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button onClick={() => handleEdit(r)} className="rounded-lg p-2 text-slate-500 hover:bg-green-50 hover:text-green-600" title="Edit"><FiEdit2 className="h-4 w-4" /></button>}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
