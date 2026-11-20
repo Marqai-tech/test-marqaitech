@@ -33,6 +33,100 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
   return <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 h-9 w-56"><FiSearch className="w-3.5 h-3.5 text-slate-400" /><input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder || 'Search'} className="border-0 bg-transparent outline-none text-[13px] w-full" /></div>;
 }
 
+/* Multi-select dropdown with built-in Search + Select All.
+   Used for branches, departments, designations, leave types. */
+function MultiSelectDropdown({ value = [], onChange, items, labelKey, idKey, placeholder }: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  items: any[];
+  labelKey: string;
+  idKey: string;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const filtered = items.filter(item => String(item[labelKey] || '').toLowerCase().includes(search.toLowerCase()));
+  const allSelected = filtered.length > 0 && filtered.every(i => value.includes(i[idKey]));
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
+  const toggleAll = () => {
+    if (allSelected) {
+      // Deselect only the currently filtered items (keeps items hidden by search)
+      onChange(value.filter(id => !filtered.some(i => i[idKey] === id)));
+    } else {
+      // Merge filtered ids into the current selection
+      onChange([...new Set([...value, ...filtered.map(i => i[idKey])])]);
+    }
+  };
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full h-10 border border-slate-200 rounded-lg px-3 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white flex items-center justify-between"
+      >
+        <span className={value.length ? 'text-slate-700 font-semibold' : 'text-slate-400'}>
+          {value.length ? `${value.length} selected` : `Select ${placeholder}`}
+        </span>
+        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <>
+          {/* click-outside catcher — sits BELOW the panel so panel clicks don't close it */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg">
+            {/* Search bar */}
+            <div className="p-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-md px-2 h-8">
+                <FiSearch className="w-3.5 h-3.5 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="border-0 bg-transparent outline-none text-[12.5px] w-full"
+                  autoFocus
+                />
+                {search && <FiX className="w-3 h-3 text-slate-400 cursor-pointer" onClick={() => setSearch('')} />}
+              </div>
+            </div>
+            {/* Select All */}
+            {filtered.length > 0 && (
+              <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50/50">
+                <label className="flex items-center gap-2 cursor-pointer text-[12.5px] font-bold text-slate-700">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-3.5 h-3.5" />
+                  {allSelected ? 'Clear all' : 'Select all'}
+                </label>
+              </div>
+            )}
+            {/* Options list */}
+            <div className="max-h-48 overflow-auto">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-3 text-[12px] text-slate-400 text-center">
+                  {items.length === 0 ? `No ${placeholder} available` : 'No matches'}
+                </div>
+              ) : filtered.map(item => {
+                const on = value.includes(item[idKey]);
+                return (
+                  <label key={item[idKey]} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-[12.5px] text-slate-700">
+                    <input type="checkbox" checked={on} onChange={() => toggle(item[idKey])} className="w-3.5 h-3.5" />
+                    {item[labelKey]}
+                  </label>
+                );
+              })}
+            </div>
+            {/* Footer */}
+            <div className="px-3 py-1.5 border-t border-slate-100 text-[11px] text-slate-500 flex justify-between items-center bg-slate-50/50">
+              <span>{value.length} of {items.length} selected</span>
+              <button type="button" onClick={() => setOpen(false)} className="text-blue-600 font-bold">Done</button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Drawer({ onClose, head, foot, children }: { onClose: () => void; head: React.ReactNode; foot?: React.ReactNode; children: React.ReactNode }) {
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
   return <><div className="fixed inset-0 bg-slate-900/30 z-50" onClick={onClose} /><aside className="fixed top-0 right-0 bottom-0 w-[560px] max-w-full bg-white z-50 flex flex-col shadow-2xl"><div className="px-5 pt-5 pb-4 border-b border-slate-100 flex gap-3 items-start">{head}<button onClick={onClose} className="ml-auto w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800"><FiX className="w-4 h-4" /></button></div><div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>{foot && <div className="px-5 py-3 border-t border-slate-100 flex gap-2 bg-slate-50">{foot}</div>}</aside></>;
@@ -578,28 +672,18 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
     const list = allLabel ? ['All', ...opts] : opts;
     return <div className="flex flex-wrap gap-2">{list.map(o => { const on = o === 'All' ? isAll : (f as any)[k].includes(o); return <span key={o} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-[12.5px] font-semibold cursor-pointer ${on ? 'border-blue-200 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-600'}`} onClick={() => toggle(o)}><span className={`w-4 h-4 rounded border ${on ? 'bg-blue-500 border-blue-500' : 'border-slate-300'} flex items-center justify-center`}>{on && <FiCheck className="w-2.5 h-2.5 text-white" />}</span>{o === 'All' ? allLabel : o}</span>; })}</div>;
   };
-  // Multi-select for ID-based dropdowns (branches, departments, designations, leave types)
-  const multiSelectIds = (k: string, items: any[], labelKey: string, idKey: string, placeholder: string) => {
-    const selectedIds: string[] = (f as any)[k] || [];
-    const toggle = (id: string) => {
-      const next = selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id];
-      set(k, next);
-    };
-    return (
-      <div className="flex flex-wrap gap-2">
-        {items.length === 0 && <span className="text-[12px] text-slate-400">No {placeholder} available. Create some in Company setup first.</span>}
-        {items.map(item => {
-          const on = selectedIds.includes(item[idKey]);
-          return (
-            <span key={item[idKey]} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-[12.5px] font-semibold cursor-pointer ${on ? 'border-blue-200 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-600'}`} onClick={() => toggle(item[idKey])}>
-              <span className={`w-4 h-4 rounded border ${on ? 'bg-blue-500 border-blue-500' : 'border-slate-300'} flex items-center justify-center`}>{on && <FiCheck className="w-2.5 h-2.5 text-white" />}</span>
-              {item[labelKey]}
-            </span>
-          );
-        })}
-      </div>
-    );
-  };
+  // Multi-select for ID-based dropdowns (branches, departments, designations, leave types).
+  // Uses MultiSelectDropdown (search + select all) defined at module level.
+  const multiSelectIds = (k: string, items: any[], labelKey: string, idKey: string, placeholder: string) => (
+    <MultiSelectDropdown
+      value={(f as any)[k] || []}
+      onChange={(v) => set(k, v)}
+      items={items}
+      labelKey={labelKey}
+      idKey={idKey}
+      placeholder={placeholder}
+    />
+  );
   const wfCheck = (k: string, label: string) => <div className="flex items-center gap-2.5 py-1.5"><span className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer ${(f as any)[k] ? 'bg-blue-500 border-blue-500' : 'border-slate-300'}`} onClick={() => set(k, !(f as any)[k])}>{(f as any)[k] && <FiCheck className="w-2.5 h-2.5 text-white" />}</span><span className="text-[12.5px] font-semibold text-slate-700">{label}</span></div>;
 
   // Fetch branches, departments, designations when company changes
@@ -695,7 +779,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
           {/* Section 3: Applies to — dynamic dropdowns from company APIs */}
           {sec(3,'Applies to','Employees matching ALL of these filters get this policy. Data is fetched from your company setup.','po-who',
             <div>
-              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employee status<span className="text-red-500 ml-0.5">*</span></label>{checks('empStatus',['Probation','Confirmed','Intern','Notice period'])}{show('empStatus')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.empStatus}</div>}</div>
+              {/* <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Employee status<span className="text-red-500 ml-0.5">*</span></label>{checks('empStatus',['Probation','Confirmed','Intern','Notice period'])}{show('empStatus')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.empStatus}</div>}</div> */}
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Branches</label>{multiSelectIds('branchIds', branches, 'name', 'id', 'branches')}</div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Departments</label>{multiSelectIds('departmentIds', departments, 'name', 'id', 'departments')}</div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Designations</label>{multiSelectIds('designationIds', designations, 'title', 'id', 'designations')}</div>
@@ -741,7 +825,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
           )}
 
           {/* Section 7: Approval & workflow */}
-          {sec(7,'Approval & workflow','How leave requests under this policy are approved and shown.','po-flow',
+          {/* {sec(7,'Approval & workflow','How leave requests under this policy are approved and shown.','po-flow',
             <div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Approval flow</label><select className={inp} value={f.approval} onChange={e=>set('approval',e.target.value)}><option>Reporting Manager</option><option>Reporting Manager → HR</option><option>Reporting Manager → Dept. Head</option><option>Auto-approve</option></select></div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Workflow settings</label><div className="grid grid-cols-2 gap-x-4">
@@ -757,7 +841,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
                 {wfCheck('wfYearEndPending','Allow year-end processing with pending requests')}
               </div></div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
       <div className="sticky bottom-0 bg-slate-50/90 backdrop-blur border-t border-slate-200 py-3 flex gap-2.5 items-center z-5">
