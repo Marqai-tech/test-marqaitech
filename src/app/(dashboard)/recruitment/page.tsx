@@ -2131,8 +2131,8 @@ export default function RecruitmentPage() {
       {/* JOBS TAB                                                    */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'jobs' && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
-          <div className="space-y-4">
+        <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+          <div className="flex min-h-0 h-full flex-col gap-4">
           {/* Filter Bar */}
           <div className="thb-card p-3">
             <div className="mb-2 flex items-center justify-between"><h2 className="text-base font-bold text-thb-text-primary">Job Posting List</h2><span className="text-[11px] text-thb-text-muted">{filteredJobs.length} of {displayJobs.length}</span></div>
@@ -2435,7 +2435,7 @@ export default function RecruitmentPage() {
             </div>
           </div>
           </div>
-          <section className="thb-card min-h-[420px] overflow-hidden border border-thb-border">
+          <section className="thb-card flex min-h-0 h-full flex-col overflow-hidden border border-thb-border">
             <div className="border-b border-thb-border px-4 py-3"><h2 className="text-lg font-bold text-thb-text-primary">Job Details</h2><p className="mt-0.5 text-xs text-thb-text-muted">Select a job to view its posting details.</p></div>
             {selectedJob ? <div className="flex h-[calc(100%-4.5rem)] flex-col gap-3 overflow-y-auto p-4">
               <div className="flex items-start justify-between gap-3"><div><h3 className="text-xl font-bold text-slate-950">{selectedJob.title}</h3><p className="mt-1 text-xs text-slate-500">{selectedJob.position || 'Job posting'} · {selectedJob.department?.name || 'Department'}</p></div><span className={getJobStatusBadge(selectedJob.status).className}>{getJobStatusBadge(selectedJob.status).label}</span></div>
