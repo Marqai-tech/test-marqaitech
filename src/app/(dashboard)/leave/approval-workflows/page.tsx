@@ -108,7 +108,7 @@ export default function ApprovalWorkflowsPage() {
       const [wfRes, ltRes, empRes] = await Promise.all([
         fetch(`/api/leave/workflow-config${qsep}`, { headers: h }).catch(() => null),
         fetch(`/api/leave-types?limit=100${sep}`, { headers: h }).catch(() => null),
-        fetch(`/api/employees?limit=200${sep}`, { headers: h }).catch(() => null),
+        fetch(`/api/employees?limit=200&excludeManagement=0${sep}`, { headers: h }).catch(() => null),
       ]);
       if (wfRes?.ok) {
         const d = await wfRes.json();
