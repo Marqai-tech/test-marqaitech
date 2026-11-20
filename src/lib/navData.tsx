@@ -403,7 +403,7 @@ export const navSections: NavSection[] = [
       // ── Primary recruitment workflow (kept in operational order) ──
       { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
-      { label: 'Create Jobs', href: '/recruitment?tab=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Create Jobs', href: '/recruitment?tab=jobs&single=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Find Candidates', href: '/recruitment?tab=candidates&single=candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Scheduled Interviews', href: '/interviews', icon: <FiClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },

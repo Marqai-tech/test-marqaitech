@@ -1922,35 +1922,38 @@ export default function RecruitmentPage() {
             <div className="space-y-4">
               {jobFormStep === 1 && (
               <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
-                <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2"><FiBriefcase className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Job Details</h3></div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="mb-3 flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2.5">
+                  <div className="flex items-center gap-2"><FiBriefcase className="h-4 w-4 text-emerald-700" /><div><h3 className="text-sm font-bold text-slate-900">Job basics</h3><p className="text-[11px] text-slate-500">Add the details candidates will see on the job posting.</p></div></div>
+                  <span className="hidden rounded-full bg-white px-2 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200 sm:inline">Step 1 of 5</span>
+                </div>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title <span className="text-red-500 font-bold">*</span></label>
-                  <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Job Title <span className="text-red-500">*</span></label>
+                  <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Senior Software Engineer" className="w-full rounded-lg border border-thb-border px-3 py-2.5 text-sm focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500 font-bold">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Department <span className="text-red-500">*</span></label>
                   <select value={jobForm.departmentId} onChange={e => setJobForm(p => ({ ...p, departmentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                     <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Position / Designation</label>
                   <input type="text" value={jobForm.position} onChange={e => setJobForm(p => ({ ...p, position: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
                   <input type="text" value={jobForm.location} onChange={e => setJobForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Work Type <span className="text-red-500 font-bold">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Work Type <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-thb-border">
-                    {(['on-site', 'hybrid', 'remote'] as const).map(mode => <button key={mode} type="button" onClick={() => setJobForm(p => ({ ...p, workMode: mode }))} className={`px-2 py-2.5 text-xs font-semibold capitalize transition-colors ${jobForm.workMode === mode ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-emerald-50'}`}>{mode}</button>)}
+                    {(['on-site', 'hybrid', 'remote'] as const).map(mode => <button key={mode} type="button" onClick={() => setJobForm(p => ({ ...p, workMode: mode }))} className={`px-2 py-2.5 text-xs font-semibold capitalize transition-colors ${jobForm.workMode === mode ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-emerald-50'}`}>{mode === 'on-site' ? 'On-site' : mode}</button>)}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Employment Type</label>
                   <select value={jobForm.type} onChange={e => setJobForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                     <option value="full-time">Full-time</option>
                     <option value="part-time">Part-time</option>
@@ -1959,25 +1962,16 @@ export default function RecruitmentPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Experience</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Experience (Years)</label>
                   <input type="text" value={jobForm.experience} onChange={e => setJobForm(p => ({ ...p, experience: e.target.value }))} placeholder="e.g., 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Vacancies</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Number of Openings <span className="text-red-500">*</span></label>
                   <input type="number" min="1" value={jobForm.vacancies} onChange={e => setJobForm(p => ({ ...p, vacancies: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Closing Date</label>
-                  <input type="date" value={jobForm.closingDate} onChange={e => setJobForm(p => ({ ...p, closingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
-                </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Status</label>
-                  <select value={jobForm.status} onChange={e => setJobForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
-                    <option value="open">Open</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="closed">Closed</option>
-                    <option value="filled">Filled</option>
-                  </select>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Position Closing Date <span className="text-red-500">*</span></label>
+                  <input type="date" value={jobForm.closingDate} onChange={e => setJobForm(p => ({ ...p, closingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
               </div>
               </section>
