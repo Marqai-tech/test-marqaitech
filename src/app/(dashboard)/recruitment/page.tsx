@@ -1862,9 +1862,9 @@ export default function RecruitmentPage() {
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBriefcase className="w-6 h-6 text-teal-500" />
-            Recruitment
+            {activeTab === 'jobs' ? 'Jobs' : activeTab === 'candidates' ? 'Candidates' : 'Recruitment'}
           </h1>
-          <p className="text-thb-text-secondary mt-1">Manage job postings and applications</p>
+          <p className="text-thb-text-secondary mt-1">{activeTab === 'jobs' ? 'Create, manage, and publish job openings in one place' : 'Manage job postings and applications'}</p>
           {/* REQ-SEC-REC-03 PII masked indicator */}
           {!isRecruiterOrAdmin ? (
             <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold ring-1 ring-emerald-200" title="PII is masked for your role per REQ-SEC-REC-03.">
@@ -2087,15 +2087,15 @@ export default function RecruitmentPage() {
       )}
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {(activeTab === 'jobs' ? statsCards : activeTab === 'candidates' ? candidateStatsCards : statsCards).map((card) => (
-          <div key={card.label} className="thb-card p-5 border border-thb-border hover:shadow-md transition-shadow">
+          <div key={card.label} className="thb-card border border-thb-border p-3.5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{card.label}</p>
                 <p className={`text-2xl font-bold mt-1 ${card.color}`}>{card.value}</p>
               </div>
-              <div className={`p-3 rounded-xl ${card.bg} border ${card.border}`}>
+              <div className={`rounded-xl border p-2.5 ${card.bg} ${card.border}`}>
                 <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
             </div>
@@ -2132,7 +2132,7 @@ export default function RecruitmentPage() {
       {activeTab === 'jobs' && (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="thb-card p-4">
+          <div className="thb-card p-3">
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
               <div className="relative flex-1 min-w-0">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
@@ -2188,18 +2188,18 @@ export default function RecruitmentPage() {
           </div>
 
           {/* Jobs Table */}
-          <div className="thb-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+          <div className="thb-card max-h-[calc(100vh-23rem)] overflow-hidden">
+            <div className="max-h-[calc(100vh-25rem)] overflow-auto">
+              <table className="w-full min-w-[720px]">
                 <thead>
                   <tr className="border-b border-thb-border bg-slate-50/80">
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Job Title</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Job Type</th>
-                    <th className="text-center px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Vacancies</th>
-                    <th className="text-center px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applications</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Posted Date</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
-                    <th className="text-right px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-thb-text-secondary">Job Title</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-thb-text-secondary">Job Type</th>
+                    <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-thb-text-secondary">Openings</th>
+                    <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-thb-text-secondary">Applications</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-thb-text-secondary">Posted</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-thb-text-secondary">Status</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-thb-text-secondary">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
