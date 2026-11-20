@@ -118,6 +118,11 @@ function ApplyLeaveContent() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [triedSubmit, setTriedSubmit] = useState(false);
+  // User-facing warning when the employee has a leave policy attached but
+  // it has no leave types configured (or the policy was deleted). Empty
+  // string = no warning. Surfaced so HR/employee knows exactly what to fix
+  // instead of staring at an empty dropdown.
+  const [policyWarning, setPolicyWarning] = useState<string>('');
 
   const typeParam = searchParams.get('type');
 
@@ -183,9 +188,18 @@ function ApplyLeaveContent() {
                     hasPolicyFilter = true;
                     ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
                     console.log(`[apply-leave] Direct policy attachment: employee.leavePolicyId=${myEmp.leavePolicyId} → ${ltIds.length} leave type(s) added (scope bypassed).`);
+                  } else {
+                    // Policy is attached + active but has NO leave types configured
+                    // (leaveTypeIds is null/empty). This is the most common cause of
+                    // "I attached a policy but the employee sees no leave types" —
+                    // surface it so HR/employee knows exactly what to fix.
+                    hasPolicyFilter = true; // still enforce the filter → empty dropdown
+                    console.warn(`[apply-leave] Direct policy attachment: policy "${attachedPolicy.title}" (id=${myEmp.leavePolicyId}) is attached to this employee but has NO leaveTypeIds configured. HR must open Leave Setup → Policy Form → Leave Types section and pick the leave types for this policy.`);
+                    setPolicyWarning(`Your leave policy "${attachedPolicy.title}" is attached but has no leave types configured. Please ask HR to open Leave Setup → Policy Form → select this policy → pick leave types in the "Leave Types" section.`);
                   }
                 } else {
-                  console.warn(`[apply-leave] Direct policy attachment: employee.leavePolicyId=${myEmp.leavePolicyId} not found in active leave policies (policies seen: ${policies.length}).`);
+                  console.warn(`[apply-leave] Direct policy attachment: employee.leavePolicyId=${myEmp.leavePolicyId} not found in active leave policies (policies seen: ${policies.length}). The policy may have been deleted or deactivated.`);
+                  setPolicyWarning(`Your attached leave policy could not be found (it may have been deleted or deactivated). Please ask HR to reattach a valid leave policy from the Employee profile.`);
                 }
               }
 
@@ -470,6 +484,15 @@ function ApplyLeaveContent() {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* Left form panel */}
           <div className="p-5 lg:p-6 space-y-5">
+            {/* Policy warning — shown when the employee has a leave policy
+                attached but it has no leave types configured (or the policy
+                was deleted). Tells HR/employee exactly what to fix. */}
+            {policyWarning && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <p className="text-[12px] leading-relaxed">{policyWarning}</p>
+              </div>
+            )}
             {/* Leave type — 3-col grid */}
             <div>
               <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-2">

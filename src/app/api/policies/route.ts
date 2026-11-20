@@ -21,8 +21,20 @@ const POLICY_SCOPE_COLS = [
   `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "approvalFlow" TEXT`,
 ];
 async function ensurePolicyScopeColumns(db: any) {
+  // Add the runtime scope columns (leaveTypeIds, empStatus, branchIds, etc.)
+  // to the Policy table if they don't exist. These are NOT in schema.prisma.
+  // IMPORTANT: previously each ALTER was wrapped in `try {} catch {}` with
+  // NO logging — so if the ALTER failed (permissions, RLS, wrong DB), the
+  // column stayed missing and downstream code (leave apply page, policy
+  // form) silently got undefined for leaveTypeIds → employees saw an empty
+  // leave type dropdown even with a valid policy attached. We now log
+  // failures so they show up in Vercel logs.
   for (const sql of POLICY_SCOPE_COLS) {
-    try { await db.$executeRawUnsafe(sql); } catch {}
+    try {
+      await db.$executeRawUnsafe(sql);
+    } catch (err) {
+      console.warn('[policies] ensurePolicyScopeColumns ALTER failed:', err instanceof Error ? err.message : String(err), '| SQL:', sql);
+    }
   }
 }
 
