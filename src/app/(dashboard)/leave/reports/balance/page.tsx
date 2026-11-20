@@ -63,7 +63,9 @@ export default function LeaveBalanceReport() {
   ];
 
   const rows = (data.rows || []).length > 0 ? data.rows : DUMMY_ROWS;
-  const summary = Object.keys(data.summary || {}).length > 0 ? data.summary : {
+  const apiSummary = data.summary || {};
+  const hasRealSummary = apiSummary.totalEntitled > 0 || apiSummary.totalTaken > 0;
+  const summary = hasRealSummary ? apiSummary : {
     totalEntitled: 6412, totalTaken: 4303, totalRemaining: 2109,
     employeeCount: 8, negativeBalanceCount: 3, leaveTypeCount: 4,
   };

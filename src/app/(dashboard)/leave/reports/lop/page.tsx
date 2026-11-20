@@ -62,7 +62,9 @@ export default function LOPReport() {
   ];
 
   const rows = (data.rows || []).length > 0 ? data.rows : DUMMY_ROWS;
-  const summary = Object.keys(data.summary || {}).length > 0 ? data.summary : DUMMY_SUMMARY;
+  const apiSummary = data.summary || {};
+  const hasRealSummary = apiSummary.lopEmployees > 0 || apiSummary.totalLopDays > 0;
+  const summary = hasRealSummary ? apiSummary : DUMMY_SUMMARY;
   const byEmp = (data.byEmployee || []).length > 0 ? data.byEmployee : DUMMY_BY_EMP;
   const filtered = rows.filter((r: any) => r.employeeName.toLowerCase().includes(q.toLowerCase()));
 

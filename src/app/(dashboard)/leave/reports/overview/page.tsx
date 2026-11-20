@@ -38,7 +38,10 @@ export default function LeaveOverviewReport() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const s = data.summary || { totalDaysTaken: 4303, employeeCount: 485, pending: 12, lopDays: 186, approved: 2184 };
+  // Use dummy data when API returns empty/zero values
+  const apiSummary = data.summary || {};
+  const hasRealSummary = apiSummary.totalDaysTaken > 0 || apiSummary.approved > 0 || apiSummary.pending > 0;
+  const s = hasRealSummary ? apiSummary : { totalDaysTaken: 4303, employeeCount: 485, pending: 12, lopDays: 186, approved: 2184 };
   const typeDist = Object.keys(data.typeDist || {}).length > 0 ? data.typeDist : {
     'Casual Leave': { days: 1635, count: 142 },
     'Sick Leave': { days: 947, count: 89 },
