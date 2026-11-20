@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEdit2, FiTrash2,
   FiArrowLeft, FiRotateCcw, FiClock, FiSearch, FiBriefcase, FiCalendar,
-  FiFileText, FiUsers, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle, FiHome, FiVolume2,
+  FiFileText, FiUsers, FiUser, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle, FiHome, FiVolume2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
