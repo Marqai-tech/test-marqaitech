@@ -127,8 +127,43 @@ export async function GET(req: NextRequest) {
 
     const total = await db.policy.count({ where });
 
+    // ─── Augment with scope fields (runtime columns not in Prisma schema) ───
+    // Prisma's findMany doesn't return branchIds/departmentIds/designationIds/
+    // leaveTypeIds/empStatus etc. because they're added at runtime via ALTER TABLE.
+    // Fetch them via raw SQL and merge into the policy objects.
+    let augmentedPolicies = policies;
+    try {
+      if (policies.length > 0) {
+        const policyIds = policies.map((p: any) => `'${p.id.replace(/'/g, "''")}'`).join(',');
+        const scopeRows: any[] = await db.$queryRawUnsafe(
+          `SELECT id, "empStatus", "branchIds", "departmentIds", "designationIds", "gradeIds", "leaveTypeIds", "creditMode", "creditDay", "roundOff", "yearStart", "approvalFlow" FROM "Policy" WHERE id IN (${policyIds})`
+        );
+        const scopeMap = new Map<string, any>();
+        for (const row of scopeRows) scopeMap.set(row.id, row);
+        augmentedPolicies = policies.map((p: any) => {
+          const scope = scopeMap.get(p.id) || {};
+          return {
+            ...p,
+            empStatus: scope.empStatus || null,
+            branchIds: scope.branchIds || null,
+            departmentIds: scope.departmentIds || null,
+            designationIds: scope.designationIds || null,
+            gradeIds: scope.gradeIds || null,
+            leaveTypeIds: scope.leaveTypeIds || null,
+            creditMode: scope.creditMode || null,
+            creditDay: scope.creditDay || null,
+            roundOff: scope.roundOff || null,
+            yearStart: scope.yearStart || null,
+            approvalFlow: scope.approvalFlow || null,
+          };
+        });
+      }
+    } catch (scopeErr) {
+      console.warn('[policies GET] scope field augmentation failed (non-fatal):', scopeErr);
+    }
+
     return NextResponse.json({
-      data: policies,
+      data: augmentedPolicies,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     }, { headers: corsHeaders() });
   } catch (error) {
