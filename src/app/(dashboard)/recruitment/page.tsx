@@ -1828,6 +1828,7 @@ export default function RecruitmentPage() {
       return true;
     });
   }, [displayJobs, jobSearch, jobTypeFilter, jobStatusFilter, jobDeptFilter]);
+  const selectedJob = useMemo(() => displayJobs.find(job => job.id === expandedJob) || filteredJobs[0] || null, [displayJobs, expandedJob, filteredJobs]);
 
   const filteredCandidates = useMemo(() => {
     return maskedApplications.filter(app => {
@@ -2130,7 +2131,8 @@ export default function RecruitmentPage() {
       {/* JOBS TAB                                                    */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'jobs' && (
-        <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+          <div className="space-y-4">
           {/* Filter Bar */}
           <div className="thb-card p-3">
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -2431,6 +2433,18 @@ export default function RecruitmentPage() {
               </table>
             </div>
           </div>
+          </div>
+          <section className="thb-card min-h-[420px] overflow-hidden border border-thb-border">
+            <div className="border-b border-thb-border px-4 py-3"><h2 className="text-lg font-bold text-thb-text-primary">Job Details</h2><p className="mt-0.5 text-xs text-thb-text-muted">Select a job to view its posting details.</p></div>
+            {selectedJob ? <div className="flex h-[calc(100%-4.5rem)] flex-col gap-3 overflow-y-auto p-4">
+              <div className="flex items-start justify-between gap-3"><div><h3 className="text-xl font-bold text-slate-950">{selectedJob.title}</h3><p className="mt-1 text-xs text-slate-500">{selectedJob.position || 'Job posting'} · {selectedJob.department?.name || 'Department'}</p></div><span className={getJobStatusBadge(selectedJob.status).className}>{getJobStatusBadge(selectedJob.status).label}</span></div>
+              <div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg bg-slate-50 p-2.5"><span className="block text-[10px] uppercase text-slate-400">Employment</span><b>{selectedJob.type}</b></div><div className="rounded-lg bg-slate-50 p-2.5"><span className="block text-[10px] uppercase text-slate-400">Openings</span><b>{selectedJob.vacancies}</b></div><div className="rounded-lg bg-slate-50 p-2.5"><span className="block text-[10px] uppercase text-slate-400">Location</span><b>{selectedJob.location || 'Not specified'}</b></div><div className="rounded-lg bg-slate-50 p-2.5"><span className="block text-[10px] uppercase text-slate-400">Closing Date</span><b>{selectedJob.closingDate ? formatDate(selectedJob.closingDate) : 'Not specified'}</b></div></div>
+              <div><h4 className="text-xs font-bold text-slate-800">Salary Budget</h4><p className="mt-1 text-sm font-semibold text-slate-950">{selectedJob.salary || 'Not specified'}</p></div>
+              <div><h4 className="text-xs font-bold text-slate-800">Interview Rounds</h4><div className="mt-1 flex flex-wrap gap-1.5">{parseInterviewPlan(selectedJob.interviewPlan || '').map((round, index) => <span key={`${round.name}-${index}`} className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div></div>
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3"><h4 className="text-xs font-bold text-emerald-900">Applications</h4><p className="mt-1 text-2xl font-bold text-emerald-700">{selectedJob._count?.applications || selectedJob.applications?.length || 0}</p></div>
+              <div className="mt-auto flex flex-wrap gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => handleOpenEditJobForm(selectedJob)} className="rounded-lg border border-thb-border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit Job</button><Link href={`/recruitment/${selectedJob.id}`} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50">View Details</Link><button type="button" onClick={() => setDeleteConfirmId(selectedJob.id)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></div>
+            </div> : <div className="flex h-[420px] items-center justify-center p-6 text-center text-sm text-slate-500">No job postings available.</div>}
+          </section>
         </div>
       )}
 
