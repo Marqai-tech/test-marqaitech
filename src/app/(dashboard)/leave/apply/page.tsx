@@ -258,15 +258,26 @@ function ApplyLeaveContent() {
 
             // If we found policy/mapping data AND the employee matched at least one,
             // filter the leave types to only show allowed ones.
-            // If the employee matched NONE, fall back to showing all types
-            // (don't clear the list — that would make the page unusable).
+            // If the employee matched NONE, fall back to showing all types.
             if (hasPolicyFilter && allowedLeaveTypeIds.size > 0) {
-              activeTypes = activeTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
+              // First try filtering from the already-fetched types
+              let filtered = activeTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
+              // If the API returned 0 types (due to company scope filtering),
+              // fetch ALL leave types without company filter and then filter by policy
+              if (filtered.length === 0) {
+                try {
+                  const allLtRes = await fetch(`/api/leave-types?limit=100&includeInactive=1`, { headers });
+                  if (allLtRes.ok) {
+                    const allLtData = await allLtRes.json();
+                    const allTypes = (allLtData.data || []).filter((t: any) => t.status === 'active' || t.status === undefined);
+                    filtered = allTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
+                  }
+                } catch {}
+              }
+              activeTypes = filtered;
               setLeaveTypes(activeTypes);
-              console.log(`[apply-leave] Policy filter: employee sees ${activeTypes.length} of ${ltData.data?.length || 0} leave types (matched ${allowedLeaveTypeIds.size} allowed IDs).`);
+              console.log(`[apply-leave] Policy filter: employee sees ${activeTypes.length} leave types (from ${allowedLeaveTypeIds.size} allowed IDs).`);
             }
-            // If hasPolicyFilter is true but allowedLeaveTypeIds is empty (employee matched nothing),
-            // do NOT clear — keep showing all types as fallback.
           } catch (e) {
             console.warn('[apply-leave] Policy filter failed (non-fatal):', e);
           }
