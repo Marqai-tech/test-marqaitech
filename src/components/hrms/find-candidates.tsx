@@ -1,49 +1,47 @@
 'use client';
 
 /**
- * Find Candidates module — sidebar entry under RECRUITMENT.
+ * Find Candidates — recruitment screening screen (redesigned).
  *
- * Cross-job candidate discovery with:
- *   - Search by name / email / keyword
- *   - Filter by skills (comma-separated, must match ALL)
- *   - Filter by min/max experience years
- *   - Filter by min/max expected salary (LPA)
- *   - Filter by application status
- *   - Filter by specific job posting
+ * Scope of this screen ONLY: candidate discovery, resume review, screening,
+ * shortlisting and rejection. Interview scheduling, offers, preboarding and
+ * BGV live in their own modules and are never started from here.
  *
- * Results render as visual candidate cards with:
- *   - Avatar (initials)
- *   - Name + email
- *   - Current title (parsed from resume)
- *   - Years of experience
- *   - Skill tags (top 6 skills)
- *   - AI match score badge (when available)
- *   - "View Profile" button → opens detail modal with full resume
+ * Layout (viewport-fit, no horizontal scrolling):
+ *   - Header: breadcrumb, title, subtitle, Refresh + Export
+ *   - Summary cards: Total Candidates / New Applications / In Screening / Shortlisted
+ *   - Filter card: Job Posting, search, Source, Experience, Status, Sort, Clear Filters
+ *   - Candidate list: aligned compact rows, internal vertical scroll only
+ *   - "View Profile" → FULL-PAGE profile (never a modal): resume preview +
+ *     download, skills, experience, education, screening answers, recruiter
+ *     notes, tags, activity timeline, per-application status actions
  *
- * Reuses /api/recruitment/candidate-search — no new API created.
+ * Status flow (forward-only): applied → screening → shortlisted. Rejected is
+ * terminal and always asks for confirmation. Backward moves are not offered.
+ *
+ * Data: everything dynamic from the existing APIs.
+ *   - GET  /api/recruitment/candidate-search  (aggregated candidates; now also
+ *     returns source / notes / resume / coverLetter per application)
+ *   - GET  /api/recruitment?limit=200         (job postings for the filter)
+ *   - PATCH /api/recruitment/:applicationId   ({ status } for stage moves,
+ *     { recruiterNotes | tags } stored inside the notes JSON next to the AI
+ *     feedback keys — nothing is overwritten)
+ *   No candidate data is hardcoded; every value on screen comes from the DB.
  */
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
-  Search, RefreshCw, AlertTriangle, Loader2, Eye, MapPin, Briefcase, Mail, Phone,
-  Star, Clock, DollarSign, Award, X, ChevronDown, ChevronUp, Filter, CheckCircle2,
+  Search, RefreshCw, Download, X, Eye, FileText, Tag, StickyNote, Clock, MapPin,
+  Mail, Phone, Briefcase, Award, Star, ArrowRight, ArrowLeft, CheckCircle2,
+  Ban, Loader2, AlertTriangle, Calendar, Users, UserPlus, UserCheck,
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from '@/components/ui/dialog';
+import toast from 'react-hot-toast';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
+
+/* ─────────────────────────────── data types ─────────────────────────────── */
 
 interface ParsedResume {
   name?: string;
@@ -58,572 +56,1172 @@ interface ParsedResume {
   languages?: string[];
 }
 
-interface Application {
+interface AppRow {
   id: string;
   jobPostingId?: string;
   jobTitle?: string;
   position?: string;
+  department?: string;
+  company?: string;
   status?: string;
   appliedDate?: string;
+  source?: string;
+  notes?: string | null;
+  resume?: string | null;
+  coverLetter?: string | null;
+  rating?: number | null;
+  updatedAt?: string;
 }
 
-interface Candidate {
+interface CandidateEntry {
   candidateEmail: string;
   candidateName: string;
   candidatePhone?: string;
-  skills?: string[];
+  skills: string[];
   totalExperienceYears?: number;
   expectedSalaryLpa?: number | null;
   latestStatus?: string;
   latestAppliedDate?: string;
   parsedResume?: ParsedResume;
   matchScore?: number | null;
-  applications?: Application[];
+  applications: AppRow[];
 }
 
 interface JobPosting { id: string; title: string; }
 
-const STATUS_COLORS: Record<string, string> = {
-  applied: 'bg-blue-100 text-blue-800',
-  screening: 'bg-amber-100 text-amber-800',
-  shortlisted: 'bg-teal-100 text-teal-800',
-  interview: 'bg-purple-100 text-purple-800',
-  offered: 'bg-emerald-100 text-emerald-800',
-  hired: 'bg-green-200 text-green-900',
-  rejected: 'bg-red-100 text-red-800',
-  talent_pool: 'bg-slate-100 text-slate-800',
+interface RecruiterNote { text: string; at: string; }
+
+/* ─────────────────────────── design-system tokens ────────────────────────── */
+
+const INPUT_CLS = 'h-[34px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
+const CARD_CLS = 'rounded-xl border border-slate-200 bg-white shadow-sm';
+const SECTION_TITLE = 'text-[12.5px] font-bold text-slate-800';
+const LABEL_CLS = 'text-[11px] font-semibold text-slate-500';
+
+const STATUS_META: Record<string, { label: string; badge: string; next?: string; nextLabel?: string }> = {
+  applied: { label: 'Applied', badge: 'bg-blue-50 text-blue-700 border-blue-200', next: 'screening', nextLabel: 'Move to Screening' },
+  screening: { label: 'Screening', badge: 'bg-amber-50 text-amber-700 border-amber-200', next: 'shortlisted', nextLabel: 'Shortlist' },
+  shortlisted: { label: 'Shortlisted', badge: 'bg-green-50 text-green-700 border-green-200' },
+  rejected: { label: 'Rejected', badge: 'bg-red-50 text-red-700 border-red-200' },
+  interview: { label: 'In Interviews', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+  interview_completed: { label: 'Interview Done', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+  offered: { label: 'Offered', badge: 'bg-teal-50 text-teal-700 border-teal-200' },
+  hired: { label: 'Hired', badge: 'bg-green-100 text-green-800 border-green-300' },
 };
 
-function matchScoreColor(score: number | null | undefined): string {
-  if (score == null) return 'bg-slate-100 text-slate-600';
-  if (score >= 75) return 'bg-emerald-100 text-emerald-700';
-  if (score >= 50) return 'bg-amber-100 text-amber-700';
-  return 'bg-red-100 text-red-700';
+const SOURCE_LABELS: Record<string, string> = {
+  website: 'Website', referral: 'Referral', linkedin: 'LinkedIn', indeed: 'Indeed', other: 'Other',
+};
+
+function statusLabel(status?: string): string {
+  if (!status) return '—';
+  if (STATUS_META[status]) return STATUS_META[status].label;
+  return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function matchScoreLabel(score: number | null | undefined): string {
-  if (score == null) return 'No score';
-  return `${Math.round(score)}% match`;
+function statusBadgeCls(status?: string): string {
+  return STATUS_META[status || '']?.badge || 'bg-slate-100 text-slate-700 border-slate-200';
 }
+
+function sourceLabel(source?: string): string {
+  if (!source) return '—';
+  return SOURCE_LABELS[source] || source.charAt(0).toUpperCase() + source.slice(1);
+}
+
+function initials(name?: string): string {
+  return (name || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+}
+
+function fmtDate(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function isPdfResume(resume?: string | null): boolean {
+  if (!resume) return false;
+  const r = resume.toLowerCase();
+  return r.startsWith('data:application/pdf') || r.endsWith('.pdf') || r.includes('.pdf?') || r.includes('.pdf#');
+}
+
+/** notes field doubles as AI-feedback JSON; recruiter notes/tags live inside it. */
+function parseApplicationNotes(raw?: string | null): { legacy: string; recruiterNotes: RecruiterNote[]; tags: string[] } {
+  if (!raw) return { legacy: '', recruiterNotes: [], tags: [] };
+  const s = String(raw).trim();
+  try {
+    const obj = JSON.parse(s);
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      const legacy = typeof obj.raw === 'string' ? obj.raw : '';
+      const recruiterNotes = Array.isArray(obj.recruiterNotes)
+        ? (obj.recruiterNotes as RecruiterNote[]).filter(n => n && typeof n.text === 'string' && n.text.trim())
+        : [];
+      const tags = Array.isArray(obj.tags) ? (obj.tags as unknown[]).filter(t => typeof t === 'string' && t.trim()) as string[] : [];
+      return { legacy, recruiterNotes, tags };
+    }
+  } catch { /* plain-text legacy note */ }
+  return { legacy: s, recruiterNotes: [], tags: [] };
+}
+
+function csvEscape(v: unknown): string {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/* ══════════════════════════════ main component ═══════════════════════════ */
 
 export function FindCandidates() {
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [entries, setEntries] = useState<CandidateEntry[]>([]);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<Candidate | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filter, setFilter] = useState({
-    q: '',
-    skills: '',
-    minExp: '',
-    maxExp: '',
-    minSalary: '',
-    maxSalary: '',
-    status: 'all',
-    jobId: 'all',
+  const [filters, setFilters] = useState({
+    jobId: 'all', q: '', source: 'all', minExp: '', maxExp: '', status: 'all', sort: 'newest',
   });
+
+  // profile (full page — never a modal)
+  const [viewEmail, setViewEmail] = useState<string | null>(null);
+  const [bannerEmail, setBannerEmail] = useState<string | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const profileScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // actions
+  const [transitioningApp, setTransitioningApp] = useState<string | null>(null);
+  const [confirmRejectApp, setConfirmRejectApp] = useState<string | null>(null);
+  // inline row composers
+  const [noteRowEmail, setNoteRowEmail] = useState<string | null>(null);
+  const [tagRowEmail, setTagRowEmail] = useState<string | null>(null);
+  const [rowNoteText, setRowNoteText] = useState('');
+  const [rowTagText, setRowTagText] = useState('');
+  // profile composers
+  const [profileNoteText, setProfileNoteText] = useState('');
+  const [profileTagText, setProfileTagText] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  /* ───────────────────────────── data loading ───────────────────────────── */
+
+  const fetchJobs = useCallback(async () => {
+    try {
+      const res = await fetch('/api/recruitment?limit=200', { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setJobs((data?.jobPostings || []).map((j: { id: string; title: string }) => ({ id: j.id, title: j.title })));
+    } catch { /* non-fatal — job filter still usable with 'All jobs' */ }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Build query string
       const params = new URLSearchParams();
       params.set('limit', '200');
-      if (filter.q.trim()) params.set('q', filter.q.trim());
-      if (filter.skills.trim()) params.set('skills', filter.skills.trim());
-      if (filter.minExp) params.set('minExperienceYears', filter.minExp);
-      if (filter.maxExp) params.set('maxExperienceYears', filter.maxExp);
-      if (filter.minSalary) params.set('minSalary', filter.minSalary);
-      if (filter.maxSalary) params.set('maxSalary', filter.maxSalary);
-      if (filter.status !== 'all') params.set('status', filter.status);
-      if (filter.jobId !== 'all') params.set('jobPostingId', filter.jobId);
-
-      const res = await fetch(`/api/recruitment/candidate-search?${params.toString()}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error(`Failed (${res.status})`);
+      if (filters.q.trim()) params.set('q', filters.q.trim());
+      if (filters.minExp) params.set('minExperienceYears', filters.minExp);
+      if (filters.maxExp) params.set('maxExperienceYears', filters.maxExp);
+      if (filters.jobId !== 'all') params.set('jobPostingId', filters.jobId);
+      const res = await fetch(`/api/recruitment/candidate-search?${params.toString()}`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error(`Failed to load candidates (${res.status})`);
       const data = await res.json();
-      const list: Candidate[] = data?.candidates || data?.results || data?.data || (Array.isArray(data) ? data : []);
-      setCandidates(list);
-
-      // Also fetch job postings for the filter dropdown (single call)
-      if (jobs.length === 0) {
-        try {
-          const recRes = await fetch('/api/recruitment?limit=200', { headers: getAuthHeaders() });
-          if (recRes.ok) {
-            const recData = await recRes.json();
-            setJobs((recData?.jobPostings || []).map((j: any) => ({ id: j.id, title: j.title })));
-          }
-        } catch { /* non-fatal */ }
-      }
+      const list: CandidateEntry[] = data?.candidates || data?.results || data?.data || (Array.isArray(data) ? data : []);
+      setEntries(list);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load candidates');
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter.q, filter.skills, filter.minExp, filter.maxExp, filter.minSalary, filter.maxSalary, filter.status, filter.jobId]);
+  }, [filters.q, filters.minExp, filters.maxExp, filters.jobId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
-  // Derived stats
-  const stats = useMemo(() => {
-    const total = candidates.length;
-    const withMatch = candidates.filter((c) => c.matchScore != null);
-    const avgMatch = withMatch.length > 0
-      ? Math.round(withMatch.reduce((sum, c) => sum + (c.matchScore || 0), 0) / withMatch.length)
-      : null;
-    const totalSkills = new Set(candidates.flatMap((c) => c.skills || [])).size;
-    return { total, avgMatch, totalSkills };
-  }, [candidates]);
+  /* ──────────────────────────── derived values ──────────────────────────── */
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <Search className="h-6 w-6 text-emerald-600" /> Find Candidates
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Search across all candidates who have applied to your job postings. Filter by skills, experience, salary, and more.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </Button>
-      </div>
+  const visibleEntries = useMemo(() => {
+    const ql = filters.q.trim().toLowerCase();
+    let list = entries.filter(e => {
+      if (ql) {
+        const hitName = (e.candidateName || '').toLowerCase().includes(ql);
+        const hitEmail = (e.candidateEmail || '').toLowerCase().includes(ql);
+        const hitSkill = (e.skills || []).some(s => s.includes(ql));
+        const hitJob = (e.applications || []).some(a => (a.jobTitle || a.position || '').toLowerCase().includes(ql));
+        if (!hitName && !hitEmail && !hitSkill && !hitJob) return false;
+      }
+      if (filters.source !== 'all') {
+        const src = e.applications?.[0]?.source || '';
+        if (src !== filters.source) return false;
+      }
+      if (filters.status !== 'all' && (e.applications?.[0]?.status || e.latestStatus) !== filters.status) return false;
+      return true;
+    });
+    const t = (s?: string) => { const d = new Date(s || 0); return isNaN(d.getTime()) ? 0 : d.getTime(); };
+    list = [...list].sort((a, b) => {
+      if (filters.sort === 'match') return (b.matchScore ?? -1) - (a.matchScore ?? -1);
+      if (filters.sort === 'experience') return (b.totalExperienceYears ?? 0) - (a.totalExperienceYears ?? 0);
+      return t(b.latestAppliedDate) - t(a.latestAppliedDate);
+    });
+    return list;
+  }, [entries, filters.q, filters.source, filters.status, filters.sort]);
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Candidates Found</div>
-          <div className="text-2xl font-bold mt-1">{stats.total}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Avg AI Match Score</div>
-          <div className="text-2xl font-bold mt-1 text-emerald-600">{stats.avgMatch != null ? `${stats.avgMatch}%` : '—'}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Unique Skills</div>
-          <div className="text-2xl font-bold mt-1 text-blue-600">{stats.totalSkills}</div>
-        </CardContent></Card>
-      </div>
-
-      {/* Search + filter toggle */}
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, email, or keyword…"
-                value={filter.q}
-                onChange={(e) => setFilter({ ...filter, q: e.target.value })}
-                className="pl-9"
-              />
-            </div>
-            <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-              <Filter className="h-4 w-4 mr-2" />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-              {showFilters ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
-            </Button>
-          </div>
-
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-border">
-              <div>
-                <Label className="text-xs">Skills (comma-separated, must match all)</Label>
-                <Input
-                  placeholder="react, node.js, postgresql"
-                  value={filter.skills}
-                  onChange={(e) => setFilter({ ...filter, skills: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Min Experience (years)</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={filter.minExp}
-                  onChange={(e) => setFilter({ ...filter, minExp: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Max Experience (years)</Label>
-                <Input
-                  type="number"
-                  placeholder="20"
-                  value={filter.maxExp}
-                  onChange={(e) => setFilter({ ...filter, maxExp: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Min Salary (LPA)</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={filter.minSalary}
-                  onChange={(e) => setFilter({ ...filter, minSalary: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Max Salary (LPA)</Label>
-                <Input
-                  type="number"
-                  placeholder="100"
-                  value={filter.maxSalary}
-                  onChange={(e) => setFilter({ ...filter, maxSalary: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Application Status</Label>
-                <Select value={filter.status} onValueChange={(v) => setFilter({ ...filter, status: v })}>
-                  <SelectTrigger><SelectValue placeholder="All statuses" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="applied">Applied</SelectItem>
-                    <SelectItem value="screening">Screening</SelectItem>
-                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                    <SelectItem value="interview">Interview</SelectItem>
-                    <SelectItem value="offered">Offered</SelectItem>
-              <SelectItem value="offer_accepted">Offer Accepted</SelectItem>
-              <SelectItem value="preboarding">Preboarding</SelectItem>
-              <SelectItem value="bgv_in_progress">BGV In Progress</SelectItem>
-              <SelectItem value="bgv_passed">BGV Passed</SelectItem>
-                    <SelectItem value="hired">Hired</SelectItem>
-                    <SelectItem value="talent_pool">Talent Pool</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Job Posting</Label>
-                <Select value={filter.jobId} onValueChange={(v) => setFilter({ ...filter, jobId: v })}>
-                  <SelectTrigger><SelectValue placeholder="All jobs" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All jobs</SelectItem>
-                    {jobs.map((j) => (
-                      <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="md:col-span-3 flex justify-end">
-                <Button variant="outline" size="sm" onClick={() => setFilter({
-                  q: '', skills: '', minExp: '', maxExp: '', minSalary: '', maxSalary: '', status: 'all', jobId: 'all',
-                })}>
-                  <X className="h-3 w-3 mr-1" /> Clear all filters
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Error */}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex items-start gap-2">
-          <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
-          <div>{error}</div>
-        </div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Searching candidates…
-        </div>
-      )}
-
-      {/* Empty */}
-      {!loading && !error && candidates.length === 0 && (
-        <Card><CardContent className="p-12 text-center">
-          <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <h3 className="font-medium">No candidates found</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Try adjusting your search terms or filters. Candidates will appear here once they apply to your job postings.
-          </p>
-        </CardContent></Card>
-      )}
-
-      {/* Candidate cards grid */}
-      {!loading && !error && candidates.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {candidates.map((c, idx) => (
-            <CandidateCard key={`${c.candidateEmail}-${idx}`} candidate={c} onView={() => setViewing(c)} />
-          ))}
-        </div>
-      )}
-
-      {/* Profile modal */}
-      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{viewing?.candidateName || 'Candidate Profile'}</DialogTitle>
-            <DialogDescription>
-              {viewing?.candidateEmail}
-            </DialogDescription>
-          </DialogHeader>
-          {viewing && <CandidateDetail candidate={viewing} />}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function CandidateCard({ candidate, onView }: { candidate: Candidate; onView: () => void }) {
-  const skills = (candidate.skills || candidate.parsedResume?.skills || []).slice(0, 6);
-  const location = candidate.parsedResume?.location;
-  const experience = candidate.totalExperienceYears || 0;
-  const matchScore = candidate.matchScore;
-  const latestStatus = candidate.latestStatus;
-  const applicationsCount = candidate.applications?.length || 0;
-  const firstApplicationId = candidate.applications?.[0]?.id;
-  const [addingPool, setAddingPool] = useState(false);
-  const [addedPool, setAddedPool] = useState(false);
-
-  const addToPool = async () => {
-    if (!firstApplicationId) {
-      toast.error('Cannot add to pool — no application ID linked to this candidate');
-      return;
+  const kpis = useMemo(() => {
+    let applied = 0, screening = 0, shortlisted = 0;
+    for (const e of entries) {
+      for (const a of e.applications || []) {
+        if (a.status === 'applied') applied += 1;
+        else if (a.status === 'screening') screening += 1;
+        else if (a.status === 'shortlisted') shortlisted += 1;
+      }
     }
-    setAddingPool(true);
+    return { total: entries.length, applied, screening, shortlisted };
+  }, [entries]);
+
+  const profileEntry = useMemo(
+    () => (viewEmail ? entries.find(e => e.candidateEmail === viewEmail) || null : null),
+    [entries, viewEmail],
+  );
+
+  const hasActiveFilters = filters.jobId !== 'all' || filters.q.trim() !== '' || filters.source !== 'all'
+    || filters.minExp !== '' || filters.maxExp !== '' || filters.status !== 'all';
+
+  /* ─────────────────────────────── actions ──────────────────────────────── */
+
+  const openProfile = (email: string) => {
+    setViewEmail(email);
+    setBannerEmail(null);
+    setResumeLoading(true);
+    setProfileNoteText('');
+    setProfileTagText('');
+    setConfirmRejectApp(null);
+    requestAnimationFrame(() => profileScrollRef.current?.scrollTo({ top: 0 }));
+  };
+
+  const transitionStatus = async (app: AppRow, next: string, candidateName: string) => {
+    setTransitioningApp(app.id);
     try {
-      const res = await fetch('/api/recruitment/talent-pool', {
-        method: 'POST',
+      const res = await fetch(`/api/recruitment/${app.id}`, {
+        method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ applicationId: firstApplicationId }),
+        body: JSON.stringify({ status: next }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
-      toast.success(`${candidate.candidateName} added to talent pool`);
-      setAddedPool(true);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
+      if (next === 'shortlisted') {
+        setBannerEmail(profileEntry?.candidateEmail || null);
+        toast.success('Candidate shortlisted. Continue interview scheduling from Scheduled Interviews.');
+      } else {
+        toast.success(`${candidateName} moved to ${statusLabel(next)}`);
+      }
+      await fetchData();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to add to pool');
+      toast.error(e instanceof Error ? e.message : 'Failed to update status');
     } finally {
-      setAddingPool(false);
+      setTransitioningApp(null);
     }
   };
 
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-base font-semibold shrink-0">
-              {(candidate.candidateName || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+  const rejectCandidate = async (app: AppRow, candidateName: string) => {
+    setTransitioningApp(app.id);
+    try {
+      const res = await fetch(`/api/recruitment/${app.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'rejected' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
+      toast.success(`${candidateName} rejected`);
+      setConfirmRejectApp(null);
+      await fetchData();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reject candidate');
+    } finally {
+      setTransitioningApp(null);
+    }
+  };
+
+  /** Persist recruiter notes / tags on the primary application (notes JSON). */
+  const persistNotes = async (app: AppRow, patch: { recruiterNotes?: RecruiterNote[]; tags?: string[] }) => {
+    setSavingNotes(true);
+    try {
+      const res = await fetch(`/api/recruitment/${app.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
+      await fetchData();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save');
+      return false;
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const saveNote = async (app: AppRow | null, email: string, text: string, fromProfile: boolean) => {
+    const trimmed = text.trim();
+    if (!trimmed) { toast.error('Note cannot be empty'); return; }
+    if (!app) { toast.error('No application linked to this candidate'); return; }
+    const parsed = parseApplicationNotes(app.notes);
+    const note: RecruiterNote = { text: trimmed, at: new Date().toISOString() };
+    const ok = await persistNotes(app, { recruiterNotes: [note, ...parsed.recruiterNotes] });
+    if (ok) {
+      toast.success('Note added');
+      if (fromProfile) setProfileNoteText(''); else { setRowNoteText(''); setNoteRowEmail(null); }
+    }
+  };
+
+  const addTag = async (app: AppRow | null, text: string, fromProfile: boolean) => {
+    const tag = text.trim();
+    if (!tag) { toast.error('Enter a tag first'); return; }
+    if (!app) { toast.error('No application linked to this candidate'); return; }
+    const parsed = parseApplicationNotes(app.notes);
+    if (parsed.tags.some(t => t.toLowerCase() === tag.toLowerCase())) { toast.error('Tag already added'); return; }
+    const ok = await persistNotes(app, { tags: [...parsed.tags, tag] });
+    if (ok) {
+      toast.success('Tag added');
+      if (fromProfile) setProfileTagText(''); else { setRowTagText(''); setTagRowEmail(null); }
+    }
+  };
+
+  const removeTag = async (app: AppRow | null, tag: string) => {
+    if (!app) return;
+    const parsed = parseApplicationNotes(app.notes);
+    const ok = await persistNotes(app, { tags: parsed.tags.filter(t => t !== tag) });
+    if (ok) toast.success('Tag removed');
+  };
+
+  const clearFilters = () => {
+    setFilters({ jobId: 'all', q: '', source: 'all', minExp: '', maxExp: '', status: 'all', sort: 'newest' });
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const header = ['Name', 'Email', 'Phone', 'Applied To', 'Department', 'Experience (years)', 'Skills', 'Source', 'Applied Date', 'Status', 'Resume'];
+      const lines = [header.join(',')];
+      for (const e of visibleEntries) {
+        const app = e.applications?.[0];
+        const parsed = parseApplicationNotes(app?.notes);
+        lines.push([
+          e.candidateName, e.candidateEmail, e.candidatePhone || '', app?.jobTitle || app?.position || '',
+          app?.department || '', String(e.totalExperienceYears ?? ''),
+          (e.skills || []).slice(0, 8).join('; '), sourceLabel(app?.source), fmtDate(app?.appliedDate || e.latestAppliedDate),
+          statusLabel(app?.status || e.latestStatus), app?.resume ? 'Yes' : 'No',
+        ].map(csvEscape).join(','));
+      }
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `find-candidates-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${visibleEntries.length} candidate${visibleEntries.length === 1 ? '' : 's'} to CSV`);
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /* ═════════════════════════ shared small pieces ══════════════════════════ */
+
+  const statusBadge = (status?: string, extra?: string) => (
+    <span className={`inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[10.5px] font-bold ${statusBadgeCls(status)} ${extra || ''}`}>
+      {status === 'shortlisted' && <CheckCircle2 className="h-3 w-3" />}
+      {statusLabel(status)}
+    </span>
+  );
+
+  const resumeDot = (app?: AppRow) => (
+    <span
+      title={app?.resume ? 'Resume on file — click View Profile to preview' : 'No resume uploaded'}
+      className={`inline-flex h-[22px] w-[26px] items-center justify-center rounded-md border ${app?.resume ? 'border-green-200 bg-green-50 text-green-600' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
+    >
+      <FileText className="h-3 w-3" />
+    </span>
+  );
+
+  const skillChips = (skills: string[], max = 3) => {
+    if (!skills.length) return <span className="text-[11px] text-slate-400">No skills parsed</span>;
+    const shown = skills.slice(0, max);
+    return (
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        {shown.map(s => (
+          <span key={s} className="inline-flex h-[20px] max-w-[110px] items-center truncate rounded-md border border-emerald-200 bg-emerald-50 px-1.5 text-[10px] font-semibold text-emerald-700">
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+          </span>
+        ))}
+        {skills.length > max && (
+          <span className="text-[10px] font-semibold text-slate-400">+{skills.length - max}</span>
+        )}
+      </div>
+    );
+  };
+
+  const forwardBtn = (app: AppRow, name: string, compact?: boolean) => {
+    const meta = STATUS_META[app.status || ''];
+    if (!meta?.next) return null;
+    return (
+      <button
+        onClick={() => transitionStatus(app, meta.next as string, name)}
+        disabled={transitioningApp === app.id}
+        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[10.5px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700 disabled:opacity-60"
+        title={meta.nextLabel}
+      >
+        {transitioningApp === app.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
+        {compact ? meta.nextLabel : meta.nextLabel}
+      </button>
+    );
+  };
+
+  const rejectBtn = (app: AppRow, name: string) => {
+    if (app.status === 'rejected') return null;
+    if (confirmRejectApp === app.id) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5">
+          <span className="text-[10.5px] font-bold text-red-700">Reject?</span>
+          <button
+            onClick={() => rejectCandidate(app, name)}
+            disabled={transitioningApp === app.id}
+            className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+          >{transitioningApp === app.id ? '…' : 'Yes'}</button>
+          <button
+            onClick={() => setConfirmRejectApp(null)}
+            className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-600 transition hover:bg-slate-50"
+          >No</button>
+        </span>
+      );
+    }
+    return (
+      <button
+        onClick={() => setConfirmRejectApp(app.id)}
+        disabled={transitioningApp === app.id}
+        className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-[10.5px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+        title="Reject candidate"
+      >
+        <Ban className="h-3 w-3" /> Reject
+      </button>
+    );
+  };
+
+  /* ═══════════════════════════ candidate row ══════════════════════════════ */
+
+  const renderRow = (e: CandidateEntry) => {
+    const app = e.applications?.[0];
+    const parsed = parseApplicationNotes(app?.notes);
+    const match = e.matchScore;
+    return (
+      <div key={e.candidateEmail}>
+        <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1.5 px-3 py-2.5 transition hover:bg-slate-50/70 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1.1fr)_54px_minmax(170px,1.7fr)_80px_82px_118px_auto]">
+          {/* candidate */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-700">
+              {initials(e.candidateName)}
             </div>
             <div className="min-w-0">
-              <div className="font-medium truncate">{candidate.candidateName || 'Unknown'}</div>
-              <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                <Mail className="h-3 w-3" /> {candidate.candidateEmail || '—'}
+              <div className="truncate text-[12.5px] font-bold text-slate-800">{e.candidateName || 'Unknown'}</div>
+              <div className="flex min-w-0 items-center gap-1 text-[10.5px] text-slate-500">
+                <Mail className="h-3 w-3 shrink-0" /><span className="truncate">{e.candidateEmail}</span>
               </div>
             </div>
           </div>
-          <Badge className={`shrink-0 ${matchScoreColor(matchScore)}`}>
-            <Star className="h-3 w-3 mr-0.5" />
-            {matchScore != null ? `${Math.round(matchScore)}%` : '—'}
-          </Badge>
-        </div>
-
-        {/* Meta row */}
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
-          {experience > 0 && (
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {experience} yr{experience !== 1 ? 's' : ''} exp</span>
-          )}
-          {candidate.expectedSalaryLpa && (
-            <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> {candidate.expectedSalaryLpa} LPA</span>
-          )}
-          {location && (
-            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {location}</span>
-          )}
-          {latestStatus && (
-            <Badge variant="outline" className={`text-[10px] h-5 px-1.5 ${STATUS_COLORS[latestStatus] || ''}`}>
-              {latestStatus}
-            </Badge>
-          )}
-          {applicationsCount > 1 && (
-            <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" /> {applicationsCount} applications</span>
-          )}
-        </div>
-
-        {/* Skills */}
-        {skills.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {skills.map((s, i) => (
-              <Badge key={i} variant="outline" className="text-[10px] h-5 px-1.5 bg-emerald-50 text-emerald-700 border-emerald-200">
-                {s.length > 28 ? `${s.slice(0, 28)}…` : s}
-              </Badge>
-            ))}
-            {(candidate.skills || candidate.parsedResume?.skills || []).length > 6 && (
-              <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-slate-50 text-slate-600 border-slate-200">
-                +{(candidate.skills || candidate.parsedResume?.skills || []).length - 6} more
-              </Badge>
+          {/* applied to */}
+          <div className="min-w-0">
+            <div className="truncate text-[11.5px] font-semibold text-slate-700">{app?.jobTitle || app?.position || 'Position not specified'}</div>
+            <div className="truncate text-[10.5px] text-slate-500">{app?.department || '—'}{app?.company ? ` · ${app.company}` : ''}</div>
+          </div>
+          {/* experience */}
+          <div className="text-[11.5px] font-semibold text-slate-700">
+            {e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)}y` : '—'}
+          </div>
+          {/* skills */}
+          <div className="min-w-0">{skillChips(e.skills || [])}</div>
+          {/* source */}
+          <div className="truncate text-[11px] font-medium text-slate-600">{sourceLabel(app?.source)}</div>
+          {/* applied date */}
+          <div className="flex items-center gap-1 text-[11px] text-slate-600">
+            <Calendar className="h-3 w-3 shrink-0 text-slate-400" />{fmtDate(app?.appliedDate || e.latestAppliedDate)}
+          </div>
+          {/* status + resume */}
+          <div className="flex items-center gap-1.5">
+            {statusBadge(app?.status || e.latestStatus)}
+            {resumeDot(app)}
+            {match != null && (
+              <span title="AI match score" className="inline-flex h-[22px] items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-bold text-slate-600">
+                <Star className="h-2.5 w-2.5 text-amber-500" />{Math.round(match)}%
+              </span>
             )}
           </div>
+          {/* actions */}
+          <div className="flex items-center justify-start gap-1 lg:justify-end">
+            {(app?.status === 'shortlisted') && (
+              <span title="Next step happens in Scheduled Interviews" className="mr-1 hidden text-[10px] font-semibold text-green-600 xl:inline">
+                Interview stage →
+              </span>
+            )}
+            {app && forwardBtn(app, e.candidateName, true)}
+            {app && rejectBtn(app, e.candidateName)}
+            {app && (
+              <MiniIconBtn title="Add note" active={noteRowEmail === e.candidateEmail} onClick={() => { setNoteRowEmail(noteRowEmail === e.candidateEmail ? null : e.candidateEmail); setTagRowEmail(null); setRowNoteText(''); }}>
+                <StickyNote className="h-3.5 w-3.5" />
+              </MiniIconBtn>
+            )}
+            {app && (
+              <MiniIconBtn title="Add tag" active={tagRowEmail === e.candidateEmail} onClick={() => { setTagRowEmail(tagRowEmail === e.candidateEmail ? null : e.candidateEmail); setNoteRowEmail(null); setRowTagText(''); }}>
+                <Tag className="h-3.5 w-3.5" />
+              </MiniIconBtn>
+            )}
+            {app?.resume && (
+              <MiniIconBtn title="View resume" onClick={() => openProfile(e.candidateEmail)}>
+                <FileText className="h-3.5 w-3.5" />
+              </MiniIconBtn>
+            )}
+            <button
+              onClick={() => openProfile(e.candidateEmail)}
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10.5px] font-bold text-green-700 transition hover:border-green-300 hover:bg-green-50"
+            >
+              <Eye className="h-3 w-3" /> View Profile
+            </button>
+          </div>
+        </div>
+
+        {/* inline note composer (no modals) */}
+        {noteRowEmail === e.candidateEmail && app && (
+          <div className="border-t border-slate-100 bg-slate-50/70 px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <StickyNote className="h-3.5 w-3.5 shrink-0 text-green-600" />
+              <input
+                autoFocus
+                value={rowNoteText}
+                onChange={ev => setRowNoteText(ev.target.value)}
+                onKeyDown={ev => { if (ev.key === 'Enter') saveNote(app, e.candidateEmail, rowNoteText, false); }}
+                placeholder={`Note about ${e.candidateName}…`}
+                className={INPUT_CLS}
+              />
+              <button
+                onClick={() => saveNote(app, e.candidateEmail, rowNoteText, false)}
+                disabled={savingNotes}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
+              >
+                {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Save Note
+              </button>
+            </div>
+          </div>
         )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <span className="text-xs text-muted-foreground">
-            {candidate.latestAppliedDate
-              ? `Applied ${new Date(candidate.latestAppliedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
-              : ''}
-          </span>
-          <Button size="sm" variant="outline" onClick={onView}>
-            <Eye className="h-3.5 w-3.5 mr-1.5" /> View Profile
-          </Button>
-          {addedPool ? (
-            <Button size="sm" variant="outline" disabled className="text-emerald-600 border-emerald-300 bg-emerald-50">
-              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> In Pool
-            </Button>
-          ) : (
-            <Button size="sm" variant="outline" onClick={addToPool} disabled={addingPool || !firstApplicationId}>
-              {addingPool ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Star className="h-3.5 w-3.5 mr-1.5 text-amber-500" />}
-              Add to Pool
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CandidateDetail({ candidate }: { candidate: Candidate }) {
-  const parsed = candidate.parsedResume;
-  const skills = candidate.skills || parsed?.skills || [];
-  const experience = parsed?.experience || [];
-  const education = parsed?.education || [];
-  const certifications = parsed?.certifications || [];
-
-  return (
-    <div className="space-y-4">
-      {/* Contact + meta */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Email</div>
-          <div className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {candidate.candidateEmail || '—'}</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Phone</div>
-          <div className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {candidate.candidatePhone || parsed?.phone || '—'}</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Experience</div>
-          <div>{candidate.totalExperienceYears || 0} years</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected Salary</div>
-          <div>{candidate.expectedSalaryLpa ? `${candidate.expectedSalaryLpa} LPA` : '—'}</div>
-        </div>
+        {/* inline tag composer (no modals) */}
+        {tagRowEmail === e.candidateEmail && app && (
+          <div className="border-t border-slate-100 bg-slate-50/70 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Tag className="h-3.5 w-3.5 shrink-0 text-green-600" />
+              {parsed.tags.map(t => (
+                <span key={t} className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold text-emerald-700">
+                  {t}
+                  <button onClick={() => removeTag(app, t)} title="Remove tag" className="text-emerald-500 transition hover:text-red-500">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                autoFocus
+                value={rowTagText}
+                onChange={ev => setRowTagText(ev.target.value)}
+                onKeyDown={ev => { if (ev.key === 'Enter') addTag(app, rowTagText, false); }}
+                placeholder="Add tag…"
+                className={`${INPUT_CLS} max-w-[220px]`}
+              />
+              <button
+                onClick={() => addTag(app, rowTagText, false)}
+                disabled={savingNotes}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
+              >
+                {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Add Tag
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+    );
+  };
 
-      {/* Match score + status */}
-      <div className="flex items-center gap-3">
-        {candidate.matchScore != null && (
-          <Badge className={matchScoreColor(candidate.matchScore)}>
-            <Star className="h-3 w-3 mr-1" /> {Math.round(candidate.matchScore)}% AI Match
-          </Badge>
-        )}
-        {candidate.latestStatus && (
-          <Badge variant="outline" className={STATUS_COLORS[candidate.latestStatus] || ''}>
-            Status: {candidate.latestStatus}
-          </Badge>
-        )}
-      </div>
+  /* ═══════════════════════════ profile screen ═════════════════════════════ */
 
-      {/* Summary */}
-      {parsed?.summary && (
-        <div className="rounded-md border border-border bg-muted/30 p-3">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Summary</div>
-          <p className="text-sm whitespace-pre-wrap">{parsed.summary}</p>
-        </div>
-      )}
+  const renderProfile = (e: CandidateEntry) => {
+    const primary = e.applications?.[0] || null;
+    const parsedNotes = parseApplicationNotes(primary?.notes);
+    const parsed = e.parsedResume;
+    const showBanner = bannerEmail === e.candidateEmail && primary?.status === 'shortlisted';
+    const timeline = [
+      ...(e.applications || []).map(a => ({ icon: 'job', title: `Applied to ${a.jobTitle || a.position || 'a position'}`, at: a.appliedDate, sub: `Source: ${sourceLabel(a.source)}` })),
+      ...parsedNotes.recruiterNotes.map(n => ({ icon: 'note', title: 'Recruiter note added', at: n.at, sub: n.text })),
+      ...(primary?.updatedAt ? [{ icon: 'clock', title: 'Application last updated', at: primary.updatedAt, sub: '' }] : []),
+    ]
+      .filter(ev => ev.at)
+      .sort((a, b) => new Date(b.at as string).getTime() - new Date(a.at as string).getTime())
+      .slice(0, 12);
 
-      {/* Skills */}
-      {skills.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Skills ({skills.length})</div>
-          <div className="flex flex-wrap gap-1">
-            {skills.map((s, i) => (
-              <Badge key={i} variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{s}</Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Experience */}
-      {experience.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Experience ({experience.length})</div>
-          <div className="space-y-2">
-            {experience.map((e, i) => (
-              <div key={i} className="rounded-md border border-border p-2 text-sm">
-                <div className="font-medium">{e.role || 'Role'}</div>
-                <div className="text-xs text-muted-foreground">{e.company || 'Company'} · {e.duration || 'Duration N/A'}</div>
+    return (
+      <div className="flex min-h-0 flex-col gap-3">
+        {/* profile header */}
+        <div className={CARD_CLS + ' p-4'}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <button
+                onClick={() => { setViewEmail(null); setBannerEmail(null); }}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Back
+              </button>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[14px] font-bold text-emerald-700">
+                {initials(e.candidateName)}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Education */}
-      {education.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Education ({education.length})</div>
-          <div className="space-y-2">
-            {education.map((e, i) => (
-              <div key={i} className="rounded-md border border-border p-2 text-sm">
-                <div className="font-medium">{e.degree || 'Degree'}</div>
-                <div className="text-xs text-muted-foreground">{e.institution || 'Institution'} · {e.year || ''}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Certifications */}
-      {certifications.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Certifications ({certifications.length})</div>
-          <div className="flex flex-wrap gap-1">
-            {certifications.map((c, i) => (
-              <Badge key={i} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                <Award className="h-3 w-3 mr-1" /> {c}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Applications */}
-      {candidate.applications && candidate.applications.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Applied to ({candidate.applications.length})
-          </div>
-          <div className="space-y-1">
-            {candidate.applications.map((a, i) => (
-              <div key={i} className="flex items-center justify-between text-sm rounded-md border border-border p-2">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-medium">{a.jobTitle || a.position || 'Position'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {a.status && <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[a.status] || ''}`}>{a.status}</Badge>}
-                  {a.appliedDate && (
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(a.appliedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="truncate text-[17px] font-bold text-slate-900">{e.candidateName || 'Unknown'}</h1>
+                  {statusBadge(primary?.status || e.latestStatus)}
+                  {e.matchScore != null && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">
+                      <Star className="h-3 w-3" /> {Math.round(e.matchScore)}% AI match
                     </span>
                   )}
                 </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                  <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{e.candidateEmail || '—'}</span>
+                  <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{e.candidatePhone || parsed?.phone || '—'}</span>
+                  {(parsed?.location) && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{parsed.location}</span>}
+                  <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)} years experience` : 'Experience not parsed'}</span>
+                </div>
               </div>
-            ))}
+            </div>
+            {primary && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {forwardBtn(primary, e.candidateName)}
+                {rejectBtn(primary, e.candidateName)}
+              </div>
+            )}
+          </div>
+          {showBanner && (
+            <div className="mt-3 flex items-start justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                <p className="text-[12px] font-semibold text-green-800">
+                  Candidate shortlisted. Continue interview scheduling from Scheduled Interviews.
+                </p>
+              </div>
+              <button onClick={() => setBannerEmail(null)} title="Dismiss" className="text-green-500 transition hover:text-green-700">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* profile body — two columns, single scroll */}
+        <div ref={profileScrollRef} className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto pr-0.5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+          {/* left column */}
+          <div className="flex flex-col gap-3">
+            {/* applied to */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Applied To ({(e.applications || []).length})</h3>
+              </div>
+              <div className="space-y-2">
+                {(e.applications || []).map(a => (
+                  <div key={a.id} className="rounded-lg border border-slate-200 p-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-[12.5px] font-bold text-slate-800">{a.jobTitle || a.position || 'Position not specified'}</div>
+                        <div className="truncate text-[10.5px] text-slate-500">{a.department || '—'}{a.company ? ` · ${a.company}` : ''} · Applied {fmtDate(a.appliedDate)} · Source: {sourceLabel(a.source)}</div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {statusBadge(a.status)}
+                        {forwardBtn(a, e.candidateName, true)}
+                        {rejectBtn(a, e.candidateName)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(!e.applications || e.applications.length === 0) && (
+                  <p className="text-[11.5px] text-slate-400">No linked applications.</p>
+                )}
+              </div>
+            </div>
+
+            {/* skills */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <Award className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Skills ({(e.skills || []).length})</h3>
+              </div>
+              {(e.skills || []).length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {(e.skills || []).map(s => (
+                    <span key={s} className="inline-flex h-[22px] items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-700">
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </span>
+                  ))}
+                </div>
+              ) : <p className="text-[11.5px] text-slate-400">No skills parsed from the resume yet.</p>}
+            </div>
+
+            {/* experience */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Experience</h3>
+                <span className="text-[10.5px] font-semibold text-slate-400">Total {e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)} yrs` : '—'}</span>
+              </div>
+              {(parsed?.experience || []).length ? (
+                <div className="space-y-2">
+                  {(parsed?.experience || []).map((x, i) => (
+                    <div key={i} className="rounded-lg border border-slate-200 px-2.5 py-2">
+                      <div className="text-[12px] font-bold text-slate-800">{x.role || 'Role'}</div>
+                      <div className="text-[10.5px] text-slate-500">{x.company || 'Company'} · {x.duration || 'Duration N/A'}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-[11.5px] text-slate-400">No experience entries parsed from the resume.</p>}
+            </div>
+
+            {/* education */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <Award className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Education</h3>
+              </div>
+              {(parsed?.education || []).length ? (
+                <div className="space-y-2">
+                  {(parsed?.education || []).map((x, i) => (
+                    <div key={i} className="rounded-lg border border-slate-200 px-2.5 py-2">
+                      <div className="text-[12px] font-bold text-slate-800">{x.degree || 'Degree'}</div>
+                      <div className="text-[10.5px] text-slate-500">{x.institution || 'Institution'}{x.year ? ` · ${x.year}` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-[11.5px] text-slate-400">No education entries parsed from the resume.</p>}
+            </div>
+
+            {/* certifications */}
+            {(parsed?.certifications || []).length > 0 && (
+              <div className={CARD_CLS + ' p-4'}>
+                <div className="mb-2.5 flex items-center gap-2">
+                  <Award className="h-4 w-4 text-green-600" />
+                  <h3 className={SECTION_TITLE}>Certifications ({(parsed?.certifications || []).length})</h3>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(parsed?.certifications || []).map((c, i) => (
+                    <span key={i} className="inline-flex h-[22px] max-w-[240px] items-center truncate rounded-md border border-blue-200 bg-blue-50 px-2 text-[11px] font-semibold text-blue-700">{c}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* right column */}
+          <div className="flex flex-col gap-3">
+            {/* resume */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-green-600" />
+                  <h3 className={SECTION_TITLE}>Resume</h3>
+                </div>
+                {primary?.resume && (
+                  <a
+                    href={primary.resume}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700"
+                  >
+                    <Download className="h-3 w-3" /> Download
+                  </a>
+                )}
+              </div>
+              {primary?.resume ? (
+                isPdfResume(primary.resume) ? (
+                  <div className="relative">
+                    {resumeLoading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
+                        <div className="flex items-center gap-2 text-[11.5px] text-slate-500">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Loading resume preview…
+                        </div>
+                      </div>
+                    )}
+                    <iframe
+                      src={primary.resume}
+                      title={`${e.candidateName} resume preview`}
+                      className="h-72 w-full rounded-lg border border-slate-200 bg-white"
+                      onLoad={() => setResumeLoading(false)}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-72 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center">
+                    <FileText className="h-8 w-8 text-slate-400" />
+                    <p className="text-[12px] font-semibold text-slate-600">Resume on file (non-PDF)</p>
+                    <p className="text-[11px] text-slate-400">Use the Download button above to open it.</p>
+                  </div>
+                )
+              ) : (
+                <div className="flex h-72 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center">
+                  <FileText className="h-8 w-8 text-slate-300" />
+                  <p className="text-[12px] font-semibold text-slate-500">No resume uploaded</p>
+                  <p className="text-[11px] text-slate-400">The candidate did not attach a resume to this application.</p>
+                </div>
+              )}
+            </div>
+
+            {/* screening answers */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <StickyNote className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Screening Answers</h3>
+              </div>
+              {primary?.coverLetter ? (
+                <div className="max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-[11.5px] leading-relaxed text-slate-700">
+                  {primary.coverLetter}
+                </div>
+              ) : (
+                <p className="text-[11.5px] text-slate-400">No screening answers on file for this application.</p>
+              )}
+            </div>
+
+            {/* recruiter notes */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <StickyNote className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Recruiter Notes ({parsedNotes.recruiterNotes.length})</h3>
+              </div>
+              {primary ? (
+                <div className="space-y-2.5">
+                  {parsedNotes.legacy && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-[11.5px] text-slate-600">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Earlier note</span>
+                      <p className="mt-1 whitespace-pre-wrap">{parsedNotes.legacy}</p>
+                    </div>
+                  )}
+                  {parsedNotes.recruiterNotes.map((n, i) => (
+                    <div key={i} className="rounded-lg border border-slate-200 p-2.5">
+                      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                        <span className="font-bold uppercase tracking-wide">Recruiter</span>
+                        <span>{new Date(n.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-[11.5px] text-slate-700">{n.text}</p>
+                    </div>
+                  ))}
+                  {parsedNotes.recruiterNotes.length === 0 && !parsedNotes.legacy && (
+                    <p className="text-[11.5px] text-slate-400">No notes yet — add the first screening note below.</p>
+                  )}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      value={profileNoteText}
+                      onChange={ev => setProfileNoteText(ev.target.value)}
+                      onKeyDown={ev => { if (ev.key === 'Enter') saveNote(primary, e.candidateEmail, profileNoteText, true); }}
+                      placeholder="Add a screening note…"
+                      className={INPUT_CLS}
+                    />
+                    <button
+                      onClick={() => saveNote(primary, e.candidateEmail, profileNoteText, true)}
+                      disabled={savingNotes}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
+                    >
+                      {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Add Note
+                    </button>
+                  </div>
+                </div>
+              ) : <p className="text-[11.5px] text-slate-400">No application linked — notes unavailable.</p>}
+            </div>
+
+            {/* tags */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <Tag className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Tags ({parsedNotes.tags.length})</h3>
+              </div>
+              {primary ? (
+                <div className="space-y-2">
+                  {parsedNotes.tags.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {parsedNotes.tags.map(t => (
+                        <span key={t} className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                          {t}
+                          <button onClick={() => removeTag(primary, t)} title="Remove tag" className="text-emerald-500 transition hover:text-red-500">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : <p className="text-[11.5px] text-slate-400">No tags yet.</p>}
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={profileTagText}
+                      onChange={ev => setProfileTagText(ev.target.value)}
+                      onKeyDown={ev => { if (ev.key === 'Enter') addTag(primary, profileTagText, true); }}
+                      placeholder="Add tag…"
+                      className={INPUT_CLS}
+                    />
+                    <button
+                      onClick={() => addTag(primary, profileTagText, true)}
+                      disabled={savingNotes}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-green-300 bg-white px-2.5 py-1.5 text-[10.5px] font-bold text-green-700 transition hover:bg-green-50 disabled:opacity-60"
+                    >
+                      {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Add Tag
+                    </button>
+                  </div>
+                </div>
+              ) : <p className="text-[11.5px] text-slate-400">No application linked — tags unavailable.</p>}
+            </div>
+
+            {/* activity timeline */}
+            <div className={CARD_CLS + ' p-4'}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-green-600" />
+                <h3 className={SECTION_TITLE}>Activity Timeline</h3>
+              </div>
+              {timeline.length ? (
+                <div className="relative ml-1.5 space-y-3 border-l border-slate-200 pl-4">
+                  {timeline.map((ev, i) => (
+                    <div key={i} className="relative">
+                      <span className="absolute -left-[21px] top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-white bg-green-500" />
+                      <div className="text-[11.5px] font-semibold text-slate-700">{ev.title}</div>
+                      <div className="text-[10.5px] text-slate-400">{fmtDate(ev.at as string)}{ev.sub ? ` · ${ev.sub}` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-[11.5px] text-slate-400">No activity recorded yet.</p>}
+            </div>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  /* ═════════════════════════════ list screen ══════════════════════════════ */
+
+  const kpiCards = [
+    { key: 'all', label: 'Total Candidates', value: kpis.total, icon: Users, tone: 'text-slate-700', ring: 'bg-slate-100 text-slate-600' },
+    { key: 'applied', label: 'New Applications', value: kpis.applied, icon: UserPlus, tone: 'text-blue-600', ring: 'bg-blue-50 text-blue-600' },
+    { key: 'screening', label: 'In Screening', value: kpis.screening, icon: UserCheck, tone: 'text-amber-600', ring: 'bg-amber-50 text-amber-600' },
+    { key: 'shortlisted', label: 'Shortlisted', value: kpis.shortlisted, icon: CheckCircle2, tone: 'text-green-600', ring: 'bg-green-50 text-green-600' },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3" style={{ height: 'calc(100vh - 8rem)', minHeight: 560 }}>
+      {viewEmail && profileEntry ? (
+        renderProfile(profileEntry)
+      ) : (
+        <>
+          {/* header */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                <span>Recruitment</span><span className="text-slate-300">/</span>
+                <span className="font-semibold text-green-700">Find Candidates</span>
+              </div>
+              <h1 className="mt-0.5 text-[19px] font-bold text-slate-900">Find Candidates</h1>
+              <p className="text-[12px] text-slate-500">Search, review, screen, and shortlist candidates.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchData()}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={exporting || visibleEntries.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-[11.5px] font-bold text-white shadow-sm shadow-green-600/25 transition hover:bg-green-700 disabled:opacity-60"
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Export
+              </button>
+            </div>
+          </div>
+
+          {/* summary cards */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {kpiCards.map(k => (
+              <button
+                key={k.key}
+                onClick={() => setFilters(f => ({ ...f, status: k.key === 'all' ? 'all' : k.key }))}
+                className={`${CARD_CLS} flex items-center gap-3 p-3 text-left transition hover:border-green-300 hover:shadow`}
+                title={k.key === 'all' ? 'Show all candidates' : `Filter by ${statusLabel(k.key)}`}
+              >
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${k.ring}`}>
+                  <k.icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">{k.label}</span>
+                  <span className={`block text-[18px] font-bold leading-tight ${k.tone}`}>{loading ? '…' : k.value}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* filters */}
+          <div className={CARD_CLS + ' space-y-2.5 p-3'}>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={filters.jobId}
+                onChange={ev => setFilters(f => ({ ...f, jobId: ev.target.value }))}
+                className={`${INPUT_CLS} max-w-[240px]`}
+                title="Job Posting"
+              >
+                <option value="all">All job postings</option>
+                {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
+              </select>
+              <div className="relative min-w-[220px] flex-1">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={filters.q}
+                  onChange={ev => setFilters(f => ({ ...f, q: ev.target.value }))}
+                  placeholder="Search by candidate name, email, skill, or job title…"
+                  className={`${INPUT_CLS} pl-8`}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={filters.source}
+                onChange={ev => setFilters(f => ({ ...f, source: ev.target.value }))}
+                className={`${INPUT_CLS} w-[130px]`}
+                title="Source"
+              >
+                <option value="all">All sources</option>
+                {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <div className="flex items-center gap-1" title="Experience range (years)">
+                <input
+                  type="number" min="0" placeholder="Min"
+                  value={filters.minExp}
+                  onChange={ev => setFilters(f => ({ ...f, minExp: ev.target.value }))}
+                  className={`${INPUT_CLS} w-[74px]`}
+                />
+                <span className="text-[11px] text-slate-400">–</span>
+                <input
+                  type="number" min="0" placeholder="Max"
+                  value={filters.maxExp}
+                  onChange={ev => setFilters(f => ({ ...f, maxExp: ev.target.value }))}
+                  className={`${INPUT_CLS} w-[74px]`}
+                />
+              </div>
+              <select
+                value={filters.status}
+                onChange={ev => setFilters(f => ({ ...f, status: ev.target.value }))}
+                className={`${INPUT_CLS} w-[150px]`}
+                title="Status"
+              >
+                <option value="all">All statuses</option>
+                <option value="applied">Applied</option>
+                <option value="screening">Screening</option>
+                <option value="shortlisted">Shortlisted</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <select
+                value={filters.sort}
+                onChange={ev => setFilters(f => ({ ...f, sort: ev.target.value }))}
+                className={`${INPUT_CLS} w-[170px]`}
+                title="Sort by"
+              >
+                <option value="newest">Sort: Newest first</option>
+                <option value="match">Sort: Match score</option>
+                <option value="experience">Sort: Experience</option>
+              </select>
+              <button
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white"
+              >
+                <X className="h-3 w-3" /> Clear Filters
+              </button>
+              <span className="ml-auto text-[11px] font-semibold text-slate-400">
+                {loading ? 'Loading…' : `${visibleEntries.length} of ${entries.length} candidate${entries.length === 1 ? '' : 's'}`}
+              </span>
+            </div>
+          </div>
+
+          {/* error */}
+          {error && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-[12px] text-red-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-semibold">{error}</p>
+                <button onClick={() => fetchData()} className="mt-1 font-bold text-red-700 underline">Try again</button>
+              </div>
+            </div>
+          )}
+
+          {/* candidate list — internal vertical scroll only */}
+          <div className={`${CARD_CLS} flex min-h-0 flex-1 flex-col overflow-hidden`}>
+            {/* aligned column headers */}
+            <div className="grid grid-cols-1 gap-x-3 border-b border-slate-200 bg-slate-50/80 px-3 py-2 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1.1fr)_54px_minmax(170px,1.7fr)_80px_82px_118px_auto]">
+              {['Candidate', 'Applied To', 'Exp.', 'Skills', 'Source', 'Applied', 'Status', ''].map((h, i) => (
+                <div key={i} className={`hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 lg:block ${i === 7 ? 'text-right' : ''}`}>{h}</div>
+              ))}
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 lg:hidden">Candidates</div>
+            </div>
+            <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
+              {loading && (
+                <div className="space-y-0">
+                  {[0, 1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-3">
+                      <div className="h-8 w-8 animate-pulse rounded-full bg-slate-100" />
+                      <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
+                      <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
+                      <div className="h-3 flex-1 animate-pulse rounded bg-slate-100" />
+                      <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!loading && !error && entries.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                  <Users className="h-9 w-9 text-slate-300" />
+                  <p className="text-[13px] font-bold text-slate-700">No candidates yet</p>
+                  <p className="max-w-sm text-[11.5px] text-slate-400">
+                    Candidates appear here as soon as they apply to your job postings. Share your postings or connect the careers page to start receiving applications.
+                  </p>
+                </div>
+              )}
+
+              {!loading && !error && entries.length > 0 && visibleEntries.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                  <Search className="h-9 w-9 text-slate-300" />
+                  <p className="text-[13px] font-bold text-slate-700">No candidates match these filters</p>
+                  <p className="text-[11.5px] text-slate-400">Try widening the search or clearing a filter or two.</p>
+                  <button
+                    onClick={clearFilters}
+                    className="mt-1 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-green-700 transition hover:bg-green-50"
+                  >
+                    <X className="h-3 w-3" /> Clear Filters
+                  </button>
+                </div>
+              )}
+
+              {!loading && !error && visibleEntries.map(e => renderRow(e))}
+            </div>
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+/* small reusable icon button (kept outside the component to keep renderRow tidy) */
+function MiniIconBtn(props: { title: string; active?: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={props.onClick}
+      title={props.title}
+      className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border transition ${props.active ? 'border-green-300 bg-green-50 text-green-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+    >
+      {props.children}
+    </button>
   );
 }

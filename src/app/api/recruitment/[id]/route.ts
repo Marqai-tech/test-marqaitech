@@ -273,7 +273,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, feedback, aiFeedbackDraft } = body;
+    const { status, feedback, aiFeedbackDraft, recruiterNotes, tags } = body;
 
     // Try to update as job posting first (tenant-scoped)
     const jobPosting = await db.jobPosting.findFirst({
@@ -467,6 +467,19 @@ export async function PATCH(
           aiFeedbackReviewed: true,
           aiFeedbackPublishedAt: new Date().toISOString(),
         });
+      }
+      // Find Candidates redesign — recruiter notes + tags persist inside the
+      // notes JSON next to the AI feedback keys. tryParseNotes keeps legacy
+      // plain-text notes under `raw`, and merges compose with the aiFeedback
+      // blocks above, so no existing data is lost.
+      if (recruiterNotes !== undefined || tags !== undefined) {
+        const baseNotes = (updateData.notes
+          ? tryParseNotes(updateData.notes as string)
+          : application.notes ? tryParseNotes(application.notes) : {}) as Record<string, unknown>;
+        const nextNotes: Record<string, unknown> = { ...baseNotes };
+        if (recruiterNotes !== undefined) nextNotes.recruiterNotes = recruiterNotes;
+        if (tags !== undefined) nextNotes.tags = tags;
+        updateData.notes = JSON.stringify(nextNotes);
       }
 
       const updated = await db.jobApplication.update({

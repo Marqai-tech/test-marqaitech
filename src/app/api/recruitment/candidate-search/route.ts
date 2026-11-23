@@ -221,6 +221,15 @@ export async function GET(request: NextRequest) {
         company: app.jobPosting.department?.company?.name,
         status: app.status,
         appliedDate: app.appliedDate,
+        // Find Candidates redesign — expose existing application fields so the
+        // screening screen can show source, resume availability, cover letter
+        // and recruiter notes without a second query.
+        source: app.source,
+        notes: app.notes,
+        resume: app.resume,
+        coverLetter: app.coverLetter,
+        rating: app.rating,
+        updatedAt: app.updatedAt,
       });
     }
 
