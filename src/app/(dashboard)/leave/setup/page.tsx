@@ -54,6 +54,36 @@ function toDateInput(d: any): string {
   } catch { return ''; }
 }
 
+/* ── Grade helpers — grades are derived from designation levels ── */
+/* Matches the logic in src/components/company/useCompanyData.ts */
+function gradeCode(level: number): string {
+  if (level <= 1) return 'E1';
+  if (level === 2) return 'E2';
+  if (level === 3) return 'E3';
+  if (level >= 4) return 'M1';
+  return `L${level}`;
+}
+function gradeName(level: number): string {
+  if (level <= 1) return 'Junior';
+  if (level === 2) return 'Mid Level';
+  if (level === 3) return 'Senior';
+  if (level >= 4) return 'Manager';
+  return `Level ${level}`;
+}
+/* Derive a unique sorted list of grades from designation records. */
+function deriveGrades(designations: any[]): { id: string; name: string }[] {
+  const map = new Map<string, { id: string; name: string }>();
+  for (const d of designations) {
+    const level = Number(d.level || 0);
+    if (level === 0) continue;
+    const code = gradeCode(level);
+    if (!map.has(code)) {
+      map.set(code, { id: code, name: `${code} — ${gradeName(level)}` });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.id.localeCompare(b.id));
+}
+
 function MultiSelectDropdown({ value = [], onChange, items, labelKey, idKey, placeholder }: {
   value: string[];
   onChange: (v: string[]) => void;
@@ -198,7 +228,7 @@ function FormFooter({ onCancel, onSave, isEdit, errCount, saveLabel }: { onCance
 /* ═══ Types ═══ */
 interface LType { id: string; name: string; code: string; description?: string; category?: string; smallestUnit?: string; displayOrder?: number; calendarColor?: string; status: string; isPaid?: boolean; }
 interface LRule { id: string; name: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
-interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; empStatus?: string; branchIds?: string; departmentIds?: string; designationIds?: string; leaveTypeIds?: string; creditMode?: string; creditDay?: string; roundOff?: string; yearStart?: string; approvalFlow?: string; }
+interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; empStatus?: string; branchIds?: string; departmentIds?: string; designationIds?: string; gradeIds?: string; leaveTypeIds?: string; creditMode?: string; creditDay?: string; roundOff?: string; yearStart?: string; approvalFlow?: string; }
 interface LMapping { id: string; policyId: string; typeId: string; ruleId: string; effectiveFrom: string; status: string; }
 
 const STEPS = [
@@ -569,6 +599,7 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
           ['Branches', parseJsonArray((p as any).branchIds).length > 0 ? `${parseJsonArray((p as any).branchIds).length} selected` : 'All branches'],
           ['Departments', parseJsonArray((p as any).departmentIds).length > 0 ? `${parseJsonArray((p as any).departmentIds).length} selected` : 'All departments'],
           ['Designations', parseJsonArray((p as any).designationIds).length > 0 ? `${parseJsonArray((p as any).designationIds).length} selected` : 'All designations'],
+          ['Grades', parseJsonArray((p as any).gradeIds).length > 0 ? `${parseJsonArray((p as any).gradeIds).length} selected` : 'All grades'],
           ['Status', p.status],
           ['Effective', fmtDate(p.effectiveDate)],
           ['Description', p.description || '—', true],
@@ -673,6 +704,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
     branchIds: parseJsonArray((orig as any)?.branchIds),
     departmentIds: parseJsonArray((orig as any)?.departmentIds),
     designationIds: parseJsonArray((orig as any)?.designationIds),
+    gradeIds: parseJsonArray((orig as any)?.gradeIds),
     // Section: Leave types — one policy can cover multiple leave types
     leaveTypeIds: parseJsonArray((orig as any)?.leaveTypeIds),
     // Section 3: Leave period
@@ -693,6 +725,11 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
   const [branches, setBranches] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [designations, setDesignations] = useState<any[]>([]);
+  // Derive grades dynamically from the fetched designations' level field.
+  // Grades are not a separate DB entity — they're computed from designation
+  // levels (E1=Junior, E2=Mid, E3=Senior, M1=Manager), matching the
+  // /company/grades page logic.
+  const grades = useMemo(() => deriveGrades(designations), [designations]);
   const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
   const errs: Record<string, string> = {};
   if (!f.title.trim()) errs.title = 'Enter a policy name';
@@ -761,6 +798,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
         branchIds: f.branchIds,
         departmentIds: f.departmentIds,
         designationIds: f.designationIds,
+        gradeIds: f.gradeIds,
         leaveTypeIds: f.leaveTypeIds,
         creditMode: f.creditMode, creditDay: f.creditDay, roundOff: f.roundOff, yearStart: f.yearStart,
         approvalFlow: f.approval,
@@ -818,6 +856,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Branches</label>{multiSelectIds('branchIds', branches, 'name', 'id', 'branches')}</div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Departments</label>{multiSelectIds('departmentIds', departments, 'name', 'id', 'departments')}</div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Designations</label>{multiSelectIds('designationIds', designations, 'title', 'id', 'designations')}</div>
+              <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Grades</label>{multiSelectIds('gradeIds', grades, 'name', 'id', 'grades')}<p className="text-[11.5px] text-slate-500 mt-1">Grades are derived from designation levels (E1–M1). Manage them via <a href="/company/grades" className="text-blue-500 hover:underline">Company → Grades</a>.</p></div>
             </div>
           )}
 
