@@ -593,11 +593,6 @@ function ApplyLeaveContent() {
                         disabled={isZeroBalance}
                       >
                         {lt.code} — {lt.name}
-                        {info.isLop
-                          ? ' (unpaid — no limit)'
-                          : isZeroBalance
-                            ? ' — 0 available (cannot apply)'
-                            : ` (${fmtNum(info.remaining)} avail.)`}
                       </option>
                     );
                   })}
