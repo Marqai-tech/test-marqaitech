@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Fragment, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { FindCandidates } from '@/components/hrms/find-candidates';
 import {
   FiBriefcase,
   FiPlus,
@@ -1855,6 +1856,15 @@ export default function RecruitmentPage() {
     { label: 'Interviewed', value: interviewed, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
     { label: 'Hired', value: hired, icon: FiCheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   ];
+
+  // Find Candidates — dedicated screening screen. The sidebar entry links to
+  // /recruitment?tab=candidates&single=candidates; in that single mode render
+  // the redesigned full-screen candidate discovery/review/shortlist flow
+  // instead of the ATS candidates table. The ATS tab itself is unchanged for
+  // inline tab-switching use.
+  if (urlSingle === 'candidates') {
+    return <FindCandidates />;
+  }
 
   return (
     <div className="space-y-6">
