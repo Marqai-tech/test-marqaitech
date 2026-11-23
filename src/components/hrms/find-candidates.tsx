@@ -477,7 +477,10 @@ export function FindCandidates() {
   };
 
   const rejectBtn = (app: AppRow, name: string) => {
-    if (app.status === 'rejected') return null;
+    // Rejection is a screening-scope decision: only offered while this screen
+    // owns the candidate (Applied / Screening). Shortlisted and beyond are
+    // managed further down the pipeline; rejected is terminal.
+    if (app.status !== 'applied' && app.status !== 'screening') return null;
     if (confirmRejectApp === app.id) {
       return (
         <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5">
