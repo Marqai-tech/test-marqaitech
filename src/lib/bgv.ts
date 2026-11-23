@@ -45,6 +45,33 @@ export type CheckResult = typeof CHECK_RESULTS[number];
 /** Results that legally REQUIRE a written reason (mock 13/14 rule). */
 export const RESULTS_REQUIRING_REASON: CheckResult[] = ['Discrepancy Found', 'Unable to Verify'];
 
+export const INVITE_TTL_DAYS = 7;
+/** Password recovery links are single-use and expire after 60 minutes. */
+export const PASSWORD_RESET_TTL_MINUTES = 60;
+export const EVIDENCE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+export const VENDOR_PDF_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+export const ALLOWED_EVIDENCE_TYPES: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+
+export function labelForStatus(status?: string | null): string {
+  const map: Record<string, string> = {
+    awaiting_assignment: 'Awaiting Assignment',
+    assigned: 'Assigned',
+    in_progress: 'In Progress',
+    submitted_for_hr_review: 'Submitted for HR Review',
+    awaiting_information: 'Awaiting Information',
+    rework_required: 'Rework Required',
+    approved_by_hr: 'Approved by HR',
+    rejected_by_hr: 'Rejected by HR',
+    cancelled: 'Cancelled',
+  };
+  return map[String(status || '')] || String(status || '—');
+}
+
 /* ───────────── proof requirements & structured check forms ─────────────
  * Defined in ./bgv-check-forms (client-safe, shared with UI components) and
  * re-exported here so every API route keeps a single import source.
