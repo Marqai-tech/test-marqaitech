@@ -114,6 +114,7 @@ function ApplyLeaveContent() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [ownLeaves, setOwnLeaves] = useState<any[]>([]);
   const [teamConflicts, setTeamConflicts] = useState<any[]>([]);
+  const [rules, setRules] = useState<any[]>([]);
   const [form, setForm] = useState<FormState>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -132,13 +133,15 @@ function ApplyLeaveContent() {
         setLoading(true);
         const headers = getAuthHeaders();
         const sq = scopeQuery();
-        const [ltRes, empRes, balRes, holRes, ownRes] = await Promise.all([
+        const [ltRes, empRes, balRes, holRes, ownRes, ruleRes] = await Promise.all([
           fetch(`/api/leave-types?limit=100`, { headers }),
           fetch(`/api/employees?limit=1&own=1&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
           fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers }).catch(() => null),
           fetch(`/api/holidays${sq ? `?${sq}` : ''}`, { headers }).catch(() => null),
           fetch(`/api/leave?view=self&limit=100${sq ? `&${sq}` : ''}`, { headers }).catch(() => null),
+          fetch(`/api/leave-policy-rules?limit=100`, { headers }).catch(() => null),
         ]);
+        if (ruleRes?.ok) { const rd = await ruleRes.json(); setRules(rd.data || []); }
         const ltData = await ltRes.json();
         let activeTypes = (ltData.data || []).filter((t: any) => t.status === 'active' || t.status === undefined);
         setLeaveTypes(activeTypes);
@@ -332,6 +335,16 @@ function ApplyLeaveContent() {
   const isHalfDay = form.session !== 'Full day';
   const selectedType = leaveTypes.find(t => t.id === form.leaveTypeId);
   const selectedBalance = leaveBalances.find(b => b.leaveType.id === form.leaveTypeId);
+
+  // ─── Compute leave type info from rule + policy tables ───
+  // When a leave type is selected, find the matching rule (entitledDaysPerYear)
+  // and count how many days the employee has already taken.
+  const selectedRule = rules.find((r: any) => r.leaveTypeId === form.leaveTypeId && r.status === 'active');
+  const entitledDays = selectedRule?.entitledDaysPerYear || selectedBalance?.total || selectedType?.defaultDays || 0;
+  const takenDays = ownLeaves
+    .filter((l: any) => l.leaveTypeId === form.leaveTypeId && (l.status === 'approved' || l.status === 'pending'))
+    .reduce((sum: number, l: any) => sum + (l.chargeableDays || l.days || 0), 0);
+  const remainingDays = Math.max(0, entitledDays - takenDays);
 
   /* ── Fetch team leave conflicts when dates change ── */
   useEffect(() => {
@@ -530,15 +543,38 @@ function ApplyLeaveContent() {
                   })}
                 </select>
               )}
-              {/* Show selected leave type info */}
+              {/* Show selected leave type info — from rule table + employee's taken leave */}
               {selectedType && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                  <span className="font-semibold" style={{ color: getLeaveTheme(selectedType.code, selectedType.name).color }}>
-                    {selectedType.code}
-                  </span>
-                  <span>{selectedType.name}</span>
-                  {selectedBalance && (
-                    <span className="text-slate-400">| Entitled: {fmtNum(selectedBalance.total || 0)}d, Used: {fmtNum(selectedBalance.used || 0)}d, Remaining: {fmtNum(Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0)))}d</span>
+                <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-mono text-xs font-extrabold px-1.5 py-0.5 rounded" style={{ color: getLeaveTheme(selectedType.code, selectedType.name).color, backgroundColor: getLeaveTheme(selectedType.code, selectedType.name).soft }}>
+                      {selectedType.code}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-800">{selectedType.name}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center bg-white rounded-lg p-2 border border-slate-100">
+                      <p className="text-lg font-extrabold text-slate-900">{fmtNum(entitledDays)}</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase">Entitled / Year</p>
+                    </div>
+                    <div className="text-center bg-white rounded-lg p-2 border border-slate-100">
+                      <p className="text-lg font-extrabold text-amber-600">{fmtNum(takenDays)}</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase">Taken</p>
+                    </div>
+                    <div className="text-center bg-white rounded-lg p-2 border border-slate-100">
+                      <p className="text-lg font-extrabold text-emerald-600">{fmtNum(remainingDays)}</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase">Remaining</p>
+                    </div>
+                  </div>
+                  {selectedRule && (
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                      {selectedRule.advanceNoticeDays > 0 && <span>Notice: {selectedRule.advanceNoticeDays}d</span>}
+                      {selectedRule.halfDayAllowed !== false && <span>Half-day: Yes</span>}
+                      {selectedRule.carryForwardToNextYear && <span>Carry forward: Yes</span>}
+                      {selectedRule.minDaysPerRequest > 0 && <span>Min: {selectedRule.minDaysPerRequest}d</span>}
+                      {selectedRule.maxDaysPerRequest > 0 && <span>Max: {selectedRule.maxDaysPerRequest}d</span>}
+                      {selectedRule.gender && selectedRule.gender !== 'both' && selectedRule.gender !== 'all' && <span>Gender: {selectedRule.gender}</span>}
+                    </div>
                   )}
                 </div>
               )}
