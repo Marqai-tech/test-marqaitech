@@ -8,6 +8,7 @@ import { sanitizeMultiLineText } from '@/lib/sanitize';
 // Stores the "Applies to" filters (branch/department/designation/grade IDs)
 // and the selected leave type IDs (one policy → multiple leave types).
 const POLICY_SCOPE_COLS = [
+  `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "code" TEXT`,
   `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "empStatus" TEXT`,
   `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "branchIds" TEXT`,
   `ALTER TABLE "Policy" ADD COLUMN IF NOT EXISTS "departmentIds" TEXT`,
@@ -148,7 +149,7 @@ export async function GET(req: NextRequest) {
       if (policies.length > 0) {
         const policyIds = policies.map((p: any) => `'${p.id.replace(/'/g, "''")}'`).join(',');
         const scopeRows: any[] = await db.$queryRawUnsafe(
-          `SELECT id, "empStatus", "branchIds", "departmentIds", "designationIds", "gradeIds", "leaveTypeIds", "creditMode", "creditDay", "roundOff", "yearStart", "approvalFlow" FROM "Policy" WHERE id IN (${policyIds})`
+          `SELECT id, "code", "empStatus", "branchIds", "departmentIds", "designationIds", "gradeIds", "leaveTypeIds", "creditMode", "creditDay", "roundOff", "yearStart", "approvalFlow" FROM "Policy" WHERE id IN (${policyIds})`
         );
         const scopeMap = new Map<string, any>();
         for (const row of scopeRows) scopeMap.set(row.id, row);
@@ -156,6 +157,7 @@ export async function GET(req: NextRequest) {
           const scope = scopeMap.get(p.id) || {};
           return {
             ...p,
+            code: scope.code || null,
             empStatus: scope.empStatus || null,
             branchIds: scope.branchIds || null,
             departmentIds: scope.departmentIds || null,
@@ -304,7 +306,7 @@ export async function POST(req: NextRequest) {
     // ─── Store scope fields + leave type IDs via raw SQL (runtime columns) ───
     // These columns are added at runtime via ALTER TABLE in ensurePolicyScopeColumns().
     try {
-      const scopeFields = ['empStatus', 'branchIds', 'departmentIds', 'designationIds', 'gradeIds', 'leaveTypeIds', 'creditMode', 'creditDay', 'roundOff', 'yearStart', 'approvalFlow'];
+      const scopeFields = ['code', 'empStatus', 'branchIds', 'departmentIds', 'designationIds', 'gradeIds', 'leaveTypeIds', 'creditMode', 'creditDay', 'roundOff', 'yearStart', 'approvalFlow'];
       const sets: string[] = [];
       const vals: any[] = [];
       for (const field of scopeFields) {
@@ -377,7 +379,7 @@ export async function PUT(req: NextRequest) {
 
     // ─── Store scope fields + leave type IDs via raw SQL (runtime columns) ───
     try {
-      const scopeFields = ['empStatus', 'branchIds', 'departmentIds', 'designationIds', 'gradeIds', 'leaveTypeIds', 'creditMode', 'creditDay', 'roundOff', 'yearStart', 'approvalFlow'];
+      const scopeFields = ['code', 'empStatus', 'branchIds', 'departmentIds', 'designationIds', 'gradeIds', 'leaveTypeIds', 'creditMode', 'creditDay', 'roundOff', 'yearStart', 'approvalFlow'];
       const sets: string[] = [];
       const vals: any[] = [];
       for (const field of scopeFields) {

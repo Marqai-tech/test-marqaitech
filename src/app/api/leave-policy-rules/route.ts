@@ -388,14 +388,31 @@ export async function PUT(req: NextRequest) {
     // spec fields are passed in data.
     // BUG-LM-004 FIX: The frontend sends `marital` but the DB column is `maritalStatus`.
     // Map it before splitting so it goes into specData, not prismaData.
+    // BUG FIX (2026-11-23): The frontend sends `empStatus` (an array) but the
+    // DB column is `empStatusJson` (a TEXT column storing a JSON string). Without
+    // this alias, `empStatus` fell into prismaData and Prisma.update threw
+    // "Unknown arg `empStatus`", causing the ENTIRE rule edit save to fail with
+    // error LV-R01 — no spec fields were saved either. Now it maps to
+    // `empStatusJson` and is JSON-serialized before the raw SQL UPDATE.
     const FIELD_ALIASES: Record<string, string> = {
       marital: 'maritalStatus',
+      empStatus: 'empStatusJson',
     };
     const prismaData: Record<string, unknown> = {};
     const specData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(cleanData)) {
       const fieldName = FIELD_ALIASES[key] || key;
-      if (RULE_SPEC_FIELD_NAMES.has(fieldName)) specData[fieldName] = value;
+      if (RULE_SPEC_FIELD_NAMES.has(fieldName)) {
+        // Serialize arrays/objects for TEXT columns that store JSON
+        // (empStatusJson, specificEmployeeIds). Primitives pass through.
+        if (fieldName === 'empStatusJson' && Array.isArray(value)) {
+          specData[fieldName] = JSON.stringify(value);
+        } else if (fieldName === 'specificEmployeeIds' && Array.isArray(value)) {
+          specData[fieldName] = JSON.stringify(value);
+        } else {
+          specData[fieldName] = value;
+        }
+      }
       else if (fieldName !== key) { /* aliased field already handled above */ }
       else prismaData[key] = value;
     }

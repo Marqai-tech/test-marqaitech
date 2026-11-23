@@ -39,6 +39,20 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
 function parseJsonArray(val: any): string[] {
   try { const a = typeof val === 'string' ? JSON.parse(val) : val; return Array.isArray(a) ? a : []; } catch { return []; }
 }
+// Normalize ISO datetime / Date object from the API into YYYY-MM-DD for
+// <input type="date"> values. Without this, browsers may fail to display
+// the date when the API returns a full ISO string like "2026-01-01T00:00:00.000Z".
+function toDateInput(d: any): string {
+  if (!d) return '';
+  try {
+    const dt = typeof d === 'string' ? new Date(d) : d instanceof Date ? d : null;
+    if (!dt || isNaN(dt.getTime())) return typeof d === 'string' ? d : '';
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } catch { return ''; }
+}
 
 function MultiSelectDropdown({ value = [], onChange, items, labelKey, idKey, placeholder }: {
   value: string[];
@@ -184,7 +198,7 @@ function FormFooter({ onCancel, onSave, isEdit, errCount, saveLabel }: { onCance
 /* ═══ Types ═══ */
 interface LType { id: string; name: string; code: string; description?: string; category?: string; smallestUnit?: string; displayOrder?: number; calendarColor?: string; status: string; isPaid?: boolean; }
 interface LRule { id: string; name: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
-interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; }
+interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; empStatus?: string; branchIds?: string; departmentIds?: string; designationIds?: string; leaveTypeIds?: string; creditMode?: string; creditDay?: string; roundOff?: string; yearStart?: string; approvalFlow?: string; }
 interface LMapping { id: string; policyId: string; typeId: string; ruleId: string; effectiveFrom: string; status: string; }
 
 const STEPS = [
@@ -652,8 +666,8 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
   // parseJsonArray is now defined at module level (shared by PolicyList + PolicyForm)
   const [f, setF] = useState({
     title: orig?.title || '', code: orig?.code || '', description: orig?.description || '',
-    status: orig?.status || 'draft', effectiveDate: orig?.effectiveDate || '',
-    expiryDate: orig?.expiryDate || '', category: 'leave',
+    status: orig?.status || 'draft', effectiveDate: toDateInput(orig?.effectiveDate) || '',
+    expiryDate: toDateInput(orig?.expiryDate) || '', category: 'leave',
     // Section 2: Applies to — dynamic IDs from company APIs
     empStatus: parseJsonArray((orig as any)?.empStatus || ['Confirmed']),
     branchIds: parseJsonArray((orig as any)?.branchIds),
