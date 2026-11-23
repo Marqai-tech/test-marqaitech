@@ -6,6 +6,9 @@ import toast from 'react-hot-toast';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() { const t = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null; return { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }; }
+function fmtNum(n: any) { const v = Number(n || 0); return Number.isInteger(v) ? String(v) : v.toFixed(1); }
+function fmtINR(n: any) { try { return Number(n || 0).toLocaleString('en-IN'); } catch { return String(n || 0); } }
+function fmtDate(d: any) { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return d || '—'; } }
 
 export default function LOPReport() {
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
@@ -39,6 +42,7 @@ export default function LOPReport() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Dummy data — field names match what the UI expects
   const DUMMY_ROWS = [
     { employeeId: 'emp007', employeeName: 'Imran Mufti', department: 'Sales', branch: 'Mumbai', designation: 'Sales Executive', leaveType: 'LOP', startDate: '2026-11-10', endDate: '2026-11-14', days: 5, monthlySalary: 75000, perDaySalary: 2500, deduction: 12500, reason: 'Balance exhausted', status: 'approved' },
     { employeeId: 'emp003', employeeName: 'Suresh Prasad', department: 'Engineering', branch: 'Bengaluru', designation: 'Senior Engineer', leaveType: 'LOP', startDate: '2026-11-05', endDate: '2026-11-09', days: 5, monthlySalary: 125000, perDaySalary: 4167, deduction: 20833, reason: 'Balance exhausted', status: 'approved' },
@@ -49,24 +53,25 @@ export default function LOPReport() {
   ];
 
   const DUMMY_SUMMARY = {
-    lopEmployees: 5, totalLopDays: 15, totalDeduction: 48366,
+    totalDays: 15, employeeCount: 5, requestCount: 6, totalDeduction: 48366,
     pendingSync: 1, payrollLockDate: '2026-11-25',
   };
 
+  // Field names match what the By Employee table expects: name, dept, days, deduction
   const DUMMY_BY_EMP = [
-    { employeeName: 'Imran Mufti', department: 'Sales', totalDays: 6, totalDeduction: 15000 },
-    { employeeName: 'Suresh Prasad', department: 'Engineering', totalDays: 5, totalDeduction: 20833 },
-    { employeeName: 'Ravi Shah', department: 'Operations', totalDays: 2, totalDeduction: 9200 },
-    { employeeName: 'Karthik Reddy', department: 'Engineering', totalDays: 1, totalDeduction: 1500 },
-    { employeeName: 'Deepika Nair', department: 'HR', totalDays: 1, totalDeduction: 1833 },
+    { name: 'Imran Mufti', dept: 'Sales', days: 6, deduction: 15000 },
+    { name: 'Suresh Prasad', dept: 'Engineering', days: 5, deduction: 20833 },
+    { name: 'Ravi Shah', dept: 'Operations', days: 2, deduction: 9200 },
+    { name: 'Karthik Reddy', dept: 'Engineering', days: 1, deduction: 1500 },
+    { name: 'Deepika Nair', dept: 'HR', days: 1, deduction: 1833 },
   ];
 
   const rows = (data.rows || []).length > 0 ? data.rows : DUMMY_ROWS;
   const apiSummary = data.summary || {};
-  const hasRealSummary = apiSummary.lopEmployees > 0 || apiSummary.totalLopDays > 0;
+  const hasRealSummary = (apiSummary.totalDays || 0) > 0 || (apiSummary.employeeCount || 0) > 0;
   const summary = hasRealSummary ? apiSummary : DUMMY_SUMMARY;
   const byEmp = (data.byEmployee || []).length > 0 ? data.byEmployee : DUMMY_BY_EMP;
-  const filtered = rows.filter((r: any) => r.employeeName.toLowerCase().includes(q.toLowerCase()));
+  const filtered = rows.filter((r: any) => (r.employeeName || '').toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -89,17 +94,17 @@ export default function LOPReport() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{summary.totalDays || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total LOP Days</p></div>
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{summary.employeeCount || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">Employees with LOP</p></div>
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{summary.requestCount || 0}</p><p className="text-xs font-semibold text-slate-500 mt-1">LOP Requests</p></div>
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-rose-600">₹{(summary.totalDeduction || 0).toLocaleString('en-IN')}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total Deduction</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{fmtNum(summary.totalDays)}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total LOP Days</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{fmtNum(summary.employeeCount)}</p><p className="text-xs font-semibold text-slate-500 mt-1">Employees with LOP</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-slate-900">{fmtNum(summary.requestCount)}</p><p className="text-xs font-semibold text-slate-500 mt-1">LOP Requests</p></div>
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm"><p className="text-2xl font-extrabold text-rose-600">₹{fmtINR(summary.totalDeduction)}</p><p className="text-xs font-semibold text-slate-500 mt-1">Total Deduction</p></div>
       </div>
 
       {/* By Employee summary */}
       {byEmp.length > 0 && (
         <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm mb-6">
           <h3 className="text-sm font-bold text-slate-700 mb-4">By Employee</h3>
-          <table className="w-full"><thead><tr><th className="text-left text-xs font-bold text-slate-400 uppercase pb-2">Employee</th><th className="text-left text-xs font-bold text-slate-400 uppercase pb-2">Department</th><th className="text-right text-xs font-bold text-slate-400 uppercase pb-2">LOP Days</th><th className="text-right text-xs font-bold text-slate-400 uppercase pb-2">Deduction</th></tr></thead><tbody>{byEmp.map((e: any, i: number) => <tr key={i} className="border-b border-slate-50"><td className="py-3 text-sm font-semibold text-slate-700">{e.name}</td><td className="py-3 text-sm text-slate-500">{e.dept}</td><td className="py-3 text-sm font-bold text-slate-900 text-right">{e.days}</td><td className="py-3 text-sm font-bold text-rose-600 text-right">₹{e.deduction.toLocaleString('en-IN')}</td></tr>)}</tbody></table>
+          <table className="w-full"><thead><tr><th className="text-left text-xs font-bold text-slate-400 uppercase pb-2">Employee</th><th className="text-left text-xs font-bold text-slate-400 uppercase pb-2">Department</th><th className="text-right text-xs font-bold text-slate-400 uppercase pb-2">LOP Days</th><th className="text-right text-xs font-bold text-slate-400 uppercase pb-2">Deduction</th></tr></thead><tbody>{byEmp.map((e: any, i: number) => <tr key={i} className="border-b border-slate-50"><td className="py-3 text-sm font-semibold text-slate-700">{e.name || e.employeeName || '—'}</td><td className="py-3 text-sm text-slate-500">{e.dept || e.department || '—'}</td><td className="py-3 text-sm font-bold text-slate-900 text-right">{fmtNum(e.days || e.totalDays)}</td><td className="py-3 text-sm font-bold text-rose-600 text-right">₹{fmtINR(e.deduction || e.totalDeduction)}</td></tr>)}</tbody></table>
         </div>
       )}
 
@@ -115,7 +120,7 @@ export default function LOPReport() {
           <table className="w-full"><thead><tr className="bg-slate-50/50"><th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Employee</th><th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Department</th><th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Leave Type</th><th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Start</th><th className="text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">End</th><th className="text-center text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Days</th><th className="text-right text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100">Deduction</th></tr></thead><tbody>
             {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
              filtered.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No LOP records found.</td></tr> :
-             filtered.map((r: any, i: number) => <tr key={i} className="border-b border-slate-50 hover:bg-slate-50"><td className="px-3.5 py-3 text-sm font-semibold text-slate-700">{r.employeeName}</td><td className="px-3.5 py-3 text-sm text-slate-500">{r.department}</td><td className="px-3.5 py-3 text-sm text-slate-600">{r.leaveType}</td><td className="px-3.5 py-3 text-xs text-slate-500">{new Date(r.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td><td className="px-3.5 py-3 text-xs text-slate-500">{new Date(r.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td><td className="px-3.5 py-3 text-center text-sm font-bold text-slate-900">{r.days}</td><td className="px-3.5 py-3 text-right text-sm font-bold text-rose-600">₹{r.deduction.toLocaleString('en-IN')}</td></tr>)}
+             filtered.map((r: any, i: number) => <tr key={i} className="border-b border-slate-50 hover:bg-slate-50"><td className="px-3.5 py-3 text-sm font-semibold text-slate-700">{r.employeeName}</td><td className="px-3.5 py-3 text-sm text-slate-500">{r.department}</td><td className="px-3.5 py-3 text-sm text-slate-600">{r.leaveType}</td><td className="px-3.5 py-3 text-xs text-slate-500">{fmtDate(r.startDate)}</td><td className="px-3.5 py-3 text-xs text-slate-500">{fmtDate(r.endDate)}</td><td className="px-3.5 py-3 text-center text-sm font-bold text-slate-900">{fmtNum(r.days)}</td><td className="px-3.5 py-3 text-right text-sm font-bold text-rose-600">₹{fmtINR(r.deduction)}</td></tr>)}
           </tbody></table>
         </div>
       </div>
