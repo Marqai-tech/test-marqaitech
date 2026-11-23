@@ -115,6 +115,8 @@ function ApplyLeaveContent() {
   const [ownLeaves, setOwnLeaves] = useState<any[]>([]);
   const [teamConflicts, setTeamConflicts] = useState<any[]>([]);
   const [rules, setRules] = useState<any[]>([]);
+  const [mappings, setMappings] = useState<any[]>([]);
+  const [policies, setPolicies] = useState<any[]>([]);
   const [form, setForm] = useState<FormState>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -133,15 +135,19 @@ function ApplyLeaveContent() {
         setLoading(true);
         const headers = getAuthHeaders();
         const sq = scopeQuery();
-        const [ltRes, empRes, balRes, holRes, ownRes, ruleRes] = await Promise.all([
+        const [ltRes, empRes, balRes, holRes, ownRes, ruleRes, mapRes, polRes] = await Promise.all([
           fetch(`/api/leave-types?limit=100`, { headers }),
           fetch(`/api/employees?limit=1&own=1&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
           fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers }).catch(() => null),
           fetch(`/api/holidays${sq ? `?${sq}` : ''}`, { headers }).catch(() => null),
           fetch(`/api/leave?view=self&limit=100${sq ? `&${sq}` : ''}`, { headers }).catch(() => null),
           fetch(`/api/leave-policy-rules?limit=100`, { headers }).catch(() => null),
+          fetch(`/api/leave-type-policy-mappings?includeInactive=1`, { headers }).catch(() => null),
+          fetch(`/api/policies?category=leave&limit=100`, { headers }).catch(() => null),
         ]);
         if (ruleRes?.ok) { const rd = await ruleRes.json(); setRules(rd.data || []); }
+        if (mapRes?.ok) { const md = await mapRes.json(); setMappings(md.data || []); }
+        if (polRes?.ok) { const pd = await polRes.json(); setPolicies(pd.policies || pd.data || []); }
         const ltData = await ltRes.json();
         let activeTypes = (ltData.data || []).filter((t: any) => t.status === 'active' || t.status === undefined);
         setLeaveTypes(activeTypes);
@@ -336,10 +342,29 @@ function ApplyLeaveContent() {
   const selectedType = leaveTypes.find(t => t.id === form.leaveTypeId);
   const selectedBalance = leaveBalances.find(b => b.leaveType.id === form.leaveTypeId);
 
-  // ─── Compute leave type info from rule + policy tables ───
-  // When a leave type is selected, find the matching rule (entitledDaysPerYear)
-  // and count how many days the employee has already taken.
-  const selectedRule = rules.find((r: any) => r.leaveTypeId === form.leaveTypeId && r.status === 'active');
+  // ─── Compute leave type info from rule + policy + mapping tables ───
+  // Chain: LeaveType → LeaveTypePolicyMapping (leaveTypeId → policyRuleId) → LeavePolicyRule
+  //    OR: LeaveType → Policy.leaveTypeIds → LeavePolicyRule.policyId
+  // The rule has entitledDaysPerYear, advanceNoticeDays, etc.
+  const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
+
+  // Path 1: LeaveType → Mapping → Rule
+  const selectedMapping = mappings.find((m: any) => m.leaveTypeId === form.leaveTypeId && m.status === 'active');
+  const ruleViaMapping = selectedMapping ? rules.find((r: any) => r.id === selectedMapping.policyRuleId) : null;
+
+  // Path 2: LeaveType → Policy.leaveTypeIds → Rule.policyId
+  const matchedPolicy = policies.find((p: any) => {
+    if (p.status !== 'active') return false;
+    const ltIds = parseJson(p.leaveTypeIds);
+    return ltIds.includes(form.leaveTypeId);
+  });
+  const ruleViaPolicy = matchedPolicy ? rules.find((r: any) => r.policyId === matchedPolicy.id && r.status === 'active') : null;
+
+  // Path 3: Direct rule.leaveTypeId match (fallback)
+  const ruleViaLeaveType = rules.find((r: any) => r.leaveTypeId === form.leaveTypeId && r.status === 'active');
+
+  // Use whichever path found a rule (priority: mapping > policy > direct)
+  const selectedRule = ruleViaMapping || ruleViaPolicy || ruleViaLeaveType || null;
   const entitledDays = selectedRule?.entitledDaysPerYear || selectedBalance?.total || selectedType?.defaultDays || 0;
   const takenDays = ownLeaves
     .filter((l: any) => l.leaveTypeId === form.leaveTypeId && (l.status === 'approved' || l.status === 'pending'))
