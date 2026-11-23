@@ -5,6 +5,10 @@
    (one-screen dense table + KPI filter cards + inline expand, no modals
    except the Schedule Interview slide-over drawer, see ScheduleDrawer.tsx).
 
+   Rows are GROUPED by candidate (job application): one row per candidate with
+   a rounds progress pill (R1 ✓ R2 ✓ R3 ●); expanding stacks every round with
+   its full detail — schedule, panel, feedback, and HR decision per round.
+
    Data flow is unchanged — same endpoints as before:
      GET  /api/interviews?limit=100          list (with panel members)
      GET  /api/interviews/[id]/feedback      full feedback detail
@@ -191,6 +195,75 @@ function parseEvalAreas(raw?: string | null): string[] {
 }
 function typeLabel(t: string): string { return TYPE_LABELS[t] || (t ? t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Interview'); }
 
+/* ── Candidate grouping: one row per candidate-application, every round inside ──
+   The table groups interviews by jobApplicationId (a candidate's pipeline for one
+   job), so "where is this candidate?" is answered by one row + one click. */
+interface CandidateGroup {
+  key: string;                     // jobApplicationId (falls back to interview id)
+  candidateName: string;
+  candidateEmail: string;
+  jobTitle: string;
+  ivs: Interview[];                // rounds — round asc, then date asc
+  totalRounds: number;             // max(planTotal, highest round seen)
+  doneCount: number;               // completed rounds
+  scheduledCount: number;
+  next: Interview | null;          // earliest upcoming scheduled interview
+  lastActivity: number;            // max createdAt/date — drives 'newest' sort
+  pendingDecisions: number;        // completed rounds without an HR decision
+  latestDecision: string | null;   // most recent round that has a decision
+}
+
+/** Interview date+time as a sortable timestamp (0 when undatable). */
+function ivTime(iv: Interview): number {
+  const d = new Date(iv.date || 0);
+  if (isNaN(d.getTime())) return 0;
+  if (iv.time) { const [h, m] = iv.time.split(':').map(Number); if (!isNaN(h)) d.setHours(h, m || 0, 0, 0); }
+  return d.getTime();
+}
+
+function buildGroups(list: Interview[]): CandidateGroup[] {
+  const map = new Map<string, CandidateGroup>();
+  for (const iv of list) {
+    const key = iv.jobApplicationId || iv.id;
+    let g = map.get(key);
+    if (!g) {
+      g = {
+        key, candidateName: iv.candidateName || 'Unknown candidate', candidateEmail: iv.candidateEmail || '',
+        jobTitle: iv.jobTitle || '—', ivs: [], totalRounds: 1, doneCount: 0, scheduledCount: 0,
+        next: null, lastActivity: 0, pendingDecisions: 0, latestDecision: null,
+      };
+      map.set(key, g);
+    }
+    g.ivs.push(iv);
+  }
+  for (const g of map.values()) {
+    // null/absent rounds sort last; within a round, earliest date first
+    g.ivs.sort((a, b) => (Number(a.round || 999) - Number(b.round || 999)) || (ivTime(a) - ivTime(b)));
+    g.totalRounds = Math.max(g.ivs.reduce((m, iv) => Math.max(m, Number(iv.planTotal || 0), Number(iv.round || 0)), 0), 1);
+    g.doneCount = g.ivs.filter(iv => iv.status === 'completed').length;
+    g.scheduledCount = g.ivs.filter(iv => iv.status === 'scheduled').length;
+    g.lastActivity = g.ivs.reduce((m, iv) => Math.max(m, new Date(iv.createdAt || iv.date || 0).getTime() || 0), 0);
+    const upcoming = g.ivs
+      .filter(iv => iv.status === 'scheduled' && iv.date && !isNaN(new Date(iv.date).getTime()))
+      .sort((a, b) => ivTime(a) - ivTime(b));
+    g.next = upcoming[0] || null;
+    g.pendingDecisions = g.ivs.filter(iv => iv.status === 'completed' && !iv.hrDecision).length;
+    const withDecision = g.ivs.filter(iv => iv.hrDecision);
+    g.latestDecision = withDecision.length ? withDecision[withDecision.length - 1].hrDecision! : null;
+  }
+  return Array.from(map.values());
+}
+
+/** Round-cell state for the progress pill: done > active > cancelled > todo. */
+function roundState(g: CandidateGroup, r: number): 'done' | 'active' | 'cancelled' | 'todo' {
+  const at = g.ivs.filter(iv => Number(iv.round || 0) === r);
+  if (at.length === 0) return 'todo';
+  if (at.some(iv => iv.status === 'completed')) return 'done';
+  if (at.some(iv => iv.status === 'scheduled')) return 'active';
+  if (at.every(iv => iv.status === 'cancelled')) return 'cancelled';
+  return 'todo'; // rescheduled / unknown → treated as not-yet
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Component
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -212,8 +285,8 @@ export default function InterviewsPage() {
   const [dateFilter, setDateFilter] = useState('');
   const [sort, setSort] = useState('soonest');
 
-  /* ── inline expand (replaces the feedback modal) ── */
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  /* ── inline expand (replaces the feedback modal) — one candidate group at a time ── */
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [feedbackByInterview, setFeedbackByInterview] = useState<Record<string, FeedbackDetail[]>>({});
   const [loadingFeedbackId, setLoadingFeedbackId] = useState<string | null>(null);
 
@@ -300,15 +373,16 @@ export default function InterviewsPage() {
     finally { setLoadingFeedbackId(null); }
   }, [feedbackByInterview]);
 
-  const toggleExpand = (interview: Interview) => {
-    if (expandedId === interview.id) {
-      setExpandedId(null);
+  const toggleGroup = (g: CandidateGroup) => {
+    if (expandedGroupId === g.key) {
+      setExpandedGroupId(null);
     } else {
-      setExpandedId(interview.id);
+      setExpandedGroupId(g.key);
       setDecisionDraft(null);
       setAttendanceDraft(null);
       setReplaceDraft(null);
-      queueMicrotask(() => fetchFeedback(interview.id));
+      // pull full feedback detail for every round of this candidate
+      g.ivs.forEach(iv => queueMicrotask(() => fetchFeedback(iv.id)));
     }
   };
 
@@ -503,7 +577,8 @@ export default function InterviewsPage() {
   const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
   const endOfNextWeek = new Date(startOfToday); endOfNextWeek.setDate(endOfNextWeek.getDate() + 14);
 
-  const filtered = interviews.filter(i => {
+  /* Interview-level predicate shared by KPI cards, filters, and search. */
+  const matches = (i: Interview): boolean => {
     if (kpiFilter === 'scheduled' && i.status !== 'scheduled') return false;
     if (kpiFilter === 'awaiting_panel' && !(i.status === 'scheduled' && hasPendingPanel(i))) return false;
     if (kpiFilter === 'feedbacks_due' && !hasMissingFeedback(i)) return false;
@@ -535,21 +610,27 @@ export default function InterviewsPage() {
       ) return false;
     }
     return true;
-  });
+  };
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (sort === 'newest') {
-      return new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime();
-    }
+  /* ── Candidate groups: a group is shown when ANY of its rounds matches the
+     filters, and expanding it always shows ALL of its rounds (full context —
+     the user asked for "everything about this candidate in one place"). ── */
+  const allGroups = buildGroups(interviews);
+  const visibleGroups = allGroups.filter(g => g.ivs.some(matches));
+  const filteredInterviews = interviews.filter(matches);
+
+  const nextTs = (g: CandidateGroup) => (g.next ? ivTime(g.next) : Infinity);
+  const feedbackRank = (g: CandidateGroup) => (g.ivs.some(hasMissingFeedback) ? 0 : 1);
+  const sortedGroups = [...visibleGroups].sort((a, b) => {
+    if (sort === 'newest') return b.lastActivity - a.lastActivity;
     if (sort === 'feedback_due') {
-      const rank = (i: Interview) => (hasMissingFeedback(i) ? 0 : 1);
-      if (rank(a) !== rank(b)) return rank(a) - rank(b);
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
+      const ra = feedbackRank(a), rb = feedbackRank(b);
+      if (ra !== rb) return ra - rb;
+      return nextTs(a) - nextTs(b);
     }
-    // soonest — date asc, nulls last
-    const da = a.date ? new Date(a.date).getTime() : Infinity;
-    const db = b.date ? new Date(b.date).getTime() : Infinity;
-    return da - db;
+    // soonest — next upcoming interview first, ties by most recent activity
+    if (nextTs(a) !== nextTs(b)) return nextTs(a) - nextTs(b);
+    return b.lastActivity - a.lastActivity;
   });
 
   const hasActiveFilters = q || jobFilter || typeFilter || roundFilter || panelFilter || dateFilter || kpiFilter !== 'all';
@@ -652,7 +733,7 @@ export default function InterviewsPage() {
             <thead>
               <tr>
                 <th style={{ width: 26 }}></th>
-                {['Candidate', 'Position', 'Interview', 'When', 'Panel', 'Feedback', 'Status'].map(h => (
+                {['Candidate', 'Position', 'Rounds', 'Next Interview', 'Feedback', 'Status'].map(h => (
                   <th key={h} className="sticky top-0 z-[2] bg-slate-50 text-left text-[9.5px] font-extrabold uppercase tracking-[0.6px] text-slate-500 px-2.5 py-2 border-b border-slate-200">{h}</th>
                 ))}
                 <th className="sticky top-0 z-[2] bg-slate-50 text-right text-[9.5px] font-extrabold uppercase tracking-[0.6px] text-slate-500 px-2.5 py-2 border-b border-slate-200">Actions</th>
@@ -660,29 +741,29 @@ export default function InterviewsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="py-14 text-center text-[12px] text-slate-400">Loading interviews…</td></tr>
-              ) : sorted.length === 0 ? (
-                <tr><td colSpan={9} className="py-14 text-center">
+                <tr><td colSpan={8} className="py-14 text-center text-[12px] text-slate-400">Loading interviews…</td></tr>
+              ) : sortedGroups.length === 0 ? (
+                <tr><td colSpan={8} className="py-14 text-center">
                   <FiCalendar className="w-9 h-9 text-slate-300 mx-auto mb-2" />
-                  <p className="text-[12.5px] font-bold text-slate-600">No interviews match these filters</p>
+                  <p className="text-[12.5px] font-bold text-slate-600">No candidates match these filters</p>
                   <p className="text-[11px] text-slate-400 mt-1">
                     {interviews.length === 0 ? 'No interviews scheduled yet — use Schedule Interview to create the first one.' : 'Try widening the search or clearing a filter or two.'}
                   </p>
                 </td></tr>
-              ) : sorted.map(interview => {
-                const pm = panel(interview);
-                const accepted = pm.filter(p => p.confirmationStatus === 'accepted').length;
-                const declined = pm.filter(p => p.confirmationStatus === 'declined').length;
-                const fbCount = pm.filter(p => p.hasFeedback).length;
-                const st = STATUS_META[interview.status] || { label: interview.status, badge: 'bg-slate-100 text-slate-600 border-slate-200', border: 'border-l-slate-300' };
-                const wchip = whenChip(interview.date, interview.time);
-                const isOpen = expandedId === interview.id;
-                const canComplete = interview.status === 'scheduled';
+              ) : sortedGroups.map(g => {
+                const pmAll = g.ivs.flatMap(iv => panel(iv));
+                const fbAll = pmAll.filter(p => p.hasFeedback).length;
+                const nextChip = g.next ? whenChip(g.next.date, g.next.time) : null;
+                const isOpen = expandedGroupId === g.key;
+                // pipeline state for the whole group: upcoming > completed > cancelled
+                const stateChip = g.next
+                  ? STATUS_META.scheduled
+                  : g.doneCount > 0 ? STATUS_META.completed : STATUS_META.cancelled;
                 return (
-                  <Fragment key={interview.id}>
+                  <Fragment key={g.key}>
                     <tr
-                      onClick={() => toggleExpand(interview)}
-                      className={`cursor-pointer transition-colors border-l-4 ${st.border} ${isOpen ? 'bg-green-50' : 'hover:bg-green-50/60'} ${interview.status === 'cancelled' ? 'opacity-60' : ''}`}
+                      onClick={() => toggleGroup(g)}
+                      className={`cursor-pointer transition-colors border-l-4 ${g.next ? 'border-l-amber-400' : g.pendingDecisions > 0 ? 'border-l-green-500' : 'border-l-slate-300'} ${isOpen ? 'bg-green-50' : 'hover:bg-green-50/60'}`}
                     >
                       <td className="px-1 py-2 align-middle">
                         <FiChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : '-rotate-90'}`} />
@@ -690,96 +771,92 @@ export default function InterviewsPage() {
                       {/* candidate */}
                       <td className="px-2.5 py-2">
                         <div className="flex items-center gap-2">
-                          <span className={`w-7 h-7 rounded-full bg-gradient-to-br ${avatarColor(interview.candidateName || interview.id)} text-white text-[10px] font-extrabold flex items-center justify-center shrink-0`}>
-                            {initials(interview.candidateName)}
+                          <span className={`w-7 h-7 rounded-full bg-gradient-to-br ${avatarColor(g.candidateName || g.key)} text-white text-[10px] font-extrabold flex items-center justify-center shrink-0`}>
+                            {initials(g.candidateName)}
                           </span>
                           <div className="min-w-0">
-                            <p className="text-[11.5px] font-bold text-slate-800 truncate">{interview.candidateName || 'N/A'}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{interview.candidateEmail || ''}</p>
+                            <p className="text-[11.5px] font-bold text-slate-800 truncate">{g.candidateName}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{g.candidateEmail || ''}</p>
                           </div>
                         </div>
                       </td>
                       {/* position */}
                       <td className="px-2.5 py-2">
-                        <p className="text-[11.5px] font-semibold text-slate-700 truncate">{interview.jobTitle || 'N/A'}</p>
+                        <p className="text-[11.5px] font-semibold text-slate-700 truncate">{g.jobTitle}</p>
+                        <p className="text-[10px] text-slate-400">{g.ivs.length} interview{g.ivs.length !== 1 ? 's' : ''}</p>
                       </td>
-                      {/* interview */}
+                      {/* rounds progress — the candidate's whole pipeline at a glance */}
                       <td className="px-2.5 py-2">
-                        <span className="inline-flex items-center rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">
-                          {typeLabel(interview.type)}{interview.round ? ` · R${interview.round}` : ''}
-                        </span>
-                        <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                          {interview.mode === 'onsite' ? <FiMapPin className="w-2.5 h-2.5" /> : interview.mode === 'phone' ? <FiUser className="w-2.5 h-2.5" /> : <FiVideo className="w-2.5 h-2.5" />}
-                          {MODE_LABELS[interview.mode || 'online']}{interview.location && interview.mode === 'onsite' ? ` · ${interview.location}` : ''}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {Array.from({ length: g.totalRounds }, (_, idx) => {
+                            const r = idx + 1;
+                            const state = roundState(g, r);
+                            return (
+                              <span
+                                key={r}
+                                title={`Round ${r} — ${state === 'done' ? 'cleared' : state === 'active' ? 'scheduled' : state === 'cancelled' ? 'cancelled' : 'not scheduled yet'}`}
+                                className={`w-[24px] h-[22px] rounded-[6px] border flex items-center justify-center text-[9.5px] font-extrabold transition
+                                  ${state === 'done' ? 'bg-green-600 border-green-600 text-white'
+                                    : state === 'active' ? 'bg-amber-50 border-amber-400 text-amber-700 ring-1 ring-amber-300/60'
+                                    : state === 'cancelled' ? 'bg-red-50 border-red-200 text-red-400'
+                                    : 'bg-white border-slate-200 text-slate-400'}`}
+                              >
+                                {state === 'done' ? <FiCheck className="w-3 h-3" /> : state === 'cancelled' ? <FiX className="w-2.5 h-2.5" /> : r}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1 whitespace-nowrap">
+                          {g.doneCount}/{g.totalRounds} cleared{g.scheduledCount > 0 ? ` · ${g.scheduledCount} scheduled` : ''}
                         </p>
                       </td>
-                      {/* when */}
+                      {/* next interview */}
                       <td className="px-2.5 py-2">
-                        <p className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">{fmtWeekday(interview.date)}{interview.time ? ` · ${interview.time}` : ''}</p>
-                        <p className="text-[10px] text-slate-400">{interview.duration || 60} min</p>
-                        {wchip && interview.status === 'scheduled' && (
-                          <span className={`inline-flex items-center rounded border px-1 py-px text-[9.5px] font-extrabold mt-0.5 ${wchip.cls}`}>{wchip.label}</span>
+                        {g.next ? (
+                          <>
+                            <p className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">{fmtWeekday(g.next.date)}{g.next.time ? ` · ${g.next.time}` : ''}</p>
+                            <p className="text-[10px] text-slate-400 whitespace-nowrap">R{g.next.round || 1} · {typeLabel(g.next.type)} · {g.next.duration || 60} min</p>
+                            {nextChip && (
+                              <span className={`inline-flex items-center rounded border px-1 py-px text-[9.5px] font-extrabold mt-0.5 ${nextChip.cls}`}>{nextChip.label}</span>
+                            )}
+                          </>
+                        ) : g.doneCount > 0 ? (
+                          <>
+                            <p className="text-[11px] font-semibold text-slate-500">No upcoming</p>
+                            <p className="text-[10px] text-slate-400">{g.pendingDecisions > 0 ? 'awaiting decision' : 'all rounds completed'}</p>
+                          </>
+                        ) : (
+                          <span className="text-[10.5px] text-slate-300">—</span>
                         )}
                       </td>
-                      {/* panel */}
+                      {/* feedback across all rounds */}
                       <td className="px-2.5 py-2">
-                        {pm.length > 0 ? (
+                        {pmAll.length > 0 ? (
                           <>
-                            <div className="flex items-center">
-                              {pm.slice(0, 4).map(p => (
-                                <span
-                                  key={p.id}
-                                  title={`${p.name || 'Panel member'} — ${CONFIRM_META[p.confirmationStatus]?.label || p.confirmationStatus}`}
-                                  className={`w-[22px] h-[22px] rounded-full -ml-1.5 first:ml-0 border-2 bg-gradient-to-br ${avatarColor(p.name)} text-white text-[8.5px] font-extrabold flex items-center justify-center
-                                    ${p.confirmationStatus === 'accepted' ? 'ring-1 ring-green-500 border-white' : p.confirmationStatus === 'declined' ? 'ring-1 ring-red-400 border-white opacity-70' : 'ring-1 ring-amber-300 border-white'}`}
-                                >
-                                  {initials(p.name)}
-                                </span>
-                              ))}
-                              {pm.length > 4 && <span className="w-[22px] h-[22px] rounded-full -ml-1.5 border-2 border-white bg-slate-100 text-slate-500 text-[8.5px] font-extrabold flex items-center justify-center">+{pm.length - 4}</span>}
+                            <p className={`text-[10.5px] font-bold ${fbAll === pmAll.length ? 'text-green-700' : 'text-slate-600'}`}>{fbAll}/{pmAll.length}</p>
+                            <div className="w-[52px] h-[5px] rounded-full bg-slate-200 overflow-hidden mt-1">
+                              <span className="block h-full bg-green-500 rounded-full" style={{ width: `${(fbAll / pmAll.length) * 100}%` }} />
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1">{accepted}/{pm.length} accepted{declined > 0 ? ` · ${declined} declined` : ''}</p>
                           </>
                         ) : <span className="text-[10.5px] text-slate-300">—</span>}
                       </td>
-                      {/* feedback */}
-                      <td className="px-2.5 py-2">
-                        {interview.status === 'cancelled' ? <span className="text-[10.5px] text-slate-300">—</span> : (
-                          <>
-                            <p className={`text-[10.5px] font-bold ${fbCount === pm.length && pm.length > 0 ? 'text-green-700' : 'text-slate-600'}`}>{fbCount}/{pm.length}</p>
-                            <div className="w-[52px] h-[5px] rounded-full bg-slate-200 overflow-hidden mt-1">
-                              <span className="block h-full bg-green-500 rounded-full" style={{ width: `${pm.length ? (fbCount / pm.length) * 100 : 0}%` }} />
-                            </div>
-                          </>
-                        )}
-                      </td>
                       {/* status */}
                       <td className="px-2.5 py-2">
-                        <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${st.badge}`}>{st.label}</span>
-                        {interview.hrDecision && (
-                          <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 mt-1">
-                            {DECISION_LABELS[interview.hrDecision] || interview.hrDecision}
-                          </span>
-                        )}
-                        {interview.status === 'completed' && !interview.hrDecision && (
+                        <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${stateChip.badge}`}>{stateChip.label}</span>
+                        {g.pendingDecisions > 0 && (
                           <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 mt-1">Decision pending</span>
+                        )}
+                        {g.latestDecision && (
+                          <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 mt-1">
+                            {DECISION_LABELS[g.latestDecision] || g.latestDecision}
+                          </span>
                         )}
                       </td>
                       {/* actions */}
                       <td className="px-2.5 py-2">
                         <div className="flex gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
-                          {canComplete && (
-                            <button
-                              onClick={() => handleMarkCompleted(interview.id)}
-                              disabled={actionLoading === interview.id + '-complete'}
-                              title="Mark completed"
-                              className="w-[26px] h-[26px] rounded-[7px] border border-slate-300 bg-white flex items-center justify-center text-slate-500 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition disabled:opacity-40"
-                            >
-                              <FiCheckCircle className="w-3 h-3" />
-                            </button>
-                          )}
                           <a
-                            href={`/recruitment?tab=candidates`}
+                            href="/recruitment?tab=candidates"
                             title="Open Find Candidates"
                             className="w-[26px] h-[26px] rounded-[7px] border border-slate-300 bg-white flex items-center justify-center text-slate-500 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition"
                           >
@@ -788,19 +865,64 @@ export default function InterviewsPage() {
                         </div>
                       </td>
                     </tr>
-                    {isOpen && (() => {
-                      const pm = panel(interview);
-                      const feedbackList = feedbackByInterview[interview.id] || [];
-                      const planTotal = Number(interview.planTotal || 0);
-                      const curRound = Number(interview.round || 1);
-                      const lead = pm.find(p => p.userId === interview.panelLeadId);
-                      const evalAreas = parseEvalAreas(interview.evaluationAreas);
-                      const myDraft = decisionDraft?.interviewId === interview.id ? decisionDraft : null;
-                      const myAttendance = attendanceDraft?.interviewId === interview.id ? attendanceDraft : null;
-                      return (
-                        <tr>
-                          <td colSpan={9} className="p-0 border-b border-slate-200">
-                            <div className="grid gap-3 p-3 lg:grid-cols-3" style={{ background: 'linear-gradient(180deg,#f0fdf4,#ffffff)' }}>
+                    {isOpen && (
+                    <tr>
+                      <td colSpan={8} className="p-0 border-b border-slate-200">
+                        <div className="p-3 space-y-2.5" style={{ background: 'linear-gradient(180deg,#f0fdf4,#ffffff)' }}>
+                        {/* candidate summary strip */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[10px] border border-green-200 bg-green-50/60 px-3 py-2">
+                          <b className="text-[12.5px] text-slate-800">{g.candidateName}</b>
+                          <span className="text-[11px] text-slate-500 truncate">{g.jobTitle} · {g.candidateEmail || 'no email'}</span>
+                          <span className="text-[10.5px] font-bold text-green-700 whitespace-nowrap">{g.doneCount} of {g.totalRounds} rounds cleared</span>
+                          {g.scheduledCount > 0 && <span className="text-[10.5px] font-bold text-amber-700 whitespace-nowrap">{g.scheduledCount} scheduled</span>}
+                          {g.pendingDecisions > 0 && <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 whitespace-nowrap">{g.pendingDecisions} decision{g.pendingDecisions > 1 ? 's' : ''} pending</span>}
+                          {g.latestDecision && (
+                            <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 whitespace-nowrap">
+                              {DECISION_LABELS[g.latestDecision] || g.latestDecision}
+                            </span>
+                          )}
+                        </div>
+                        {/* one block per round — everything about this candidate, stacked */}
+                        {g.ivs.map(interview => {
+                          const pm = panel(interview);
+                          const feedbackList = feedbackByInterview[interview.id] || [];
+                          const planTotal = Number(interview.planTotal || 0);
+                          const curRound = Number(interview.round || 1);
+                          const lead = pm.find(p => p.userId === interview.panelLeadId);
+                          const evalAreas = parseEvalAreas(interview.evaluationAreas);
+                          const myDraft = decisionDraft?.interviewId === interview.id ? decisionDraft : null;
+                          const myAttendance = attendanceDraft?.interviewId === interview.id ? attendanceDraft : null;
+                          const st = STATUS_META[interview.status] || { label: interview.status, badge: 'bg-slate-100 text-slate-600 border-slate-200', border: 'border-l-slate-300' };
+                          const wchip = whenChip(interview.date, interview.time);
+                          const canComplete = interview.status === 'scheduled';
+                          return (
+                          <div key={interview.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                          {/* round header — instant scannability */}
+                          <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-slate-50/80 border-b border-slate-200">
+                            <span className="w-[24px] h-[24px] rounded-[7px] bg-green-600 text-white text-[10px] font-extrabold flex items-center justify-center shrink-0">R{curRound}</span>
+                            <b className="text-[12px] text-slate-800">{typeLabel(interview.type)}</b>
+                            <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${st.badge}`}>{st.label}</span>
+                            <span className="text-[10.5px] text-slate-500 whitespace-nowrap">{fmtWeekday(interview.date)}{interview.time ? ` · ${interview.time}` : ''}</span>
+                            {wchip && (
+                              <span className={`inline-flex items-center rounded border px-1 py-px text-[9.5px] font-extrabold ${wchip.cls}`}>{wchip.label}</span>
+                            )}
+                            {interview.hrDecision && (
+                              <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700">{DECISION_LABELS[interview.hrDecision] || interview.hrDecision}</span>
+                            )}
+                            <div className="ml-auto flex items-center gap-1.5">
+                              {canComplete && (
+                                <button
+                                  onClick={() => handleMarkCompleted(interview.id)}
+                                  disabled={actionLoading === interview.id + '-complete'}
+                                  title="Mark this round completed"
+                                  className="h-[26px] px-2.5 rounded-[7px] border border-slate-300 bg-white inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-600 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition disabled:opacity-40"
+                                >
+                                  <FiCheckCircle className="w-3 h-3" /> {actionLoading === interview.id + '-complete' ? 'Marking…' : 'Complete'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid gap-3 p-3 lg:grid-cols-3">
                               {/* ── card 1: interview & plan ── */}
                               <div className={`${CARD_CLS} p-3`}>
                                 <h4 className={SECTION_TITLE}><FiCalendar className="w-3 h-3 text-green-600" /> Interview &amp; Plan</h4>
@@ -954,6 +1076,9 @@ export default function InterviewsPage() {
                                       )}
                                       {p.confirmationStatus === 'requested_reschedule' && p.reason && (
                                         <p className="text-[10px] text-blue-700 -mt-1 mb-1.5 px-2"><b>Wants a different time:</b> {p.reason}</p>
+                                      )}
+                                      {p.confirmationStatus === 'declined' && p.reason && (
+                                        <p className="text-[10px] text-red-600 -mt-1 mb-1.5 px-2"><b>Declined:</b> {p.reason}</p>
                                       )}
                                     </div>
                                   );
@@ -1136,10 +1261,13 @@ export default function InterviewsPage() {
                                 )}
                               </div>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })()}
+                          </div>
+                        );
+                        })}
+                        </div>
+                      </td>
+                    </tr>
+                    )}
 
                   </Fragment>
                 );
@@ -1148,8 +1276,8 @@ export default function InterviewsPage() {
           </table>
         </div>
         <div className="flex items-center justify-between px-3.5 py-1.5 border-t border-slate-200 bg-white text-[10.5px] text-slate-400 shrink-0">
-          <span>Showing <b className="text-slate-600">{sorted.length}</b> of <b className="text-slate-600">{interviews.length}</b> interviews{hasActiveFilters ? ' · filtered' : ''}</span>
-          <span>Click any row to expand panel, feedback, and decision — inline</span>
+          <span>Showing <b className="text-slate-600">{sortedGroups.length}</b> of <b className="text-slate-600">{allGroups.length}</b> candidates · <b className="text-slate-600">{filteredInterviews.length}</b> interviews{hasActiveFilters ? ' · filtered' : ''}</span>
+          <span>One row per candidate — click to open every round: panel, feedback, and decisions</span>
         </div>
       </div>
 
