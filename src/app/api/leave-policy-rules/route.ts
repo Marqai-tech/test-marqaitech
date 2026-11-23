@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      name, policyId, companyId, employmentType, branchId, departmentId,
+      name, description, policyId, companyId, employmentType, branchId, departmentId,
       leaveTypeAllocations, sandwichRuleEnabled, proRataEnabled,
       probationRestriction, probationMonths, encashmentAllowed,
       carryForwardGlobal, maxCarryForwardDays, priority, status,
@@ -191,6 +191,7 @@ export async function POST(req: NextRequest) {
     const rule = await db.leavePolicyRule.create({
       data: {
         name,
+        description: description || null,
         policyId: policyId || null,
         companyId: resolvedCompanyId,
         employmentType: employmentType || 'all',

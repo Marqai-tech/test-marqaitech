@@ -227,7 +227,7 @@ function FormFooter({ onCancel, onSave, isEdit, errCount, saveLabel }: { onCance
 
 /* ═══ Types ═══ */
 interface LType { id: string; name: string; code: string; description?: string; category?: string; smallestUnit?: string; displayOrder?: number; calendarColor?: string; status: string; isPaid?: boolean; }
-interface LRule { id: string; name: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
+interface LRule { id: string; name: string; description?: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
 interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; empStatus?: string; branchIds?: string; departmentIds?: string; designationIds?: string; gradeIds?: string; leaveTypeIds?: string; creditMode?: string; creditDay?: string; roundOff?: string; yearStart?: string; approvalFlow?: string; }
 interface LMapping { id: string; policyId: string; typeId: string; ruleId: string; effectiveFrom: string; status: string; }
 
@@ -479,7 +479,7 @@ function TypeForm({ editId, types, onCancel, onSaved, scopeQuery: sq }: { editId
               <Field label="Short code" req err={show('code')} hint="2–5 letters, unique"><Input value={f.code} onChange={v => set('code', v.toUpperCase().slice(0, 5))} placeholder="CL" bad={show('code')} /></Field>
               <Field label="Category" hint="Paid · Unpaid · Statutory · Special"><Select value={f.category} onChange={v => set('category', v)} options={['Paid', 'Unpaid', 'Statutory', 'Special']} /></Field>
               <Field label="Smallest unit employees can apply" hint="Half day allows 0.5 day requests"><Seg value={f.unit} onChange={v => set('unit', v)} options={['Full day', 'Half day', 'Hourly']} /></Field>
-              <Field label="Description" full><textarea className="w-full h-20 border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-vertical" value={f.description} onChange={e => set('description', e.target.value)} placeholder="When can this leave be used?" /></Field>
+              <Field label="Description (Optional)" full><textarea className="w-full h-20 border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-vertical" value={f.description} onChange={e => set('description', e.target.value)} placeholder="When can this leave be used?" /></Field>
             </div>
           </FSec>
           <FSec n={2} title="Display" desc="How the leave appears in calendars and balance cards.">
@@ -832,7 +832,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
             <div className="grid grid-cols-2 gap-x-6">
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy name<span className="text-red-500 ml-0.5">*</span></label><input className={`${inp} ${show('title')?'border-red-300 bg-red-50':''}`} value={f.title} onChange={e=>set('title',e.target.value)} placeholder="e.g. Staff Leave Policy 2026"/>{show('title')&&<div className="text-[11.5px] text-red-500 mt-1 font-semibold">{errs.title}</div>}</div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Policy code</label><input className={inp} value={f.code} onChange={e=>set('code',e.target.value)} placeholder="POL-STF-26"/></div>
-              <div className="pt-3.5 col-span-2"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Description</label><textarea className={`${inp} h-20 resize-vertical`} value={f.description} onChange={e=>set('description',e.target.value)} placeholder="Who is this policy for?"/></div>
+              <div className="pt-3.5 col-span-2"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Description (Optional)</label><textarea className={`${inp} h-20 resize-vertical`} value={f.description} onChange={e=>set('description',e.target.value)} placeholder="Who is this policy for?"/></div>
               <div className="pt-3.5"><label className="block text-[12.5px] font-bold text-slate-800 mb-1.5">Status</label><div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">{['Draft','Active','Inactive'].map(o=><button key={o} type="button" className={`h-8 px-4 rounded-md text-[12.5px] font-bold ${f.status===o.toLowerCase()?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`} onClick={()=>set('status',o.toLowerCase())}>{o}</button>)}</div><p className="text-[11.5px] text-slate-500 mt-1">Draft policies are not applied to employees</p></div>
             </div>
           )}
@@ -932,7 +932,8 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
 function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { editId: string | null; rules: LRule[]; types: LType[]; policies: LPolicy[]; onCancel: () => void; onSaved: () => void; sq: string }) {
   const orig = editId && rules.find(r => r.id === editId);
   const [f, setF] = useState({
-    name: orig?.name || '', leaveTypeId: orig?.leaveTypeId || orig?.typeId || '',
+    name: orig?.name || '', description: orig?.description || '',
+    leaveTypeId: orig?.leaveTypeId || orig?.typeId || '',
     policyId: orig?.policyId || '',
     status: orig?.status || 'draft',
     // Section 2: Entitlement & credit — bind from orig
@@ -997,7 +998,7 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
     setSaving(true);
     try {
       const body = {
-        name: f.name, leaveTypeId: f.leaveTypeId || null, policyId: f.policyId || null, status: f.status,
+        name: f.name, description: f.description, leaveTypeId: f.leaveTypeId || null, policyId: f.policyId || null, status: f.status,
         gender: f.gender, entitledDaysPerYear: Number(f.entitledDaysPerYear) || 0,
         minDaysPerRequest: Number(f.minDaysPerRequest) || 0.5, maxDaysPerRequest: Number(f.maxDaysPerRequest) || 0,
         advanceNoticeDays: Number(f.advanceNoticeDays) || 0, halfDayAllowed: f.halfDayAllowed,
@@ -1054,6 +1055,7 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
               {fld('Leave Policy', true, 'Bind this rule to a leave policy', show('policyId'), false, <select className={inp + (show('policyId')?' border-red-300 bg-red-50':'')} value={f.policyId} onChange={e => { set('policyId', e.target.value); if (!f.name) { const pol = policies.find(x => x.id === e.target.value); pol && set('name', pol.title + ' Rule'); } }}><option value="">Select policy…</option>{policies.filter(x => x.status === 'active' || x.status === 'draft').map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>)}
               {fld('Rule name', true, undefined, show('name'), false, <input className={inp + (show('name')?' border-red-300 bg-red-50':'')} value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. CL – Standard"/>)}
               {fld('Status', undefined, undefined, undefined, false, seg('status', ['Draft', 'Active', 'Inactive']))}
+              {fld('Description (Optional)', undefined, undefined, undefined, true, <textarea className={`${inp} h-20 resize-vertical`} value={f.description} onChange={e => set('description', e.target.value)} placeholder="What does this rule cover? e.g. Standard casual leave rule for confirmed employees" />)}
             </div>
           )}
 
