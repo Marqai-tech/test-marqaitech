@@ -339,17 +339,16 @@ function TypesList({ types, rules, loading, onCreate, onEdit }: { types: LType[]
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead><tr>{['#', 'Leave type', 'Category', 'Smallest unit', 'Rules', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 5 ? 'text-center' : ''}`}>{h}</th>)}</tr></thead>
+          <thead><tr>{['#', 'Leave type', 'Category', 'Smallest unit', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 4 ? 'text-center' : ''}`}>{h}</th>)}</tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-             rows.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No leave types found.</td></tr> :
+            {loading ? <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+             rows.length === 0 ? <tr><td colSpan={6} className="text-center py-10 text-slate-500">No leave types found.</td></tr> :
              rows.map((r, i) => (
               <tr key={r.id} className={`border-b border-slate-50 cursor-pointer transition-colors ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'} ${r.status !== 'active' ? 'opacity-60' : ''}`} onClick={() => setSel(r.id)}>
                 <td className="px-3.5 py-3 text-slate-400 font-bold text-[12px]">{i + 1}</td>
                 <td className="px-3.5 py-3"><div className="flex items-center gap-2.5"><CodeChip code={r.code} color={r.calendarColor} /><div><div className="font-bold text-[13px]">{r.name}</div><div className="text-[11.5px] text-slate-500 max-w-xs truncate">{r.description || ''}</div></div></div></td>
                 <td className="px-3.5 py-3"><CatPill c={(r.category || 'paid').charAt(0).toUpperCase() + (r.category || 'paid').slice(1)} /></td>
                 <td className="px-3.5 py-3 text-[13px] text-slate-500 capitalize">{(r.smallestUnit || 'full_day').replace('_', ' ')}</td>
-                <td className="px-3.5 py-3 text-center font-bold text-[13px]">{rules.filter(rr => rr.leaveTypeId === r.id || rr.typeId === r.id).length}</td>
                 <td className="px-3.5 py-3 text-center"><StatusPill s={r.status === 'active' ? 'Active' : 'Inactive'} /></td>
                 <td className="px-3.5 py-3 text-right">
                   <div className="flex items-center gap-1 ml-auto justify-end">
@@ -514,10 +513,10 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           {/* Removed "Employees" column per user request */}
-          <thead><tr>{['Policy Name', 'Applies To', 'Leave Types', 'Effective Date', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 3 ? '' : i === 5 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+          <thead><tr>{['Policy Name', 'Leave Types', 'Effective Date', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 2 ? '' : i === 4 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-             rows.length === 0 ? <tr><td colSpan={6} className="text-center py-10 text-slate-500">No policies found. Click <b>+ Create Policy</b> to define who gets which leaves.</td></tr> :
+            {loading ? <tr><td colSpan={5} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+             rows.length === 0 ? <tr><td colSpan={5} className="text-center py-10 text-slate-500">No policies found. Click <b>+ Create Policy</b> to define who gets which leaves.</td></tr> :
              rows.map(r => {
                const info = policyInfo(r.id);
                return (
@@ -525,9 +524,6 @@ function PolicyList({ policies, types, rules, mappings, loading, onCreate, onEdi
                   <td className="px-3.5 py-3">
                     <div className="font-bold text-[13px] text-slate-900">{r.title}</div>
                     {r.code && <div className="text-[11px] text-slate-400 font-mono">{r.code}</div>}
-                  </td>
-                  <td className="px-3.5 py-3">
-                    <span className="text-[12px] font-medium text-slate-700">{info.appliesTo}</span>
                   </td>
                   <td className="px-3.5 py-3">
                     {/* Colour-coded leave type chips — from policy's leaveTypeIds + mappings */}
@@ -886,29 +882,29 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
     name: orig?.name || '', leaveTypeId: orig?.leaveTypeId || orig?.typeId || '',
     policyId: orig?.policyId || '',
     status: orig?.status || 'draft',
-    // Section 2: Entitlement & credit
+    // Section 2: Entitlement & credit — bind from orig
     entitled: true, entitledDaysPerYear: String(orig?.entitledDaysPerYear || ''),
-    creditFrequency: 'Monthly', creditDays: '',
-    prorata: true, applyNextYear: false,
-    // Section 3: Applying rules
+    creditFrequency: orig?.creditFrequency || 'Monthly', creditDays: String(orig?.creditDays || ''),
+    prorata: orig?.prorata ?? true, applyNextYear: orig?.applyNextYear ?? false,
+    // Section 3: Applying rules — bind from orig
     advanceNoticeDays: String(orig?.advanceNoticeDays || 0),
     minDaysPerRequest: String(orig?.minDaysPerRequest || 0.5),
     maxDaysPerRequest: String(orig?.maxDaysPerRequest || ''),
-    maxStretch: '', halfDayAllowed: orig?.halfDayAllowed ?? true,
-    monthlyLimit: false, monthlyMaxDays: '', monthlyMaxTimes: '',
-    backDate: false, backDateWithin: '',
-    docRequired: false, docAfterDays: '', docWithin: '',
-    // Section 4: Day counting
-    excludeHoliday: true, excludeWeeklyOff: true,
-    // Section 5: Eligibility
-    gender: orig?.gender || 'both', marital: 'both',
-    empStatus: ['Confirmed'] as string[],
-    workingReq: false, workingDays: '',
-    esi: false, esiSalary: '',
-    // Section 6: Carry forward & encash
-    carryForward: orig?.carryForward ?? false, cfMode: 'Limited', cfDays: '',
-    maxAccum: '', expiryDays: '',
-    encash: false, encashLimit: '',
+    maxStretch: String(orig?.maxStretch || ''), halfDayAllowed: orig?.halfDayAllowed ?? true,
+    monthlyLimit: orig?.monthlyLimit ?? false, monthlyMaxDays: String(orig?.monthlyMaxDays || ''), monthlyMaxTimes: String(orig?.monthlyMaxTimes || ''),
+    backDate: orig?.backDate ?? false, backDateWithin: String(orig?.backDateWithin || ''),
+    docRequired: orig?.docRequired ?? false, docAfterDays: String(orig?.docAfterDays || ''), docWithin: String(orig?.docWithin || ''),
+    // Section 4: Day counting — bind from orig
+    excludeHoliday: orig?.excludeHoliday ?? true, excludeWeeklyOff: orig?.excludeWeeklyOff ?? true,
+    // Section 5: Eligibility — bind from orig
+    gender: orig?.gender || 'both', marital: orig?.maritalStatus || 'both',
+    empStatus: (() => { try { const a = typeof (orig as any)?.empStatusJson === 'string' ? JSON.parse((orig as any)?.empStatusJson) : (orig as any)?.empStatusJson; return Array.isArray(a) ? a : ['Confirmed']; } catch { return ['Confirmed']; } })(),
+    workingReq: orig?.workingReq ?? false, workingDays: String(orig?.workingDays || ''),
+    esi: orig?.esi ?? false, esiSalary: String(orig?.esiSalary || ''),
+    // Section 6: Carry forward & encash — bind from orig
+    carryForward: orig?.carryForwardToNextYear ?? false, cfMode: orig?.cfMode || 'Limited', cfDays: String(orig?.cfDays || ''),
+    maxAccum: String(orig?.maxAccum || ''), expiryDays: String(orig?.expiryDays || ''),
+    encash: orig?.leaveEncashmentApplicable ?? false, encashLimit: String(orig?.encashLimit || ''),
   });
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
