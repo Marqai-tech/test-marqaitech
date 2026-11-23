@@ -35,6 +35,7 @@ import {
   FiHeart,
   FiExternalLink,
   FiHome,
+  FiCheck,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -411,6 +412,7 @@ interface Employee {
   reportingManager?: { id: string; firstName: string; lastName: string; employeeId: string } | null;
   experienceYears?: number | null;
   leavePolicyId?: string | null;
+  leavePolicyIds?: string; // JSON array of multiple leave policy IDs
   attendancePolicyId?: string | null;
   travelPolicyId?: string | null;
   salaryStructureId?: string | null;
@@ -632,6 +634,7 @@ const initialForm = {
   healthInsurancePolicyNo: '',
   // Policy Mappings
   leavePolicyId: '',
+  leavePolicyIds: '',
   attendancePolicyId: '',
   travelPolicyId: '',
   salaryStructureId: '',
@@ -3890,12 +3893,34 @@ const handleExperienceLetterPick = (
                   <div className="pt-3 border-t border-thb-border/50">
                   <p className="text-xs text-thb-text-muted">Assign organizational policies to this employee. These can be updated later from the employee profile.</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Leave Policy</label>
-                      <select value={form.leavePolicyId} onChange={e => updateForm('leavePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                        <option value="">Select Leave Policy</option>
-                        {leavePolicies.map(p => <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>)}
-                      </select>
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-2">Leave Policies (select multiple)</label>
+                      {(() => {
+                        const parseIds = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : (v ? [v] : []); } catch { return v ? [v] : []; } };
+                        const selectedIds = parseIds(form.leavePolicyIds || form.leavePolicyId);
+                        const toggle = (id: string) => {
+                          const next = selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id];
+                          updateForm('leavePolicyIds', JSON.stringify(next));
+                          updateForm('leavePolicyId', next.length > 0 ? next[0] : '');
+                        };
+                        return (
+                          <div className="flex flex-wrap gap-2">
+                            {leavePolicies.length === 0 && <p className="text-sm text-thb-text-muted">No leave policies available.</p>}
+                            {leavePolicies.map(p => {
+                              const on = selectedIds.includes(p.id);
+                              return (
+                                <span key={p.id} onClick={() => toggle(p.id)} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-sm font-semibold cursor-pointer transition-colors ${on ? 'border-green-300 bg-green-50 text-green-700' : 'border-thb-border bg-white text-thb-text-secondary hover:bg-slate-50'}`}>
+                                  <span className={`w-4 h-4 rounded border flex items-center justify-center ${on ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}>{on && <FiCheck className="w-2.5 h-2.5 text-white" />}</span>
+                                  {p.title} {p.version ? `(v${p.version})` : ''}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                      {form.leavePolicyIds && form.leavePolicyIds !== '[]' && (
+                        <p className="text-[11px] text-thb-text-muted mt-1.5">Selected: {JSON.parse(form.leavePolicyIds || '[]').length} policy/policies</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Attendance Policy</label>

@@ -710,6 +710,11 @@ export async function PUT(
       // form but not on the Employee model; writing them makes Prisma reject
       // the whole update with "Failed to update employee".
       if (leavePolicyId !== undefined) updateData.leavePolicyId = leavePolicyId || null;
+      // leavePolicyIds — multiple leave policies stored as JSON array in runtime column
+      if (body.leavePolicyIds !== undefined) {
+        try { await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyIds" TEXT`); } catch {}
+        try { await db.$executeRawUnsafe(`UPDATE "Employee" SET "leavePolicyIds" = $1 WHERE "id" = $2`, body.leavePolicyIds || null, id); } catch (e) { console.warn('[emp PUT] leavePolicyIds update failed:', e); }
+      }
       if (attendancePolicyId !== undefined) updateData.attendancePolicyId = attendancePolicyId || null;
       if (travelPolicyId !== undefined) updateData.travelPolicyId = travelPolicyId || null;
       if (salaryStructureId !== undefined) updateData.salaryStructureId = salaryStructureId || null;

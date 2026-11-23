@@ -720,6 +720,7 @@ export async function POST(request: Request) {
       // Optional relationship fields (added in newer schema versions)
       reportingManagerId,
       leavePolicyId,
+      leavePolicyIds,
       attendancePolicyId,
       travelPolicyId,
       salaryStructureId,
@@ -1066,6 +1067,7 @@ export async function POST(request: Request) {
           ['professionalTaxNumber', body.professionalTaxNumber],
           ['lwfNumber', body.lwfNumber],
           ['interests', body.interests],
+          ['leavePolicyIds', body.leavePolicyIds],
         ];
         for (const [col, val] of extraMap) {
           if (val !== undefined && val !== '') {
