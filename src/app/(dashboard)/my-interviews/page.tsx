@@ -111,8 +111,10 @@ const AVATAR_COLORS = [
 function initials(name?: string | null): string {
   return (name || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
 }
-function avatarColor(seed: string): string {
-  let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+function avatarColor(seed?: string | null): string {
+  // Null-safe by design — see the same fix in /interviews/page.tsx.
+  const s = seed || '';
+  let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 function fmtDate(iso?: string | null): string {

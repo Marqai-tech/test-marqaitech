@@ -146,8 +146,12 @@ const AVATAR_COLORS = [
 function initials(name?: string | null): string {
   return (name || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
 }
-function avatarColor(seed: string): string {
-  let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+function avatarColor(seed?: string | null): string {
+  // Null-safe by design: panel-member names can be null/undefined when the
+  // backing User row has no name AND no email (orphaned account) — a null seed
+  // here used to crash the whole page with "Cannot read properties of null".
+  const s = seed || '';
+  let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 function fmtDate(iso?: string | null): string {
@@ -725,7 +729,7 @@ export default function InterviewsPage() {
                               {pm.slice(0, 4).map(p => (
                                 <span
                                   key={p.id}
-                                  title={`${p.name} — ${CONFIRM_META[p.confirmationStatus]?.label || p.confirmationStatus}`}
+                                  title={`${p.name || 'Panel member'} — ${CONFIRM_META[p.confirmationStatus]?.label || p.confirmationStatus}`}
                                   className={`w-[22px] h-[22px] rounded-full -ml-1.5 first:ml-0 border-2 bg-gradient-to-br ${avatarColor(p.name)} text-white text-[8.5px] font-extrabold flex items-center justify-center
                                     ${p.confirmationStatus === 'accepted' ? 'ring-1 ring-green-500 border-white' : p.confirmationStatus === 'declined' ? 'ring-1 ring-red-400 border-white opacity-70' : 'ring-1 ring-amber-300 border-white'}`}
                                 >
