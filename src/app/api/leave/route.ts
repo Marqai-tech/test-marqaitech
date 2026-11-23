@@ -19,12 +19,81 @@ import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
 import { resolveLeavePolicy, validateLeaveAgainstPolicy } from '@/lib/leave-policy-resolver';
 
 /**
+ * Ensure a LeaveBalance row exists for the given employee + leave type + year.
+ * If it doesn't exist, create one with the entitled days resolved from:
+ *   1. LeavePolicyRule.entitledDaysPerYear (runtime column) for this leave type
+ *   2. LeaveType.defaultDays (fallback)
+ *   3. 0 (final fallback)
+ *
+ * BUG FIX (2026-11-23): Previously, when a leave was approved and no
+ * LeaveBalance row existed (common for new employees or after fresh setup),
+ * the UPDATE affected 0 rows and the balance was never reflected. This
+ * caused the Leave Dashboard to show "0 days available" / "No leave balances
+ * configured" even after approved leaves. Now the row is created on-demand.
+ */
+async function ensureLeaveBalanceRow(
+  db: any,
+  employeeId: string,
+  leaveTypeId: string,
+  year: number,
+): Promise<void> {
+  // Check if a row already exists
+  const existing: any[] = await db.$queryRawUnsafe(
+    `SELECT id FROM "LeaveBalance" WHERE "employeeId" = $1 AND "leaveTypeId" = $2 AND "year" = $3`,
+    employeeId, leaveTypeId, year,
+  ).catch(() => []);
+  if (existing.length > 0) return; // Row exists — nothing to do
+
+  // Resolve entitled days from LeavePolicyRule (runtime column)
+  let entitledDays = 0;
+  try {
+    const ruleRows: any[] = await db.$queryRawUnsafe(
+      `SELECT "entitledDaysPerYear" FROM "LeavePolicyRule"
+       WHERE "leaveTypeId" = $1 AND status = 'active'
+       ORDER BY "entitledDaysPerYear" DESC NULLS LAST LIMIT 1`,
+      leaveTypeId,
+    );
+    if (ruleRows.length > 0 && Number(ruleRows[0].entitledDaysPerYear) > 0) {
+      entitledDays = Number(ruleRows[0].entitledDaysPerYear);
+    }
+  } catch { /* entitledDaysPerYear column might not exist yet */ }
+
+  // Fallback to LeaveType.defaultDays
+  if (entitledDays === 0) {
+    try {
+      const ltRows: any[] = await db.$queryRawUnsafe(
+        `SELECT "defaultDays" FROM "LeaveType" WHERE id = $1 LIMIT 1`,
+        leaveTypeId,
+      );
+      if (ltRows.length > 0) entitledDays = Number(ltRows[0].defaultDays) || 0;
+    } catch {}
+  }
+
+  // Create the balance row (upsert-style — safe if another concurrent request
+  // created it in the meantime)
+  const newBalanceId = `lb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  try {
+    await db.$executeRawUnsafe(
+      `INSERT INTO "LeaveBalance" ("id", "employeeId", "leaveTypeId", "year", "total", "used", "remaining", "carryForward", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, 0, $5, 0, NOW(), NOW())
+       ON CONFLICT DO NOTHING`,
+      newBalanceId, employeeId, leaveTypeId, year, entitledDays,
+    );
+  } catch (e) {
+    console.warn(`[leave] ensureLeaveBalanceRow create failed (non-fatal):`, e);
+  }
+}
+
+/**
  * Deduct leave balance for an approved leave request.
  * Shared helper so every approval path (AI auto-approve, short-leave
  * auto-approve, manual PATCH approve) deducts the balance consistently.
  *
  * BUG FIX: the caller now passes the validated working-day count
  * (`days`) so weekends/holidays are never deducted from the balance.
+ * BUG FIX (2026-11-23): if no LeaveBalance row exists, create one first
+ * (with entitled days from the leave policy rule) so the deduction succeeds
+ * and the balance reflects the approved leave.
  */
 async function deductLeaveBalance(
   db: any,
@@ -62,7 +131,27 @@ async function deductLeaveBalance(
         employeeId, leaveTypeId, year
       );
       if (checkResult.length === 0) {
-        console.warn(`[leave] No LeaveBalance row found for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — balance not deducted (request ${requestId || 'n/a'})`);
+        // BUG FIX (2026-11-23): No LeaveBalance row exists — create one
+        // on-demand with the entitled days from the leave policy rule,
+        // then retry the deduction so the approved leave is reflected.
+        console.log(`[leave] No LeaveBalance row for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — creating one (request ${requestId || 'n/a'})`);
+        await ensureLeaveBalanceRow(db, employeeId, leaveTypeId, year);
+        // Retry the deduction (without the remaining >= days guard this time,
+        // since the newly created row might have 0 entitled days for LOP etc.)
+        const retryResult = await db.$executeRawUnsafe(
+          `UPDATE "LeaveBalance"
+           SET "used" = "used" + $4,
+               "remaining" = GREATEST("remaining" - $4, 0),
+               "updatedAt" = NOW()
+           WHERE "employeeId" = $1
+             AND "leaveTypeId" = $2
+             AND "year" = $3`,
+          employeeId, leaveTypeId, year, days
+        ).catch(() => 0);
+        if (retryResult > 0) {
+          return { deducted: true, days };
+        }
+        console.warn(`[leave] Balance deduction retry failed after row creation (request ${requestId || 'n/a'})`);
         return { deducted: false, days, error: 'No LeaveBalance row found for this employee + leave type + year' };
       }
       // Row exists but remaining < days — insufficient balance for concurrent deduction

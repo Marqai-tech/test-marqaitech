@@ -61,6 +61,43 @@ function employeeMatchesMapping(emp: any, mapping: any): boolean {
   return true; // All checks passed
 }
 
+/**
+ * BUG FIX (2026-11-23): When no LeaveTypePolicyMapping records exist, fall
+ * back to the policy-based leaveTypeIds stored on the Policy record (set via
+ * the Leave Setup → Policy form). Returns the set of leave type IDs that
+ * are assigned to the employee via matching policies, or an empty Set if
+ * none. The policy's "Applies to" filters (empStatus, branchIds,
+ * departmentIds, designationIds) are checked against the employee.
+ */
+async function resolvePolicyBasedLeaveTypeIds(db: any, emp: any): Promise<Set<string>> {
+  const result = new Set<string>();
+  if (!emp?.id) return result;
+  try {
+    const policyRows: any[] = await db.$queryRawUnsafe(
+      `SELECT "leaveTypeIds", "empStatus", "branchIds", "departmentIds", "designationIds"
+       FROM "Policy"
+       WHERE category = 'leave' AND status = 'active'
+         AND "leaveTypeIds" IS NOT NULL AND "leaveTypeIds" != ''`
+    );
+    const safeJsonArray = (v: any): string[] => {
+      try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; }
+    };
+    for (const p of policyRows) {
+      const pStatuses = safeJsonArray(p.empStatus);
+      const pBranches = safeJsonArray(p.branchIds);
+      const pDepts = safeJsonArray(p.departmentIds);
+      const pDesigs = safeJsonArray(p.designationIds);
+      if (pStatuses.length > 0 && emp.employeeStatus && !pStatuses.includes(emp.employeeStatus)) continue;
+      if (pBranches.length > 0 && emp.branchId && !pBranches.includes(emp.branchId)) continue;
+      if (pDepts.length > 0 && emp.departmentId && !pDepts.includes(emp.departmentId)) continue;
+      for (const id of safeJsonArray(p.leaveTypeIds)) result.add(id);
+    }
+  } catch (e) {
+    console.warn('[leave-types] policy-based leaveTypeIds fallback failed (non-fatal):', e);
+  }
+  return result;
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -210,13 +247,22 @@ export async function GET(req: NextRequest) {
           console.log(
             `[leave-types] Mapping enforcement: employee=${emp.id} sees ${visibleTypes.length} of ${allLeaveTypes.length} type(s) (${allMappings.length} mappings across ${uniqueCompanies.length} companies).`
           );
-        }
-        // If no mappings exist → show NOTHING (only mapped leave types visible to employees)
-        if (mappingsExist) {
-          filteredTypes = visibleTypes;
         } else {
-          filteredTypes = [];
-          console.log(`[leave-types] No mappings exist — hiding all leave types for employee=${emp.id}`);
+          // No LeaveTypePolicyMapping records → fall back to policy-based leaveTypeIds
+          // (BUG FIX 2026-11-23): previously showed NOTHING, but the user may
+          // have assigned leave types via the Policy form. Use those.
+          const empForPolicy = await db.employee.findFirst({
+            where: { userId: scope.userId, status: 'active' },
+            select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
+          }).catch(() => emp);
+          const policyLtIds = await resolvePolicyBasedLeaveTypeIds(db, empForPolicy);
+          if (policyLtIds.size > 0) {
+            filteredTypes = filteredTypes.filter((lt: any) => policyLtIds.has(lt.id));
+            console.log(`[leave-types] No LeaveTypePolicyMapping — using policy-based fallback: employee=${emp.id} sees ${filteredTypes.length} type(s)`);
+          } else {
+            filteredTypes = [];
+            console.log(`[leave-types] No mappings and no policy-based assignments — hiding all leave types for employee=${emp.id}`);
+          }
         }
       } // closes if (emp?.id)
     } // closes if (scope && scope.scope === 'self')
@@ -462,10 +508,21 @@ export async function GET(req: NextRequest) {
               );
               filteredTypes = enforcedTypes;
             }
-            // If no mappings exist for these leave types → show NOTHING
+            // If no mappings exist for these leave types → fall back to policy-based
+            // (BUG FIX 2026-11-23): previously showed NOTHING, now checks policies.
             if (mappingRows.length === 0) {
-              filteredTypes = [];
-              console.log(`[leave-types] No mappings exist — hiding all leave types for employee=${empId}`);
+              const empFull2 = await db.employee.findFirst({
+                where: { id: empId },
+                select: { id: true, employeeStatus: true, branchId: true, departmentId: true },
+              }).catch(() => null);
+              const policyLtIds = await resolvePolicyBasedLeaveTypeIds(db, empFull2);
+              if (policyLtIds.size > 0) {
+                filteredTypes = filteredTypes.filter((lt: any) => policyLtIds.has(lt.id));
+                console.log(`[leave-types] FINAL: No LeaveTypePolicyMapping — using policy-based fallback: employee=${empId} sees ${filteredTypes.length} type(s)`);
+              } else {
+                filteredTypes = [];
+                console.log(`[leave-types] No mappings and no policy-based assignments — hiding all leave types for employee=${empId}`);
+              }
             }
           } // closes if (ltIds.length > 0)
         } // closes if (empId)

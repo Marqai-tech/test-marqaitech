@@ -518,6 +518,52 @@ export async function PATCH(
       }
 
       const currentYear = new Date().getFullYear();
+
+      // BUG FIX (2026-11-23): Ensure a LeaveBalance row exists before
+      // deducting. Previously, updateMany silently updated 0 rows when no
+      // balance record existed (common for new employees), so approved leaves
+      // never reflected in the balance — the dashboard showed "0 days
+      // available" / "No leave balances configured" even after approval.
+      try {
+        const balCheck: any[] = await db.$queryRawUnsafe(
+          `SELECT id FROM "LeaveBalance" WHERE "employeeId" = $1 AND "leaveTypeId" = $2 AND "year" = $3`,
+          leaveRequest.employeeId, leaveRequest.leaveTypeId, currentYear,
+        );
+        if (balCheck.length === 0) {
+          // Resolve entitled days from LeavePolicyRule, fall back to LeaveType.defaultDays
+          let entitledDays = 0;
+          try {
+            const ruleRows: any[] = await db.$queryRawUnsafe(
+              `SELECT "entitledDaysPerYear" FROM "LeavePolicyRule"
+               WHERE "leaveTypeId" = $1 AND status = 'active'
+               ORDER BY "entitledDaysPerYear" DESC NULLS LAST LIMIT 1`,
+              leaveRequest.leaveTypeId,
+            );
+            if (ruleRows.length > 0 && Number(ruleRows[0].entitledDaysPerYear) > 0) {
+              entitledDays = Number(ruleRows[0].entitledDaysPerYear);
+            }
+          } catch {}
+          if (entitledDays === 0) {
+            try {
+              const ltRows: any[] = await db.$queryRawUnsafe(
+                `SELECT "defaultDays" FROM "LeaveType" WHERE id = $1 LIMIT 1`,
+                leaveRequest.leaveTypeId,
+              );
+              if (ltRows.length > 0) entitledDays = Number(ltRows[0].defaultDays) || 0;
+            } catch {}
+          }
+          const newBalId = `lb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+          await db.$executeRawUnsafe(
+            `INSERT INTO "LeaveBalance" ("id", "employeeId", "leaveTypeId", "year", "total", "used", "remaining", "carryForward", "createdAt", "updatedAt")
+             VALUES ($1, $2, $3, $4, $5, 0, $5, 0, NOW(), NOW())
+             ON CONFLICT DO NOTHING`,
+            newBalId, leaveRequest.employeeId, leaveRequest.leaveTypeId, currentYear, entitledDays,
+          ).catch(() => {});
+        }
+      } catch (e) {
+        console.warn('[leave approve] ensureLeaveBalanceRow failed (non-fatal):', e);
+      }
+
       await db.leaveBalance.updateMany({
         where: {
           employeeId: leaveRequest.employeeId,

@@ -276,9 +276,70 @@ export async function GET(request: Request) {
       } catch { /* table might not exist */ }
 
       if (!mappingsExist) {
-        // No mappings → employee sees no leave types + no balances
-        activeLeaveTypes = [];
-        result = [] as typeof result;
+        // BUG FIX (2026-11-23): No LeaveTypePolicyMapping records exist.
+        // Previously this showed NOTHING — but the user may have assigned
+        // leave types via the Policy form (PolicyForm saves leaveTypeIds
+        // on the Policy record). Fall back to those policy-based assignments
+        // so leave types appear on the dashboard even without explicit
+        // LeaveTypePolicyMapping records (which are created via the
+        // /leave/configuration page).
+        const policyLtIds = new Set<string>();
+        try {
+          const policyRows: any[] = await db.$queryRawUnsafe(
+            `SELECT "leaveTypeIds", "empStatus", "branchIds", "departmentIds", "designationIds"
+             FROM "Policy"
+             WHERE category = 'leave' AND status = 'active'
+               AND "leaveTypeIds" IS NOT NULL AND "leaveTypeIds" != ''`
+          );
+          const safeJsonArray = (v: any): string[] => {
+            try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; }
+          };
+          for (const p of policyRows) {
+            // Check "Applies to" filters against this employee
+            const pStatuses = safeJsonArray(p.empStatus);
+            const pBranches = safeJsonArray(p.branchIds);
+            const pDepts = safeJsonArray(p.departmentIds);
+            const pDesigs = safeJsonArray(p.designationIds);
+            if (pStatuses.length > 0 && targetEmployee?.employeeStatus && !pStatuses.includes(targetEmployee.employeeStatus)) continue;
+            if (pBranches.length > 0 && targetEmployee?.branchId && !pBranches.includes(targetEmployee.branchId)) continue;
+            if (pDepts.length > 0 && targetEmployee?.departmentId && !pDepts.includes(targetEmployee.departmentId)) continue;
+            // Collect leave type IDs from this policy
+            for (const id of safeJsonArray(p.leaveTypeIds)) policyLtIds.add(id);
+          }
+        } catch (e) {
+          console.warn('[leave/balance] policy-based leaveTypeIds fallback failed (non-fatal):', e);
+        }
+
+        if (policyLtIds.size === 0) {
+          // No mappings and no policy-based assignments → show nothing
+          activeLeaveTypes = [];
+          result = [] as typeof result;
+        } else {
+          // Filter to only leave types assigned via policies
+          activeLeaveTypes = activeLeaveTypes.filter((lt: any) => policyLtIds.has(lt.id));
+          result = result.filter((b: any) => policyLtIds.has(b.leaveTypeId)) as typeof result;
+          // Override defaultDays with rule's entitledDaysPerYear where available
+          try {
+            const ltIdArr = Array.from(policyLtIds);
+            const placeholders = ltIdArr.map((_, i) => `$${i + 1}`).join(',');
+            const ruleRows: any[] = await db.$queryRawUnsafe(
+              `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
+               WHERE "leaveTypeId" IN (${placeholders}) AND status = 'active'`,
+              ...ltIdArr
+            );
+            const ruleMap = new Map<string, number>();
+            for (const r of ruleRows) {
+              const entitled = Number(r.entitledDaysPerYear || 0);
+              if (!ruleMap.has(r.leaveTypeId) || ruleMap.get(r.leaveTypeId)! < entitled) {
+                ruleMap.set(r.leaveTypeId, entitled);
+              }
+            }
+            activeLeaveTypes = activeLeaveTypes.map((lt: any) => ({
+              ...lt,
+              defaultDays: ruleMap.get(lt.id) || lt.defaultDays || 0,
+            }));
+          } catch {}
+        }
       } else {
         // Mappings exist → use direct SQL query (same as leave-types API) for robust filtering
         try {
