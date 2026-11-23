@@ -136,7 +136,6 @@ const navSections: NavSection[] = [
     label: 'Leave',
     items: [
       { label: 'Leave Management', href: '/leave', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
-      { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
       { label: 'Optional Holidays', href: '/leave/optional-holidays', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
     ],
   },

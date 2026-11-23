@@ -251,7 +251,6 @@ export const navSections: NavSection[] = [
       { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       // HR-only: Apply leave on behalf of employees
       { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
       { label: 'Team Leave Calendar', href: '/leave/team-calendar', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
 
       // ── Settings (admin-only) ──
