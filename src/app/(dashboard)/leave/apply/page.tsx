@@ -185,37 +185,29 @@ function ApplyLeaveContent() {
               const polData = await polRes.json();
               const policies = polData.policies || polData.data || [];
 
-              // ─── Direct attachment: Employee.leavePolicyId ───
-              // Takes priority over scope matching. If HR pinned a policy
-              // to this employee in the Employee add/edit form, that
-              // policy's leave types are shown regardless of scope.
-              if (myEmp.leavePolicyId) {
-                const attachedPolicy = policies.find((p: any) => p.id === myEmp.leavePolicyId);
-                if (attachedPolicy && attachedPolicy.status === 'active') {
-                  const ltIds = parseJson(attachedPolicy.leaveTypeIds);
-                  if (ltIds.length > 0) {
-                    hasPolicyFilter = true;
-                    ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
-                    console.log(`[apply-leave] Direct policy attachment: employee.leavePolicyId=${myEmp.leavePolicyId} → ${ltIds.length} leave type(s) added (scope bypassed).`);
-                  } else {
-                    // Policy is attached + active but has NO leave types configured
-                    // (leaveTypeIds is null/empty). This is the most common cause of
-                    // "I attached a policy but the employee sees no leave types" —
-                    // surface it so HR/employee knows exactly what to fix.
-                    hasPolicyFilter = true; // still enforce the filter → empty dropdown
-                    console.warn(`[apply-leave] Direct policy attachment: policy "${attachedPolicy.title}" (id=${myEmp.leavePolicyId}) is attached to this employee but has NO leaveTypeIds configured. HR must open Leave Setup → Policy Form → Leave Types section and pick the leave types for this policy.`);
-                    setPolicyWarning(`Your leave policy "${attachedPolicy.title}" is attached but has no leave types configured. Please ask HR to open Leave Setup → Policy Form → select this policy → pick leave types in the "Leave Types" section.`);
+              // ─── Direct attachment: Employee.leavePolicyIds (multiple) ───
+              // Takes priority over scope matching. If HR pinned one or more
+              // policies to this employee in the Employee edit form, those
+              // policies' leave types are shown regardless of scope.
+              const empPolicyIds: string[] = parseJson(myEmp.leavePolicyIds || myEmp.leavePolicyId);
+              if (empPolicyIds.length > 0) {
+                for (const pid of empPolicyIds) {
+                  const attachedPolicy = policies.find((p: any) => p.id === pid);
+                  if (attachedPolicy && attachedPolicy.status === 'active') {
+                    const ltIds = parseJson(attachedPolicy.leaveTypeIds);
+                    if (ltIds.length > 0) {
+                      hasPolicyFilter = true;
+                      ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
+                      console.log(`[apply-leave] Direct policy attachment: policy ${pid} → ${ltIds.length} leave type(s) added.`);
+                    }
                   }
-                } else {
-                  console.warn(`[apply-leave] Direct policy attachment: employee.leavePolicyId=${myEmp.leavePolicyId} not found in active leave policies (policies seen: ${policies.length}). The policy may have been deleted or deactivated.`);
-                  setPolicyWarning(`Your attached leave policy could not be found (it may have been deleted or deactivated). Please ask HR to reattach a valid leave policy from the Employee profile.`);
                 }
               }
 
               for (const p of policies) {
                 if (p.status !== 'active') continue;
                 // Skip the directly-attached policy here — already handled above
-                if (myEmp.leavePolicyId && p.id === myEmp.leavePolicyId) continue;
+                if (empPolicyIds.includes(p.id)) continue;
 
                 // Check if this policy applies to the employee
                 // Parse scope fields from the policy (stored as JSON arrays in runtime columns)

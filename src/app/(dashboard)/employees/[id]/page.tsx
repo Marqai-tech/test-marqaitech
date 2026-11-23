@@ -64,8 +64,8 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = user?.role === 'super_admin' || (user?.role === 'tenant_admin' || user?.role === 'ceo') || user?.role === 'admin';
-  const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
-  const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
+  const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; leavePolicyIds?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
+  const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null; leaveTypeIds?: string | null }>>([]);
   const [attendancePolicies, setAttendancePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
   const [travelPolicies, setTravelPolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
   const [salaryStructures, setSalaryStructures] = useState<Array<{ id: string; name: string }>>([]);
@@ -214,7 +214,46 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
 
       {!isAdmin && <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-700">Only admins can modify policy mappings.</div>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-green-500" />)}
+        {/* Leave Policies — multi-select (employee can have multiple leave policies) */}
+        <div className="thb-card p-5 sm:col-span-2">
+          <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiCalendar className="w-4 h-4 text-green-500" />Leave Policies (multiple)</h4>
+          {(() => {
+            const parseIds = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : (v ? [v] : []); } catch { return v ? [v] : []; } };
+            const selectedIds = parseIds(policies?.leavePolicyIds || policies?.leavePolicyId);
+            const toggle = (id: string) => {
+              const next = selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id];
+              handleSave('leavePolicyIds', JSON.stringify(next));
+            };
+            return (
+              <>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {leavePolicies.length === 0 && <p className="text-sm text-thb-text-muted">No leave policies available.</p>}
+                  {leavePolicies.map(p => {
+                    const on = selectedIds.includes(p.id);
+                    const parseLtIds = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
+                    const ltCount = parseLtIds(p.leaveTypeIds).length;
+                    return (
+                      <span key={p.id} onClick={() => isAdmin && toggle(p.id)} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-sm font-semibold cursor-pointer transition-colors ${on ? 'border-green-300 bg-green-50 text-green-700' : 'border-thb-border bg-white text-thb-text-secondary hover:bg-slate-50'} ${!isAdmin ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                        <span className={`w-4 h-4 rounded border flex items-center justify-center ${on ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}>{on && <FiCheck className="w-2.5 h-2.5 text-white" />}</span>
+                        {p.title} (v{p.version}){ltCount > 0 && <span className="text-[10px] text-slate-400">{ltCount} type(s)</span>}
+                      </span>
+                    );
+                  })}
+                </div>
+                {selectedIds.length > 0 && (
+                  <div className="p-3 rounded-lg bg-slate-50 border border-thb-border text-xs text-thb-text-secondary">
+                    <p><span className="font-medium">Selected:</span> {selectedIds.length} policy/policies</p>
+                    {selectedIds.map(id => {
+                      const p = leavePolicies.find(lp => lp.id === id);
+                      return p ? <p key={id}>• {p.title} (v{p.version})</p> : null;
+                    })}
+                  </div>
+                )}
+                {saving === 'leavePolicyIds' && <p className="text-xs text-green-500 mt-2">Saving...</p>}
+              </>
+            );
+          })()}
+        </div>
         {policyDropdown('Attendance Policy', 'attendancePolicyId', attendancePolicies, policies?.attendancePolicyId, <FiClock className="w-4 h-4 text-emerald-500" />)}
         {policyDropdown('Travel Policy', 'travelPolicyId', travelPolicies, policies?.travelPolicyId, <FiBriefcase className="w-4 h-4 text-amber-500" />)}
         <div className="thb-card p-5">

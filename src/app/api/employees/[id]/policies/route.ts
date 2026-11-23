@@ -59,6 +59,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }) : null,
     ]);
 
+    // Fetch leavePolicyIds via raw SQL (runtime column not in Prisma schema)
+    let leavePolicyIds: string | null = null;
+    try {
+      const rows: any[] = await db.$queryRawUnsafe(`SELECT "leavePolicyIds" FROM "Employee" WHERE "id" = $1`, id);
+      if (rows.length > 0) leavePolicyIds = rows[0].leavePolicyIds;
+    } catch {}
+
+    // Fetch leave policy options with leaveTypeIds (runtime column)
+    let leavePolicyOptions = leavePolicies;
+    try {
+      const ltRows: any[] = await db.$queryRawUnsafe(`SELECT id, "leaveTypeIds" FROM "Policy" WHERE id = ANY($1::text[])`, leavePolicies.map(p => p.id));
+      const ltMap = new Map(ltRows.map((r: any) => [r.id, r.leaveTypeIds]));
+      leavePolicyOptions = leavePolicies.map(p => ({ ...p, leaveTypeIds: ltMap.get(p.id) || null }));
+    } catch {}
+
     return Response.json({
       data: {
         employee: {
@@ -67,12 +82,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           firstName: employee.firstName,
           lastName: employee.lastName,
           leavePolicyId: employee.leavePolicyId,
+          leavePolicyIds,
           attendancePolicyId: employee.attendancePolicyId,
           travelPolicyId: employee.travelPolicyId,
           salaryStructureId: employee.salaryStructureId,
         },
         options: {
-          leavePolicies,
+          leavePolicies: leavePolicyOptions,
           attendancePolicies,
           travelPolicies,
           salaryStructures,
@@ -119,10 +135,35 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body.travelPolicyId !== undefined) updateData.travelPolicyId = body.travelPolicyId || null;
     if (body.salaryStructureId !== undefined) updateData.salaryStructureId = body.salaryStructureId || null;
 
+    // leavePolicyIds — multiple leave policies stored as a JSON array in a runtime column
+    if (body.leavePolicyIds !== undefined) {
+      // Ensure the runtime column exists
+      try { await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyIds" TEXT`); } catch {}
+      // Store as JSON string via raw SQL (Prisma doesn't know this column)
+      try { await db.$executeRawUnsafe(`UPDATE "Employee" SET "leavePolicyIds" = $1 WHERE "id" = $2`, body.leavePolicyIds || null, id); } catch (e) { console.warn('[emp policies PUT] leavePolicyIds update failed:', e); }
+      // Also update the single leavePolicyId for backward compat (first item)
+      try {
+        const ids = JSON.parse(body.leavePolicyIds || '[]');
+        if (Array.isArray(ids) && ids.length > 0) {
+          updateData.leavePolicyId = ids[0];
+        } else {
+          updateData.leavePolicyId = null;
+        }
+      } catch {}
+    }
+
     const updated = await db.employee.update({
       where: { id },
       data: updateData,
     });
+
+    // Fetch leavePolicyIds via raw SQL since Prisma doesn't know the column
+    try {
+      const rows: any[] = await db.$queryRawUnsafe(`SELECT "leavePolicyIds" FROM "Employee" WHERE "id" = $1`, id);
+      if (rows.length > 0) {
+        (updated as any).leavePolicyIds = rows[0].leavePolicyIds;
+      }
+    } catch {}
 
     return Response.json({ data: updated }, { headers: corsHeaders });
   } catch (error: unknown) {
