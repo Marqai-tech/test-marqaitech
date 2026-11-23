@@ -389,20 +389,21 @@ function ApplyLeaveContent() {
   }, [form.startDate, form.endDate, employee?.id, user?.id, scopeQuery]);
 
   /* ── Calculate days and balance preview ── */
+  // Use the rule-based entitledDays/takenDays/remainingDays as the single
+  // source of truth — no separate "available" calculation from LeaveBalance.
   const calc = (() => {
-    if (!form.startDate || !form.endDate) return { days: 0, sandwichDays: 0, available: 0, lop: 0, afterApproval: 0 };
+    if (!form.startDate || !form.endDate) return { days: 0, sandwichDays: 0, lop: 0, afterApproval: remainingDays };
     const holidaySet: Set<string> = new Set(holidays.map((h: Holiday) => new Date(h.date).toISOString().split('T')[0]));
     const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
     const days = isHalfDay ? 0.5 : workingDays;
-    const available = selectedBalance ? Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0)) : (selectedType?.defaultDays || 0);
     const isLopType = (selectedType?.code || '').toLowerCase().includes('lop') || (selectedType?.name || '').toLowerCase().includes('loss of pay');
-    const lop = !isLopType ? Math.max(0, days - available) : 0;
-    const afterApproval = isLopType ? available : Math.max(0, available - days);
+    const lop = !isLopType ? Math.max(0, days - remainingDays) : 0;
+    const afterApproval = isLopType ? remainingDays : Math.max(0, remainingDays - days);
     // Sandwich days = weekend/holiday days in range
     const s = new Date(`${form.startDate}T00:00:00Z`); const e = new Date(`${form.endDate}T00:00:00Z`);
     let sandwich = 0; const c = new Date(s); let g = 0;
     while (c <= e && g < 400) { g++; const dow = c.getUTCDay(); const dk = c.toISOString().split('T')[0]; if ((dow === 0 || dow === 6 || holidaySet.has(dk))) sandwich++; c.setUTCDate(c.getUTCDate() + 1); }
-    return { days, sandwichDays: sandwich, available, lop, afterApproval };
+    return { days, sandwichDays: sandwich, lop, afterApproval };
   })();
 
   /* ── 11 System checks (live evaluation) ── */
@@ -441,7 +442,7 @@ function ApplyLeaveContent() {
     push('Service days required', 'ok', employee?.dateOfJoining ? `Service since ${new Date(employee.dateOfJoining).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}.` : 'Not applicable.');
 
     push('Sufficient balance (or LOP)', calc.lop === 0 ? 'ok' : 'warn',
-      calc.lop === 0 ? `${fmtNum(calc.available)} day(s) available.` : `${fmtNum(calc.lop)} day(s) will be LOP.`);
+      calc.lop === 0 ? `${fmtNum(remainingDays)} day(s) remaining.` : `${fmtNum(calc.lop)} day(s) will be LOP.`);
 
     // Overlap check
     const overlap = ownLeaves.find((r: any) => (r.status === 'pending' || r.status === 'approved') &&
@@ -711,19 +712,15 @@ function ApplyLeaveContent() {
 
           {/* Right side panel — balance preview + system checks */}
           <div className="bg-slate-50 border-t lg:border-t-0 lg:border-l border-slate-200 p-5 flex flex-col gap-3.5">
-            {/* Balance preview */}
+            {/* Balance preview — uses rule-based remainingDays as source of truth */}
             <div className="bg-slate-100 border border-slate-200 rounded-xl p-3.5">
               <div className="flex items-center justify-between mb-2.5">
-                <h3 className="text-xs font-bold text-slate-700 tracking-wide">Balance preview</h3>
+                <h3 className="text-xs font-bold text-slate-700 tracking-wide">This request impact</h3>
                 {selectedType && (
                   <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">{selectedType.code}</span>
                 )}
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div>
-                  <p className="text-[10.5px] text-slate-500">Available</p>
-                  <p className="text-base font-extrabold text-slate-900 leading-tight">{selectedType ? fmtNum(calc.available) : '—'}</p>
-                </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
                   <p className="text-[10.5px] text-slate-500">This request</p>
                   <p className="text-base font-extrabold text-slate-900 leading-tight">{fmtNum(calc.days)}</p>
@@ -734,7 +731,7 @@ function ApplyLeaveContent() {
                 </div>
                 <div>
                   <p className="text-[10.5px] text-slate-500">After approval</p>
-                  <p className="text-base font-extrabold text-slate-900 leading-tight">{selectedType ? fmtNum(calc.afterApproval) : '—'}</p>
+                  <p className="text-base font-extrabold text-emerald-600 leading-tight">{selectedType ? fmtNum(calc.afterApproval) : '—'}</p>
                 </div>
               </div>
               {calc.sandwichDays > 0 && (
