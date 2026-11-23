@@ -799,6 +799,54 @@ export async function POST(request: Request) {
       console.warn('[leave] Policy resolution for snapshot failed (non-fatal):', policyErr);
     }
 
+    // ─── Check Employee.leavePolicyIds (directly-assigned policies) ───
+    // The resolver above only checks LeaveTypePolicyMapping + LeavePolicyRule.
+    // It does NOT check the employee's directly-assigned leave policies
+    // (Employee.leavePolicyIds → Policy.leaveTypeIds). If the employee has
+    // policies assigned via the employee profile, and those policies contain
+    // this leave type in their leaveTypeIds, the employee IS eligible.
+    if (!resolvedPolicyForSnapshot) {
+      try {
+        // Fetch leavePolicyIds via raw SQL (runtime column)
+        const empRows: any[] = await db.$queryRawUnsafe(
+          `SELECT "leavePolicyIds", "leavePolicyId" FROM "Employee" WHERE "id" = $1`,
+          employeeId
+        );
+        if (empRows.length > 0) {
+          const parseJson = (v: any): string[] => {
+            try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : (v ? [v] : []); } catch { return v ? [v] : []; }
+          };
+          const empPolicyIds = parseJson(empRows[0].leavePolicyIds || empRows[0].leavePolicyId);
+          if (empPolicyIds.length > 0) {
+            // Fetch each policy's leaveTypeIds via raw SQL
+            for (const pid of empPolicyIds) {
+              try {
+                const polRows: any[] = await db.$queryRawUnsafe(
+                  `SELECT id, title, status, "leaveTypeIds" FROM "Policy" WHERE "id" = $1`,
+                  pid
+                );
+                if (polRows.length > 0 && polRows[0].status === 'active') {
+                  const ltIds = parseJson(polRows[0].leaveTypeIds);
+                  if (ltIds.includes(leaveTypeId)) {
+                    // Found! The employee's assigned policy contains this leave type.
+                    resolvedPolicyForSnapshot = {
+                      policyRuleId: undefined,
+                      policyRuleName: polRows[0].title,
+                      source: 'employee_policy_attachment',
+                    };
+                    console.log(`[leave] Employee eligible via direct policy attachment: policy ${pid} (${polRows[0].title}) contains leaveType ${leaveTypeId}`);
+                    break;
+                  }
+                }
+              } catch {}
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[leave] Employee leavePolicyIds check failed (non-fatal):', e);
+      }
+    }
+
     // BUG 238 FIX: Server-side eligibility enforcement.
     // If no matching policy/mapping was resolved for this (employee, leaveType),
     // the employee is NOT eligible for this leave type — reject the application
