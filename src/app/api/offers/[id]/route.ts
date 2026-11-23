@@ -78,7 +78,8 @@ export async function PATCH(
       // Block editing of candidate, salary, position, joining date
       if (candidateName !== undefined || candidateEmail !== undefined || position !== undefined ||
           department !== undefined || offeredSalary !== undefined || offeredCurrency !== undefined ||
-          joiningDate !== undefined || probationPeriod !== undefined) {
+          joiningDate !== undefined || probationPeriod !== undefined ||
+          body.offeredCTC !== undefined || body.salaryBreakdown !== undefined || body.reportingTo !== undefined) {
         return NextResponse.json(
           { error: `Offer is already ${existing.status}. Core fields (candidate, salary, position, joining date) cannot be edited after the offer is sent.` },
           { status: 400, headers: corsHeaders() }
@@ -202,6 +203,11 @@ export async function PATCH(
     if (department !== undefined) updateData.department = department || null;
     if (offeredSalary !== undefined) updateData.offeredSalary = offeredSalary;
     if (offeredCurrency !== undefined) updateData.offeredCurrency = offeredCurrency;
+    // Draft-edit fields (mock-approved Create Offer wizard, 2026-11): the
+    // "Continue Draft" flow saves CTC, breakdown and reporting manager too.
+    if (body.offeredCTC !== undefined) updateData.offeredCTC = body.offeredCTC === '' ? null : body.offeredCTC;
+    if (body.salaryBreakdown !== undefined) updateData.salaryBreakdown = body.salaryBreakdown || null;
+    if (body.reportingTo !== undefined) updateData.reportingTo = body.reportingTo || null;
     if (joiningDate !== undefined) updateData.joiningDate = joiningDate ? new Date(joiningDate) : null;
     if (probationPeriod !== undefined) {
       // Coerce to integer — accept "6 months", 90, "90 days", etc.

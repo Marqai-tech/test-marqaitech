@@ -133,6 +133,21 @@ export async function POST(request: Request) {
             { status: 400, headers: corsHeaders() }
           );
         }
+        // Duplicate-offer guard (mock-approved wizard, 2026-11): one active
+        // offer per application. The wizard hides candidates that already
+        // have one, and the server enforces it as the last line of defence.
+        try {
+          const dup = await db.$queryRawUnsafe(
+            `SELECT "id", "status" FROM "Offer" WHERE "jobApplicationId" = $1 LIMIT 1`,
+            jobApplicationId,
+          ) as Array<{ id: string; status: string }>;
+          if (dup[0] && !['withdrawn', 'rejected'].includes(dup[0].status)) {
+            return NextResponse.json(
+              { error: 'This candidate already has an offer (see All Offers). Duplicate offers for the same application are blocked.', offerId: dup[0].id },
+              { status: 409, headers: corsHeaders() }
+            );
+          }
+        } catch { /* column may not exist yet — creation proceeds below */ }
       } catch (e) {
         // C-25 FIX: fail SAFE — block the offer creation if the status check
         // query fails. Previously the catch block allowed the offer through
