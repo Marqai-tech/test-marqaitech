@@ -181,7 +181,7 @@ export function FindCandidates() {
 
   // profile (full page — never a modal)
   const [viewEmail, setViewEmail] = useState<string | null>(null);
-  const [bannerEmail, setBannerEmail] = useState<string | null>(null);
+  const [bannerDismissedFor, setBannerDismissedFor] = useState<string | null>(null);
   const [resumeLoading, setResumeLoading] = useState(false);
   const profileScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -287,7 +287,6 @@ export function FindCandidates() {
 
   const openProfile = (email: string) => {
     setViewEmail(email);
-    setBannerEmail(null);
     setResumeLoading(true);
     setProfileNoteText('');
     setProfileTagText('');
@@ -306,7 +305,6 @@ export function FindCandidates() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
       if (next === 'shortlisted') {
-        setBannerEmail(profileEntry?.candidateEmail || null);
         toast.success('Candidate shortlisted. Continue interview scheduling from Scheduled Interviews.');
       } else {
         toast.success(`${candidateName} moved to ${statusLabel(next)}`);
@@ -654,7 +652,9 @@ export function FindCandidates() {
     const primary = e.applications?.[0] || null;
     const parsedNotes = parseApplicationNotes(primary?.notes);
     const parsed = e.parsedResume;
-    const showBanner = bannerEmail === e.candidateEmail && primary?.status === 'shortlisted';
+    // Post-shortlist guidance — every shortlisted candidate's profile carries
+    // the routing message (dismissable for the session).
+    const showBanner = primary?.status === 'shortlisted' && bannerDismissedFor !== e.candidateEmail;
     const timeline = [
       ...(e.applications || []).map(a => ({ icon: 'job', title: `Applied to ${a.jobTitle || a.position || 'a position'}`, at: a.appliedDate, sub: `Source: ${sourceLabel(a.source)}` })),
       ...parsedNotes.recruiterNotes.map(n => ({ icon: 'note', title: 'Recruiter note added', at: n.at, sub: n.text })),
@@ -671,7 +671,7 @@ export function FindCandidates() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <button
-                onClick={() => { setViewEmail(null); setBannerEmail(null); }}
+                onClick={() => { setViewEmail(null); setBannerDismissedFor(null); }}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50"
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Back
@@ -712,7 +712,7 @@ export function FindCandidates() {
                   Candidate shortlisted. Continue interview scheduling from Scheduled Interviews.
                 </p>
               </div>
-              <button onClick={() => setBannerEmail(null)} title="Dismiss" className="text-green-500 transition hover:text-green-700">
+              <button onClick={() => setBannerDismissedFor(e.candidateEmail)} title="Dismiss" className="text-green-500 transition hover:text-green-700">
                 <X className="h-4 w-4" />
               </button>
             </div>
