@@ -94,6 +94,9 @@ interface RecruiterNote { text: string; at: string; }
 /* ─────────────────────────── design-system tokens ────────────────────────── */
 
 const INPUT_CLS = 'h-[34px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
+/* Filter-bar controls: like INPUT_CLS but NO w-full — explicit widths below
+   must win, otherwise every dropdown stretches to 100% and stacks vertically. */
+const FILTER_CLS = 'h-[30px] rounded-[7px] border border-slate-300 bg-white px-2 text-[11.5px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15';
 const CARD_CLS = 'rounded-xl border border-slate-200 bg-white shadow-sm';
 const SECTION_TITLE = 'text-[12.5px] font-bold text-slate-800';
 const LABEL_CLS = 'text-[11px] font-semibold text-slate-500';
@@ -1066,86 +1069,84 @@ export function FindCandidates() {
             ))}
           </div>
 
-          {/* filters */}
-          <div className={CARD_CLS + ' space-y-2.5 p-3'}>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={filters.jobId}
-                onChange={ev => setFilters(f => ({ ...f, jobId: ev.target.value }))}
-                className={`${INPUT_CLS} max-w-[240px]`}
-                title="Job Posting"
-              >
-                <option value="all">All job postings</option>
-                {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
-              </select>
-              <div className="relative min-w-[220px] flex-1">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={filters.q}
-                  onChange={ev => setFilters(f => ({ ...f, q: ev.target.value }))}
-                  placeholder="Search by candidate name, email, skill, or job title…"
-                  className={`${INPUT_CLS} pl-8`}
-                />
-              </div>
+          {/* compact filter bar — every field on one row; wraps gracefully below ~1200px */}
+          <div className={CARD_CLS + ' flex flex-wrap items-center gap-1.5 px-2.5 py-2'}>
+            <span className="hidden text-[9px] font-extrabold uppercase tracking-wider text-slate-400 sm:inline">Filter</span>
+            <select
+              value={filters.jobId}
+              onChange={ev => setFilters(f => ({ ...f, jobId: ev.target.value }))}
+              className={FILTER_CLS + ' w-[150px] flex-none'}
+              title="Job Posting"
+            >
+              <option value="all">All job postings</option>
+              {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
+            </select>
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={filters.q}
+                onChange={ev => setFilters(f => ({ ...f, q: ev.target.value }))}
+                placeholder="Search by candidate name, email, skill, or job title…"
+                className={FILTER_CLS + ' w-full pl-7'}
+              />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={filters.source}
-                onChange={ev => setFilters(f => ({ ...f, source: ev.target.value }))}
-                className={`${INPUT_CLS} w-[130px]`}
-                title="Source"
-              >
-                <option value="all">All sources</option>
-                {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-              <div className="flex items-center gap-1" title="Experience range (years)">
-                <input
-                  type="number" min="0" placeholder="Min"
-                  value={filters.minExp}
-                  onChange={ev => setFilters(f => ({ ...f, minExp: ev.target.value }))}
-                  className={`${INPUT_CLS} w-[74px]`}
-                />
-                <span className="text-[11px] text-slate-400">–</span>
-                <input
-                  type="number" min="0" placeholder="Max"
-                  value={filters.maxExp}
-                  onChange={ev => setFilters(f => ({ ...f, maxExp: ev.target.value }))}
-                  className={`${INPUT_CLS} w-[74px]`}
-                />
-              </div>
-              <select
-                value={filters.status}
-                onChange={ev => setFilters(f => ({ ...f, status: ev.target.value }))}
-                className={`${INPUT_CLS} w-[150px]`}
-                title="Status"
-              >
-                <option value="all">All statuses</option>
-                <option value="applied">Applied</option>
-                <option value="screening">Screening</option>
-                <option value="shortlisted">Shortlisted</option>
-                <option value="rejected">Rejected</option>
-              </select>
-              <select
-                value={filters.sort}
-                onChange={ev => setFilters(f => ({ ...f, sort: ev.target.value }))}
-                className={`${INPUT_CLS} w-[170px]`}
-                title="Sort by"
-              >
-                <option value="newest">Sort: Newest first</option>
-                <option value="match">Sort: Match score</option>
-                <option value="experience">Sort: Experience</option>
-              </select>
-              <button
-                onClick={clearFilters}
-                disabled={!hasActiveFilters}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white"
-              >
-                <X className="h-3 w-3" /> Clear Filters
-              </button>
-              <span className="ml-auto text-[11px] font-semibold text-slate-400">
-                {loading ? 'Loading…' : `${visibleEntries.length} of ${entries.length} candidate${entries.length === 1 ? '' : 's'}`}
-              </span>
-            </div>
+            <select
+              value={filters.source}
+              onChange={ev => setFilters(f => ({ ...f, source: ev.target.value }))}
+              className={FILTER_CLS + ' w-[104px] flex-none'}
+              title="Source"
+            >
+              <option value="all">All sources</option>
+              {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <span className="hidden text-[9px] font-extrabold uppercase tracking-wider text-slate-400 md:inline">Exp</span>
+            <input
+              type="number" min="0" placeholder="Min"
+              value={filters.minExp}
+              onChange={ev => setFilters(f => ({ ...f, minExp: ev.target.value }))}
+              className={FILTER_CLS + ' w-[56px] flex-none'}
+              title="Min experience (years)"
+            />
+            <span className="text-[11px] text-slate-400">–</span>
+            <input
+              type="number" min="0" placeholder="Max"
+              value={filters.maxExp}
+              onChange={ev => setFilters(f => ({ ...f, maxExp: ev.target.value }))}
+              className={FILTER_CLS + ' w-[56px] flex-none'}
+              title="Max experience (years)"
+            />
+            <select
+              value={filters.status}
+              onChange={ev => setFilters(f => ({ ...f, status: ev.target.value }))}
+              className={FILTER_CLS + ' w-[118px] flex-none'}
+              title="Status"
+            >
+              <option value="all">All statuses</option>
+              <option value="applied">Applied</option>
+              <option value="screening">Screening</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select
+              value={filters.sort}
+              onChange={ev => setFilters(f => ({ ...f, sort: ev.target.value }))}
+              className={FILTER_CLS + ' w-[142px] flex-none'}
+              title="Sort by"
+            >
+              <option value="newest">Sort: Newest first</option>
+              <option value="match">Sort: Match score</option>
+              <option value="experience">Sort: Experience</option>
+            </select>
+            <button
+              onClick={clearFilters}
+              disabled={!hasActiveFilters}
+              className="inline-flex h-[30px] flex-none items-center gap-1 rounded-[7px] border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white"
+            >
+              <X className="h-3 w-3" /> Clear Filters
+            </button>
+            <span className="ml-auto whitespace-nowrap text-[11px] font-semibold text-slate-400">
+              {loading ? 'Loading…' : `${visibleEntries.length} of ${entries.length} candidate${entries.length === 1 ? '' : 's'}`}
+            </span>
           </div>
 
           {/* error */}
