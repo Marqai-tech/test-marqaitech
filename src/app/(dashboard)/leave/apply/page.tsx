@@ -545,7 +545,7 @@ function ApplyLeaveContent() {
                     const available = bal ? Math.max(0, (bal.total || 0) - (bal.used || 0)) : lt.defaultDays || 0;
                     return (
                       <option key={lt.id} value={lt.id}>
-                        {lt.code} — {lt.name} ({fmtNum(available)} avail.)
+                        {lt.code} — {lt.name}
                       </option>
                     );
                   })}
