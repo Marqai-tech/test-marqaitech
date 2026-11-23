@@ -330,28 +330,44 @@ function ApplyLeaveContent() {
   // The rule has entitledDaysPerYear, advanceNoticeDays, etc.
   const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
 
-  // Path 1: LeaveType → Mapping → Rule
-  const selectedMapping = mappings.find((m: any) => m.leaveTypeId === form.leaveTypeId && m.status === 'active');
-  const ruleViaMapping = selectedMapping ? rules.find((r: any) => r.id === selectedMapping.policyRuleId) : null;
+  // ─── Reusable: compute entitled / taken / remaining days for ANY leave type ───
+  // Used both for the selected type (below) and for each option in the dropdown
+  // so we can disable zero-balance non-LOP types before the user picks them.
+  // Also returns the resolved Rule object so downstream UI can read its
+  // properties (advanceNoticeDays, halfDayAllowed, min/maxDaysPerRequest, etc.).
+  const computeRemaining = useCallback((leaveTypeId: string): { entitled: number; taken: number; remaining: number; isLop: boolean; rule: any | null } => {
+    if (!leaveTypeId) return { entitled: 0, taken: 0, remaining: 0, isLop: false, rule: null };
+    // Path 1: LeaveType → Mapping → Rule
+    const mapping = mappings.find((m: any) => m.leaveTypeId === leaveTypeId && m.status === 'active');
+    const ruleViaMapping = mapping ? rules.find((r: any) => r.id === mapping.policyRuleId) : null;
+    // Path 2: LeaveType → Policy.leaveTypeIds → Rule.policyId
+    const policy = policies.find((p: any) => {
+      if (p.status !== 'active') return false;
+      const ltIds = parseJson(p.leaveTypeIds);
+      return ltIds.includes(leaveTypeId);
+    });
+    const ruleViaPolicy = policy ? rules.find((r: any) => r.policyId === policy.id && r.status === 'active') : null;
+    // Path 3: Direct rule.leaveTypeId match (fallback)
+    const ruleViaLeaveType = rules.find((r: any) => r.leaveTypeId === leaveTypeId && r.status === 'active');
+    const rule = ruleViaMapping || ruleViaPolicy || ruleViaLeaveType || null;
 
-  // Path 2: LeaveType → Policy.leaveTypeIds → Rule.policyId
-  const matchedPolicy = policies.find((p: any) => {
-    if (p.status !== 'active') return false;
-    const ltIds = parseJson(p.leaveTypeIds);
-    return ltIds.includes(form.leaveTypeId);
-  });
-  const ruleViaPolicy = matchedPolicy ? rules.find((r: any) => r.policyId === matchedPolicy.id && r.status === 'active') : null;
+    const lt = leaveTypes.find(t => t.id === leaveTypeId);
+    const bal = leaveBalances.find(b => b.leaveType.id === leaveTypeId);
+    const entitled = rule?.entitledDaysPerYear || bal?.total || lt?.defaultDays || 0;
+    const taken = ownLeaves
+      .filter((l: any) => l.leaveTypeId === leaveTypeId && (l.status === 'approved' || l.status === 'pending'))
+      .reduce((sum: number, l: any) => sum + (l.chargeableDays || l.days || 0), 0);
+    const remaining = Math.max(0, entitled - taken);
+    const isLop = (lt?.code || '').toLowerCase().includes('lop') || (lt?.name || '').toLowerCase().includes('loss of pay');
+    return { entitled, taken, remaining, isLop, rule };
+  }, [mappings, rules, policies, leaveTypes, leaveBalances, ownLeaves]);
 
-  // Path 3: Direct rule.leaveTypeId match (fallback)
-  const ruleViaLeaveType = rules.find((r: any) => r.leaveTypeId === form.leaveTypeId && r.status === 'active');
-
-  // Use whichever path found a rule (priority: mapping > policy > direct)
-  const selectedRule = ruleViaMapping || ruleViaPolicy || ruleViaLeaveType || null;
-  const entitledDays = selectedRule?.entitledDaysPerYear || selectedBalance?.total || selectedType?.defaultDays || 0;
-  const takenDays = ownLeaves
-    .filter((l: any) => l.leaveTypeId === form.leaveTypeId && (l.status === 'approved' || l.status === 'pending'))
-    .reduce((sum: number, l: any) => sum + (l.chargeableDays || l.days || 0), 0);
-  const remainingDays = Math.max(0, entitledDays - takenDays);
+  // Selected type values (uses the reusable helper)
+  const selectedTypeInfo = computeRemaining(form.leaveTypeId);
+  const selectedRule = selectedTypeInfo.rule; // the actual Rule object — keeps downstream UI reading advanceNoticeDays etc. working
+  const entitledDays = selectedTypeInfo.entitled;
+  const takenDays = selectedTypeInfo.taken;
+  const remainingDays = selectedTypeInfo.remaining;
 
   /* ── Fetch team leave conflicts when dates change ── */
   useEffect(() => {
@@ -423,8 +439,27 @@ function ApplyLeaveContent() {
 
     push('Service days required', 'ok', employee?.dateOfJoining ? `Service since ${new Date(employee.dateOfJoining).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}.` : 'Not applicable.');
 
-    push('Sufficient balance (or LOP)', calc.lop === 0 ? 'ok' : 'warn',
-      calc.lop === 0 ? `${fmtNum(remainingDays)} day(s) remaining.` : `${fmtNum(calc.lop)} day(s) will be LOP.`);
+    // ─── Sufficient balance check ───
+    // Three outcomes:
+    //   1. LOP type → always 'ok' (unpaid, no balance limit)
+    //   2. Non-LOP type with 0 remaining → 'err' (BLOCKS submission). The
+    //      employee has no entitlement left for this leave type and cannot
+    //      apply for it — they must pick a different type.
+    //   3. Non-LOP type with some remaining but request exceeds it → 'warn'
+    //      (excess days become LOP, submission still allowed)
+    //   4. Non-LOP type fully covered → 'ok'
+    if (selectedTypeInfo.isLop) {
+      push('Sufficient balance (or LOP)', 'ok', 'Loss of Pay — no balance required.');
+    } else if (remainingDays <= 0) {
+      push('Sufficient balance (or LOP)', 'err',
+        `0 days available for ${selectedType.name}. This leave type cannot be applied for — choose another type.`,
+        'LV-E09');
+    } else if (calc.lop > 0) {
+      push('Sufficient balance (or LOP)', 'warn',
+        `${fmtNum(remainingDays)} day(s) remaining · ${fmtNum(calc.lop)} day(s) will be LOP.`);
+    } else {
+      push('Sufficient balance (or LOP)', 'ok', `${fmtNum(remainingDays)} day(s) remaining.`);
+    }
 
     // Overlap check
     const overlap = ownLeaves.find((r: any) => (r.status === 'pending' || r.status === 'approved') &&
@@ -447,6 +482,12 @@ function ApplyLeaveContent() {
     setTriedSubmit(true);
     if (!canSubmit) {
       toast.error('Please fix the errors before submitting.');
+      return;
+    }
+    // Second-line guard: even if canSubmit somehow passed (e.g. stale state),
+    // block submission for non-LOP leave types with zero remaining balance.
+    if (selectedType && !selectedTypeInfo.isLop && selectedTypeInfo.remaining <= 0) {
+      toast.error(`Cannot apply for ${selectedType.name} — you have 0 days available. Please choose another leave type.`);
       return;
     }
     if (!employee?.id) {
@@ -541,15 +582,35 @@ function ApplyLeaveContent() {
                 >
                   <option value="">— Select leave type —</option>
                   {leaveTypes.map(lt => {
-                    const bal = leaveBalances.find(b => b.leaveType.id === lt.id);
-                    const available = bal ? Math.max(0, (bal.total || 0) - (bal.used || 0)) : lt.defaultDays || 0;
+                    // Compute remaining for EACH option so we can disable
+                    // zero-balance non-LOP types before the user picks them.
+                    const info = computeRemaining(lt.id);
+                    const isZeroBalance = !info.isLop && info.remaining <= 0;
                     return (
-                      <option key={lt.id} value={lt.id}>
+                      <option
+                        key={lt.id}
+                        value={lt.id}
+                        disabled={isZeroBalance}
+                      >
                         {lt.code} — {lt.name}
+                        {info.isLop
+                          ? ' (unpaid — no limit)'
+                          : isZeroBalance
+                            ? ' — 0 available (cannot apply)'
+                            : ` (${fmtNum(info.remaining)} avail.)`}
                       </option>
                     );
                   })}
                 </select>
+              )}
+              {/* Inline warning when the selected leave type has zero balance */}
+              {selectedType && !selectedTypeInfo.isLop && selectedTypeInfo.remaining <= 0 && (
+                <div className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                  <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <p className="text-[12px] leading-relaxed">
+                    You have <strong>0 days</strong> available for {selectedType.name}. This leave type cannot be applied for. Please choose another leave type from the dropdown, or contact HR if you believe this is incorrect.
+                  </p>
+                </div>
               )}
               {/* Show selected leave type info — from rule table + employee's taken leave */}
               {selectedType && (
