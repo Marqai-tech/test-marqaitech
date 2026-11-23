@@ -1,13 +1,26 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+/* ═══════════════════════════════════════════════════════════════════════════
+   Interview Management — redesigned in the Find-Candidates design language
+   (one-screen dense table + KPI filter cards + inline expand, no modals
+   except the Schedule Interview slide-over drawer, see ScheduleDrawer.tsx).
+
+   Data flow is unchanged — same endpoints as before:
+     GET  /api/interviews?limit=100          list (with panel members)
+     GET  /api/interviews/[id]/feedback      full feedback detail
+     PATCH /api/interviews                   mark_completed / hr_decision
+     POST  /api/interviews/[id]/replace-panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import {
   FiCalendar, FiClock, FiVideo, FiMapPin, FiUser, FiStar, FiCheck, FiX,
-  FiAlertCircle, FiBriefcase, FiXCircle,
-  FiFilter, FiEye, FiCheckCircle, FiSearch, FiUsers, FiChevronDown,
+  FiAlertCircle, FiSearch, FiChevronDown,
+  FiCheckCircle, FiExternalLink, FiRefreshCw, FiUserPlus,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ScheduleDrawer from './ScheduleDrawer';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -67,144 +80,162 @@ interface Interview {
   hrDecisionReason?: string | null;
   round?: number | null;
   planTotal?: number | null;
+  mode?: string | null;
+  instructions?: string | null;
+  evaluationAreas?: string | null; // JSON-encoded string array
+  panelLeadId?: string | null;
+  confirmationDeadline?: string | null;
+  feedbackDeadline?: string | null;
+  cancelReason?: string | null;
+  createdAt?: string | null;
 }
 
-/* ── Constants ── */
+/* ── Access ── */
 const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'recruiter', 'recruiter_admin'];
 
-const typeLabels: Record<string, string> = {
-  ai: 'AI Interview', technical: 'Technical Interview', hr: 'HR Interview', offline_panel: 'Panel Interview',
+/* ── Design tokens (Find-Candidates style) ── */
+const FILTER_CLS = 'h-[30px] rounded-[7px] border border-slate-300 bg-white px-2 text-[11.5px] text-slate-800 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/15';
+const INPUT_CLS = 'h-[32px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[11.5px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400';
+const CARD_CLS = 'rounded-xl border border-slate-200 bg-white shadow-sm';
+const BTN_PRI = 'inline-flex items-center justify-center gap-1.5 h-[30px] px-3 rounded-[8px] bg-green-600 text-white text-[11px] font-bold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shrink-0';
+const BTN_GHOST = 'inline-flex items-center justify-center gap-1.5 h-[30px] px-3 rounded-[8px] bg-white border border-slate-300 text-slate-600 text-[11px] font-bold hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shrink-0';
+const BTN_SOFT_RED = 'inline-flex items-center justify-center gap-1.5 h-[30px] px-3 rounded-[8px] bg-red-50 border border-red-200 text-red-600 text-[11px] font-bold hover:bg-red-100 transition disabled:opacity-50 shrink-0';
+const SECTION_TITLE = 'text-[9.5px] font-extrabold uppercase tracking-[0.6px] text-slate-400 mb-2 flex items-center gap-1.5';
+
+/* ── Display metadata ── */
+const STATUS_META: Record<string, { label: string; badge: string; border: string }> = {
+  scheduled: { label: 'Scheduled', badge: 'bg-amber-50 text-amber-700 border-amber-200', border: 'border-l-amber-400' },
+  completed: { label: 'Completed', badge: 'bg-green-50 text-green-700 border-green-200', border: 'border-l-green-500' },
+  cancelled: { label: 'Cancelled', badge: 'bg-red-50 text-red-700 border-red-200', border: 'border-l-red-400' },
+  rescheduled: { label: 'Rescheduled', badge: 'bg-blue-50 text-blue-700 border-blue-200', border: 'border-l-blue-400' },
 };
 
-function interviewDisplayLabel(type: string, round?: number | null) {
-  const label = typeLabels[type] || type || 'Interview';
-  return `${label} — Round ${round && round > 0 ? round : 1}`;
+const TYPE_LABELS: Record<string, string> = {
+  technical: 'Technical', hr: 'HR', managerial: 'Managerial', cultural: 'Cultural',
+  final: 'Final', offline_panel: 'Panel', ai: 'AI', portfolio: 'Portfolio Review',
+};
+
+const MODE_LABELS: Record<string, string> = { online: 'Video', onsite: 'Onsite', phone: 'Phone' };
+
+const CONFIRM_META: Record<string, { label: string; cls: string }> = {
+  pending: { label: 'Pending', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  accepted: { label: 'Accepted', cls: 'bg-green-50 text-green-700 border-green-200' },
+  declined: { label: 'Declined', cls: 'bg-red-50 text-red-700 border-red-200' },
+  requested_reschedule: { label: 'Reschedule Req.', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+};
+
+const REC_META: Record<string, { label: string; cls: string }> = {
+  strong_hire: { label: 'Strong Hire', cls: 'bg-teal-50 text-teal-700 border-teal-200' },
+  hire: { label: 'Hire', cls: 'bg-green-50 text-green-700 border-green-200' },
+  hold: { label: 'Hold', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  next_round: { label: 'Next Round', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  reject: { label: 'Reject', cls: 'bg-red-50 text-red-700 border-red-200' },
+};
+
+const DECISION_LABELS: Record<string, string> = {
+  next_round: 'Next Round', schedule_another: 'Schedule Another', shortlist: 'Shortlist',
+  hold: 'Hold', reject: 'Reject', offer: 'Offer',
+};
+
+/* ── Helpers ── */
+const AVATAR_COLORS = [
+  'from-violet-500 to-indigo-600', 'from-cyan-500 to-teal-600', 'from-amber-500 to-orange-600',
+  'from-green-500 to-emerald-600', 'from-rose-500 to-red-600', 'from-sky-500 to-blue-600',
+  'from-teal-500 to-emerald-600', 'from-indigo-500 to-purple-600',
+];
+function initials(name?: string | null): string {
+  return (name || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
 }
+function avatarColor(seed: string): string {
+  let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function fmtDate(iso?: string | null): string {
+  if (!iso) return 'TBD';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'TBD';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtWeekday(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+/** Human "when" chip: Today / Tomorrow / in Nd / Nd ago. */
+function whenChip(iso?: string | null, time?: string | null): { label: string; cls: string } | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  if (time) { const [h, m] = time.split(':').map(Number); if (!isNaN(h)) d.setHours(h, m || 0, 0, 0); }
+  const now = new Date();
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(d) - startOfDay(now)) / 86400000);
+  if (diffDays === 0) return { label: 'today', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+  if (diffDays === 1) return { label: 'in 1 day', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+  if (diffDays > 1 && diffDays <= 7) return { label: `in ${diffDays}d`, cls: 'bg-slate-50 text-slate-600 border-slate-200' };
+  if (diffDays === -1) return { label: 'yesterday', cls: 'bg-slate-50 text-slate-500 border-slate-200' };
+  if (diffDays < -1) return { label: `${-diffDays}d ago`, cls: 'bg-slate-50 text-slate-500 border-slate-200' };
+  return null;
+}
+function parseEvalAreas(raw?: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()) : [];
+  } catch { return []; }
+}
+function typeLabel(t: string): string { return TYPE_LABELS[t] || (t ? t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Interview'); }
 
-const statusBadges: Record<string, string> = {
-  scheduled: 'bg-amber-50 text-amber-700',
-  completed: 'bg-emerald-50 text-emerald-700',
-  cancelled: 'bg-red-50 text-red-700',
-  rescheduled: 'bg-blue-50 text-blue-700',
-};
-
-const confirmBadges: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700',
-  accepted: 'bg-emerald-50 text-emerald-700',
-  declined: 'bg-red-50 text-red-700',
-  requested_reschedule: 'bg-blue-50 text-blue-700',
-};
-
-const confirmLabels: Record<string, string> = {
-  pending: 'Pending', accepted: 'Accepted', declined: 'Declined', requested_reschedule: 'Reschedule Requested',
-};
-
-const recommendationLabels: Record<string, string> = {
-  strong_hire: 'Strong Hire', hire: 'Hire', hold: 'Hold', next_round: 'Next Round', reject: 'Reject',
-};
-
-const recommendationColors: Record<string, string> = {
-  strong_hire: 'bg-emerald-100 text-emerald-800',
-  hire: 'bg-emerald-50 text-emerald-700',
-  hold: 'bg-amber-50 text-amber-700',
-  next_round: 'bg-blue-50 text-blue-700',
-  reject: 'bg-red-50 text-red-700',
-};
-
-const decisionLabels: Record<string, string> = {
-  next_round: 'Next Round', shortlist: 'Shortlist', hold: 'Hold',
-  reject: 'Reject', offer: 'Offer', schedule_another: 'Schedule Another',
-};
-
-/* ── Component ── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Component
+   ═══════════════════════════════════════════════════════════════════════════ */
 export default function InterviewsPage() {
   const { user } = useAuthStore();
   const isAdmin = HR_ROLES.includes(user?.role || '');
 
+  /* ── data ── */
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [search, setSearch] = useState('');
-  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
-  const [feedbackList, setFeedbackList] = useState<FeedbackDetail[]>([]);
-  const [loadingFeedback, setLoadingFeedback] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [decisionModal, setDecisionModal] = useState<{
-    interviewId: string;
-    decision: string;
-    reason: string;
-    // For next_round + schedule_another: the new schedule details
-    nextDate: string;
-    nextTime: string;
-    nextDuration: number;
-    nextType: string;
-    nextLocation: string;
-    nextMeetingUrl: string;
-    nextPanelMemberIds: string[];
-    // For hold: whether to send the candidate a "decision pending" email
+
+  /* ── filters ── */
+  const [kpiFilter, setKpiFilter] = useState('all');
+  const [q, setQ] = useState('');
+  const [jobFilter, setJobFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [roundFilter, setRoundFilter] = useState('');
+  const [panelFilter, setPanelFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [sort, setSort] = useState('soonest');
+
+  /* ── inline expand (replaces the feedback modal) ── */
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [feedbackByInterview, setFeedbackByInterview] = useState<Record<string, FeedbackDetail[]>>({});
+  const [loadingFeedbackId, setLoadingFeedbackId] = useState<string | null>(null);
+
+  /* ── inline decision composer (replaces the decision modal) ── */
+  const [decisionDraft, setDecisionDraft] = useState<{
+    interviewId: string; decision: string; reason: string;
+    nextDate: string; nextTime: string; nextDuration: number; nextType: string;
+    nextLocation: string; nextMeetingUrl: string; nextPanelMemberIds: string[];
     sendHoldEmail: boolean;
   } | null>(null);
-  const [attendanceModal, setAttendanceModal] = useState<{ interviewId: string; candidateAttendance: string; panelAttendance: Record<string, string> } | null>(null);
 
-  // ── Schedule Interview Modal state ──
-  // Lets HR schedule a new interview directly from the Interview Management
-  // page (without navigating to Find Candidates first).
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [applicants, setApplicants] = useState<Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; interviewPlan?: string | null; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }>>([]);
-  const [applicantSearch, setApplicantSearch] = useState('');
-  const [selectedAppId, setSelectedAppId] = useState<string>('');
-  const [selectedAppDept, setSelectedAppDept] = useState<string>('');
-  const [modalDepartments, setModalDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
-  const [interviewForm, setInterviewForm] = useState({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
-  const [panelMembers, setPanelMembers] = useState<Array<{ id: string; userId: string; name: string; email: string; designation: string; department: string; role: string; availability: string; reason: string; conflictTime: string }>>([]);
-  const [selectedPanelIds, setSelectedPanelIds] = useState<string[]>([]);
-  const [loadingPanel, setLoadingPanel] = useState(false);
-  const [scheduling, setScheduling] = useState(false);
-  const [showApplicantDropdown, setShowApplicantDropdown] = useState(false);
+  /* ── inline attendance (replaces the attendance modal) ── */
+  const [attendanceDraft, setAttendanceDraft] = useState<{
+    interviewId: string; candidateAttendance: string; panelAttendance: Record<string, string>;
+  } | null>(null);
 
-  // For next_round / schedule_another: candidate panel members to choose from
+  /* ── inline replace-panel (uses the existing replace-panel endpoint) ── */
+  const [replaceDraft, setReplaceDraft] = useState<{ interviewId: string; oldUserId: string; oldName: string; newUserId: string; reason: string } | null>(null);
   const [panelCandidates, setPanelCandidates] = useState<Array<{ id: string; name: string; email: string; designation: string }>>([]);
 
-  // Helper to construct a fresh decision-modal state — used by every button
-  // Fetch candidate panel members (all users in the tenant — HR can pick any).
-  // We use a lightweight endpoint that's already authenticated.
-  // NOTE: /api/employees returns e.designation as an OBJECT {id, title} (Prisma
-  // `select: { id: true, title: true }`). The previous implementation treated
-  // it as a string and React crashed with error #31 ("object with keys {id,
-  // title}") when rendering {cand.designation}. We now read .title safely.
-  // We also use Employee.userId (the User FK) — NOT Employee.id — because
-  // InterviewPanelMember.userId references the User.id, and panel member
-  // notifications go to the User account. We filter out employees with no
-  // linked User account (e.userId null) since they can't be assigned.
-  const fetchPanelCandidates = useCallback(async () => {
-    if (panelCandidates.length > 0) return;
-    try {
-      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        const rawList: Array<Record<string, unknown>> = (data.employees || data.data || []) as Array<Record<string, unknown>>;
-        const list = rawList
-          .map((e) => {
-            const userId = (e.userId as string) || '';
-            const firstName = (e.firstName as string) || '';
-            const lastName = (e.lastName as string) || '';
-            const name = `${firstName} ${lastName}`.trim() || (e.name as string) || (e.email as string) || '';
-            const email = (e.email as string) || '';
-            // designation is an object {id, title} from the employees API
-            const desigObj = e.designation as { id?: string; title?: string } | string | null | undefined;
-            let designation = '—';
-            if (typeof desigObj === 'string') {
-              designation = desigObj;
-            } else if (desigObj && typeof desigObj === 'object' && desigObj.title) {
-              designation = desigObj.title;
-            }
-            return { id: userId, name, email, designation };
-          })
-          .filter((u) => u.id && u.email);
-        if (list.length > 0) setPanelCandidates(list);
-      }
-    } catch { /* non-fatal */ }
-  }, [panelCandidates.length]);
+  /* ── schedule drawer ── */
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  /* ═══════════ data loading ═══════════ */
 
   const fetchInterviews = useCallback(async () => {
     try {
@@ -224,209 +255,64 @@ export default function InterviewsPage() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin) {
-      // Defer to a microtask so the setState calls inside fetchInterviews
-      // don't run synchronously inside the effect body (React 19 lint rule).
-      queueMicrotask(() => fetchInterviews());
-    }
+    if (isAdmin) queueMicrotask(() => fetchInterviews());
   }, [isAdmin, fetchInterviews]);
 
-  // When the decision modal opens, pre-fetch the candidate panel member list
-  // (only fetches once per page mount via the cache guard inside).
-  useEffect(() => {
-    if (decisionModal) {
-      // Defer to a microtask so the setState call inside fetchPanelCandidates
-      // doesn't run synchronously inside the effect body (React 19 lint rule).
-      queueMicrotask(() => fetchPanelCandidates());
-    }
-  }, [decisionModal, fetchPanelCandidates]);
-
-  // ── Schedule Interview Modal: fetch all job applicants for the dropdown ──
-  const fetchApplicants = useCallback(async () => {
+  /* Panel-replacement candidate list (all tenant employees with a User account). */
+  const fetchPanelCandidates = useCallback(async () => {
+    if (panelCandidates.length > 0) return;
     try {
-      const res = await fetch('/api/recruitment?limit=200', { headers: getAuthHeaders() });
+      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        const jobs = data.jobPostings || [];
-        const allApps: Array<{ id: string; candidateName: string; candidateEmail: string; jobPosting?: { id: string; title: string; interviewPlan?: string | null; department?: { id: string; name: string } | null } | null; jobPostingId: string; status: string }> = [];
-        for (const job of jobs) {
-          const apps = job.applications || [];
-          for (const app of apps) {
-            allApps.push({
-              ...app,
-              jobPosting: { id: job.id, title: job.title, interviewPlan: job.interviewPlan, department: job.department },
-              jobPostingId: job.id,
-            });
-          }
-        }
-        setApplicants(allApps);
-      }
-    } catch {
-      // non-fatal — dropdown will just be empty
-    }
-  }, []);
-
-  // ── Schedule Interview Modal: fetch departments for the panel-member picker ──
-  const fetchModalDepartments = useCallback(async () => {
-    try {
-      const res = await fetch('/api/departments?limit=200&noDedupe=1', { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        // API returns { data: [...], pagination: {...} } — extract the data array.
-        // Also handle fallback shapes (departments: [...] or bare array) for safety.
-        const rawDepts = data.data || data.departments || (Array.isArray(data) ? data : []);
-        const depts = rawDepts.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          companyName: d.company?.name || d.companyName,
-        }));
-        setModalDepartments(depts);
-      }
-    } catch {
-      // non-fatal
-    }
-  }, []);
-
-  // ── Schedule Interview Modal: fetch panel members with availability ──
-  const fetchPanelAvailability = useCallback(async () => {
-    if (!selectedAppDept) { setPanelMembers([]); return; }
-    setLoadingPanel(true);
-    try {
-      const params = new URLSearchParams({
-        departmentId: selectedAppDept,
-        duration: String(interviewForm.duration || 60),
-        interviewType: interviewForm.type,
-      });
-      if (interviewForm.date) {
-        params.set('date', interviewForm.date);
-        if (interviewForm.time) params.set('time', interviewForm.time);
-      }
-      const res = await fetch(`/api/interviews/panel-availability?${params}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setPanelMembers(data.employees || []);
+        const rawList: Array<Record<string, unknown>> = (data.employees || data.data || []) as Array<Record<string, unknown>>;
+        const list = rawList
+          .map((e) => {
+            const userId = (e.userId as string) || '';
+            const name = `${(e.firstName as string) || ''} ${(e.lastName as string) || ''}`.trim() || (e.name as string) || (e.email as string) || '';
+            const desigObj = e.designation as { id?: string; title?: string } | string | null | undefined;
+            let designation = '—';
+            if (typeof desigObj === 'string') designation = desigObj;
+            else if (desigObj && typeof desigObj === 'object' && desigObj.title) designation = desigObj.title;
+            return { id: userId, name, email: (e.email as string) || '', designation };
+          })
+          .filter((u) => u.id && u.email);
+        if (list.length > 0) setPanelCandidates(list);
       }
     } catch { /* non-fatal */ }
-    finally { setLoadingPanel(false); }
-  }, [selectedAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type]);
+  }, [panelCandidates.length]);
 
-  // Refresh panel members when department or date/time/duration/type changes
-  useEffect(() => {
-    if (selectedAppDept) {
-      queueMicrotask(() => fetchPanelAvailability());
-    } else {
-      setPanelMembers([]);
-    }
-  }, [selectedAppDept, interviewForm.date, interviewForm.time, interviewForm.duration, interviewForm.type, fetchPanelAvailability]);
-
-  // ── Open the Schedule Interview Modal ──
-  const handleOpenScheduleModal = () => {
-    setShowScheduleModal(true);
-    setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
-    setSelectedAppId('');
-    setSelectedAppDept('');
-    setSelectedPanelIds([]);
-    setPanelMembers([]);
-    setApplicantSearch('');
-    // Fetch applicants + departments if not already loaded
-    if (applicants.length === 0) queueMicrotask(() => fetchApplicants());
-    if (modalDepartments.length === 0) queueMicrotask(() => fetchModalDepartments());
-  };
-
-  // ── When a candidate is selected from the dropdown, auto-set their department ──
-  const handleSelectApplicant = (appId: string) => {
-    setSelectedAppId(appId);
-    setShowApplicantDropdown(false);
-    setApplicantSearch('');
-    setSelectedPanelIds([]);
-    // Auto-set the department from the candidate's job posting
-    const app = applicants.find(a => a.id === appId);
-    if (app?.jobPosting?.department?.id) {
-      setSelectedAppDept(app.jobPosting.department.id);
-    }
-  };
-
-  // ── Submit: schedule the interview via POST /api/interviews ──
-  const handleScheduleInterview = async () => {
-    if (!selectedAppId) { toast.error('Please select a candidate'); return; }
-    if (!interviewForm.date) { toast.error('Date is required'); return; }
-    // Validate date is not in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(interviewForm.date);
-    if (selectedDate < today) { toast.error('Interview date cannot be in the past'); return; }
-    if (!selectedAppDept) { toast.error('Please select a department'); return; }
-    if (selectedPanelIds.length === 0) { toast.error('Select at least one panel member'); return; }
-    // Block Busy/On Leave members
-    const unavailableMembers = selectedPanelIds.filter(uid => {
-      const m = panelMembers.find(p => p.userId === uid);
-      return m && (m.availability === 'Busy' || m.availability === 'On Leave');
-    });
-    if (unavailableMembers.length > 0) {
-      const names = unavailableMembers.map(uid => panelMembers.find(p => p.userId === uid)?.name).join(', ');
-      toast.error(`Cannot select unavailable members: ${names}. Please remove them and try again.`);
-      return;
-    }
-    setScheduling(true);
-    try {
-      const res = await fetch('/api/interviews', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          jobApplicationId: selectedAppId,
-          type: interviewForm.type,
-          date: interviewForm.date,
-          time: interviewForm.time,
-          duration: Number(interviewForm.duration) || 60,
-          location: interviewForm.location || undefined,
-          meetingUrl: interviewForm.meetingUrl || undefined,
-          panelMemberIds: selectedPanelIds,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to schedule interview');
-      toast.success(`Interview scheduled — ${selectedPanelIds.length} panel member(s) notified. Round ${data.round || '?'}.`);
-      setShowScheduleModal(false);
-      // Reset form
-      setInterviewForm({ type: 'technical', date: '', time: '10:00', duration: 60, location: '', meetingUrl: '' });
-      setSelectedAppId('');
-      setSelectedAppDept('');
-      setSelectedPanelIds([]);
-      setPanelMembers([]);
-      // Refresh the interviews list
-      fetchInterviews();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to schedule interview');
-    } finally {
-      setScheduling(false);
-    }
-  };
-
-  const fetchFeedback = async (interviewId: string) => {
-    setLoadingFeedback(true);
+  /* Fetch the full feedback detail when a row is expanded. */
+  const fetchFeedback = useCallback(async (interviewId: string) => {
+    if (feedbackByInterview[interviewId]) return;
+    setLoadingFeedbackId(interviewId);
     try {
       const res = await fetch(`/api/interviews/${interviewId}/feedback`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setFeedbackList(data.feedback || []);
-      } else {
-        toast.error('Failed to load feedback');
+        setFeedbackByInterview(prev => ({ ...prev, [interviewId]: data.feedback || [] }));
       }
-    } catch {
-      toast.error('Failed to load feedback');
-    } finally {
-      setLoadingFeedback(false);
+    } catch { /* non-fatal — chips still render from panel member summary */ }
+    finally { setLoadingFeedbackId(null); }
+  }, [feedbackByInterview]);
+
+  const toggleExpand = (interview: Interview) => {
+    if (expandedId === interview.id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(interview.id);
+      setDecisionDraft(null);
+      setAttendanceDraft(null);
+      setReplaceDraft(null);
+      queueMicrotask(() => fetchFeedback(interview.id));
     }
   };
 
-  const handleOpenDetails = (interview: Interview) => {
-    setSelectedInterview(interview);
-    fetchFeedback(interview.id);
-  };
+  /* ═══════════ actions ═══════════ */
 
+  /* Quick complete (no attendance). */
   const handleMarkCompleted = async (interviewId: string, withAttendance = false) => {
     if (!withAttendance) {
-      // Quick mark completed without attendance
       if (!confirm('Mark this interview as completed? Panel members will be notified to submit feedback.')) return;
       setActionLoading(interviewId + '-complete');
       try {
@@ -439,1119 +325,837 @@ export default function InterviewsPage() {
         if (!res.ok) throw new Error(data.error || 'Failed');
         toast.success('Interview marked as completed. Panel members notified.');
         fetchInterviews();
-        if (selectedInterview?.id === interviewId) {
-          setSelectedInterview(null);
-          setFeedbackList([]);
-        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed');
-      } finally {
-        setActionLoading(null);
-      }
-    } else {
-      // Open attendance modal first, then mark completed
-      const interview = interviews.find((i) => i.id === interviewId);
-      const initialPanelAttendance: Record<string, string> = {};
-      (interview?.panelMembers || []).forEach((pm) => {
-        if (pm.confirmationStatus === 'accepted') initialPanelAttendance[pm.userId] = 'present';
-      });
-      setAttendanceModal({
-        interviewId,
-        candidateAttendance: 'attended',
-        panelAttendance: initialPanelAttendance,
-      });
+      } finally { setActionLoading(null); }
+      return;
     }
+    // With attendance — open the inline attendance panel instead of a modal.
+    const interview = interviews.find((i) => i.id === interviewId);
+    const initialPanelAttendance: Record<string, string> = {};
+    (interview?.panelMembers || []).forEach((pm) => {
+      if (pm.confirmationStatus === 'accepted') initialPanelAttendance[pm.userId] = 'present';
+    });
+    setAttendanceDraft({ interviewId, candidateAttendance: 'attended', panelAttendance: initialPanelAttendance });
   };
 
   const handleSubmitAttendance = async () => {
-    if (!attendanceModal) return;
-    setActionLoading(attendanceModal.interviewId + '-complete');
+    if (!attendanceDraft) return;
+    setActionLoading(attendanceDraft.interviewId + '-complete');
     try {
-      const panelArray = Object.entries(attendanceModal.panelAttendance).map(([userId, attendance]) => ({
-        userId,
-        attendance,
-      }));
+      const panelArray = Object.entries(attendanceDraft.panelAttendance).map(([userId, attendance]) => ({ userId, attendance }));
       const res = await fetch('/api/interviews', {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          id: attendanceModal.interviewId,
+          id: attendanceDraft.interviewId,
           action: 'mark_completed',
-          candidateAttendance: attendanceModal.candidateAttendance,
+          candidateAttendance: attendanceDraft.candidateAttendance,
           panelAttendance: panelArray,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       toast.success('Interview marked as completed with attendance recorded.');
-      setAttendanceModal(null);
+      setAttendanceDraft(null);
       fetchInterviews();
-      if (selectedInterview?.id === attendanceModal.interviewId) {
-        setSelectedInterview(null);
-        setFeedbackList([]);
-      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');
-    } finally {
-      setActionLoading(null);
-    }
+    } finally { setActionLoading(null); }
+  };
+
+  /* HR final decision — inline composer. */
+  const openDecisionDraft = (interview: Interview, decision: string) => {
+    setDecisionDraft({
+      interviewId: interview.id, decision, reason: '',
+      nextDate: '', nextTime: '10:00', nextDuration: 60, nextType: 'technical',
+      nextLocation: '', nextMeetingUrl: '', nextPanelMemberIds: [], sendHoldEmail: true,
+    });
   };
 
   const handleHrDecision = async () => {
-    if (!decisionModal) return;
-    if (!decisionModal.decision) { toast.error('Please select a decision'); return; }
-
-    // Validate next_round / schedule_another require a date.
-    if ((decisionModal.decision === 'next_round' || decisionModal.decision === 'schedule_another') && !decisionModal.nextDate) {
+    if (!decisionDraft) return;
+    if ((decisionDraft.decision === 'next_round' || decisionDraft.decision === 'schedule_another') && !decisionDraft.nextDate) {
       toast.error('Please pick a date for the next interview round');
       return;
     }
-
-    setActionLoading(decisionModal.interviewId + '-decision');
+    setActionLoading(decisionDraft.interviewId + '-decision');
     try {
       const payload: Record<string, unknown> = {
-        id: decisionModal.interviewId,
+        id: decisionDraft.interviewId,
         action: 'hr_decision',
-        decision: decisionModal.decision,
-        reason: decisionModal.reason || undefined,
+        decision: decisionDraft.decision,
+        reason: decisionDraft.reason || undefined,
       };
-      if (decisionModal.decision === 'next_round' || decisionModal.decision === 'schedule_another') {
+      if (decisionDraft.decision === 'next_round' || decisionDraft.decision === 'schedule_another') {
         payload.nextRound = {
-          date: decisionModal.nextDate,
-          time: decisionModal.nextTime || undefined,
-          duration: decisionModal.nextDuration || 60,
-          type: decisionModal.nextType,
-          location: decisionModal.nextLocation || undefined,
-          meetingUrl: decisionModal.nextMeetingUrl || undefined,
-          panelMemberIds: decisionModal.nextPanelMemberIds,
+          date: decisionDraft.nextDate,
+          time: decisionDraft.nextTime || undefined,
+          duration: decisionDraft.nextDuration || 60,
+          type: decisionDraft.nextType,
+          location: decisionDraft.nextLocation || undefined,
+          meetingUrl: decisionDraft.nextMeetingUrl || undefined,
+          panelMemberIds: decisionDraft.nextPanelMemberIds,
         };
       }
-      if (decisionModal.decision === 'hold') {
-        payload.sendHoldEmail = decisionModal.sendHoldEmail;
-      }
+      if (decisionDraft.decision === 'hold') payload.sendHoldEmail = decisionDraft.sendHoldEmail;
 
-      const res = await fetch('/api/interviews', {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch('/api/interviews', { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
 
-      // Surface the full result so HR knows if the email was actually sent
-      // (per spec: don't show success if the email failed).
-      const label = decisionLabels[decisionModal.decision as keyof typeof decisionLabels] || decisionModal.decision;
-      let msg = `HR decision recorded: ${label}. App status: ${data.newAppStatus || '-'}.`;
-      if (data.newInterviewId) msg += ` New interview ${data.newInterviewId}.`;
-      if (data.newOfferId) msg += ` Draft offer ${data.newOfferId} created.`;
+      // Surface the full result so HR knows if the email actually went out.
+      const label = DECISION_LABELS[decisionDraft.decision] || decisionDraft.decision;
+      let msg = `Decision recorded: ${label}. Candidate stage: ${data.newAppStatus || '-'}.`;
+      if (data.newInterviewId) msg += ' New interview created.';
+      if (data.newOfferId) msg += ' Draft offer created.';
       if (data.emailSent === false) {
-        msg += ` ⚠️ Candidate email was NOT sent${data.emailError ? ` — ${data.emailError}` : ''}.`;
+        msg += ` Candidate email NOT sent${data.emailError ? ` — ${data.emailError}` : ''}.`;
         toast.error(msg);
       } else {
-        msg += ` ✅ Candidate email sent.`;
+        msg += ' Candidate email sent.';
         toast.success(msg);
       }
-      console.log('[Interviews /interviews] hr_decision result:', data);
-
-      setDecisionModal(null);
+      setDecisionDraft(null);
       fetchInterviews();
-      if (selectedInterview?.id === decisionModal.interviewId) {
-        setSelectedInterview(null);
-        setFeedbackList([]);
-      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');
-    } finally {
-      setActionLoading(null);
-    }
+    } finally { setActionLoading(null); }
   };
+
+  /* Replace a declined panel member — existing endpoint. */
+  const handleReplacePanel = async () => {
+    if (!replaceDraft) return;
+    if (!replaceDraft.newUserId) { toast.error('Pick a replacement panel member'); return; }
+    if (!replaceDraft.reason.trim()) { toast.error('A reason is required'); return; }
+    setActionLoading(replaceDraft.interviewId + '-replace');
+    try {
+      const res = await fetch(`/api/interviews/${replaceDraft.interviewId}/replace-panel`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          action: 'replace',
+          oldUserId: replaceDraft.oldUserId,
+          newUserId: replaceDraft.newUserId,
+          reason: replaceDraft.reason,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(`${replaceDraft.oldName} replaced. The new panel member has been notified.`);
+      setReplaceDraft(null);
+      fetchInterviews();
+      setFeedbackByInterview({});
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+    } finally { setActionLoading(null); }
+  };
+
+  /* ═══════════ RENDER ═══════════ */
 
   /* ── Access gate ── */
   if (!isAdmin) {
     return (
       <div className="max-w-2xl mx-auto py-16 px-4 text-center">
-        <FiAlertCircle className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
-        <h2 className="text-lg font-semibold text-thb-text-primary mb-2">Access restricted</h2>
-        <p className="text-sm text-thb-text-secondary">
+        <FiAlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+        <h2 className="text-lg font-semibold text-slate-800 mb-2">Access restricted</h2>
+        <p className="text-sm text-slate-500">
           The Interview Management page is only available to HR / Admin roles.
           If you are a panel member, please use{' '}
-          <a href="/my-interviews" className="text-teal-600 hover:underline">My Interviews</a>.
+          <a href="/my-interviews" className="text-green-700 font-semibold hover:underline">My Interviews</a>.
         </p>
       </div>
     );
   }
 
-  /* ── Stats + filtering ── */
-  const filtered = interviews.filter((i) => {
-    if (filterStatus !== 'all' && i.status !== filterStatus) return false;
-    if (search) {
-      const s = search.toLowerCase();
+  /* ── Derived: KPIs ── */
+  const panel = (i: Interview) => i.panelMembers || [];
+  const hasPendingPanel = (i: Interview) => panel(i).some(p => p.confirmationStatus === 'pending');
+  const hasMissingFeedback = (i: Interview) => i.status === 'completed' && panel(i).some(p => p.confirmationStatus === 'accepted' && !p.hasFeedback);
+
+  const kpis = {
+    total: interviews.length,
+    scheduled: interviews.filter(i => i.status === 'scheduled').length,
+    awaitingPanel: interviews.filter(i => i.status === 'scheduled' && hasPendingPanel(i)).length,
+    feedbacksDue: interviews.filter(hasMissingFeedback).length,
+    decisionsPending: interviews.filter(i => i.status === 'completed' && !i.hrDecision).length,
+  };
+
+  const kpiCards = [
+    { key: 'all', label: 'Total', value: kpis.total, icon: FiCalendar, tone: 'text-slate-600', ring: 'bg-slate-100' },
+    { key: 'scheduled', label: 'Scheduled', value: kpis.scheduled, icon: FiClock, tone: 'text-amber-600', ring: 'bg-amber-50' },
+    { key: 'awaiting_panel', label: 'Awaiting Panel', value: kpis.awaitingPanel, icon: FiUserPlus, tone: 'text-blue-600', ring: 'bg-blue-50' },
+    { key: 'feedbacks_due', label: 'Feedbacks Due', value: kpis.feedbacksDue, icon: FiStar, tone: 'text-violet-600', ring: 'bg-violet-50' },
+    { key: 'decisions_pending', label: 'Decisions Pending', value: kpis.decisionsPending, icon: FiCheckCircle, tone: 'text-teal-600', ring: 'bg-teal-50' },
+  ];
+
+  /* ── Derived: filter list ── */
+  const jobOptions = Array.from(new Set(interviews.map(i => i.jobTitle).filter(Boolean))) as string[];
+  const typeOptions = Array.from(new Set(interviews.map(i => i.type).filter(Boolean)));
+  const roundOptions = Array.from(new Set(interviews.map(i => String(i.round || 1)))).sort((a, b) => Number(a) - Number(b));
+
+  /* ── Derived: filtered rows ── */
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
+  const endOfNextWeek = new Date(startOfToday); endOfNextWeek.setDate(endOfNextWeek.getDate() + 14);
+
+  const filtered = interviews.filter(i => {
+    if (kpiFilter === 'scheduled' && i.status !== 'scheduled') return false;
+    if (kpiFilter === 'awaiting_panel' && !(i.status === 'scheduled' && hasPendingPanel(i))) return false;
+    if (kpiFilter === 'feedbacks_due' && !hasMissingFeedback(i)) return false;
+    if (kpiFilter === 'decisions_pending' && !(i.status === 'completed' && !i.hrDecision)) return false;
+
+    if (jobFilter && i.jobTitle !== jobFilter) return false;
+    if (typeFilter && i.type !== typeFilter) return false;
+    if (roundFilter && String(i.round || 1) !== roundFilter) return false;
+    if (panelFilter === 'awaiting' && !hasPendingPanel(i)) return false;
+    if (panelFilter === 'all_accepted' && (panel(i).length === 0 || !panel(i).every(p => p.confirmationStatus === 'accepted'))) return false;
+    if (panelFilter === 'declined' && !panel(i).some(p => p.confirmationStatus === 'declined')) return false;
+
+    if (dateFilter) {
+      const d = new Date(i.date);
+      if (dateFilter === 'today' && d < startOfToday) return false;
+      if (dateFilter === 'this_week' && (d < startOfToday || d > endOfWeek)) return false;
+      if (dateFilter === 'next_week' && (d < endOfWeek || d > endOfNextWeek)) return false;
+      if (dateFilter === 'past' && d >= startOfToday) return false;
+    }
+
+    if (q) {
+      const s = q.toLowerCase();
+      const inPanel = panel(i).some(p => (p.name || '').toLowerCase().includes(s));
       if (
         !(i.candidateName || '').toLowerCase().includes(s) &&
+        !(i.candidateEmail || '').toLowerCase().includes(s) &&
         !(i.jobTitle || '').toLowerCase().includes(s) &&
-        !(i.candidateEmail || '').toLowerCase().includes(s)
+        !inPanel
       ) return false;
     }
     return true;
   });
 
-  const stats = {
-    total: interviews.length,
-    scheduled: interviews.filter((i) => i.status === 'scheduled').length,
-    completed: interviews.filter((i) => i.status === 'completed').length,
-    cancelled: interviews.filter((i) => i.status === 'cancelled').length,
-    feedbackSubmitted: interviews.reduce(
-      (n, i) => n + (i.panelMembers || []).filter((pm) => pm.hasFeedback).length,
-      0,
-    ),
+  const sorted = [...filtered].sort((a, b) => {
+    if (sort === 'newest') {
+      return new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime();
+    }
+    if (sort === 'feedback_due') {
+      const rank = (i: Interview) => (hasMissingFeedback(i) ? 0 : 1);
+      if (rank(a) !== rank(b)) return rank(a) - rank(b);
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    }
+    // soonest — date asc, nulls last
+    const da = a.date ? new Date(a.date).getTime() : Infinity;
+    const db = b.date ? new Date(b.date).getTime() : Infinity;
+    return da - db;
+  });
+
+  const hasActiveFilters = q || jobFilter || typeFilter || roundFilter || panelFilter || dateFilter || kpiFilter !== 'all';
+  const clearFilters = () => {
+    setQ(''); setJobFilter(''); setTypeFilter(''); setRoundFilter('');
+    setPanelFilter(''); setDateFilter(''); setKpiFilter('all'); setSort('soonest');
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary">Interview Management</h1>
-          <p className="text-thb-text-secondary mt-1">
-            All interviews across the tenant — view panel status, mark completed, see feedback, make final decisions.
-          </p>
+    <div className="flex flex-col gap-3" style={{ height: 'calc(100vh - 8rem)', minHeight: 560 }}>
+      {/* breadcrumb + header */}
+      <div className="flex items-center text-[10.5px] text-slate-400 gap-1.5">
+        <span>Recruitment</span><span className="text-slate-300">/</span>
+        <span className="font-semibold text-green-700">Scheduled Interviews</span>
+      </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[19px] font-bold text-slate-900 tracking-tight">Scheduled Interviews</h1>
+          <p className="text-[12px] text-slate-500 mt-0.5">Panel status, feedback, and final decisions — everything inline, nothing buried in modals.</p>
         </div>
-        {/* Schedule New Interview — opens the schedule modal directly on this page.
-            No more navigating away to Find Candidates. */}
         <button
-          onClick={handleOpenScheduleModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm shrink-0"
+          onClick={() => { setDrawerOpen(true); }}
+          className="inline-flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] bg-green-600 text-white text-[11.5px] font-bold hover:bg-green-700 transition shadow-sm shrink-0"
         >
-          <FiCalendar className="w-4 h-4" />
-          Schedule New Interview
+          <FiCalendar className="w-3.5 h-3.5" /> Schedule Interview
         </button>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { label: 'Total', value: stats.total, icon: FiCalendar, color: 'text-slate-700', bg: 'bg-slate-50' },
-          { label: 'Scheduled', value: stats.scheduled, icon: FiClock, color: 'text-amber-700', bg: 'bg-amber-50' },
-          { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-          { label: 'Cancelled', value: stats.cancelled, icon: FiXCircle, color: 'text-red-700', bg: 'bg-red-50' },
-          { label: 'Feedbacks', value: stats.feedbackSubmitted, icon: FiStar, color: 'text-teal-700', bg: 'bg-teal-50' },
-        ].map((s) => (
-          <div key={s.label} className={`thb-card p-4 ${s.bg}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-thb-text-secondary uppercase tracking-wide">{s.label}</p>
-                <p className="text-2xl font-bold mt-1">{s.value}</p>
-              </div>
-              <s.icon className={`w-6 h-6 ${s.color}`} />
+      {/* KPI cards double as filters */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {kpiCards.map(k => (
+          <button
+            key={k.key}
+            onClick={() => setKpiFilter(k.key)}
+            title={`Filter by ${k.label.toLowerCase()}`}
+            className={`rounded-xl border bg-white shadow-sm p-3 flex items-center justify-between gap-2 text-left transition
+              ${kpiFilter === k.key ? 'border-green-600 bg-green-50 ring-1 ring-green-600' : 'border-slate-200 hover:border-green-300'}`}
+          >
+            <div className="min-w-0">
+              <p className={`text-[9.5px] font-extrabold uppercase tracking-[0.5px] ${kpiFilter === k.key ? 'text-green-700' : 'text-slate-400'}`}>{k.label}</p>
+              <p className="text-[20px] font-extrabold leading-none mt-1.5 text-slate-800">{k.value}</p>
             </div>
-          </div>
+            <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 ${k.ring}`}>
+              <k.icon className={`w-[15px] h-[15px] ${k.tone}`} />
+            </span>
+          </button>
         ))}
       </div>
 
-      {/* Filter row */}
-      <div className="thb-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-center gap-2 text-thb-text-secondary text-sm">
-          <FiFilter className="w-4 h-4" /> Filters:
-        </div>
-        <div className="flex-1">
+      {/* compact filter bar */}
+      <div className={`${CARD_CLS} p-2.5 flex flex-wrap items-center gap-2`}>
+        <span className="hidden text-[9px] font-extrabold uppercase tracking-[0.8px] text-slate-400 sm:inline">Filter</span>
+        <select value={jobFilter} onChange={e => setJobFilter(e.target.value)} className={FILTER_CLS} style={{ maxWidth: 170 }}>
+          <option value="">All Jobs</option>
+          {jobOptions.map(j => <option key={j} value={j}>{j}</option>)}
+        </select>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={FILTER_CLS}>
+          <option value="">All Types</option>
+          {typeOptions.map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
+        </select>
+        <select value={roundFilter} onChange={e => setRoundFilter(e.target.value)} className={FILTER_CLS}>
+          <option value="">All Rounds</option>
+          {roundOptions.map(r => <option key={r} value={r}>Round {r}</option>)}
+        </select>
+        <select value={panelFilter} onChange={e => setPanelFilter(e.target.value)} className={FILTER_CLS}>
+          <option value="">Any Panel Reply</option>
+          <option value="awaiting">Awaiting someone</option>
+          <option value="all_accepted">All accepted</option>
+          <option value="declined">Someone declined</option>
+        </select>
+        <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className={FILTER_CLS}>
+          <option value="">All Dates</option>
+          <option value="today">Today onwards</option>
+          <option value="this_week">This week</option>
+          <option value="next_week">Next week</option>
+          <option value="past">Past</option>
+        </select>
+        <div className="flex-1 min-w-[180px] relative">
+          <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by candidate name, email, or job title…"
-            className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
+            value={q} onChange={e => setQ(e.target.value)}
+            placeholder="Search candidate, email, panel member, or job…"
+            className="w-full h-[30px] rounded-[7px] border border-slate-300 bg-white pl-7 pr-2 text-[11.5px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15"
           />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-thb-border text-sm bg-white"
-        >
-          <option value="all">All Statuses</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="rescheduled">Rescheduled</option>
+        <select value={sort} onChange={e => setSort(e.target.value)} className={FILTER_CLS}>
+          <option value="soonest">Soonest first</option>
+          <option value="newest">Newest first</option>
+          <option value="feedback_due">Feedback due</option>
         </select>
+        <button onClick={clearFilters} disabled={!hasActiveFilters} className="inline-flex items-center gap-1 h-[30px] px-2.5 rounded-[7px] border border-slate-300 bg-white text-slate-600 text-[11px] font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+          <FiX className="w-3 h-3" /> Clear
+        </button>
       </div>
 
-      {/* Interviews list */}
-      {loading ? (
-        <div className="thb-card p-12 text-center text-sm text-thb-text-muted">Loading interviews…</div>
-      ) : filtered.length === 0 ? (
-        <div className="thb-card p-12 text-center">
-          <FiCalendar className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
-          <p className="text-sm text-thb-text-secondary font-medium">No interviews found</p>
-          <p className="text-xs text-thb-text-muted mt-1">
-            {interviews.length === 0
-              ? 'No interviews have been scheduled yet. Schedule one from the Recruitment page.'
-              : 'Try adjusting your filters.'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((interview) => {
-            const panel = interview.panelMembers || [];
-            const acceptedCount = panel.filter((p) => p.confirmationStatus === 'accepted').length;
-            const declinedCount = panel.filter((p) => p.confirmationStatus === 'declined').length;
-            const pendingCount = panel.filter((p) => p.confirmationStatus === 'pending').length;
-            const feedbackCount = panel.filter((p) => p.hasFeedback).length;
-            return (
-              <div key={interview.id} className={`thb-card p-5 border-l-4 ${
-                interview.status === 'scheduled' ? 'border-l-amber-400' :
-                interview.status === 'completed' ? 'border-l-emerald-500' :
-                interview.status === 'cancelled' ? 'border-l-red-400' :
-                'border-l-blue-400'
-              }`}>
-                {/* Header row */}
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className={`thb-badge ${statusBadges[interview.status] || 'thb-badge-info'}`}>
-                        {interview.status}
-                      </span>
-                      <span className="thb-badge thb-badge-primary">
-                        {interviewDisplayLabel(interview.type, interview.round)}
-                      </span>
-                      {Number(interview.planTotal || 0) > 0 && (
-                        <span className="thb-badge bg-slate-50 text-slate-700 border border-slate-200">
-                          Round {interview.round || 1} of {interview.planTotal} · {Math.max(Number(interview.planTotal) - Number(interview.round || 1), 0)} remaining
-                        </span>
-                      )}
-                      {interview.hrDecision && (
-                        <span className="thb-badge bg-indigo-50 text-indigo-700">
-                          Decision: {decisionLabels[interview.hrDecision] || interview.hrDecision}
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-2 text-thb-text-secondary">
-                        <FiUser className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Candidate:</strong> {interview.candidateName || 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-thb-text-secondary">
-                        <FiBriefcase className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Position:</strong> {interview.jobTitle || 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-thb-text-secondary">
-                        <FiCalendar className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Date:</strong> {interview.date ? new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-thb-text-secondary">
-                        <FiClock className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Time:</strong> {interview.time || 'TBD'} ({interview.duration || 60} min)</span>
-                      </div>
-                      {interview.location && (
-                        <div className="flex items-center gap-2 text-thb-text-secondary">
-                          <FiMapPin className="w-4 h-4 flex-shrink-0" />
-                          <span><strong>Location:</strong> {interview.location}</span>
+      {/* table */}
+      <div className={`${CARD_CLS} flex-1 min-h-0 flex flex-col overflow-hidden`}>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <table className="w-full border-collapse min-w-[980px]">
+            <thead>
+              <tr>
+                <th style={{ width: 26 }}></th>
+                {['Candidate', 'Position', 'Interview', 'When', 'Panel', 'Feedback', 'Status'].map(h => (
+                  <th key={h} className="sticky top-0 z-[2] bg-slate-50 text-left text-[9.5px] font-extrabold uppercase tracking-[0.6px] text-slate-500 px-2.5 py-2 border-b border-slate-200">{h}</th>
+                ))}
+                <th className="sticky top-0 z-[2] bg-slate-50 text-right text-[9.5px] font-extrabold uppercase tracking-[0.6px] text-slate-500 px-2.5 py-2 border-b border-slate-200">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={9} className="py-14 text-center text-[12px] text-slate-400">Loading interviews…</td></tr>
+              ) : sorted.length === 0 ? (
+                <tr><td colSpan={9} className="py-14 text-center">
+                  <FiCalendar className="w-9 h-9 text-slate-300 mx-auto mb-2" />
+                  <p className="text-[12.5px] font-bold text-slate-600">No interviews match these filters</p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {interviews.length === 0 ? 'No interviews scheduled yet — use Schedule Interview to create the first one.' : 'Try widening the search or clearing a filter or two.'}
+                  </p>
+                </td></tr>
+              ) : sorted.map(interview => {
+                const pm = panel(interview);
+                const accepted = pm.filter(p => p.confirmationStatus === 'accepted').length;
+                const declined = pm.filter(p => p.confirmationStatus === 'declined').length;
+                const fbCount = pm.filter(p => p.hasFeedback).length;
+                const st = STATUS_META[interview.status] || { label: interview.status, badge: 'bg-slate-100 text-slate-600 border-slate-200', border: 'border-l-slate-300' };
+                const wchip = whenChip(interview.date, interview.time);
+                const isOpen = expandedId === interview.id;
+                const canComplete = interview.status === 'scheduled';
+                return (
+                  <Fragment key={interview.id}>
+                    <tr
+                      onClick={() => toggleExpand(interview)}
+                      className={`cursor-pointer transition-colors border-l-4 ${st.border} ${isOpen ? 'bg-green-50' : 'hover:bg-green-50/60'} ${interview.status === 'cancelled' ? 'opacity-60' : ''}`}
+                    >
+                      <td className="px-1 py-2 align-middle">
+                        <FiChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : '-rotate-90'}`} />
+                      </td>
+                      {/* candidate */}
+                      <td className="px-2.5 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-7 h-7 rounded-full bg-gradient-to-br ${avatarColor(interview.candidateName || interview.id)} text-white text-[10px] font-extrabold flex items-center justify-center shrink-0`}>
+                            {initials(interview.candidateName)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[11.5px] font-bold text-slate-800 truncate">{interview.candidateName || 'N/A'}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{interview.candidateEmail || ''}</p>
+                          </div>
                         </div>
-                      )}
-                      {interview.meetingUrl && (
-                        <div className="flex items-center gap-2 text-thb-text-secondary">
-                          <FiVideo className="w-4 h-4 flex-shrink-0" />
-                          <a href={interview.meetingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
-                            {interview.meetingUrl}
+                      </td>
+                      {/* position */}
+                      <td className="px-2.5 py-2">
+                        <p className="text-[11.5px] font-semibold text-slate-700 truncate">{interview.jobTitle || 'N/A'}</p>
+                      </td>
+                      {/* interview */}
+                      <td className="px-2.5 py-2">
+                        <span className="inline-flex items-center rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">
+                          {typeLabel(interview.type)}{interview.round ? ` · R${interview.round}` : ''}
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                          {interview.mode === 'onsite' ? <FiMapPin className="w-2.5 h-2.5" /> : interview.mode === 'phone' ? <FiUser className="w-2.5 h-2.5" /> : <FiVideo className="w-2.5 h-2.5" />}
+                          {MODE_LABELS[interview.mode || 'online']}{interview.location && interview.mode === 'onsite' ? ` · ${interview.location}` : ''}
+                        </p>
+                      </td>
+                      {/* when */}
+                      <td className="px-2.5 py-2">
+                        <p className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">{fmtWeekday(interview.date)}{interview.time ? ` · ${interview.time}` : ''}</p>
+                        <p className="text-[10px] text-slate-400">{interview.duration || 60} min</p>
+                        {wchip && interview.status === 'scheduled' && (
+                          <span className={`inline-flex items-center rounded border px-1 py-px text-[9.5px] font-extrabold mt-0.5 ${wchip.cls}`}>{wchip.label}</span>
+                        )}
+                      </td>
+                      {/* panel */}
+                      <td className="px-2.5 py-2">
+                        {pm.length > 0 ? (
+                          <>
+                            <div className="flex items-center">
+                              {pm.slice(0, 4).map(p => (
+                                <span
+                                  key={p.id}
+                                  title={`${p.name} — ${CONFIRM_META[p.confirmationStatus]?.label || p.confirmationStatus}`}
+                                  className={`w-[22px] h-[22px] rounded-full -ml-1.5 first:ml-0 border-2 bg-gradient-to-br ${avatarColor(p.name)} text-white text-[8.5px] font-extrabold flex items-center justify-center
+                                    ${p.confirmationStatus === 'accepted' ? 'ring-1 ring-green-500 border-white' : p.confirmationStatus === 'declined' ? 'ring-1 ring-red-400 border-white opacity-70' : 'ring-1 ring-amber-300 border-white'}`}
+                                >
+                                  {initials(p.name)}
+                                </span>
+                              ))}
+                              {pm.length > 4 && <span className="w-[22px] h-[22px] rounded-full -ml-1.5 border-2 border-white bg-slate-100 text-slate-500 text-[8.5px] font-extrabold flex items-center justify-center">+{pm.length - 4}</span>}
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">{accepted}/{pm.length} accepted{declined > 0 ? ` · ${declined} declined` : ''}</p>
+                          </>
+                        ) : <span className="text-[10.5px] text-slate-300">—</span>}
+                      </td>
+                      {/* feedback */}
+                      <td className="px-2.5 py-2">
+                        {interview.status === 'cancelled' ? <span className="text-[10.5px] text-slate-300">—</span> : (
+                          <>
+                            <p className={`text-[10.5px] font-bold ${fbCount === pm.length && pm.length > 0 ? 'text-green-700' : 'text-slate-600'}`}>{fbCount}/{pm.length}</p>
+                            <div className="w-[52px] h-[5px] rounded-full bg-slate-200 overflow-hidden mt-1">
+                              <span className="block h-full bg-green-500 rounded-full" style={{ width: `${pm.length ? (fbCount / pm.length) * 100 : 0}%` }} />
+                            </div>
+                          </>
+                        )}
+                      </td>
+                      {/* status */}
+                      <td className="px-2.5 py-2">
+                        <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${st.badge}`}>{st.label}</span>
+                        {interview.hrDecision && (
+                          <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 mt-1">
+                            {DECISION_LABELS[interview.hrDecision] || interview.hrDecision}
+                          </span>
+                        )}
+                        {interview.status === 'completed' && !interview.hrDecision && (
+                          <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 mt-1">Decision pending</span>
+                        )}
+                      </td>
+                      {/* actions */}
+                      <td className="px-2.5 py-2">
+                        <div className="flex gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
+                          {canComplete && (
+                            <button
+                              onClick={() => handleMarkCompleted(interview.id)}
+                              disabled={actionLoading === interview.id + '-complete'}
+                              title="Mark completed"
+                              className="w-[26px] h-[26px] rounded-[7px] border border-slate-300 bg-white flex items-center justify-center text-slate-500 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition disabled:opacity-40"
+                            >
+                              <FiCheckCircle className="w-3 h-3" />
+                            </button>
+                          )}
+                          <a
+                            href={`/recruitment?tab=candidates`}
+                            title="Open Find Candidates"
+                            className="w-[26px] h-[26px] rounded-[7px] border border-slate-300 bg-white flex items-center justify-center text-slate-500 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition"
+                          >
+                            <FiExternalLink className="w-3 h-3" />
                           </a>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel summary */}
-                <div className="mt-3 pt-3 border-t border-thb-border">
-                  <div className="flex items-center gap-3 text-xs flex-wrap mb-3">
-                    <span className="font-medium text-thb-text-secondary">Panel:</span>
-                    <span className="text-emerald-700">{acceptedCount} accepted</span>
-                    <span className="text-amber-700">{pendingCount} pending</span>
-                    <span className="text-red-700">{declinedCount} declined</span>
-                    <span className="text-teal-700">{feedbackCount} feedback submitted</span>
-                    <span className="text-thb-text-muted">/ {panel.length} total</span>
-                  </div>
-
-                  {/* Panel member chips */}
-                  {panel.length > 0 && (
-                    <div className="space-y-1.5">
-                      {panel.map((pm) => (
-                        <div key={pm.id} className="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-3 py-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-thb-text-primary truncate">{pm.name}</p>
-                            <p className="text-xs text-thb-text-muted truncate">{pm.designation} · {pm.email}</p>
-                          </div>
-                          <span className={`thb-badge ${confirmBadges[pm.confirmationStatus] || 'thb-badge-info'}`}>
-                            {confirmLabels[pm.confirmationStatus] || pm.confirmationStatus}
-                          </span>
-                          {pm.hasFeedback && (
-                            <span className={`thb-badge ${recommendationColors[pm.feedbackRecommendation || ''] || 'bg-slate-100 text-slate-700'}`}>
-                              <FiStar className="w-3 h-3 inline mr-1" />
-                              {pm.feedbackRating ? `${pm.feedbackRating}/5 · ` : ''}
-                              {recommendationLabels[pm.feedbackRecommendation || ''] || 'Feedback'}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions row */}
-                <div className="mt-4 pt-3 border-t border-thb-border flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => handleOpenDetails(interview)}
-                    className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 flex items-center gap-1.5"
-                  >
-                    <FiEye className="w-3.5 h-3.5" /> View Feedback
-                  </button>
-                  {interview.status === 'scheduled' && (
-                    <>
-                      <button
-                        onClick={() => handleMarkCompleted(interview.id, false)}
-                        disabled={actionLoading === interview.id + '-complete'}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
-                      >
-                        <FiCheckCircle className="w-3.5 h-3.5" />
-                        {actionLoading === interview.id + '-complete' ? 'Marking…' : 'Mark Completed'}
-                      </button>
-                      <button
-                        onClick={() => handleMarkCompleted(interview.id, true)}
-                        disabled={actionLoading === interview.id + '-complete'}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium hover:bg-emerald-100 disabled:opacity-50 flex items-center gap-1.5"
-                      >
-                        <FiCheck className="w-3.5 h-3.5" /> Mark Completed + Attendance
-                      </button>
-                    </>
-                  )}
-                  {interview.status === 'completed' && !interview.hrDecision && (
-                    <span className="text-xs text-thb-text-muted px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                      Change the candidate&apos;s hiring stage on the Recruitment page →
-                    </span>
-                  )}
-                  {interview.hrDecision && (
-                    <span className="text-xs text-thb-text-muted ml-auto">
-                      HR decision: <strong>{decisionLabels[interview.hrDecision] || interview.hrDecision}</strong>
-                      {interview.hrDecisionReason && ` — ${interview.hrDecisionReason}`}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ─── View Feedback modal ─── */}
-      {selectedInterview && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-thb-border sticky top-0 bg-white z-10">
-              <div>
-                <h2 className="text-lg font-bold text-thb-text-primary">Interview Feedback</h2>
-                <p className="text-sm text-thb-text-secondary mt-0.5">
-                  {selectedInterview.candidateName} · {selectedInterview.jobTitle}
-                </p>
-              </div>
-              <button
-                onClick={() => { setSelectedInterview(null); setFeedbackList([]); }}
-                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {loadingFeedback ? (
-                <div className="py-8 text-center text-sm text-thb-text-muted">Loading feedback…</div>
-              ) : feedbackList.length === 0 ? (
-                <div className="py-8 text-center">
-                  <FiAlertCircle className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
-                  <p className="text-sm text-thb-text-secondary">No feedback submitted yet.</p>
-                  <p className="text-xs text-thb-text-muted mt-1">
-                    {selectedInterview.status === 'completed'
-                      ? 'The interview is marked completed but no panel member has submitted feedback yet.'
-                      : 'Mark the interview as completed to remind panel members to submit their feedback.'}
-                  </p>
-                </div>
-              ) : (
-                feedbackList.map((fb) => (
-                  <div key={fb.id} className="border border-thb-border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div>
-                        <p className="font-semibold text-thb-text-primary">{fb.memberName || fb.memberEmail || 'Panel Member'}</p>
-                        <p className="text-xs text-thb-text-muted">
-                          Submitted {new Date(fb.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-1 text-amber-600">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <FiStar key={i} className={`w-4 h-4 ${i < (fb.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
-                          ))}
-                          <span className="text-sm font-semibold ml-1">{fb.rating}/5</span>
-                        </span>
-                        <span className={`thb-badge ${recommendationColors[fb.recommendation] || 'bg-slate-100 text-slate-700'}`}>
-                          {recommendationLabels[fb.recommendation] || fb.recommendation}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      {fb.technicalSkills && <div><strong>Technical Skills:</strong> {fb.technicalSkills}</div>}
-                      {fb.communication && <div><strong>Communication:</strong> {fb.communication}</div>}
-                      {fb.experience && <div><strong>Experience:</strong> {fb.experience}</div>}
-                      {fb.problemSolving && <div><strong>Problem Solving:</strong> {fb.problemSolving}</div>}
-                      {fb.roleSuitability && <div><strong>Role Suitability:</strong> {fb.roleSuitability}</div>}
-                      {fb.culturalFit && <div><strong>Cultural Fit:</strong> {fb.culturalFit}</div>}
-                    </div>
-                    {fb.strengths && (
-                      <div className="bg-emerald-50 rounded-lg p-3 text-sm">
-                        <p className="text-xs font-semibold text-emerald-800 mb-1">Strengths</p>
-                        <p className="text-thb-text-secondary">{fb.strengths}</p>
-                      </div>
-                    )}
-                    {fb.concerns && (
-                      <div className="bg-red-50 rounded-lg p-3 text-sm">
-                        <p className="text-xs font-semibold text-red-800 mb-1">Concerns</p>
-                        <p className="text-thb-text-secondary">{fb.concerns}</p>
-                      </div>
-                    )}
-                    {fb.comments && (
-                      <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                        <p className="text-xs font-semibold text-thb-text-muted mb-1">Comments</p>
-                        <p className="text-thb-text-secondary">{fb.comments}</p>
-                      </div>
-                    )}
-                    {/* C-22: dynamic custom fields */}
-                    {fb.customFields && fb.customFields.length > 0 && (
-                      <div className="bg-indigo-50 rounded-lg p-3 text-sm">
-                        <p className="text-xs font-semibold text-indigo-800 mb-2">Custom Evaluation Fields</p>
-                        <div className="space-y-1.5">
-                          {fb.customFields.map((cf, i) => (
-                            <div key={i} className="flex gap-2">
-                              <span className="text-xs font-medium text-indigo-700 min-w-[120px]">{cf.name}:</span>
-                              <span className="text-xs text-thb-text-secondary flex-1">{cf.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">
-              <button
-                onClick={() => { setSelectedInterview(null); setFeedbackList([]); }}
-                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50"
-              >
-                Close
-              </button>
-              {selectedInterview.status === 'completed' && !selectedInterview.hrDecision && (
-                <span className="text-xs text-thb-text-muted px-3 py-2.5">
-                  Change hiring stage on Recruitment page →
-                </span>
-              )}
-              {selectedInterview.status === 'scheduled' && (
-                <button
-                  onClick={() => handleMarkCompleted(selectedInterview.id, false)}
-                  disabled={actionLoading === selectedInterview.id + '-complete'}
-                  className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  {actionLoading === selectedInterview.id + '-complete' ? 'Marking…' : 'Mark Completed'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── HR Decision modal ─── */}
-      {decisionModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-thb-border">
-              <h2 className="text-lg font-bold text-thb-text-primary">HR Final Decision</h2>
-              <button
-                onClick={() => setDecisionModal(null)}
-                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Decision *</label>
-                <select
-                  value={decisionModal.decision}
-                  onChange={(e) => setDecisionModal({ ...decisionModal, decision: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
-                >
-                  <option value="">Select decision…</option>
-                  <option value="next_round">Next Round — schedule another interview round</option>
-                  <option value="schedule_another">Schedule Another — reschedule to a new slot</option>
-                  <option value="hold">Hold — keep in interview status pending more info</option>
-                  <option value="reject">Reject — reject the candidate, send rejection email</option>
-                  <option value="offer">Offer — move to offered status, create draft Offer</option>
-                </select>
-                <p className="text-xs text-thb-text-muted mt-1">
-                  Note: to shortlist a candidate (overall hiring stage), use the <strong>Shortlist</strong> option
-                  in the Candidate Status dropdown on the Recruitment page.
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                  Reason (optional — shown in audit log; included in reject/offer email body if present)
-                </label>
-                <textarea
-                  value={decisionModal.reason}
-                  onChange={(e) => setDecisionModal({ ...decisionModal, reason: e.target.value })}
-                  rows={2}
-                  placeholder="e.g. Strong technical skills, good cultural fit."
-                  className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
-                />
-              </div>
-
-              {/* ─── Next Round / Schedule Another: schedule sub-form ─── */}
-              {(decisionModal.decision === 'next_round' || decisionModal.decision === 'schedule_another') && (
-                <div className="border border-thb-border rounded-lg p-3 space-y-3 bg-slate-50">
-                  <p className="text-xs font-semibold text-thb-text-secondary">
-                    {decisionModal.decision === 'next_round'
-                      ? '📅 New round schedule (a new Interview row will be created)'
-                      : '🔄 New schedule (the same interview will be rescheduled)'}
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
-                      <input
-                        type="date"
-                        value={decisionModal.nextDate}
-                        onChange={(e) => setDecisionModal({ ...decisionModal, nextDate: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time</label>
-                      <input
-                        type="time"
-                        value={decisionModal.nextTime}
-                        onChange={(e) => setDecisionModal({ ...decisionModal, nextTime: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration (min)</label>
-                      <input
-                        type="number"
-                        value={decisionModal.nextDuration}
-                        onChange={(e) => setDecisionModal({ ...decisionModal, nextDuration: Number(e.target.value) || 60 })}
-                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type</label>
-                      <select
-                        value={decisionModal.nextType}
-                        onChange={(e) => setDecisionModal({ ...decisionModal, nextType: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm bg-white"
-                      >
-                        <option value="technical">Technical</option>
-                        <option value="hr">HR</option>
-                        <option value="ai">AI</option>
-                        <option value="offline_panel">Panel (Offline)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
-                      <input
-                        value={decisionModal.nextLocation}
-                        onChange={(e) => setDecisionModal({ ...decisionModal, nextLocation: e.target.value })}
-                        placeholder="e.g. Conference Room A"
-                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Meeting Link</label>
-                      <input
-                        value={decisionModal.nextMeetingUrl}
-                        onChange={(e) => setDecisionModal({ ...decisionModal, nextMeetingUrl: e.target.value })}
-                        placeholder="https://meet.google.com/..."
-                        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                      Panel Members (optional — these users will get an interview-scheduled notification)
-                    </label>
-                    <div className="space-y-1 max-h-32 overflow-y-auto border border-thb-border rounded-lg p-2 bg-white">
-                      {panelCandidates.length === 0 ? (
-                        <p className="text-xs text-thb-text-muted py-2 text-center">Loading tenant users…</p>
-                      ) : (
-                        panelCandidates.map((cand) => {
-                          const isSelected = decisionModal.nextPanelMemberIds.includes(cand.id);
-                          return (
-                            <label
-                              key={cand.id}
-                              className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${isSelected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const next = e.target.checked
-                                    ? [...decisionModal.nextPanelMemberIds, cand.id]
-                                    : decisionModal.nextPanelMemberIds.filter((uid) => uid !== cand.id);
-                                  setDecisionModal({ ...decisionModal, nextPanelMemberIds: next });
-                                }}
-                                className="w-4 h-4 rounded text-teal-600"
-                              />
-                              <span className="flex-1 min-w-0">
-                                <span className="block text-sm text-thb-text-primary truncate">{cand.name}</span>
-                                <span className="block text-xs text-thb-text-muted truncate">{cand.designation} · {cand.email}</span>
-                              </span>
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ─── Hold: send-email toggle ─── */}
-              {decisionModal.decision === 'hold' && (
-                <div className="border border-thb-border rounded-lg p-3 bg-amber-50">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={decisionModal.sendHoldEmail}
-                      onChange={(e) => setDecisionModal({ ...decisionModal, sendHoldEmail: e.target.checked })}
-                      className="w-4 h-4 rounded"
-                    />
-                    <span>Send the candidate a &ldquo;decision pending / on hold&rdquo; email (default: off)</span>
-                  </label>
-                  <p className="text-xs text-thb-text-muted mt-1">
-                    An HR follow-up reminder is always created regardless of this setting.
-                  </p>
-                </div>
-              )}
-
-              {(decisionModal.decision === 'reject' || decisionModal.decision === 'offer') && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-                  <strong>Note:</strong> This decision will send an automated email to the candidate
-                  ({decisionModal.decision === 'reject'
-                    ? 'notifying them of rejection (the email body contains the reason only if you entered one)'
-                    : 'notifying them of selection — a real draft Offer is also created and linked to this application; HR advances it through approval → sent; the secure offer link is sent later by the offer-sent flow'}).
-                </div>
-              )}
-            </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border sticky bottom-0 bg-white">
-              <button
-                onClick={() => setDecisionModal(null)}
-                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleHrDecision}
-                disabled={!decisionModal.decision || actionLoading === decisionModal.interviewId + '-decision'}
-                className="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {actionLoading === decisionModal.interviewId + '-decision' ? 'Recording…' : 'Record Decision'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Attendance modal ─── */}
-      {attendanceModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-thb-border">
-              <h2 className="text-lg font-bold text-thb-text-primary">Record Attendance & Mark Completed</h2>
-              <button
-                onClick={() => setAttendanceModal(null)}
-                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Attendance</label>
-                <select
-                  value={attendanceModal.candidateAttendance}
-                  onChange={(e) => setAttendanceModal({ ...attendanceModal, candidateAttendance: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
-                >
-                  <option value="attended">Attended</option>
-                  <option value="late">Late</option>
-                  <option value="no_show">No Show</option>
-                  <option value="reschedule_required">Reschedule Required</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Panel Member Attendance</label>
-                <div className="space-y-2">
-                  {Object.entries(attendanceModal.panelAttendance).length === 0 ? (
-                    <p className="text-xs text-thb-text-muted py-3">No accepted panel members to record attendance for.</p>
-                  ) : (
-                    Object.entries(attendanceModal.panelAttendance).map(([userId, attendance]) => {
-                      const interview = interviews.find((i) => i.id === attendanceModal.interviewId);
-                      const pm = interview?.panelMembers?.find((p) => p.userId === userId);
+                      </td>
+                    </tr>
+                    {isOpen && (() => {
+                      const pm = panel(interview);
+                      const feedbackList = feedbackByInterview[interview.id] || [];
+                      const planTotal = Number(interview.planTotal || 0);
+                      const curRound = Number(interview.round || 1);
+                      const lead = pm.find(p => p.userId === interview.panelLeadId);
+                      const evalAreas = parseEvalAreas(interview.evaluationAreas);
+                      const myDraft = decisionDraft?.interviewId === interview.id ? decisionDraft : null;
+                      const myAttendance = attendanceDraft?.interviewId === interview.id ? attendanceDraft : null;
                       return (
-                        <div key={userId} className="flex items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-thb-text-primary truncate">{pm?.name || userId}</p>
-                            <p className="text-xs text-thb-text-muted truncate">{pm?.designation}</p>
-                          </div>
-                          <select
-                            value={attendance}
-                            onChange={(e) =>
-                              setAttendanceModal({
-                                ...attendanceModal,
-                                panelAttendance: { ...attendanceModal.panelAttendance, [userId]: e.target.value },
-                              })
-                            }
-                            className="px-2 py-1.5 rounded-lg border border-thb-border text-xs bg-white"
-                          >
-                            <option value="present">Present</option>
-                            <option value="late">Late</option>
-                            <option value="absent">Absent</option>
-                            <option value="replacement_joined">Replacement Joined</option>
-                          </select>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border">
-              <button
-                onClick={() => setAttendanceModal(null)}
-                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitAttendance}
-                disabled={actionLoading === attendanceModal.interviewId + '-complete'}
-                className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {actionLoading === attendanceModal.interviewId + '-complete' ? 'Saving…' : 'Save & Mark Completed'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ Schedule Interview Modal ═══ */}
-      {/* Opens when HR clicks "Schedule New Interview" — lets them pick a
-          candidate from a dropdown, fill in interview details, and select
-          panel members. Submits to POST /api/interviews. */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-thb-border sticky top-0 bg-white z-10">
-              <h2 className="text-lg font-bold text-thb-text-primary flex items-center gap-2">
-                <FiCalendar className="w-5 h-5 text-teal-600" />
-                Schedule New Interview
-              </h2>
-              <button
-                onClick={() => setShowScheduleModal(false)}
-                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 space-y-4">
-              {/* Step 1: Select Candidate */}
-              <div>
-                <label className="block text-xs font-semibold text-thb-text-secondary mb-1.5 uppercase tracking-wide">
-                  <FiUser className="w-3 h-3 inline mr-1" />
-                  Select Candidate *
-                </label>
-                {/* Selected candidate display or search dropdown */}
-                {selectedAppId ? (
-                  <div className="flex items-center justify-between p-3 rounded-lg border border-teal-300 bg-teal-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
-                        {(applicants.find(a => a.id === selectedAppId)?.candidateName || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-thb-text-primary">
-                          {applicants.find(a => a.id === selectedAppId)?.candidateName || 'Unknown'}
-                        </p>
-                        <p className="text-xs text-thb-text-secondary">
-                          {applicants.find(a => a.id === selectedAppId)?.candidateEmail}
-                        </p>
-                        <p className="text-xs text-thb-text-muted">
-                          Applied for: {applicants.find(a => a.id === selectedAppId)?.jobPosting?.title || '—'}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { setSelectedAppId(''); setSelectedAppDept(''); setSelectedPanelIds([]); setPanelMembers([]); }}
-                      className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50"
-                      title="Change candidate"
-                    >
-                      <FiX className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="relative">
-                      <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-                      <input
-                        type="text"
-                        value={applicantSearch}
-                        onChange={(e) => { setApplicantSearch(e.target.value); setShowApplicantDropdown(true); }}
-                        onFocus={() => setShowApplicantDropdown(true)}
-                        placeholder="Search by candidate name or email..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
-                      />
-                      <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-                    </div>
-                    {showApplicantDropdown && (
-                      <div className="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-thb-border rounded-lg shadow-lg">
-                        {applicants.length === 0 ? (
-                          <div className="p-4 text-center text-sm text-thb-text-muted">Loading candidates...</div>
-                        ) : (
-                          (() => {
-                            const filtered = applicants.filter(a => {
-                              if (!applicantSearch) return true;
-                              const q = applicantSearch.toLowerCase();
-                              return (a.candidateName || '').toLowerCase().includes(q) ||
-                                     (a.candidateEmail || '').toLowerCase().includes(q) ||
-                                     (a.jobPosting?.title || '').toLowerCase().includes(q);
-                            });
-                            if (filtered.length === 0) {
-                              return <div className="p-4 text-center text-sm text-thb-text-muted">No candidates match your search</div>;
-                            }
-                            return filtered.slice(0, 50).map(app => (
-                              <button
-                                key={app.id}
-                                onClick={() => handleSelectApplicant(app.id)}
-                                className="w-full text-left p-3 hover:bg-teal-50 border-b border-thb-border/50 last:border-0 transition-colors"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                                    {(app.candidateName || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        <tr>
+                          <td colSpan={9} className="p-0 border-b border-slate-200">
+                            <div className="grid gap-3 p-3 lg:grid-cols-3" style={{ background: 'linear-gradient(180deg,#f0fdf4,#ffffff)' }}>
+                              {/* ── card 1: interview & plan ── */}
+                              <div className={`${CARD_CLS} p-3`}>
+                                <h4 className={SECTION_TITLE}><FiCalendar className="w-3 h-3 text-green-600" /> Interview &amp; Plan</h4>
+                                {planTotal > 0 && (
+                                  <div className="flex items-center gap-2 mb-2.5">
+                                    <span className="text-[10px] font-extrabold text-green-700">R{curRound} of {planTotal}</span>
+                                    <div className="flex-1 h-[6px] rounded-full bg-slate-200 overflow-hidden">
+                                      <span className="block h-full bg-green-500 rounded-full" style={{ width: `${(curRound / planTotal) * 100}%` }} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400">{Math.max(planTotal - curRound, 0)} left</span>
                                   </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-thb-text-primary truncate">{app.candidateName || 'Unknown'}</p>
-                                    <p className="text-xs text-thb-text-muted truncate">{app.candidateEmail}</p>
-                                    <p className="text-xs text-thb-text-secondary truncate">
-                                      {app.jobPosting?.title || '—'} · <span className="capitalize">{app.status}</span>
+                                )}
+                                <div className="space-y-1.5 text-[11px]">
+                                  <p className="text-slate-600"><b className="text-slate-800 inline-block min-w-[68px]">Round</b> {typeLabel(interview.type)} — Round {curRound}</p>
+                                  <p className="text-slate-600"><b className="text-slate-800 inline-block min-w-[68px]">Schedule</b> {fmtDate(interview.date)}{interview.time ? ` · ${interview.time}` : ''} ({interview.duration || 60} min)</p>
+                                  <p className="text-slate-600 flex items-start gap-1">
+                                    <b className="text-slate-800 inline-block min-w-[68px] shrink-0">Mode</b>
+                                    <span className="min-w-0 break-words">
+                                      {MODE_LABELS[interview.mode || 'online'] || interview.mode}
+                                      {interview.location ? ` · ${interview.location}` : ''}
+                                      {interview.meetingUrl && (
+                                        <>
+                                          {' · '}
+                                          <a href={interview.meetingUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-600 font-semibold hover:underline break-all">{interview.meetingUrl}</a>
+                                        </>
+                                      )}
+                                    </span>
+                                  </p>
+                                  {lead && <p className="text-slate-600"><b className="text-slate-800 inline-block min-w-[68px]">Panel lead</b> {lead.name}</p>}
+                                  {(interview.confirmationDeadline || interview.feedbackDeadline) && (
+                                    <p className="text-slate-600"><b className="text-slate-800 inline-block min-w-[68px]">Deadlines</b>
+                                      {interview.confirmationDeadline && <>confirm by {fmtDate(interview.confirmationDeadline)} </>}
+                                      {interview.feedbackDeadline && <>· feedback by {fmtDate(interview.feedbackDeadline)}</>}
+                                    </p>
+                                  )}
+                                  {evalAreas.length > 0 && (
+                                    <div>
+                                      <p className="text-slate-800 font-bold text-[10px] uppercase tracking-wide mt-1 mb-1">Evaluate</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {evalAreas.map(a => <span key={a} className="rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">{a}</span>)}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {interview.instructions && (
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10.5px] text-amber-800 leading-relaxed mt-1.5">
+                                      <b>HR note:</b> {interview.instructions}
+                                    </div>
+                                  )}
+                                  {interview.cancelReason && (
+                                    <div className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-[10.5px] text-red-700 leading-relaxed mt-1.5">
+                                      <b>Cancelled:</b> {interview.cancelReason}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center gap-3">
+                                  <a href="/recruitment?tab=candidates" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 text-[10.5px] font-bold text-green-700 hover:underline">
+                                    <FiExternalLink className="w-3 h-3" /> Candidate profile
+                                  </a>
+                                </div>
+                              </div>
+
+                              {/* ── card 2: panel & feedback ── */}
+                              <div className={`${CARD_CLS} p-3`}>
+                                <h4 className={SECTION_TITLE}>
+                                  <FiUser className="w-3 h-3 text-green-600" />
+                                  Panel &amp; Feedback — {pm.filter(p => p.hasFeedback).length} of {pm.length} submitted
+                                  {loadingFeedbackId === interview.id && <span className="text-slate-400 font-bold normal-case tracking-normal">loading…</span>}
+                                </h4>
+                                {pm.length === 0 && <p className="text-[11.5px] text-slate-400">No panel members assigned.</p>}
+                                {pm.map(p => {
+                                  const fb = feedbackList.find(f => f.userId === p.userId);
+                                  const replaceUi = replaceDraft?.interviewId === interview.id && replaceDraft.oldUserId === p.userId;
+                                  return (
+                                    <div key={p.id}>
+                                      <div className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 mb-1.5 ${p.confirmationStatus === 'declined' ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
+                                        <span className={`w-[22px] h-[22px] rounded-full bg-gradient-to-br ${avatarColor(p.name)} text-white text-[8.5px] font-extrabold flex items-center justify-center shrink-0`}>{initials(p.name)}</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[11px] font-bold text-slate-800 truncate">
+                                            {p.name}
+                                            {interview.panelLeadId === p.userId && <span className="ml-1.5 text-[9px] font-extrabold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1 py-px">LEAD</span>}
+                                          </p>
+                                          <p className="text-[10px] text-slate-400 truncate">{p.designation} · {p.email}</p>
+                                        </div>
+                                        <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[9.5px] font-extrabold shrink-0 ${CONFIRM_META[p.confirmationStatus]?.cls || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                          {CONFIRM_META[p.confirmationStatus]?.label || p.confirmationStatus}
+                                        </span>
+                                        {p.hasFeedback && p.feedbackRating != null && (
+                                          <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9.5px] font-extrabold shrink-0 ${REC_META[p.feedbackRecommendation || '']?.cls || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                            <FiStar className="w-2.5 h-2.5" />{p.feedbackRating}/5 · {REC_META[p.feedbackRecommendation || '']?.label || 'Feedback'}
+                                          </span>
+                                        )}
+                                        {p.confirmationStatus === 'declined' && !replaceUi && (
+                                          <button
+                                            onClick={e => { e.stopPropagation(); queueMicrotask(() => fetchPanelCandidates()); setReplaceDraft({ interviewId: interview.id, oldUserId: p.userId, oldName: p.name, newUserId: '', reason: p.reason || '' }); }}
+                                            className="text-[10px] font-bold text-blue-600 hover:underline shrink-0"
+                                          >
+                                            Replace panel →
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      {/* replace-panel inline composer */}
+                                      {replaceUi && (
+                                        <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-2.5 mb-1.5" onClick={e => e.stopPropagation()}>
+                                          <p className="text-[10.5px] font-bold text-slate-700 mb-1.5">Replace {replaceDraft.oldName} with:</p>
+                                          <select
+                                            value={replaceDraft.newUserId}
+                                            onChange={e => setReplaceDraft({ ...replaceDraft, newUserId: e.target.value })}
+                                            className={INPUT_CLS}
+                                          >
+                                            <option value="">Select a replacement…</option>
+                                            {panelCandidates.filter(c => c.id !== replaceDraft.oldUserId && !pm.some(m => m.userId === c.id)).map(c => (
+                                              <option key={c.id} value={c.id}>{c.name} — {c.designation}</option>
+                                            ))}
+                                          </select>
+                                          <input
+                                            value={replaceDraft.reason}
+                                            onChange={e => setReplaceDraft({ ...replaceDraft, reason: e.target.value })}
+                                            placeholder="Reason (required, sent with the notification)…"
+                                            className={INPUT_CLS + ' mt-1.5'}
+                                          />
+                                          <div className="flex gap-2 mt-2 justify-end">
+                                            <button onClick={() => setReplaceDraft(null)} className={BTN_GHOST}>Cancel</button>
+                                            <button
+                                              onClick={handleReplacePanel}
+                                              disabled={actionLoading === interview.id + '-replace' || !replaceDraft.newUserId || !replaceDraft.reason.trim()}
+                                              className={BTN_PRI}
+                                            >
+                                              <FiRefreshCw className="w-3 h-3" /> Replace &amp; Notify
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* full feedback detail (fetched on expand) */}
+                                      {p.hasFeedback && fb && (
+                                        <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2 mb-1.5 text-[10.5px] leading-relaxed" onClick={e => e.stopPropagation()}>
+                                          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                                            {[['Technical', fb.technicalSkills], ['Communication', fb.communication], ['Experience', fb.experience], ['Problem solving', fb.problemSolving], ['Role suitability', fb.roleSuitability], ['Cultural fit', fb.culturalFit]].map(([lab, v]) => v ? (
+                                              <p key={lab as string} className="text-slate-500"><b className="text-slate-700">{lab}:</b> {String(v)}</p>
+                                            ) : null)}
+                                          </div>
+                                          {fb.strengths && <p className="text-slate-500 mt-1"><b className="text-green-700">Strengths:</b> {fb.strengths}</p>}
+                                          {fb.concerns && <p className="text-slate-500"><b className="text-red-600">Concerns:</b> {fb.concerns}</p>}
+                                          {fb.comments && <p className="text-slate-500"><b className="text-slate-700">Notes:</b> {fb.comments}</p>}
+                                          {(fb.customFields || []).map((cf, i) => (
+                                            <p key={i} className="text-slate-500"><b className="text-slate-700">{cf.name}:</b> {cf.value}</p>
+                                          ))}
+                                          <p className="text-[9.5px] text-slate-400 mt-1">Submitted {fmtDate(fb.submittedAt)}</p>
+                                        </div>
+                                      )}
+                                      {p.confirmationStatus === 'requested_reschedule' && p.reason && (
+                                        <p className="text-[10px] text-blue-700 -mt-1 mb-1.5 px-2"><b>Wants a different time:</b> {p.reason}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* ── card 3: actions & decision ── */}
+                              <div className={`${CARD_CLS} p-3`} onClick={e => e.stopPropagation()}>
+                                <h4 className={SECTION_TITLE}><FiCheckCircle className="w-3 h-3 text-green-600" /> Actions &amp; Decision</h4>
+
+                                {interview.status === 'scheduled' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleMarkCompleted(interview.id)}
+                                      disabled={actionLoading === interview.id + '-complete'}
+                                      className={BTN_PRI + ' w-full mb-1.5'}
+                                    >
+                                      <FiCheckCircle className="w-3 h-3" /> {actionLoading === interview.id + '-complete' ? 'Marking…' : 'Mark Completed'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleMarkCompleted(interview.id, true)}
+                                      className={BTN_GHOST + ' w-full mb-2'}
+                                    >
+                                      <FiCalendar className="w-3 h-3" /> Complete + Attendance
+                                    </button>
+                                  </>
+                                )}
+
+                                {/* inline attendance panel */}
+                                {myAttendance && (
+                                  <div className="rounded-lg border border-green-200 bg-green-50/60 p-2.5 mb-2">
+                                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-slate-600 mb-1.5">Attendance</p>
+                                    <label className="block text-[10.5px] font-bold text-slate-600 mb-1">Candidate</label>
+                                    <div className="flex gap-1.5 mb-2">
+                                      {[['attended', 'Attended'], ['late', 'Late'], ['no_show', 'No-show'], ['reschedule_required', 'Needs reschedule']].map(([v, lab]) => (
+                                        <button
+                                          key={v}
+                                          onClick={() => setAttendanceDraft({ ...myAttendance, candidateAttendance: v })}
+                                          className={`flex-1 rounded-[7px] border px-1 py-1 text-[10px] font-bold transition ${myAttendance.candidateAttendance === v ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-green-400'}`}
+                                        >
+                                          {lab}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <label className="block text-[10.5px] font-bold text-slate-600 mb-1">Panel</label>
+                                    {pm.filter(p => p.confirmationStatus === 'accepted').map(p => (
+                                      <div key={p.id} className="flex items-center gap-2 mb-1.5">
+                                        <span className="text-[10.5px] text-slate-600 flex-1 truncate">{p.name}</span>
+                                        <select
+                                          value={myAttendance.panelAttendance[p.userId] || 'present'}
+                                          onChange={e => setAttendanceDraft({ ...myAttendance, panelAttendance: { ...myAttendance.panelAttendance, [p.userId]: e.target.value } })}
+                                          className={FILTER_CLS}
+                                        >
+                                          <option value="present">Present</option>
+                                          <option value="late">Late</option>
+                                          <option value="absent">Absent</option>
+                                          <option value="replacement_joined">Replacement</option>
+                                        </select>
+                                      </div>
+                                    ))}
+                                    <div className="flex gap-2 justify-end mt-2">
+                                      <button onClick={() => setAttendanceDraft(null)} className={BTN_GHOST}>Cancel</button>
+                                      <button onClick={handleSubmitAttendance} disabled={actionLoading === interview.id + '-complete'} className={BTN_PRI}>
+                                        <FiCheck className="w-3 h-3" /> Save + Complete
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* existing decision */}
+                                {interview.hrDecision ? (
+                                  <div className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2">
+                                    <p className="text-[11px] text-teal-800">
+                                      <b>HR decision: {DECISION_LABELS[interview.hrDecision] || interview.hrDecision}</b>
+                                      {interview.hrDecisionReason && <span className="block text-[10.5px] mt-0.5 text-teal-700">{interview.hrDecisionReason}</span>}
                                     </p>
                                   </div>
-                                </div>
-                              </button>
-                            ));
-                          })()
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {applicants.length > 0 && (
-                  <p className="text-[10px] text-thb-text-muted mt-1">{applicants.length} candidates available</p>
-                )}
-              </div>
+                                ) : interview.status === 'completed' ? (
+                                  <>
+                                    <p className="text-[10px] font-extrabold uppercase tracking-[0.5px] text-slate-400 mb-1.5">Final decision</p>
+                                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                                      {[['offer', 'Offer'], ['next_round', 'Next Round'], ['hold', 'Hold'], ['reject', 'Reject']].map(([v, lab]) => (
+                                        <button
+                                          key={v}
+                                          onClick={() => { if (v === 'next_round') queueMicrotask(() => fetchPanelCandidates()); openDecisionDraft(interview, v); }}
+                                          className={`rounded-[7px] border px-2 py-1.5 text-[10.5px] font-bold transition ${myDraft?.decision === v ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-green-400'}`}
+                                        >
+                                          {lab}
+                                        </button>
+                                      ))}
+                                    </div>
 
-              {/* Step 2: Interview Details */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Interview Type *</label>
-                  <select
-                    value={interviewForm.type}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
-                  >
-                    <option value="technical">Technical Interview</option>
-                    <option value="hr">HR Interview</option>
-                    <option value="ai">AI Interview</option>
-                    <option value="offline_panel">Panel Interview (Offline)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Duration (mins)</label>
-                  <input
-                    type="number"
-                    value={interviewForm.duration}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, duration: Number(e.target.value) })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
-                  />
-                </div>
-              </div>
+                                    {/* inline decision composer */}
+                                    {myDraft && (
+                                      <div className="rounded-lg border border-green-200 bg-green-50/50 p-2.5">
+                                        {(myDraft.decision === 'next_round' || myDraft.decision === 'schedule_another') && (
+                                          <div className="space-y-1.5 mb-2">
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                              <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Next date *</label>
+                                                <input type="date" value={myDraft.nextDate} onChange={e => setDecisionDraft({ ...myDraft, nextDate: e.target.value })} className={INPUT_CLS} />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Time</label>
+                                                <input type="time" value={myDraft.nextTime} onChange={e => setDecisionDraft({ ...myDraft, nextTime: e.target.value })} className={INPUT_CLS} />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Duration</label>
+                                                <select value={myDraft.nextDuration} onChange={e => setDecisionDraft({ ...myDraft, nextDuration: Number(e.target.value) })} className={INPUT_CLS}>
+                                                  {[30, 45, 60, 90].map(d => <option key={d} value={d}>{d} min</option>)}
+                                                </select>
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Type</label>
+                                                <select value={myDraft.nextType} onChange={e => setDecisionDraft({ ...myDraft, nextType: e.target.value })} className={INPUT_CLS}>
+                                                  {Object.entries(TYPE_LABELS).map(([v, lab]) => <option key={v} value={v}>{lab}</option>)}
+                                                </select>
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Panel for the next round</label>
+                                              <div className="max-h-28 overflow-auto rounded-lg border border-slate-200 bg-white p-1.5 space-y-1">
+                                                {(panelCandidates.length > 0 ? panelCandidates : pm.map(p => ({ id: p.userId, name: p.name, email: p.email, designation: p.designation }))).map(c => (
+                                                  <label key={c.id} className="flex items-center gap-2 text-[10.5px] text-slate-600 cursor-pointer">
+                                                    <input
+                                                      type="checkbox"
+                                                      className="accent-green-600"
+                                                      checked={myDraft.nextPanelMemberIds.includes(c.id)}
+                                                      onChange={e => setDecisionDraft({
+                                                        ...myDraft,
+                                                        nextPanelMemberIds: e.target.checked
+                                                          ? [...myDraft.nextPanelMemberIds, c.id]
+                                                          : myDraft.nextPanelMemberIds.filter(id => id !== c.id),
+                                                      })}
+                                                    />
+                                                    <span className="truncate">{c.name} <span className="text-slate-400">· {c.designation}</span></span>
+                                                  </label>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {myDraft.decision === 'hold' && (
+                                          <label className="flex items-center gap-2 text-[10.5px] font-semibold text-slate-600 mb-2 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              className="accent-green-600"
+                                              checked={myDraft.sendHoldEmail}
+                                              onChange={e => setDecisionDraft({ ...myDraft, sendHoldEmail: e.target.checked })}
+                                            />
+                                            Email the candidate that their decision is pending
+                                          </label>
+                                        )}
+                                        <textarea
+                                          rows={2}
+                                          value={myDraft.reason}
+                                          onChange={e => setDecisionDraft({ ...myDraft, reason: e.target.value })}
+                                          placeholder="Decision reason (kept on the candidate's activity timeline)…"
+                                          className="w-full rounded-[7px] border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] text-slate-800 outline-none resize-none focus:border-green-500 focus:ring-2 focus:ring-green-500/15"
+                                        />
+                                        <div className="flex gap-2 justify-end mt-2">
+                                          <button onClick={() => setDecisionDraft(null)} className={BTN_GHOST}>Cancel</button>
+                                          <button onClick={handleHrDecision} disabled={actionLoading === interview.id + '-decision'} className={BTN_PRI}>
+                                            <FiCheckCircle className="w-3 h-3" /> Record Decision
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Date *</label>
-                  <input
-                    type="date"
-                    value={interviewForm.date}
-                    onChange={(e) => setInterviewForm(prev => ({ ...prev, date: e.target.value }))}
-                    onInput={(e) => setInterviewForm(prev => ({ ...prev, date: (e.target as HTMLInputElement).value }))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={interviewForm.time}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, time: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
-                    <FiMapPin className="w-3 h-3 inline mr-1" />Location
-                  </label>
-                  <input
-                    value={interviewForm.location}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })}
-                    placeholder="e.g. Conference Room A"
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
-                    <FiVideo className="w-3 h-3 inline mr-1" />Meeting Link (optional)
-                  </label>
-                  <input
-                    value={interviewForm.meetingUrl}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, meetingUrl: e.target.value })}
-                    placeholder="https://meet.google.com/..."
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Step 3: Department (for panel members) */}
-              <div>
-                <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
-                  Department (panel members will be drawn from this department) *
-                </label>
-                <select
-                  value={selectedAppDept}
-                  onChange={(e) => { setSelectedAppDept(e.target.value); setSelectedPanelIds([]); }}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
-                >
-                  <option value="">Select a department…</option>
-                  {modalDepartments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}{d.companyName ? ` — ${d.companyName}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-thb-text-muted mt-1">
-                  💡 Auto-filled from the candidate's job posting. Change if you want panel members from a different department.
-                </p>
-              </div>
-
-              {/* Step 4: Panel Members */}
-              <div>
-                <label className="block text-xs font-semibold text-thb-text-secondary mb-1">
-                  <FiUsers className="w-3 h-3 inline mr-1" />
-                  Select Panel Members *
-                </label>
-                <p className="text-xs text-thb-text-muted mb-2">
-                  Employees from the selected department are listed below.
-                  {!interviewForm.date && ' Pick a date above to see availability badges.'}
-                </p>
-                {loadingPanel ? (
-                  <div className="py-4 text-center text-sm text-thb-text-muted">Loading panel members…</div>
-                ) : !selectedAppDept ? (
-                  <div className="py-4 text-center text-sm text-thb-text-muted">Select a department to load available panel members</div>
-                ) : panelMembers.length === 0 ? (
-                  <div className="py-4 text-center text-sm text-thb-text-muted">No employees found in this department</div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto border border-thb-border rounded-lg p-2">
-                    {panelMembers.map((m) => {
-                      const isSelected = selectedPanelIds.includes(m.userId);
-                      const isBlocked = m.availability === 'Busy' || m.availability === 'On Leave';
-                      const availBadge: Record<string, string> = {
-                        Available: 'bg-emerald-50 text-emerald-700',
-                        Busy: 'bg-red-50 text-red-700',
-                        'On Leave': 'bg-amber-50 text-amber-700',
-                        Tentative: 'bg-blue-50 text-blue-700',
-                        'No Date Set': 'bg-slate-50 text-slate-500',
-                      };
-                      return (
-                        <label
-                          key={m.id}
-                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isBlocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            disabled={isBlocked}
-                            onChange={(e) => {
-                              if (e.target.checked) setSelectedPanelIds([...selectedPanelIds, m.userId]);
-                              else setSelectedPanelIds(selectedPanelIds.filter(uid => uid !== m.userId));
-                            }}
-                            className="w-4 h-4 rounded text-teal-600"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-thb-text-primary truncate">{m.name}</p>
-                            <p className="text-xs text-thb-text-muted truncate">{m.designation} · {m.email}</p>
-                            {m.availability === 'Available' && (
-                              <p className="text-[10px] text-slate-400">Workload: {m.reason || 'No conflicts'}</p>
-                            )}
-                            {m.availability === 'No Date Set' && (
-                              <p className="text-[10px] text-slate-400">{m.reason}</p>
-                            )}
-                          </div>
-                          <span className={`text-xs whitespace-nowrap px-2 py-0.5 rounded-full font-medium ${availBadge[m.availability] || 'bg-slate-50 text-slate-600'}`} title={m.reason}>
-                            {m.availability}{m.conflictTime ? ` (${m.conflictTime})` : ''}
-                          </span>
-                        </label>
+                                    {!myDraft && (
+                                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                                        Recording a decision also advances the candidate&apos;s stage on the Recruitment board and emails them the outcome.
+                                      </p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-[10.5px] text-slate-400 leading-relaxed">
+                                    The final decision unlocks once the interview is completed.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                       );
-                    })}
-                  </div>
-                )}
-                {selectedPanelIds.length > 0 && (
-                  <p className="text-xs text-teal-600 mt-1 font-medium">{selectedPanelIds.length} member(s) selected</p>
-                )}
-              </div>
-            </div>
+                    })()}
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-thb-border sticky bottom-0 bg-white">
-              <button
-                onClick={() => setShowScheduleModal(false)}
-                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleScheduleInterview}
-                disabled={scheduling}
-                className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50 shadow-sm transition-colors flex items-center gap-2"
-              >
-                {scheduling ? (
-                  <>
-                    <FiClock className="w-4 h-4 animate-spin" />
-                    Scheduling...
-                  </>
-                ) : (
-                  <>
-                    <FiCalendar className="w-4 h-4" />
-                    Schedule Interview
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
+        <div className="flex items-center justify-between px-3.5 py-1.5 border-t border-slate-200 bg-white text-[10.5px] text-slate-400 shrink-0">
+          <span>Showing <b className="text-slate-600">{sorted.length}</b> of <b className="text-slate-600">{interviews.length}</b> interviews{hasActiveFilters ? ' · filtered' : ''}</span>
+          <span>Click any row to expand panel, feedback, and decision — inline</span>
+        </div>
+      </div>
+
+      {/* Schedule Interview slide-over drawer (replaces the old center modal) */}
+      <ScheduleDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        interviews={interviews}
+        onScheduled={() => fetchInterviews()}
+      />
     </div>
   );
 }
