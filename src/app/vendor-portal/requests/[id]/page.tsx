@@ -22,7 +22,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   FiShield, FiLoader, FiAlertCircle, FiCheckCircle, FiXCircle,
   FiFileText, FiUpload, FiSend, FiEye, FiDownload, FiInfo, FiClock,
-  FiRefreshCw, FiAlertTriangle, FiSave, FiList, FiUser, FiCalendar,
+  FiRefreshCw, FiAlertTriangle, FiSave, FiList, FiUser, FiCalendar, FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import VendorPortalHeader from '../../VendorPortalHeader';
@@ -32,10 +32,14 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-interface EvidenceMeta { id: string; fileName: string; mimeType?: string; fileSize?: number }
+interface EvidenceMeta { id: string; fileName: string; mimeType?: string; fileSize?: number; evidenceType?: string | null }
+interface EvidenceRequirement { key: string; label: string; required: boolean; hint?: string }
+interface StructuredFieldDef { key: string; label: string; type: 'text' | 'date' | 'select' | 'textarea'; options?: string[]; required: boolean; placeholder?: string }
+interface FormDef { evidence: EvidenceRequirement[]; fields: StructuredFieldDef[] }
 interface Check {
   id: string; checkType: string; checkLabel?: string; status: string;
   result?: string | null; findings?: string | null; verificationDate?: string | null;
+  verificationMethod?: string | null; structuredData?: string | null;
   evidenceCount?: number; evidence?: EvidenceMeta[];
 }
 interface CaseData {
@@ -83,6 +87,8 @@ export default function VendorRequestDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'documents' | 'checks' | 'report' | 'history'>('documents');
   const [myRole, setMyRole] = useState<string>('');
+  const [formDefs, setFormDefs] = useState<Record<string, FormDef>>({});
+  const [methods, setMethods] = useState<string[]>([]);
 
   const fetchDetail = useCallback(async () => {
     setLoading(true);
@@ -92,6 +98,8 @@ export default function VendorRequestDetailPage() {
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `Failed (${res.status})`); }
       const d = await res.json();
       setMyRole(d.role || '');
+      if (d.formDefs) setFormDefs(d.formDefs);
+      if (Array.isArray(d.verificationMethods)) setMethods(d.verificationMethods);
       const req = (d.requests || []).find((r: any) => r.id === requestId);
       if (!req) throw new Error('Case not found or not assigned to you');
       setData(req);
@@ -173,7 +181,7 @@ export default function VendorRequestDetailPage() {
         </div>
 
         {tab === 'documents' && <SharedDocsTab data={data} />}
-        {tab === 'checks' && <ChecksTab data={data} canWork={canWork} reworkCheckIds={reworkCheckIds} onSaved={fetchDetail} />}
+        {tab === 'checks' && <ChecksTab data={data} canWork={canWork} reworkCheckIds={reworkCheckIds} formDefs={formDefs} methods={methods} onSaved={fetchDetail} />}
         {tab === 'report' && (
           <ReportTab
             data={data}
@@ -254,22 +262,59 @@ function SharedDocsTab({ data }: { data: CaseData }) {
   );
 }
 
-/* ─────────────────────────── Checks tab (standard form) ─────────────────────────── */
-function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
-  data: CaseData; canWork: boolean; reworkCheckIds: string[]; onSaved: () => void;
+/* ─────────────────────────── Checks tab (standard verification form) ─────────────────────────── */
+interface CheckFormState { result: string; date: string; findings: string; method: string; structured: Record<string, string> }
+
+function ChecksTab({ data, canWork, reworkCheckIds, formDefs, methods, onSaved }: {
+  data: CaseData; canWork: boolean; reworkCheckIds: string[];
+  formDefs: Record<string, FormDef>; methods: string[]; onSaved: () => void;
 }) {
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Record<string, { result: string; date: string; findings: string }>>({});
+  const [uploading, setUploading] = useState<string | null>(null); // `${checkId}:${slotKey}`
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [form, setForm] = useState<Record<string, CheckFormState>>({});
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const getForm = (c: Check) => form[c.id] || {
+  const defFor = (checkType: string): FormDef => formDefs[checkType] || formDefs._default || { evidence: [], fields: [] };
+
+  const parseStructured = (c: Check): Record<string, string> => {
+    try { const v = JSON.parse(c.structuredData || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; } catch { return {}; }
+  };
+
+  const getForm = (c: Check): CheckFormState => form[c.id] || {
     result: c.result || '',
     date: c.verificationDate ? new Date(c.verificationDate).toISOString().slice(0, 10) : '',
     findings: c.findings || '',
+    method: c.verificationMethod || '',
+    structured: parseStructured(c),
   };
-  const setField = (id: string, patch: Partial<{ result: string; date: string; findings: string }>) => {
+  const setField = (id: string, patch: Partial<CheckFormState>) => {
     setForm((prev) => ({ ...prev, [id]: { ...getForm(data.checks.find((x) => x.id === id)!), ...patch } }));
+  };
+  const setStructured = (id: string, key: string, value: string) => {
+    setForm((prev) => {
+      const cur = getForm(data.checks.find((x) => x.id === id)!);
+      return { ...prev, [id]: { ...cur, structured: { ...cur.structured, [key]: value } } };
+    });
+  };
+
+  // Client-side mirror of the server completion gate (lib/bgv.ts).
+  const gapsFor = (c: Check): string[] => {
+    const f = getForm(c);
+    const def = defFor(c.checkType);
+    const gaps: string[] = [];
+    for (const fld of def.fields) {
+      if (fld.required && !String(f.structured[fld.key] || '').trim()) gaps.push(`${fld.label} is required`);
+    }
+    if (!f.result) gaps.push('Select a result');
+    if (f.result && f.result !== 'Clear' && !f.findings.trim()) gaps.push(`"${f.result}" requires written findings`);
+    if (f.result && f.result !== 'Unable to Verify') {
+      const have = new Set((c.evidence || []).map((e) => String(e.evidenceType || '').toLowerCase()));
+      for (const r of def.evidence) {
+        if (r.required && !have.has(r.key.toLowerCase())) gaps.push(`Proof required: ${r.label}`);
+      }
+    }
+    return gaps;
   };
 
   const save = async (c: Check, complete: boolean) => {
@@ -281,6 +326,8 @@ function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
         result: f.result || null,
         findings: f.findings,
         verificationDate: f.date || null,
+        verificationMethod: f.method || null,
+        structuredData: f.structured,
       };
       const res = await fetch(`/api/vendor/requests/${data.id}/checks/${c.id}`, {
         method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(body),
@@ -294,35 +341,61 @@ function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
     } finally { setSavingId(null); }
   };
 
-  const uploadEvidence = async (c: Check, file: File) => {
-    setUploadingId(c.id);
+  const uploadEvidence = async (c: Check, slotKey: string, file: File) => {
+    setUploading(`${c.id}:${slotKey}`);
     try {
       const dataBase64 = await fileToBase64(file);
       const res = await fetch(`/api/vendor/requests/${data.id}/checks/${c.id}/evidence`, {
         method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64 }),
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64, evidenceType: slotKey }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || 'Upload failed');
-      toast.success('Evidence uploaded.');
+      toast.success(d.message || 'Proof uploaded.');
       onSaved();
     } catch (e: any) {
       toast.error(e instanceof Error ? e.message : 'Upload failed');
-    } finally { setUploadingId(null); if (fileInputs.current[c.id]) fileInputs.current[c.id]!.value = ''; }
+    } finally {
+      setUploading(null);
+      const key = `${c.id}:${slotKey}`;
+      if (fileInputs.current[key]) fileInputs.current[key]!.value = '';
+    }
   };
 
-  const removeFlagged = (c: Check) => reworkCheckIds.length > 0 ? reworkCheckIds.includes(c.id) : true; // rework targets
+  const removeEvidence = async (c: Check, evidenceId: string) => {
+    if (!confirm('Remove this proof file?')) return;
+    setRemoving(evidenceId);
+    try {
+      const res = await fetch(`/api/vendor/requests/${data.id}/checks/${c.id}/evidence?evidenceId=${encodeURIComponent(evidenceId)}`, {
+        method: 'DELETE', headers: getAuthHeaders(),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Remove failed');
+      toast.success('Proof file removed.');
+      onSaved();
+    } catch (e: any) {
+      toast.error(e instanceof Error ? e.message : 'Remove failed');
+    } finally { setRemoving(null); }
+  };
+
+  const isReworkTarget = (c: Check) =>
+    data.status === 'rework_required' && (reworkCheckIds.length === 0 || reworkCheckIds.includes(c.id));
 
   return (
     <div className="space-y-4">
       <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 text-sm text-teal-800 flex items-start gap-2">
         <FiInfo className="mt-0.5 shrink-0" />
-        <span>Complete one form per required check. Results: <b>Clear</b>, <b>Discrepancy Found</b> or <b>Unable to Verify</b> (with written reason). &quot;Unable to Verify&quot; with a valid reason counts as completed — draft saves persist automatically.</span>
+        <span>
+          Complete the verification form for every check: fill the <b>structured details</b>, pick the <b>result</b> and <b>how you verified</b>, and upload the <b>labeled proof documents</b> (degree certificates, PCC, relieving letters…). HR sees exactly what you record here — required proofs must be attached before a check can be marked completed, except for <b>Unable to Verify</b> where the written findings explain what you tried.
+        </span>
       </div>
       {data.checks.map((c) => {
         const f = getForm(c);
-        const flagged = data.status === 'rework_required' && removeFlagged(c) && reworkCheckIds.length > 0 ? reworkCheckIds.includes(c.id) : data.status === 'rework_required';
+        const def = defFor(c.checkType);
+        const flagged = isReworkTarget(c);
         const evidence = c.evidence || [];
+        const gaps = canWork ? gapsFor(c) : [];
+        const untyped = evidence.filter((e) => !e.evidenceType);
         return (
           <div key={c.id} className={`bg-white border rounded-xl overflow-hidden ${flagged ? 'border-orange-300' : ''}`}>
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/60">
@@ -335,7 +408,8 @@ function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
                 {c.status.replace('_', ' ')}{c.result ? ` · ${c.result}` : ''}
               </span>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-4">
+              {/* Result / date / method */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-medium text-slate-500 mb-1 block">Check type (set by HR)</label>
@@ -352,12 +426,62 @@ function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-500 mb-1 block">Verification date *</label>
+                  <label className="text-xs font-medium text-slate-500 mb-1 block">Verified on *</label>
                   <input type="date" value={f.date} disabled={!canWork} max={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setField(c.id, { date: e.target.value })}
                     className="w-full text-sm border rounded-md px-2.5 py-2 bg-white disabled:bg-slate-50" />
                 </div>
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-500 mb-1 block">How was it verified? <span className="text-slate-400">(shown in the HR report)</span></label>
+                  <select
+                    value={f.method} disabled={!canWork}
+                    onChange={(e) => setField(c.id, { method: e.target.value })}
+                    className="w-full text-sm border rounded-md px-2.5 py-2 bg-white disabled:bg-slate-50">
+                    <option value="">Select method…</option>
+                    {(methods.length ? methods : ['Document Inspection', 'Online Portal / Database', 'Telephonic', 'Email Confirmation', 'Physical Visit']).map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Structured verification details */}
+              {def.fields.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5"><FiList className="text-slate-400" /> Verification details</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {def.fields.map((fld) => (
+                      <div key={fld.key} className={fld.type === 'textarea' ? 'sm:col-span-2 lg:col-span-3' : ''}>
+                        <label className="text-xs font-medium text-slate-500 mb-1 block">
+                          {fld.label}{fld.required && <span className="text-red-500"> *</span>}
+                        </label>
+                        {fld.type === 'select' ? (
+                          <select value={String(f.structured[fld.key] ?? '')} disabled={!canWork}
+                            onChange={(e) => setStructured(c.id, fld.key, e.target.value)}
+                            className="w-full text-sm border rounded-md px-2.5 py-2 bg-white disabled:bg-slate-50">
+                            <option value="">Select…</option>
+                            {(fld.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : fld.type === 'textarea' ? (
+                          <textarea value={String(f.structured[fld.key] ?? '')} disabled={!canWork} rows={2}
+                            placeholder={fld.placeholder}
+                            onChange={(e) => setStructured(c.id, fld.key, e.target.value)}
+                            className="w-full text-sm border rounded-md px-2.5 py-2 bg-white disabled:bg-slate-50" />
+                        ) : (
+                          <input type={fld.type === 'date' ? 'date' : 'text'} value={String(f.structured[fld.key] ?? '')}
+                            disabled={!canWork} placeholder={fld.placeholder}
+                            onChange={(e) => setStructured(c.id, fld.key, e.target.value)}
+                            className="w-full text-sm border rounded-md px-2.5 py-2 bg-white disabled:bg-slate-50" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Findings */}
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">
                   Findings {f.result && f.result !== 'Clear' ? <span className="text-red-500">* (required for {f.result})</span> : ''}
@@ -367,40 +491,99 @@ function ChecksTab({ data, canWork, reworkCheckIds, onSaved }: {
                   placeholder="What you verified, the source/method used, and what you found…"
                   className="w-full text-sm border rounded-md px-3 py-2 bg-white disabled:bg-slate-50 min-h-[72px]" />
               </div>
-              {/* Evidence */}
+
+              {/* Labeled proof documents */}
               <div>
-                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Supporting evidence ({evidence.length})</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {evidence.map((e) => (
-                    <span key={e.id} className="inline-flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
-                      <FiFileText className="text-slate-400" />
-                      <a href={`/api/bgv/evidence/${e.id}/file`} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline max-w-[200px] truncate">{e.fileName}</a>
-                    </span>
-                  ))}
-                  {evidence.length === 0 && <span className="text-xs text-slate-400">No evidence files yet.</span>}
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <FiFileText className="text-slate-400" /> Proof documents
+                  {f.result === 'Unable to Verify' && <span className="font-normal normal-case text-slate-400">— required slots waived for Unable to Verify</span>}
+                </p>
+                <div className="space-y-2">
+                  {def.evidence.map((slot) => {
+                    const files = evidence.filter((e) => String(e.evidenceType || '').toLowerCase() === slot.key.toLowerCase());
+                    const inputKey = `${c.id}:${slot.key}`;
+                    return (
+                      <div key={slot.key} className={`rounded-lg border p-2.5 ${files.length > 0 ? 'border-teal-200 bg-teal-50/40' : slot.required ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-slate-50/40'}`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium text-slate-700 flex-1 min-w-[160px]">
+                            {slot.label}
+                            {slot.required
+                              ? <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">REQUIRED</span>
+                              : <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500">OPTIONAL</span>}
+                          </span>
+                          {canWork && (
+                            <>
+                              <input ref={(el) => { fileInputs.current[inputKey] = el; }} type="file" hidden
+                                accept=".pdf,.png,.jpg,.jpeg,.webp"
+                                onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadEvidence(c, slot.key, file); }} />
+                              <button onClick={() => fileInputs.current[inputKey]?.click()} disabled={uploading === inputKey}
+                                className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg disabled:opacity-50">
+                                {uploading === inputKey ? <FiLoader className="animate-spin" /> : <FiUpload />} Upload
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {slot.hint && <p className="text-[11px] text-slate-400 mt-1">{slot.hint}</p>}
+                        {files.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {files.map((e) => (
+                              <span key={e.id} className="inline-flex items-center gap-1.5 text-xs bg-white border border-slate-200 rounded-lg px-2 py-1.5">
+                                <FiFileText className="text-teal-600" />
+                                <a href={`/api/bgv/evidence/${e.id}/file`} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline max-w-[200px] truncate">{e.fileName}</a>
+                                {canWork && (
+                                  <button onClick={() => removeEvidence(c, e.id)} disabled={removing === e.id}
+                                    title="Remove file" className="text-slate-400 hover:text-red-600 disabled:opacity-40">
+                                    {removing === e.id ? <FiLoader className="animate-spin w-3.5 h-3.5" /> : <FiTrash2 className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {/* Legacy untyped uploads (older cases) */}
+                  {untyped.length > 0 && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-2.5">
+                      <p className="text-xs font-medium text-slate-600">Other files (uploaded before labeled proofs)</p>
+                      <div className="flex flex-wrap gap-2 mt-1.5">
+                        {untyped.map((e) => (
+                          <span key={e.id} className="inline-flex items-center gap-1.5 text-xs bg-white border border-slate-200 rounded-lg px-2 py-1.5">
+                            <FiFileText className="text-slate-400" />
+                            <a href={`/api/bgv/evidence/${e.id}/file`} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline max-w-[200px] truncate">{e.fileName}</a>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {canWork && (
-                  <>
-                    <input ref={(el) => { fileInputs.current[c.id] = el; }} type="file" hidden accept=".pdf,.png,.jpg,.jpeg,.webp"
-                      onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadEvidence(c, file); }} />
-                    <button onClick={() => fileInputs.current[c.id]?.click()} disabled={uploadingId === c.id}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg">
-                      {uploadingId === c.id ? <FiLoader className="animate-spin" /> : <FiUpload />} Upload evidence (PDF/image ≤ 5 MB)
-                    </button>
-                  </>
-                )}
               </div>
+
               {/* Actions */}
               {canWork && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
-                  <button onClick={() => save(c, false)} disabled={savingId === c.id}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 px-3.5 py-2 rounded-lg">
-                    {savingId === c.id ? <FiLoader className="animate-spin" /> : <FiSave />} Save Draft
-                  </button>
-                  <button onClick={() => save(c, true)} disabled={savingId === c.id || !f.result || !f.date || (f.result !== 'Clear' && !f.findings.trim())}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-2 rounded-lg disabled:opacity-40">
-                    {savingId === c.id ? <FiLoader className="animate-spin" /> : <FiCheckCircle />} Mark Completed
-                  </button>
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => save(c, false)} disabled={savingId === c.id}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 px-3.5 py-2 rounded-lg">
+                      {savingId === c.id ? <FiLoader className="animate-spin" /> : <FiSave />} Save Draft
+                    </button>
+                    <button onClick={() => save(c, true)}
+                      disabled={savingId === c.id || !f.result || !f.date || gaps.length > 0}
+                      title={gaps.length > 0 ? `Missing: ${gaps.slice(0, 3).join('; ')}${gaps.length > 3 ? ` +${gaps.length - 3} more` : ''}` : 'Mark completed'}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-2 rounded-lg disabled:opacity-40">
+                      {savingId === c.id ? <FiLoader className="animate-spin" /> : <FiCheckCircle />} Mark Completed
+                    </button>
+                  </div>
+                  {gaps.length > 0 && (
+                    <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <b>To complete this check:</b>
+                      <ul className="list-disc ml-4 mt-0.5 space-y-0.5">
+                        {gaps.slice(0, 5).map((g, i) => <li key={i}>{g}</li>)}
+                      </ul>
+                      {gaps.length > 5 && <p className="mt-0.5">+ {gaps.length - 5} more…</p>}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -481,7 +664,10 @@ function ReportTab({ data, canWork, canSubmitReport, allCompleted, reworkBlocks,
             {data.checks.map((c, i) => (
               <tr key={c.id}>
                 <td className="px-4 py-2.5 text-slate-400">{i + 1}</td>
-                <td className="px-4 py-2.5 font-medium text-slate-700">{c.checkLabel || c.checkType}</td>
+                <td className="px-4 py-2.5 font-medium text-slate-700">
+                  {c.checkLabel || c.checkType}
+                  {c.verificationMethod && <p className="text-[10px] text-slate-400 font-normal mt-0.5">Method: {c.verificationMethod}</p>}
+                </td>
                 <td className="px-4 py-2.5">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                     c.result === 'Clear' ? 'bg-emerald-100 text-emerald-700'
@@ -492,7 +678,10 @@ function ReportTab({ data, canWork, canSubmitReport, allCompleted, reworkBlocks,
                     {c.result || 'Pending'}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 text-slate-600 text-xs max-w-[280px]">{c.findings || '—'}</td>
+                <td className="px-4 py-2.5 text-slate-600 text-xs max-w-[280px]">
+                  {c.findings || '—'}
+                  {(c.evidenceCount || 0) > 0 && <p className="text-[10px] text-teal-700 mt-1">{c.evidenceCount} proof file(s) attached</p>}
+                </td>
               </tr>
             ))}
           </tbody>

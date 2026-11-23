@@ -158,6 +158,7 @@ module.exports = [
   "postedDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "closingDate" TIMESTAMP(3),
   "vacancies" INTEGER NOT NULL DEFAULT 1,
+  "interviewPlan" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "JobPosting_pkey" PRIMARY KEY ("id")
@@ -227,6 +228,9 @@ module.exports = [
   "calendarColor" TEXT,
   "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true,
   "documentRequirement" TEXT NOT NULL DEFAULT 'never',
+  "category" TEXT NOT NULL DEFAULT 'paid',
+  "smallestUnit" TEXT NOT NULL DEFAULT 'full_day',
+  "displayOrder" INTEGER NOT NULL DEFAULT 0,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "LeaveType_pkey" PRIMARY KEY ("id")
@@ -1078,6 +1082,7 @@ module.exports = [
   "clientId" TEXT,
   "priority" TEXT NOT NULL DEFAULT 'medium',
   "expectedJoiningDate" TIMESTAMP(3),
+  "interviewPlan" TEXT,
   "approvalStatus" TEXT NOT NULL DEFAULT 'pending',
   "approvedBy" TEXT,
   "approvedAt" TIMESTAMP(3),
@@ -2176,6 +2181,7 @@ module.exports = [
   "mimeType" TEXT NOT NULL,
   "fileSize" INTEGER NOT NULL DEFAULT 0,
   "fileData" TEXT,
+  "evidenceType" TEXT,
   "uploadedById" TEXT,
   "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "BgvEvidence_pkey" PRIMARY KEY ("id")

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
-import { BGV_TERMINAL_STATUSES } from '@/lib/bgv';
+import {
+  BGV_TERMINAL_STATUSES, VERIFICATION_METHODS,
+  evidenceRequirementsFor, structuredFieldsFor,
+} from '@/lib/bgv';
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
@@ -70,8 +73,9 @@ export async function GET(req: NextRequest) {
     for (const req of requests) {
       req.checks = await db.$queryRawUnsafe(
         `SELECT c."id","checkType","checkLabel","status","result","findings","verificationDate","completedAt",
+                "verificationMethod","structuredData",
                 (SELECT COUNT(*)::int FROM "BgvEvidence" e WHERE e."bgvCheckId" = c."id") AS "evidenceCount",
-                (SELECT json_agg(json_build_object('id', e."id", 'fileName', e."fileName"))
+                (SELECT json_agg(json_build_object('id', e."id", 'fileName', e."fileName", 'evidenceType', e."evidenceType"))
                    FROM "BgvEvidence" e WHERE e."bgvCheckId" = c."id") AS "evidence"
            FROM "BgvCheck" c WHERE c."bgvRequestId"=$1 ORDER BY c."createdAt" ASC`,
         req.id,
@@ -96,8 +100,18 @@ export async function GET(req: NextRequest) {
       ).catch(() => []) as any[];
     }
 
+    // Per-check-type form definitions (proof slots + structured fields) so the
+    // portal renders the same forms the API enforces — one source of truth.
+    const formDefs: Record<string, { evidence: ReturnType<typeof evidenceRequirementsFor>; fields: ReturnType<typeof structuredFieldsFor> }> = {};
+    for (const t of ['identity', 'address', 'education', 'employment', 'criminal', 'reference']) {
+      formDefs[t] = { evidence: evidenceRequirementsFor(t), fields: structuredFieldsFor(t) };
+    }
+    formDefs._default = { evidence: evidenceRequirementsFor('unknown'), fields: structuredFieldsFor('unknown') };
+
     return NextResponse.json({
       requests,
+      formDefs,
+      verificationMethods: VERIFICATION_METHODS,
       vendorUserId: vu.id,
       vendorCompanyId: vu.vendorCompanyId,
       role: vu.role,

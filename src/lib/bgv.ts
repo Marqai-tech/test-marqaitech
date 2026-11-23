@@ -45,32 +45,19 @@ export type CheckResult = typeof CHECK_RESULTS[number];
 /** Results that legally REQUIRE a written reason (mock 13/14 rule). */
 export const RESULTS_REQUIRING_REASON: CheckResult[] = ['Discrepancy Found', 'Unable to Verify'];
 
-export const INVITE_TTL_DAYS = 7;
-/** Password recovery links are single-use and expire after 60 minutes. */
-export const PASSWORD_RESET_TTL_MINUTES = 60;
-export const EVIDENCE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
-export const VENDOR_PDF_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
-export const ALLOWED_EVIDENCE_TYPES: Record<string, string> = {
-  'application/pdf': 'pdf',
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-};
-
-export function labelForStatus(status?: string | null): string {
-  const map: Record<string, string> = {
-    awaiting_assignment: 'Awaiting Assignment',
-    assigned: 'Assigned',
-    in_progress: 'In Progress',
-    submitted_for_hr_review: 'Submitted for HR Review',
-    awaiting_information: 'Awaiting Information',
-    rework_required: 'Rework Required',
-    approved_by_hr: 'Approved by HR',
-    rejected_by_hr: 'Rejected by HR',
-    cancelled: 'Cancelled',
-  };
-  return map[String(status || '')] || String(status || '—');
-}
+/* ───────────── proof requirements & structured check forms ─────────────
+ * Defined in ./bgv-check-forms (client-safe, shared with UI components) and
+ * re-exported here so every API route keeps a single import source.
+ */
+export {
+  VERIFICATION_METHODS,
+  evidenceRequirementsFor,
+  structuredFieldsFor,
+  validateStructuredData,
+  missingEvidenceTypes,
+  checkCompletionGaps,
+} from './bgv-check-forms';
+export type { EvidenceRequirement, StructuredFieldDef } from './bgv-check-forms';
 
 /* ─────────────────────────── invite tokens ─────────────────────────── */
 
@@ -226,8 +213,12 @@ export interface SnapshotCheck {
   findings: string | null;
   verificationDate: string | null;
   completedAt: string | null;
+  /** How the verification was performed (VERIFICATION_METHODS). */
+  verificationMethod: string | null;
+  /** Structured per-check facts (education/employment/criminal… form). */
+  structuredData: Record<string, string>;
   evidenceIds: string[];
-  evidenceFiles: { id: string; fileName: string }[];
+  evidenceFiles: { id: string; fileName: string; evidenceType?: string | null }[];
 }
 
 export interface ReportSnapshot {
@@ -322,7 +313,20 @@ export async function generateStandardReportPdf(
   for (const c of snap.checks) {
     const findings = pdfEsc(c.findings);
     const lines = doc.splitTextToSize(findings || '-', W - 2 * M - 20);
-    const blockH = Math.max(26, 14 + lines.length * 11);
+    const method = pdfEsc(c.verificationMethod);
+    // Structured facts rendered with their human labels (fall back to key).
+    const fieldLabels: Record<string, string> = {};
+    for (const f of structuredFieldsFor(c.checkType)) fieldLabels[f.key] = f.label;
+    const structPairs = Object.entries(c.structuredData || {})
+      .filter(([, v]) => pdfEsc(v))
+      .slice(0, 8)
+      .map(([k, v]) => `${pdfEsc(fieldLabels[k] || k)}: ${pdfEsc(v).slice(0, 60)}`);
+    const structLine = structPairs.join(' · ');
+    const evidenceNames = (c.evidenceFiles || [])
+      .map((e) => e.evidenceType ? `${pdfEsc(e.evidenceType)}: ${pdfEsc(e.fileName).slice(0, 40)}` : pdfEsc(e.fileName).slice(0, 55))
+      .slice(0, 5);
+    const detailLines = structLine ? doc.splitTextToSize(structLine, W - 2 * M - 20) : [];
+    const blockH = Math.max(26, 14 + lines.length * 11 + (method ? 11 : 0) + detailLines.length * 10 + evidenceNames.length * 9 + 8);
     ensure(blockH);
     doc.setDrawColor(226, 232, 240);
     doc.line(M, y, W - M, y);
@@ -339,8 +343,32 @@ export async function generateStandardReportPdf(
     doc.setTextColor(51, 65, 85);
     doc.setFontSize(8.5);
     for (const ln of lines) { ensure(11); doc.text(ln, M + 6, y); y += 11; }
-    y += 6;
+    if (method) {
+      ensure(11);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`Method: ${method}`, M + 6, y);
+      doc.setFont('helvetica', 'normal');
+      y += 11;
+    }
+    for (const ln of detailLines) {
+      if (!pdfEsc(ln)) continue;
+      ensure(10);
+      doc.setTextColor(71, 85, 105);
+      doc.setFontSize(8);
+      doc.text(ln, M + 6, y);
+      y += 10;
+    }
+    doc.setFontSize(8.5);
+    for (const en of evidenceNames) {
+      ensure(9);
+      doc.setTextColor(13, 110, 110);
+      doc.setFontSize(7.8);
+      doc.text(`• ${en}`, M + 6, y);
+      y += 9;
+    }
     doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+    y += 4;
   }
 
   // Overall findings

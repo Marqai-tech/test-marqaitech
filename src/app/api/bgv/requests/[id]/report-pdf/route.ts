@@ -77,7 +77,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         `SELECT * FROM "BgvCheck" WHERE "bgvRequestId"=$1 ORDER BY "createdAt" ASC`, requestId,
       ).catch(() => []) as any[];
       const evidenceRows = await db.$queryRawUnsafe(
-        `SELECT "id","bgvCheckId","fileName" FROM "BgvEvidence" WHERE "bgvRequestId"=$1`, requestId,
+        `SELECT "id","bgvCheckId","fileName","evidenceType" FROM "BgvEvidence" WHERE "bgvRequestId"=$1`, requestId,
       ).catch(() => []) as any[];
       const sharedDocs = await db.$queryRawUnsafe(
         `SELECT "id","documentType","documentLabel" FROM "BgvDocumentShare" WHERE "bgvRequestId"=$1`, requestId,
@@ -108,18 +108,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         version: 0, // 0 = draft
         overallFindings: 'DRAFT — findings not yet submitted.',
         overallResult: null,
-        checks: checks.map((c: any) => ({
-          checkId: c.id,
-          checkType: c.checkType,
-          checkLabel: c.checkLabel || c.checkType,
-          status: c.status,
-          result: c.result || null,
-          findings: c.findings || null,
-          verificationDate: c.verificationDate ? new Date(c.verificationDate).toISOString() : null,
-          completedAt: c.completedAt ? new Date(c.completedAt).toISOString() : null,
-          evidenceIds: evidenceRows.filter((e: any) => e.bgvCheckId === c.id).map((e: any) => e.id),
-          evidenceFiles: evidenceRows.filter((e: any) => e.bgvCheckId === c.id).map((e: any) => ({ id: e.id, fileName: e.fileName })),
-        })),
+        checks: checks.map((c: any) => {
+          let structured: Record<string, string> = {};
+          try { structured = JSON.parse(c.structuredData || '{}') || {}; } catch { structured = {}; }
+          return {
+            checkId: c.id,
+            checkType: c.checkType,
+            checkLabel: c.checkLabel || c.checkType,
+            status: c.status,
+            result: c.result || null,
+            findings: c.findings || null,
+            verificationDate: c.verificationDate ? new Date(c.verificationDate).toISOString() : null,
+            completedAt: c.completedAt ? new Date(c.completedAt).toISOString() : null,
+            verificationMethod: c.verificationMethod || null,
+            structuredData: structured,
+            evidenceIds: evidenceRows.filter((e: any) => e.bgvCheckId === c.id).map((e: any) => e.id),
+            evidenceFiles: evidenceRows.filter((e: any) => e.bgvCheckId === c.id).map((e: any) => ({ id: e.id, fileName: e.fileName, evidenceType: e.evidenceType || null })),
+          };
+        }),
         sharedDocuments: sharedDocs.map((d: any) => ({ id: d.id, documentType: d.documentType, documentLabel: d.documentLabel })),
         instructions: bgvReq.instructions || null,
         dueDate: bgvReq.dueDate ? new Date(bgvReq.dueDate).toISOString() : null,

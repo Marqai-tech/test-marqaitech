@@ -1325,6 +1325,11 @@ const SYNC_STATEMENTS: string[] = [
     CONSTRAINT "OnboardingDocumentVersion_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE INDEX IF NOT EXISTS "OnboardingDocumentVersion_doc_idx" ON "OnboardingDocumentVersion"("onboardingDocumentId")`,
+
+  // ─── BGV proof requirements & structured check forms (idempotent catch-up) ───
+  `ALTER TABLE "BgvCheck" ADD COLUMN IF NOT EXISTS "verificationMethod" TEXT`,
+  `ALTER TABLE "BgvCheck" ADD COLUMN IF NOT EXISTS "structuredData" TEXT`,
+  `ALTER TABLE "BgvEvidence" ADD COLUMN IF NOT EXISTS "evidenceType" TEXT`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
-import { CHECK_STATUSES, CHECK_RESULTS, RESULTS_REQUIRING_REASON, BGV_WORKABLE_STATUSES } from '@/lib/bgv';
+import {
+  CHECK_STATUSES, CHECK_RESULTS, RESULTS_REQUIRING_REASON, BGV_WORKABLE_STATUSES,
+  VERIFICATION_METHODS, validateStructuredData, checkCompletionGaps, type CheckResult,
+} from '@/lib/bgv';
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'PATCH, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
@@ -40,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const { id: requestId, checkId } = await params;
     const body = await req.json().catch(() => ({}));
-    const { status, result, findings, verificationDate, evidenceUrl } = body || {};
+    const { status, result, findings, verificationDate, evidenceUrl, verificationMethod, structuredData } = body || {};
 
     // Case must belong to the same vendor.
     const reqRows = await db.$queryRawUnsafe(
@@ -89,6 +92,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const nextFindings = findings !== undefined ? String(findings || '').slice(0, 4000) : check.findings;
     const nextStatus = status !== undefined ? String(status) : check.status;
 
+    // Verification method (how the check was performed).
+    let nextMethod: string | null = check.verificationMethod || null;
+    if (verificationMethod !== undefined) {
+      if (verificationMethod === null || verificationMethod === '') nextMethod = null;
+      else if (!(VERIFICATION_METHODS as readonly string[]).includes(String(verificationMethod))) {
+        return NextResponse.json(
+          { error: `verificationMethod must be one of: ${VERIFICATION_METHODS.join(', ')}` },
+          { status: 400, headers: CORS },
+        );
+      } else nextMethod = String(verificationMethod);
+    }
+
+    // Structured per-check facts — validated against the check-type form.
+    let nextStructured: string | null = check.structuredData || null;
+    let structuredCleaned: Record<string, string> = {};
+    try {
+      structuredCleaned = check.structuredData ? (JSON.parse(check.structuredData) || {}) : {};
+    } catch { structuredCleaned = {}; }
+    if (structuredData !== undefined) {
+      const v = validateStructuredData(check.checkType, structuredData);
+      if (!v.ok && status === 'completed') {
+        // For completion the required fields must all be present.
+        return NextResponse.json(
+          { error: `Structured details incomplete: ${v.errors.join('; ')}`, code: 'STRUCTURED_FIELDS_MISSING', errors: v.errors },
+          { status: 400, headers: CORS },
+        );
+      }
+      // Draft saves keep partial data; completed saves require the full form.
+      structuredCleaned = v.cleaned;
+      nextStructured = JSON.stringify(v.cleaned);
+    }
+
     let verificationDateValue: Date | null = check.verificationDate ? new Date(check.verificationDate) : null;
     if (verificationDate !== undefined) {
       if (verificationDate === null || verificationDate === '') {
@@ -112,9 +147,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (!verificationDateValue) {
         return NextResponse.json({ error: 'Verification date is required to complete the check' }, { status: 400, headers: CORS });
       }
-      if (RESULTS_REQUIRING_REASON.includes(nextResult as any) && !String(nextFindings || '').trim()) {
+      if (RESULTS_REQUIRING_REASON.includes(nextResult as CheckResult) && !String(nextFindings || '').trim()) {
         return NextResponse.json(
           { error: `"${nextResult}" requires written findings explaining what happened / what you tried.` },
+          { status: 400, headers: CORS },
+        );
+      }
+
+      // ── Proof & details gate: structured form + required evidence types.
+      const evidenceRows = await db.$queryRawUnsafe(
+        `SELECT "evidenceType" FROM "BgvEvidence" WHERE "bgvCheckId"=$1`,
+        checkId,
+      ).catch(() => []) as any[];
+      const gaps = checkCompletionGaps(
+        { checkType: check.checkType, result: nextResult, findings: nextFindings, structuredData: structuredCleaned },
+        evidenceRows,
+      );
+      if (gaps.length > 0) {
+        return NextResponse.json(
+          { error: `Cannot complete this check yet: ${gaps.join('; ')}`, code: 'CHECK_GAPS', gaps },
           { status: 400, headers: CORS },
         );
       }
@@ -128,6 +179,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (result !== undefined) { updates.push(`"result"=$${p++}`); vals.push(nextResult); }
     if (findings !== undefined) { updates.push(`"findings"=$${p++}`); vals.push(nextFindings); }
     if (verificationDate !== undefined) { updates.push(`"verificationDate"=$${p++}`); vals.push(verificationDateValue); }
+    if (verificationMethod !== undefined) { updates.push(`"verificationMethod"=$${p++}`); vals.push(nextMethod); }
+    if (structuredData !== undefined) { updates.push(`"structuredData"=$${p++}`); vals.push(nextStructured); }
     if (evidenceUrl !== undefined) { updates.push(`"evidenceUrl"=$${p++}`); vals.push(String(evidenceUrl || '').slice(0, 500)); }
     if (nextStatus === 'completed') { updates.push(`"completedAt"=NOW()`); }
     updates.push(`"updatedAt"=NOW()`);

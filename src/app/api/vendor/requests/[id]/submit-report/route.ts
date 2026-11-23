@@ -112,9 +112,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         { error: `Complete all required checks before submitting: ${incomplete.join('; ')}` },
         { status: 400, headers: CORS },
       );
-    }
-
-    // Optional vendor PDF (clearly separate from the standard report).
+    }    // Optional vendor PDF (clearly separate from the standard report).
     let vendorPdfName: string | null = null;
     let vendorPdfData: string | null = null;
     if (vendorPdf && vendorPdf.dataBase64) {
@@ -142,14 +140,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (inv[0]) investigatorName = inv[0].name;
     }
 
-    // Evidence index per check.
+    // Evidence index per check (with proof-type labels).
     const evidenceRows = await db.$queryRawUnsafe(
-      `SELECT "id","bgvCheckId","fileName" FROM "BgvEvidence" WHERE "bgvRequestId"=$1 ORDER BY "uploadedAt" ASC`,
+      `SELECT "id","bgvCheckId","fileName","evidenceType" FROM "BgvEvidence" WHERE "bgvRequestId"=$1 ORDER BY "uploadedAt" ASC`,
       requestId,
     ).catch(() => []) as any[];
-    const evByCheck: Record<string, { id: string; fileName: string }[]> = {};
+    const evByCheck: Record<string, { id: string; fileName: string; evidenceType?: string | null }[]> = {};
     for (const e of evidenceRows) {
-      (evByCheck[e.bgvCheckId] ||= []).push({ id: e.id, fileName: e.fileName });
+      (evByCheck[e.bgvCheckId] ||= []).push({ id: e.id, fileName: e.fileName, evidenceType: e.evidenceType || null });
     }
 
     const vendorRow = await db.$queryRawUnsafe(
@@ -187,18 +185,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
       const nextVersion = Number(verRows?.[0]?.nextVer || 1);
 
-      const snapChecks: SnapshotCheck[] = checks.map((c: any) => ({
-        checkId: c.id,
-        checkType: c.checkType,
-        checkLabel: c.checkLabel || c.checkType,
-        status: c.status,
-        result: c.result || null,
-        findings: c.findings || null,
-        verificationDate: c.verificationDate ? new Date(c.verificationDate).toISOString() : null,
-        completedAt: c.completedAt ? new Date(c.completedAt).toISOString() : null,
-        evidenceIds: (evByCheck[c.id] || []).map((e) => e.id),
-        evidenceFiles: (evByCheck[c.id] || []),
-      }));
+      const snapChecks: SnapshotCheck[] = checks.map((c: any) => {
+        let structured: Record<string, string> = {};
+        try { structured = JSON.parse(c.structuredData || '{}') || {}; } catch { structured = {}; }
+        return {
+          checkId: c.id,
+          checkType: c.checkType,
+          checkLabel: c.checkLabel || c.checkType,
+          status: c.status,
+          result: c.result || null,
+          findings: c.findings || null,
+          verificationDate: c.verificationDate ? new Date(c.verificationDate).toISOString() : null,
+          completedAt: c.completedAt ? new Date(c.completedAt).toISOString() : null,
+          verificationMethod: c.verificationMethod || null,
+          structuredData: structured,
+          evidenceIds: (evByCheck[c.id] || []).map((e) => e.id),
+          evidenceFiles: (evByCheck[c.id] || []),
+        };
+      });
 
       const submitterId = auth.role === 'vendor_admin' ? String(bgvReq.assignedVendorUserId || vu.id) : vu.id;
       const submitterRow = submitterId !== vu.id

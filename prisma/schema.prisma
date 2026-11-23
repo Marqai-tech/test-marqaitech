@@ -5801,6 +5801,8 @@ model BgvCheck {
   status           String   @default("pending") // pending | in_progress | completed
   result           String?  // Clear | Discrepancy Found | Unable to Verify
   findings         String?
+  verificationMethod String? // Document Inspection | Online Portal / Database | Telephonic | Email Confirmation | Physical Visit
+  structuredData   String?  // JSON of per-check-type structured facts (employer, institution, PCC no…)
   verificationDate DateTime?
   evidenceUrl      String?
   completedAt      DateTime?
@@ -5820,6 +5822,7 @@ model BgvEvidence {
   mimeType      String
   fileSize      Int      @default(0)
   fileData      String?  // base64 payload (data URL prefix optional)
+  evidenceType  String?  // proof kind key, e.g. degree_certificate / police_clearance / relieving_letter
   uploadedById  String?
   uploadedAt    DateTime @default(now())
 

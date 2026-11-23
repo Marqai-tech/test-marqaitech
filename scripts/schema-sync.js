@@ -118,6 +118,13 @@ async function main() {
     // ─── BgvCheck: verification date (standard form) ───
     `ALTER TABLE "BgvCheck" ADD COLUMN IF NOT EXISTS "verificationDate" TIMESTAMP(3)`,
 
+    // ─── BgvCheck: proof requirements & structured check forms (BGV evidence upgrade) ───
+    `ALTER TABLE "BgvCheck" ADD COLUMN IF NOT EXISTS "verificationMethod" TEXT`,
+    `ALTER TABLE "BgvCheck" ADD COLUMN IF NOT EXISTS "structuredData" TEXT`,
+
+    // ─── BgvEvidence: typed proof slots (degree_certificate / police_clearance / relieving_letter…) ───
+    `ALTER TABLE "BgvEvidence" ADD COLUMN IF NOT EXISTS "evidenceType" TEXT`,
+
     // ─── BgvReport: snapshot + generated/vendor PDFs + HR notes ───
     `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "snapshot" TEXT`,
     `ALTER TABLE "BgvReport" ADD COLUMN IF NOT EXISTS "standardPdfName" TEXT`,
