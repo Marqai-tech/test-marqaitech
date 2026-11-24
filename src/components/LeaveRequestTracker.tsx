@@ -108,12 +108,20 @@ export default function LeaveRequestTracker({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  /* ── Most-recent pending leave (the "Request in progress" hero card) ── */
+  /* ── Most-recent leave — pending first, then any recent terminal state ── */
+  /* BUG FIX (HRMS_BUG_242/163): Previously filtered to 'pending' only,
+     so the tracker disappeared the moment a leave was approved/rejected.
+     Now: prefer the most-recent pending; if none, show the most-recent
+     leave of any status so the user can see the completed tracker. */
   const inProgressLeave = useMemo(() => {
-    const pending = leaveRequests
-      .filter(l => l.status === 'pending')
+    const sorted = leaveRequests
+      .slice()
       .sort((a, b) => new Date(b.createdAt || b.startDate).getTime() - new Date(a.createdAt || a.startDate).getTime());
-    return pending[0] || null;
+    const pending = sorted.find(l => l.status === 'pending');
+    if (pending) return pending;
+    // No pending — show the most-recent leave of any status (within last 30 days)
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return sorted.find(l => new Date(l.createdAt || l.startDate).getTime() > cutoff) || sorted[0] || null;
   }, [leaveRequests]);
 
   /* ── Fetch approval history for the in-progress leave (or latest leave) ── */
@@ -265,9 +273,14 @@ export default function LeaveRequestTracker({
           </h2>
           <p className="text-xs text-thb-text-secondary mt-0.5">
             {(() => {
-              const days = getDaysBetween(inProgressLeave.startDate, inProgressLeave.endDate);
+              // BUG FIX (HRMS_BUG_163): Use chargeableDays if available
+              // (persisted on the LeaveRequest row), otherwise fall back
+              // to calendar-day computation.
+              const cd = (inProgressLeave as any)?.chargeableDays;
+              const days = cd != null ? Number(cd) : getDaysBetween(inProgressLeave.startDate, inProgressLeave.endDate);
               const half = inProgressLeave.halfDay ? 0.5 : 1;
-              return `${days * half} day${days * half === 1 ? '' : 's'}`;
+              const total = cd != null ? Number(cd) : days * half;
+              return `${total} day${total === 1 ? '' : 's'}`;
             })()}
             {inProgressLeave.halfDay ? ' · Half day' : ''}
             {inProgressLeave.reason ? ` · ${inProgressLeave.reason.slice(0, 60)}${inProgressLeave.reason.length > 60 ? '…' : ''}` : ''}

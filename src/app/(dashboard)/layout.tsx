@@ -402,7 +402,7 @@ export default function DashboardLayout({
       {/* MAIN CONTENT */}
       <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-[68px]' : 'ml-[260px]'}`}>
         <Header onSidebarToggle={handleSidebarToggle} />
-        <main className="p-6">{children}</main>
+        <main className="p-6 pb-24">{children}</main>
       </div>
     </div>
   );

@@ -190,7 +190,7 @@ export default function ApplyLeaveByHRPage() {
     setLoadingLeaveData(true);
     try {
       const typesUrl = employee.companyId
-        ? `/api/leave-types?companyId=${encodeURIComponent(employee.companyId)}`
+        ? `/api/leave-types?companyId=${encodeURIComponent(employee.companyId)}&employeeId=${encodeURIComponent(employee.id)}`
         : '/api/leave-types';
       const [typesRes, balanceRes, requestsRes, regRes, attReqRes] = await Promise.all([
         fetch(typesUrl, { headers: getAuthHeaders() }),

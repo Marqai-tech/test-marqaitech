@@ -330,6 +330,9 @@ export async function GET(request: Request) {
               employeeId: true,
               avatar: true,
               userId: true,
+              // BUG FIX (HRMS_BUG_205): include department so the HR
+              // dashboard department overview doesn't show 'Unassigned'
+              department: { select: { id: true, name: true } },
             },
           },
           leaveType: true,
@@ -963,6 +966,10 @@ export async function POST(request: Request) {
         halfDaySlot: halfDaySlot || null,
         aiCollaborativeWarning,
         status: 'pending',
+        // BUG FIX (HRMS_BUG_243/245): persist chargeableDays on the
+        // LeaveRequest row itself so the Apply Leave page and balance
+        // API can read the exact day count without recomputing.
+        chargeableDays: requestedDays,
       },
       include: {
         employee: {
@@ -1220,7 +1227,7 @@ export async function POST(request: Request) {
             message: `Primary manager is on leave. ${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}'s ${leaveRequest.leaveType.name} leave request (${startDate} to ${endDate}) has been auto-routed to you for approval.`,
             type: 'workflow',
             category: 'leave',
-            link: `/leave/${leaveRequest.id}`,
+            link: '/leave',
           }).catch(() => { /* non-fatal */ });
         }
       } catch (e) {
@@ -1247,7 +1254,7 @@ export async function POST(request: Request) {
           message: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} has submitted a ${leaveRequest.leaveType.name} leave request from ${startDate} to ${endDate}.`,
           type: 'workflow',
           category: 'leave',
-          link: `/leave/${leaveRequest.id}`,
+          link: '/leave',
         });
       }
     }
@@ -1277,7 +1284,7 @@ export async function POST(request: Request) {
           message: `A ${leaveRequest.leaveType?.name || 'leave'} request has been submitted on your behalf by HR/Admin. Leave dates: ${new Date(leaveRequest.startDate).toLocaleDateString()} to ${new Date(leaveRequest.endDate).toLocaleDateString()}. Status: ${leaveRequest.status}. You can view the details in the Leave module.`,
           type: 'info',
           category: 'leave',
-          link: `/leave/${leaveRequest.id}`,
+          link: '/leave',
         });
       } catch { /* non-critical */ }
     }

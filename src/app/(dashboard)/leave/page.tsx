@@ -166,6 +166,7 @@ function LeavePageContent() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'my' | 'team' | 'admin'>('my');
   const [teamCalendar, setTeamCalendar] = useState<{ team: any[]; leaves: any[]; byDate: Record<string, number[]> } | null>(null);
+  const [onLeaveTodayCount, setOnLeaveTodayCount] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -180,6 +181,12 @@ function LeavePageContent() {
         fetch(`/api/holidays${sq ? `?${sq}` : ''}`, { headers }).catch(() => null),
       ]);
       if (leaveRes.ok) { const data = await leaveRes.json(); setLeaveRequests(data.leaveRequests || []); setAllLeaveRequests(data.leaveRequests || []); }
+      // Fetch accurate count of employees on leave today (avoids truncation issues with limit=100)
+      const onLeaveRes = await fetch(`/api/leave?onLeaveToday=1${sq ? `&${sq}` : ''}`, { headers }).catch(() => null);
+      if (onLeaveRes?.ok) {
+        const onLeaveData = await onLeaveRes.json().catch(() => ({}));
+        setOnLeaveTodayCount(onLeaveData?.onLeaveToday || 0);
+      }
       if (empRes.ok) {
         const empData = await empRes.json();
         let myEmp = empData.employees?.find((e: { id: string; email: string; userId?: string }) =>
@@ -291,7 +298,7 @@ function LeavePageContent() {
           </div>
           {isManager && (
             <button
-              onClick={() => toast('Report export started')}
+              onClick={() => router.push('/leave/reports')}
               className="inline-flex items-center gap-1.5 h-[38px] px-4 rounded-[9px] border border-slate-200 bg-white text-slate-700 text-[13.5px] font-semibold hover:bg-slate-50"
             >
               <FiDownload className="w-4 h-4" /> Reports
@@ -299,14 +306,14 @@ function LeavePageContent() {
           )}
           {isAdmin && (
             <button
-              onClick={() => toast('Opening Non-Production Day posting')}
+              onClick={() => router.push('/leave/apply-by-hr')}
               className="inline-flex items-center gap-1.5 h-[38px] px-4 rounded-[9px] border border-slate-200 bg-white text-slate-700 text-[13.5px] font-semibold hover:bg-slate-50"
             >
               <FiCalendar className="w-4 h-4" /> NPD bulk leave
             </button>
           )}
           <button
-            onClick={() => router.push('/leave/apply')}
+            onClick={() => router.push(isAdmin ? '/leave/apply-by-hr' : '/leave/apply')}
             className="inline-flex items-center gap-1.5 h-[38px] px-4 rounded-[9px] bg-blue-600 hover:bg-blue-700 text-white text-[13.5px] font-semibold shadow-sm shadow-blue-600/30"
           >
             <FiPlus className="w-4 h-4" /> {isAdmin ? 'Apply on behalf' : 'Apply leave'}
@@ -359,12 +366,13 @@ function LeavePageContent() {
           holidays={holidays}
           teamCalendar={teamCalendar}
           onCancelled={fetchData}
+          onLeaveTodayCount={onLeaveTodayCount}
         />
       )}
 
       {/* Admin tab (HR view) */}
       {activeTab === 'admin' && isAdmin && (
-        <HRView loading={loading} leaveRequests={allLeaveRequests} leaveTypes={leaveTypes} />
+        <HRView loading={loading} leaveRequests={allLeaveRequests} leaveTypes={leaveTypes} onLeaveTodayCount={onLeaveTodayCount} />
       )}
     </div>
   );
@@ -665,7 +673,7 @@ function MyLeaveSummaryPanel({ leaveRequests, employee, holidays }: { leaveReque
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((dow + 6) % 7)); weekStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6); weekEnd.setHours(23, 59, 59, 999);
   const teamOnLeaveThisWeek = leaveRequests
-    .filter(l => l.status === 'approved' && new Date(l.startDate) <= weekEnd && new Date(l.endDate) >= weekStart)
+    .filter(l => l.status === 'approved' && l.employeeId !== employee?.id && new Date(l.startDate) <= weekEnd && new Date(l.endDate) >= weekStart)
     .map(l => ({
       id: l.id,
       name: l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.trim() : 'Unknown',
@@ -712,7 +720,7 @@ function MyLeaveSummaryPanel({ leaveRequests, employee, holidays }: { leaveReque
           <SummaryRow label="Policy" value={employee?.leavePolicyId ? 'Custom policy' : `Staff Policy ${year}`} />
           <SummaryRow label="Category" value={employee?.employeeType ? formatCategory(employee.employeeType) : 'White collar · Staff'} />
           <SummaryRow label="Approver" value={managerName || 'Reporting Manager'} />
-          <SummaryRow label="DOJ · DOC" value={`${dashDate(employee?.dateOfJoining)} · ${dashDate(employee?.dateOfConfirmation)}`} />
+          <SummaryRow label="Joining · Confirmation" value={`${dashDate(employee?.dateOfJoining)} · ${dashDate(employee?.dateOfConfirmation)}`} />
         </div>
       </div>
 
@@ -804,8 +812,8 @@ function formatCategory(employmentType: string) {
 /* ════════════════════════════════════════════════════════════════════
    MANAGER VIEW — 4 KPIs + approve table + 30-day team calendar
    ════════════════════════════════════════════════════════════════════ */
-function ManagerView({ loading, leaveRequests, leaveTypes, holidays, teamCalendar, onCancelled }: {
-  loading: boolean; leaveRequests: LeaveRequest[]; leaveTypes: LeaveType[]; holidays: Holiday[]; teamCalendar: { team: any[]; leaves: any[]; byDate: Record<string, number[]> } | null; onCancelled: () => void;
+function ManagerView({ loading, leaveRequests, leaveTypes, holidays, teamCalendar, onCancelled, onLeaveTodayCount }: {
+  loading: boolean; leaveRequests: LeaveRequest[]; leaveTypes: LeaveType[]; holidays: Holiday[]; teamCalendar: { team: any[]; leaves: any[]; byDate: Record<string, number[]> } | null; onCancelled: () => void; onLeaveTodayCount: number;
 }) {
   const pendingApprovals = leaveRequests.filter(r => r.status === 'pending');
   const onLeaveToday = leaveRequests.filter(r => r.status === 'approved' && new Date(r.startDate) <= new Date() && new Date(r.endDate) >= new Date());
@@ -827,7 +835,7 @@ function ManagerView({ loading, leaveRequests, leaveTypes, holidays, teamCalenda
 
   const kpis = [
     { label: 'Pending approvals', value: pendingApprovals.length, tone: 'warn' as const, icon: <FiClock className="w-4 h-4" />, foot: `${pendingApprovals.filter(a => new Date(a.startDate) < new Date()).length} back-dated` },
-    { label: 'On leave today', value: onLeaveToday.length, tone: 'neutral' as const, icon: <FiCalendar className="w-4 h-4" />, foot: onLeaveToday[0] ? `${onLeaveToday[0].employee?.firstName || ''} ${onLeaveToday[0].employee?.lastName || ''}`.trim() : 'No one today' },
+    { label: 'On leave today', value: onLeaveTodayCount, tone: 'neutral' as const, icon: <FiCalendar className="w-4 h-4" />, foot: onLeaveToday[0] ? `${onLeaveToday[0].employee?.firstName || ''} ${onLeaveToday[0].employee?.lastName || ''}`.trim() : 'No one today' },
     { label: 'Out this week', value: outThisWeek.length, tone: 'neutral' as const, icon: <FiUsers className="w-4 h-4" />, foot: `${weekStart.getDate()}–${weekEnd.getDate()} ${now.toLocaleDateString('en-US', { month: 'short' })}` },
     { label: 'Team LOP · ' + now.toLocaleDateString('en-US', { month: 'short' }), value: fmtNum(lopDays), tone: lopDays > 0 ? 'err' as const : 'neutral' as const, icon: <FiAlertCircle className="w-4 h-4" />, foot: lopDays > 0 ? 'Feeds payroll' : 'None this month' },
   ];
@@ -1201,9 +1209,9 @@ function TeamCalendarGrid({ teamCalendar, holidays, leaveRequests }: {
 /* ════════════════════════════════════════════════════════════════════
    HR VIEW — 4 KPIs + quick actions + dept overview + leave-by-type + setup + jobs + activity
    ════════════════════════════════════════════════════════════════════ */
-function HRView({ loading, leaveRequests, leaveTypes }: { loading: boolean; leaveRequests: LeaveRequest[]; leaveTypes: LeaveType[] }) {
+function HRView({ loading, leaveRequests, leaveTypes, onLeaveTodayCount }: { loading: boolean; leaveRequests: LeaveRequest[]; leaveTypes: LeaveType[]; onLeaveTodayCount: number }) {
+  const router = useRouter();
   const now = new Date();
-  const onLeaveToday = leaveRequests.filter(r => r.status === 'approved' && new Date(r.startDate) <= now && new Date(r.endDate) >= now);
   const pending = leaveRequests.filter(r => r.status === 'pending');
   const approved = leaveRequests.filter(r => r.status === 'approved');
   const lopDays = approved
@@ -1242,17 +1250,17 @@ function HRView({ loading, leaveRequests, leaveTypes }: { loading: boolean; leav
   const totalHead = depts.reduce((s, d) => s + d.head, 0) || teamSize;
 
   const kpis = [
-    { label: 'On leave today', value: onLeaveToday.length, unit: ` / ${totalHead}`, tone: 'neutral' as const, icon: <FiCalendar className="w-4 h-4" />, foot: totalHead > 0 ? `${((onLeaveToday.length / totalHead) * 100).toFixed(1)}% of workforce` : 'No data' },
+    { label: 'On leave today', value: onLeaveTodayCount, unit: ` / ${totalHead}`, tone: 'neutral' as const, icon: <FiCalendar className="w-4 h-4" />, foot: totalHead > 0 ? `${((onLeaveTodayCount / totalHead) * 100).toFixed(1)}% of workforce` : 'No data' },
     { label: 'Pending approvals', value: pending.length, tone: 'warn' as const, icon: <FiClock className="w-4 h-4" />, foot: `${pending.filter(p => new Date(p.startDate) < now).length} back-dated` },
     { label: 'LOP days · ' + now.toLocaleDateString('en-US', { month: 'short' }), value: fmtNum(lopDays), tone: lopDays > 0 ? 'err' as const : 'neutral' as const, icon: <FiAlertCircle className="w-4 h-4" />, foot: 'Feeds payroll cut-off' },
     { label: 'Profiles not linked', value: 0, tone: 'neutral' as const, icon: <FiUsers className="w-4 h-4" />, foot: 'New joiners · no policy' },
   ];
 
   const quickActions = [
-    { icon: <FiUserPlus className="w-4 h-4" />, t: 'Apply on behalf', s: 'HR applies leave for an employee', msg: 'Opening HR Leave Activities › Apply on behalf' },
-    { icon: <FiCalendar className="w-4 h-4" />, t: 'Post NPD bulk leave', s: 'Dept · sub-dept · location', msg: 'Opening Non-Production Day posting' },
-    { icon: <FiUpload className="w-4 h-4" />, t: 'Upload opening balance', s: 'Excel · row-wise errors', msg: 'Opening Upload Employee Leave Balance' },
-    { icon: <FiDownload className="w-4 h-4" />, t: 'Leave reports', s: 'Balance · Taken · LOP · CF', msg: 'Opening Leave Reports' },
+    { icon: <FiUserPlus className="w-4 h-4" />, t: 'Apply on behalf', s: 'HR applies leave for an employee', msg: 'Opening HR Leave Activities › Apply on behalf', href: '/leave/apply-by-hr' },
+    { icon: <FiCalendar className="w-4 h-4" />, t: 'Post NPD bulk leave', s: 'Dept · sub-dept · location', msg: 'Opening Non-Production Day posting', href: '/leave/apply-by-hr' },
+    { icon: <FiUpload className="w-4 h-4" />, t: 'Upload opening balance', s: 'Excel · row-wise errors', msg: 'Opening Upload Employee Leave Balance', href: '/leave/adjustments/request' },
+    { icon: <FiDownload className="w-4 h-4" />, t: 'Leave reports', s: 'Balance · Taken · LOP · CF', msg: 'Opening Leave Reports', href: '/leave/reports' },
   ];
 
   // Leave taken by type bar chart
@@ -1298,11 +1306,11 @@ function HRView({ loading, leaveRequests, leaveTypes }: { loading: boolean; leav
     }), [leaveRequests]);
 
   const setupItems = [
-    { step: 'Leave Policy', detail: `${leaveTypes.length} leave types · mapped to policies`, state: 'done' as const, screen: 'LV-001' },
-    { step: 'Leave Master', detail: `${leaveTypes.length} leave types configured`, state: leaveTypes.length > 0 ? 'done' as const : 'todo' as const, screen: 'LV-003' },
-    { step: 'Leave Rules', detail: 'Per-type policy rules & limits', state: 'warn' as const, screen: 'LV-004' },
-    { step: 'Employee Leave Profile', detail: `${teamSize} employees linked`, state: 'warn' as const, screen: 'LV-0xx' },
-    { step: 'Upload Opening Balance', detail: 'Year-start balance upload', state: 'todo' as const, screen: 'LV-0xx' },
+    { step: 'Leave Policy', detail: `${leaveTypes.length} leave types · mapped to policies`, state: 'done' as const, screen: '—' },
+    { step: 'Leave Master', detail: `${leaveTypes.length} leave types configured`, state: leaveTypes.length > 0 ? 'done' as const : 'todo' as const, screen: '—' },
+    { step: 'Leave Rules', detail: 'Per-type policy rules & limits', state: 'warn' as const, screen: '—' },
+    { step: 'Employee Leave Profile', detail: `${teamSize} employees linked`, state: 'warn' as const, screen: '—' },
+    { step: 'Upload Opening Balance', detail: 'Year-start balance upload', state: 'todo' as const, screen: '—' },
     { step: 'Verify sample employee', detail: 'End-to-end leave test', state: 'todo' as const, screen: '—' },
   ];
 
@@ -1322,7 +1330,7 @@ function HRView({ loading, leaveRequests, leaveTypes }: { loading: boolean; leav
       {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {quickActions.map(q => (
-          <button key={q.t} onClick={() => toast(q.msg)} className="flex items-center gap-3 text-left bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 hover:border-blue-400 hover:shadow-md hover:ring-2 hover:ring-blue-100 transition-all">
+          <button key={q.t} onClick={() => router.push(q.href)} className="flex items-center gap-3 text-left bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 hover:border-blue-400 hover:shadow-md hover:ring-2 hover:ring-blue-100 transition-all">
             <span className="w-[38px] h-[38px] flex-none rounded-lg bg-blue-50 text-blue-600 inline-grid place-content-center">{q.icon}</span>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-bold text-slate-800 truncate">{q.t}</p>
@@ -1344,7 +1352,7 @@ function HRView({ loading, leaveRequests, leaveTypes }: { loading: boolean; leav
                 <h3 className="text-[15px] font-bold text-slate-900">Department overview</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Today · {now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
               </div>
-              <button onClick={() => toast('Exported LV-R01 Leave Balance Report (Excel)')} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <button onClick={() => router.push('/leave/reports/balance')} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                 <FiDownload className="w-3.5 h-3.5" /> Export
               </button>
             </div>

@@ -1105,9 +1105,9 @@ export async function GET(request: Request) {
     // ============ NOTIFICATIONS ============
     const notifications = [
       { id: 'noti-1', tenantId: tenant.id, userId: 'user-admin', title: 'New Employee Onboarded', message: 'Raj Patel has been onboarded to the Engineering team.', type: 'info', category: 'system', isRead: false },
-      { id: 'noti-2', tenantId: tenant.id, userId: 'user-sarah', title: 'Leave Request Pending', message: 'David Kim has submitted a leave request that needs your approval.', type: 'workflow', category: 'leave', link: '/leave/lr-3', isRead: false },
+      { id: 'noti-2', tenantId: tenant.id, userId: 'user-sarah', title: 'Leave Request Pending', message: 'David Kim has submitted a leave request that needs your approval.', type: 'workflow', category: 'leave', link: '/leave', isRead: false },
       { id: 'noti-3', tenantId: tenant.id, userId: 'user-john', title: 'Performance Review Due', message: 'You have pending performance reviews to complete for Q1 2025.', type: 'warning', category: 'performance', link: '/performance/pr-5', isRead: false },
-      { id: 'noti-4', tenantId: tenant.id, userId: 'user-alice', title: 'Leave Approved', message: 'Your casual leave request from Mar 10-12 has been approved.', type: 'success', category: 'leave', link: '/leave/lr-1', isRead: true },
+      { id: 'noti-4', tenantId: tenant.id, userId: 'user-alice', title: 'Leave Approved', message: 'Your casual leave request from Mar 10-12 has been approved.', type: 'success', category: 'leave', link: '/leave', isRead: true },
       { id: 'noti-5', tenantId: tenant.id, userId: 'user-david', title: 'Payroll Processed', message: 'Your salary for March 2025 has been processed and will be credited soon.', type: 'success', category: 'payroll', isRead: true },
       { id: 'noti-6', tenantId: tenant.id, userId: 'user-bob', title: 'Training Starting Soon', message: 'Advanced React Patterns training starts on March 15, 2025.', type: 'info', category: 'workflow', link: '/training/tr-1', isRead: false },
       { id: 'noti-7', tenantId: tenant.id, userId: 'user-sarah', title: 'New Job Application', message: 'A new application has been received for the Senior Full-Stack Developer position.', type: 'info', category: 'recruitment', link: '/recruitment/jp-1', isRead: false },

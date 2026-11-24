@@ -463,6 +463,70 @@ export async function GET(request: Request) {
     }
 
     const normalizedBalances = normalizeLeaveBalances(result, { gender: targetEmployee?.gender, probation: isProbation });
+
+    // ─── BUG FIX (HRMS_BUG_241/243/244/245): Dynamically recompute `used`
+    // (taken) and `pending` from LeaveRequest rows, not just the
+    // LeaveBalance.used column. The LeaveBalance row is only updated on
+    // approval via deductLeaveBalance — and if that silently failed (0 rows),
+    // the balance showed 0 taken even after approved leaves. By recomputing
+    // from LeaveRequest we always reflect reality, including pending leaves.
+    // ───
+    try {
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+      const liveRequests = await db.leaveRequest.findMany({
+        where: {
+          employeeId,
+          status: { in: ['approved', 'pending'] },
+          OR: [
+            { startDate: { gte: yearStart, lte: yearEnd } },
+            { endDate: { gte: yearStart, lte: yearEnd } },
+          ],
+        },
+        select: {
+          leaveTypeId: true, startDate: true, endDate: true,
+          halfDay: true, status: true, chargeableDays: true,
+        },
+      });
+      // Compute taken (approved) and pending per leave type
+      const takenByType = new Map<string, number>();
+      const pendingByType = new Map<string, number>();
+      for (const req of liveRequests) {
+        // Use chargeableDays if set; otherwise compute from dates
+        let days = req.chargeableDays;
+        if (days == null || isNaN(Number(days))) {
+          const s = new Date(req.startDate);
+          const e = new Date(req.endDate);
+          if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+            days = req.halfDay ? 0.5 : Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          } else {
+            days = req.halfDay ? 0.5 : 1;
+          }
+        }
+        const d = Number(days) || 0;
+        if (req.status === 'approved') {
+          takenByType.set(req.leaveTypeId, (takenByType.get(req.leaveTypeId) || 0) + d);
+        } else if (req.status === 'pending') {
+          pendingByType.set(req.leaveTypeId, (pendingByType.get(req.leaveTypeId) || 0) + d);
+        }
+      }
+      // Override the balance rows with live values
+      for (const b of normalizedBalances) {
+        const ltId = b.leaveTypeId;
+        const liveTaken = takenByType.get(ltId) || 0;
+        const livePending = pendingByType.get(ltId) || 0;
+        // Use the live taken (from requests) if it's higher than the DB value,
+        // or always use it (since the DB value may be stale).
+        // We always use the live value as the source of truth.
+        b.used = liveTaken;
+        b.remaining = Math.max(0, (b.total || 0) - liveTaken - livePending);
+        // Add pending as a custom field for the UI
+        (b as any).pending = livePending;
+      }
+    } catch (liveErr) {
+      console.warn('[leave/balance] live request recompute failed (non-fatal):', liveErr);
+    }
+
     const summary = normalizedBalances.reduce(
       (acc, b) => {
         acc.totalAllocated += b.total || 0;
@@ -482,6 +546,7 @@ export async function GET(request: Request) {
           year: b.year,
           total: b.total,
           used: b.used,
+          pending: (b as any).pending || 0,
           remaining: b.remaining,
           carryForward: b.carryForward,
         })),

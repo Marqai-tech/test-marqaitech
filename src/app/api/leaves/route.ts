@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
               message: `${employee.firstName} ${employee.lastName} requested ${leaveRequest.leaveType?.name ?? 'leave'} (${totalDays} day${totalDays > 1 ? 's' : ''})`,
               type: 'info',
               category: 'leave',
-              link: `/leaves`,
+              link: '/leave',
             },
           });
         }
@@ -395,7 +395,7 @@ export async function PATCH(req: NextRequest) {
             message: `Your ${leave.leaveType?.name ?? 'leave'} request has been ${newStatus}${comment ? `: ${comment}` : ''}`,
             type: 'info',
             category: 'leave',
-            link: `/leaves`,
+            link: '/leave',
           },
         });
       }

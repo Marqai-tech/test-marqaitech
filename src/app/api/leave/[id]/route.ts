@@ -418,7 +418,7 @@ export async function PATCH(
               message: `Your ${existingLeave.leaveType?.name || 'leave'} request was approved at Tier ${approvedTierNum} by ${justApproverName}. It is now waiting for approval at Tier ${nextTierNum} from ${nextApproverName}.`,
               type: 'info',
               category: 'leave',
-              link: `/leave/${id}`,
+              link: '/leave',
             }).catch(() => null);
           }
 

@@ -258,10 +258,6 @@ export const navSections: NavSection[] = [
       { label: 'Leave Setup', href: '/leave/setup', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Approval Workflows', href: '/leave/approval-workflows', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
-      // ── Leave Adjustment (CR-03) ──
-      { label: 'Leave Adjustment', href: '#adjustment-divider', icon: <FiLayers className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },
-      // Adjustments pages removed per user request — not needed in this deployment.
-
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
       { label: 'Leave Reports', href: '/leave/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },

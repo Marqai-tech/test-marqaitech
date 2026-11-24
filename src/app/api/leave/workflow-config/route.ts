@@ -40,6 +40,46 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const leaveTypeId = searchParams.get('leaveTypeId');
 
+    // ─── BUG FIX (HRMS_BUG_250): When no leaveTypeId is specified, return
+    // ALL workflow configs for the tenant as { configs: [...] } so the
+    // approval-workflows page can load and display saved workflows.
+    // Previously GET always returned a single object, but the page expected
+    // an array → saved workflows never appeared on reopen.
+    // ───
+    if (!leaveTypeId) {
+      try {
+        const allRows = await db.$queryRawUnsafe(
+          `SELECT * FROM "LeaveWorkflowConfig"
+           WHERE "tenantId" = $1 AND "isActive" = true
+           ORDER BY "updatedAt" DESC`,
+          tenantId,
+        ) as any[];
+        const configs = (allRows || []).map((row: any) => {
+          let parsedConfig: WorkflowConfig;
+          try { parsedConfig = JSON.parse(row.config); } catch { parsedConfig = DEFAULT_WORKFLOW_CONFIG; }
+          return {
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            leaveTypeId: row.leavetypeid || row.leaveTypeId || null,
+            config: parsedConfig,
+            configId: row.id,
+            source: (row.leavetypeid || row.leaveTypeId) ? 'leave_type' : 'tenant',
+            isActive: row.isactive ?? true,
+            policyDocumentId: row.policydocumentid || row.policyDocumentId || null,
+            employmentType: row.employmenttype || row.employmentType || 'all',
+            branchId: row.branchid || row.branchId || null,
+            departmentId: row.departmentid || row.departmentId || null,
+            employeeStatus: row.employeestatus || row.employeeStatus || 'all',
+          };
+        });
+        return NextResponse.json({ configs }, { headers: corsHeaders() });
+      } catch (err) {
+        console.warn('[WorkflowConfig GET] list query failed:', err);
+        return NextResponse.json({ configs: [] }, { headers: corsHeaders() });
+      }
+    }
+
     // ─── Inline schema-sync for LeaveWorkflowConfig table ───
     try {
       await db.$executeRawUnsafe(
@@ -169,7 +209,7 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const role = decoded.role as string;
-    if (!['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(role)) {
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(role)) {
       return NextResponse.json(
         { error: 'Only admins can configure the leave workflow' },
         { status: 403, headers: corsHeaders() },

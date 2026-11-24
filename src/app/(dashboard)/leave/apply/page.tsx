@@ -356,7 +356,18 @@ function ApplyLeaveContent() {
     const entitled = rule?.entitledDaysPerYear || bal?.total || lt?.defaultDays || 0;
     const taken = ownLeaves
       .filter((l: any) => l.leaveTypeId === leaveTypeId && (l.status === 'approved' || l.status === 'pending'))
-      .reduce((sum: number, l: any) => sum + (l.chargeableDays || l.days || 0), 0);
+      .reduce((sum: number, l: any) => {
+        // Both 'approved' and 'pending' leaves consume balance, so both are
+        // subtracted from entitlement here (pending is already accounted for).
+        if (l.chargeableDays != null) return sum + l.chargeableDays;
+        if (l.days != null) return sum + l.days;
+        if (l.halfDay) return sum + 0.5;
+        const s = new Date(l.startDate); const e = new Date(l.endDate);
+        if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+          return sum + Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        }
+        return sum;
+      }, 0);
     const remaining = Math.max(0, entitled - taken);
     const isLop = (lt?.code || '').toLowerCase().includes('lop') || (lt?.name || '').toLowerCase().includes('loss of pay');
     return { entitled, taken, remaining, isLop, rule };
@@ -652,6 +663,7 @@ function ApplyLeaveContent() {
                 </label>
                 <input
                   type="date"
+                  lang="en-IN"
                   value={form.startDate}
                   onChange={e => set('startDate', e.target.value)}
                   className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
@@ -663,6 +675,7 @@ function ApplyLeaveContent() {
                 </label>
                 <input
                   type="date"
+                  lang="en-IN"
                   value={form.endDate}
                   min={form.startDate || undefined}
                   disabled={isHalfDay}
@@ -675,7 +688,7 @@ function ApplyLeaveContent() {
             {/* Session — segmented control */}
             <div>
               <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                Session <span className="text-[10.5px] font-bold text-slate-400 tracking-wider">NM</span>
+                Session <span className="text-[10.5px] font-bold text-slate-400 tracking-wider">optional</span>
               </label>
               <div className="inline-flex w-full bg-slate-100 border border-slate-200 rounded-[9px] p-1 gap-0.5">
                 {(['Full day', 'First half', 'Second half'] as Session[]).map(s => (
@@ -723,7 +736,7 @@ function ApplyLeaveContent() {
               <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
                 Attachment
                 <span className="ml-1 text-[10.5px] font-bold text-slate-400 tracking-wider">
-                  {selectedType && ((selectedType.code || '').toLowerCase().includes('sl') || (selectedType.name || '').toLowerCase().includes('sick')) ? 'M if > 3 days' : 'NM'}
+                  {selectedType && ((selectedType.code || '').toLowerCase().includes('sl') || (selectedType.name || '').toLowerCase().includes('sick')) ? 'Mandatory if > 3 days' : 'Optional'}
                 </span>
               </label>
               <label className={`flex items-center gap-2.5 border-[1.5px] border-dashed rounded-[10px] px-3.5 py-3 text-[12.5px] cursor-pointer transition-colors ${form.fileName ? 'border-emerald-400 bg-emerald-50 text-emerald-700 font-semibold' : 'border-slate-200 text-slate-500 hover:border-blue-400 hover:bg-blue-50'}`}>

@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
 
     const allLeaveTypes = await db.leaveType.findMany({
       where: { ...statusFilter, ...companyFilter },
-      orderBy: { name: 'asc' },
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
     });
 
     // ─── Mapping enforcement: filter leave types by LeaveTypePolicyMapping ───
@@ -165,12 +165,19 @@ export async function GET(req: NextRequest) {
     //     in any of them). The admin can add a mapping for them or use "all employees".
     let filteredTypes = allLeaveTypes;
 
-    if (scope && scope.scope === 'self') {
-      // Find the employee's record
-      const emp = await db.employee.findFirst({
-        where: { userId: scope.userId, status: 'active' },
-        select: { id: true, companyId: true },
-      }).catch(() => null);
+    // BUG FIX (HRMS_BUG_248): When an admin/HR passes employeeId (e.g. from
+    // Apply Leave by HR), run the same mapping enforcement for that employee
+    // so only their eligible leave types are listed.
+    const requestedEmployeeId = searchParams.get('employeeId');
+
+    if ((scope && scope.scope === 'self') || requestedEmployeeId) {
+      // Find the employee's record — by userId (self) or by direct id (admin)
+      const emp = requestedEmployeeId
+        ? await db.employee.findFirst({ where: { id: requestedEmployeeId }, select: { id: true, companyId: true } }).catch(() => null)
+        : await db.employee.findFirst({
+            where: { id: emp.id, status: 'active' },
+            select: { id: true, companyId: true },
+          }).catch(() => null);
 
       if (emp?.id) {
         // Check if ANY mappings exist — across ALL companies (not just the
@@ -201,7 +208,7 @@ export async function GET(req: NextRequest) {
 
           // Fetch the employee's full profile for scope matching
           const empFull = await db.employee.findFirst({
-            where: { userId: scope.userId, status: 'active' },
+            where: { id: emp.id, status: 'active' },
             select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
           }).catch(() => emp);
 
@@ -252,7 +259,7 @@ export async function GET(req: NextRequest) {
           // (BUG FIX 2026-11-23): previously showed NOTHING, but the user may
           // have assigned leave types via the Policy form. Use those.
           const empForPolicy = await db.employee.findFirst({
-            where: { userId: scope.userId, status: 'active' },
+            where: { id: emp.id, status: 'active' },
             select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
           }).catch(() => emp);
           const policyLtIds = await resolvePolicyBasedLeaveTypeIds(db, empForPolicy);
@@ -280,7 +287,7 @@ export async function GET(req: NextRequest) {
       const auth = await getAuthInfo(req).catch(() => null);
       const fallback = await db.leaveType.findMany({
         where: { status: 'active' },
-        orderBy: { name: 'asc' },
+        orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
       });
       if (fallback.length > 0) {
         console.warn(
@@ -291,7 +298,7 @@ export async function GET(req: NextRequest) {
         // Admins see all fallback types (no enforcement for admins).
         if (scope && scope.scope === 'self') {
           const emp = await db.employee.findFirst({
-            where: { userId: scope.userId, status: 'active' },
+            where: { id: emp.id, status: 'active' },
             select: { id: true, companyId: true },
           }).catch(() => null);
 
@@ -313,7 +320,7 @@ export async function GET(req: NextRequest) {
               const uniqueCompanies = [...new Set(companiesToCheck)];
 
               const empFull = await db.employee.findFirst({
-                where: { userId: scope.userId, status: 'active' },
+                where: { id: emp.id, status: 'active' },
                 select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
               }).catch(() => emp);
 
@@ -367,7 +374,7 @@ export async function GET(req: NextRequest) {
     // This runs AFTER all other filtering so it always applies.
     if (scope && scope.scope === 'self') {
       const emp = await db.employee.findFirst({
-        where: { userId: scope.userId, status: 'active' },
+        where: { id: emp.id, status: 'active' },
         select: { gender: true },
       }).catch(() => null);
 
@@ -401,7 +408,7 @@ export async function GET(req: NextRequest) {
     if (filteredTypes.length === 0) {
       const allTypes = await db.leaveType.findMany({
         where: { status: 'active' },
-        orderBy: { name: 'asc' },
+        orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
       });
       if (allTypes.length > 0) {
         console.warn(
