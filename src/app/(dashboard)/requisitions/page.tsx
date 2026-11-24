@@ -815,9 +815,17 @@ export default function RequisitionsPage() {
               Approval Chain Settings
             </a>
           )}
-          <button onClick={handleAddNew} className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-green-600/25 transition hover:bg-green-700">
-            <FiPlus className="h-3.5 w-3.5" /> Raise Requisition
-          </button>
+          {/* NEW-8 (strict): only Department Heads and HR/Admin can raise requisitions.
+              The API enforces the same rule — a regular employee gets 403. */}
+          {managerDepartment || isHr ? (
+            <button onClick={handleAddNew} className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-green-600/25 transition hover:bg-green-700">
+              <FiPlus className="h-3.5 w-3.5" /> Raise Requisition
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-400">
+              Only Department Heads or HR can raise requisitions
+            </span>
+          )}
         </div>
       </div>
 

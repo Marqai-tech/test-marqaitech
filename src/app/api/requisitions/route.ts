@@ -246,6 +246,17 @@ export async function POST(request: Request) {
       resolvedDepartmentId = managedDepartment.id;
     }
 
+    // ─── NEW-8 (strict): ONLY Department Heads and HR/Admin can raise requisitions ───
+    // A regular employee (or any other role) is rejected even with a direct
+    // API call. Department heads are locked to their own department (above);
+    // HR/Admin keep the ability to raise on behalf of any department.
+    if (!managedDepartment && !HR_ROLES.includes((decoded.role as string) || '')) {
+      return NextResponse.json(
+        { error: 'Only Department Heads (managers) or HR/Admin can raise requisitions.' },
+        { status: 403, headers: corsHeaders() },
+      );
+    }
+
     let normalizedInterviewPlan: string | null = null;
     if (interviewPlan !== undefined && interviewPlan !== null && String(interviewPlan).trim()) {
       try {
