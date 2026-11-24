@@ -129,13 +129,15 @@ export async function GET(req: NextRequest) {
         where: { id: { in: headIds } },
         select: { id: true, firstName: true, lastName: true, email: true, departmentId: true, user: { select: { id: true } } },
       });
-      headMap = new Map(heads.map((h) => [h.id, {
-        id: h.id,
-        name: [h.firstName, h.lastName].filter(Boolean).join(' ') || h.email,
-        email: h.email,
-        userId: h.user?.id || null,
-        departmentId: h.departmentId,
-      }]));
+      for (const h of heads) {
+        headMap.set(h.id, {
+          id: h.id,
+          name: [h.firstName, h.lastName].filter(Boolean).join(' ') || h.email,
+          email: h.email,
+          userId: h.user?.id || null,
+          departmentId: h.departmentId,
+        });
+      }
     }
     const withHead = deduped.map((d) => ({ ...d, head: d.headId ? (headMap.get(d.headId) || null) : null }));
 
