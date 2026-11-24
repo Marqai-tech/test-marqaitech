@@ -204,12 +204,19 @@ export default function RequisitionsPage() {
     return () => { cancelled = true };
   }, [user?.id]);
 
-  // NEW-8: lock the form department once the manager department is known
+  // NEW-8: lock the form department to the manager's department whenever it
+  // is known AND the create-form is open. This must also re-run when the form
+  // opens: handleAddNew() resets departmentId to '' and this effect (keyed
+  // only on managerDepartment, which never changes again) never re-fired, so
+  // the locked select *displayed* the department while the submitted form
+  // state was still empty — "Department is required" on save and an empty,
+  // disabled position dropdown. Editing keeps the draft's own department, so
+  // it is skipped; the equality guard prevents redundant state updates.
   useEffect(() => {
-    if (managerDepartment) {
+    if (managerDepartment && showForm && !editingId && form.departmentId !== managerDepartment.id) {
       setForm(prev => ({ ...prev, departmentId: managerDepartment.id }));
     }
-  }, [managerDepartment]);
+  }, [managerDepartment, showForm, editingId, form.departmentId]);
 
   const fetchDeptDesignations = useCallback(async () => {
     try {
@@ -317,7 +324,10 @@ export default function RequisitionsPage() {
   const resetFormExtras = () => { setSkillChips([]); setSkillInput(''); setSalaryMin(''); setSalaryMax(''); };
 
   const handleAddNew = () => {
-    setForm(initialForm);
+    // NEW-8 fix: seed the manager's locked department so the form state
+    // matches the department shown in the locked select (the lock effect
+    // above also self-heals this on open).
+    setForm(managerDepartment ? { ...initialForm, departmentId: managerDepartment.id } : initialForm);
     resetFormExtras();
     setEditingId(null);
     setShowForm(true);
