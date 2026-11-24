@@ -198,11 +198,6 @@ export const navSections: NavSection[] = [
     items: [
       // Self-service: visible to all roles (employee, manager, admin, etc.)
       { label: 'Module Dashboard', href: '/employees/dashboard', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
-      // Interviewer toggle (User.isInterviewer): panel members see this tab.
-      // The recruitment section itself stays hidden for employees, so the
-      // tab surfaces here in the self-service list. isInterviewer gating is
-      // enforced in Sidebar.tsx / ModuleStrip.tsx (hide when flag is off).
-      { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'employees', roles: ['employee', 'manager', 'admin', 'tenant_admin', 'super_admin'], isNew: true },
       { label: 'My Profile', href: '/my-profile', icon: <FiUser className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['employee', 'manager'] },
       { label: 'Update Requests', href: '/employees/update-requests', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Edit Log', href: '/employees/edit-log', icon: <FiList className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },

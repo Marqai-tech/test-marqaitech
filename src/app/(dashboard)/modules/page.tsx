@@ -65,7 +65,12 @@ export default function ModulesPage() {
         .map(section => ({
           ...section,
           items: section.items.filter(item => {
-            if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) return false;
+            if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) {
+              // Interviewer toggle: a flagged employee (User.isInterviewer)
+              // keeps exactly one Talent Acquisition card — My Interviews.
+              const itemPath = (item.href || '').split('?')[0];
+              if (!(itemPath === '/my-interviews' && user?.isInterviewer === true)) return false;
+            }
             if (item.roles) {
               const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
               if (!hasRole) return false;
@@ -83,7 +88,7 @@ export default function ModulesPage() {
         }))
         .filter(section => section.items.length > 0),
     })).filter(group => group.sections.length > 0);
-  }, [userRole, tenantSlug, effectiveRoles, enabledModules]);
+  }, [userRole, tenantSlug, effectiveRoles, enabledModules, user]);
 
   const searchFilteredGroups = useMemo(() => {
     if (!searchQuery.trim()) return filteredGroups;

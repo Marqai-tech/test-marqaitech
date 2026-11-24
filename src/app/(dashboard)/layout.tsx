@@ -96,7 +96,15 @@ export default function DashboardLayout({
         items: section.items.filter((item) => {
           // 1. Module-level check
           if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) {
-            return false;
+            // Interviewer toggle: a flagged employee (User.isInterviewer —
+            // set by HR or automatically when scheduled onto a panel) must
+            // auto-enter the Recruitment module on /my-interviews, so the
+            // layout's module auto-detection needs this one item to survive.
+            // Sidebar.tsx applies the same exception when rendering tabs.
+            const itemPath = (item.href || '').split('?')[0];
+            if (!(itemPath === '/my-interviews' && user?.isInterviewer === true)) {
+              return false;
+            }
           }
           // 2. Per-item role check (granular)
           if (item.roles) {
@@ -111,7 +119,7 @@ export default function DashboardLayout({
         }),
       }))
       .filter((section) => section.items.length > 0);
-  }, [userRole, effectiveRoles]);
+  }, [userRole, effectiveRoles, user]);
 
   // Auto-detect current module from pathname
   // NOTE: item.href may contain a query string (e.g. '/recruitment?tab=jobs'),

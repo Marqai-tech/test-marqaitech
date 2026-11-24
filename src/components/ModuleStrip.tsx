@@ -6,7 +6,7 @@ import {
   FiDollarSign, FiTrendingUp, FiFolder, FiPackage,
   FiGlobe, FiHelpCircle, FiMessageCircle, FiBookOpen,
   FiSettings, FiShield, FiServer, FiWatch, FiTarget,
-  FiShoppingBag,
+  FiShoppingBag, FiVideo,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { canRoleAccessModule, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
@@ -91,6 +91,10 @@ const navSections: NavSection[] = [
     sectionIcon: FiBriefcase,
     label: 'Talent Acquisition',
     items: [
+      // Interviewer toggle (User.isInterviewer): the ONLY Talent Acquisition
+      // entry visible to a flagged employee — filteredGroups keeps just this
+      // item when the recruitment module itself is role-locked.
+      { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-5 h-5" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiBriefcase className="w-5 h-5" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-5 h-5" />, moduleKey: 'recruitment' },
       { label: 'Requisitions', href: '/requisitions', icon: <FiBriefcase className="w-5 h-5" />, moduleKey: 'recruitment' },
@@ -412,7 +416,13 @@ export default function ModuleStrip({ currentModuleKey, onModuleSelect }: Module
           items: section.items.filter(item => {
             // 1. Module-level check
             if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) {
-              return false;
+              // Interviewer toggle: a flagged employee (User.isInterviewer)
+              // sees exactly one Talent Acquisition entry — My Interviews.
+              // The Recruitment module itself stays locked for their role.
+              const itemPath = (item.href || '').split('?')[0];
+              if (!(itemPath === '/my-interviews' && user?.isInterviewer === true)) {
+                return false;
+              }
             }
             // 2. Per-item role check (granular)
             if (item.roles) {
@@ -428,7 +438,7 @@ export default function ModuleStrip({ currentModuleKey, onModuleSelect }: Module
         }))
         .filter(section => section.items.length > 0),
     })).filter(group => group.sections.length > 0);
-  }, [userRole, effectiveRoles]);
+  }, [userRole, effectiveRoles, user]);
 
   return (
     <aside className="fixed right-0 top-0 h-full w-[72px] bg-thb-sidebar-bg border-l border-white/[0.06] flex flex-col z-40">
