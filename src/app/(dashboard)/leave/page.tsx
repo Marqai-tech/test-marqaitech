@@ -247,10 +247,30 @@ function LeavePageContent() {
 
   const blocked = isActiveProbation(employee);
   const order = ['casual leave', 'sick leave', 'earned leave', 'compensatory off', 'comp off', 'maternity leave', 'paternity leave', 'personal leave', 'loss of pay'];
-  const sortedBalances = useMemo(() => leaveBalances.slice().sort((a, b) => {
+
+  // BUG FIX (HRMS_BUG_241): If the balance API returned nothing (mapping
+  // enforcement filtered everything), fall back to synthesizing balance
+  // cards from the leave types already fetched at line 217. This mirrors
+  // how the Apply Leave page shows leave types — same data source.
+  const effectiveBalances = useMemo(() => {
+    if (leaveBalances.length > 0) return leaveBalances;
+    // Synthesize from leaveTypes when balances are empty
+    return leaveTypes.map(lt => ({
+      id: `synthetic-${lt.id}`,
+      leaveTypeId: lt.id,
+      leaveType: { id: lt.id, name: lt.name, code: lt.code },
+      year: new Date().getFullYear(),
+      total: blocked ? 0 : (lt.defaultDays || 0),
+      used: 0,
+      remaining: blocked ? 0 : (lt.defaultDays || 0),
+      carryForward: 0,
+    } as LeaveBalance));
+  }, [leaveBalances, leaveTypes, blocked]);
+
+  const sortedBalances = useMemo(() => effectiveBalances.slice().sort((a, b) => {
     const ai = order.indexOf(a.leaveType?.name?.toLowerCase() || ''); const bi = order.indexOf(b.leaveType?.name?.toLowerCase() || '');
     return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
-  }), [leaveBalances]);
+  }), [effectiveBalances]);
   const cardBalances = sortedBalances.slice(0, 5);
 
   const pendingDaysFor = useCallback((leaveTypeId: string) => {

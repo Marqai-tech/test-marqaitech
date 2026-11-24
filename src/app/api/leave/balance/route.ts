@@ -446,6 +446,27 @@ export async function GET(request: Request) {
       }
     }
 
+    // ─── FINAL SAFETY-NET FALLBACK (HRMS_BUG_241): If mapping enforcement
+    // filtered everything out but active leave types DO exist, show them all.
+    // This matches /api/leave-types' behavior (lines 408-419) — an empty
+    // result blocks the employee from seeing any balance cards, which is
+    // never acceptable. The apply page works because /api/leave-types has
+    // this fallback; the balance API didn't, causing the dashboard to show
+    // "No leave balances configured" while the apply page showed leave types.
+    if (result.length === 0 && activeLeaveTypes.length === 0) {
+      try {
+        const allTypes = await db.leaveType.findMany({
+          where: { status: 'active' },
+          select: { id: true, name: true, code: true, defaultDays: true, probationRestricted: true },
+          orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+        }).catch(() => []);
+        if (allTypes.length > 0) {
+          console.warn(`[leave/balance] Final fallback: showing all ${allTypes.length} active type(s) — mapping enforcement returned 0 for employee=${employeeId}`);
+          activeLeaveTypes = allTypes as typeof activeLeaveTypes;
+        }
+      } catch {}
+    }
+
     const existingLeaveTypeIds = new Set(result.map((b: any) => b.leaveTypeId));
     for (const leaveType of activeLeaveTypes) {
       if (existingLeaveTypeIds.has(leaveType.id)) continue;
