@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET /api/ai-interview/sessions/[id] — Get session with responses and evaluation
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(req);
   try {
     const { id } = await params;
     const session = await db.interviewSession.findUnique({
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // PUT /api/ai-interview/sessions/[id] — Update session (pre-screen, status, resume, transcript)
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(req);
   try {
     const { id } = await params;
     const body = await req.json();
@@ -77,6 +79,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // PATCH /api/ai-interview/sessions/[id] — End session and trigger evaluation
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(req);
   try {
     const { id } = await params;
     const body = await req.json();
@@ -97,7 +100,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
 
     // Trigger evaluation in background (don't await - let it process)
-    evaluateSession(id).catch(err => console.error('Background evaluation error:', err));
+    evaluateSession(id, db).catch(err => console.error('Background evaluation error:', err));
 
     return NextResponse.json({ data: session, message: 'Session completed. Evaluation in progress.' });
   } catch (error: unknown) {
@@ -106,7 +109,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-async function evaluateSession(sessionId: string) {
+async function evaluateSession(sessionId: string, db: Awaited<ReturnType<typeof getDb>>) {
   try {
     const session = await db.interviewSession.findUnique({
       where: { id: sessionId },

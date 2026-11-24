@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FiBriefcase, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiInfo, FiAlertTriangle, FiSettings } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, getStatusBadge } from '@/components/company/useCompanyData'
@@ -37,6 +37,8 @@ export default function DepartmentsPage() {
   const [deleteName, setDeleteName] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // NEW-8: Department Head picker — employees of the selected company (headId stores an Employee id)
+  const [headOptions, setHeadOptions] = useState<Array<{ id: string; name: string; email: string }>>([])
 
   const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400'
   const q = search.toLowerCase()
@@ -45,7 +47,7 @@ export default function DepartmentsPage() {
   )
 
   const getDefaultForm = (): Record<string, string> => ({
-    name: '', code: '', companyId: companies.find(c => c.status === 'active' || c.status === undefined)?.id || companies[0]?.id || '', status: 'active'
+    name: '', code: '', companyId: companies.find(c => c.status === 'active' || c.status === undefined)?.id || companies[0]?.id || '', status: 'active', headId: ''
   })
 
   const getFormFromRecord = (r: DepartmentRecord): Record<string, string> => {
@@ -105,6 +107,24 @@ export default function DepartmentsPage() {
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }))
 
+  // NEW-8: load employees of the selected company for the Department Head picker
+  useEffect(() => {
+    if (!showForm || !form.companyId) { setHeadOptions([]); return }
+    let cancelled = false
+    apiFetch(`/api/employees?companyId=${form.companyId}&limit=500`)
+      .then((json: any) => {
+        if (cancelled) return
+        const rows: any[] = json?.data || json?.employees || []
+        setHeadOptions(rows.map((e: any) => ({
+          id: e.id,
+          name: [e.firstName, e.lastName].filter(Boolean).join(' ') || e.email || e.employeeId || e.id,
+          email: e.email || '',
+        })).filter((e: any) => !!e.id))
+      })
+      .catch(() => { if (!cancelled) setHeadOptions([]) })
+    return () => { cancelled = true }
+  }, [showForm, form.companyId])
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -160,6 +180,7 @@ export default function DepartmentsPage() {
                 ['Name', viewingRecord.name], ['Code', viewingRecord.code], ['Status', viewingRecord.status],
                 ['Company', viewingRecord.company?.name], ['Employees', viewingRecord._count?.employees],
                 ['Designations', viewingRecord._count?.designations],
+                ['Department Head', (viewingRecord as any)?.head?.name || '—'],
               ].map(([label, value]) => (
                 <div key={String(label)}>
                   <p className="text-xs font-medium text-thb-text-muted mb-1">{label}</p>
@@ -185,6 +206,7 @@ export default function DepartmentsPage() {
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', onlyAlphanumeric(e.target.value))} className={inputClass} placeholder="e.g. ENG" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company <span className="text-red-500 font-bold">*</span></label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={inputClass}><option value="">Select Company</option>{companies.filter(c => c.status === 'active' || c.status === undefined).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}{companies.some(c => c.status === 'inactive') && <optgroup label="— Inactive (re-activate to use) —">{companies.filter(c => c.status === 'inactive').map(c => <option key={c.id} value={c.id} disabled>{c.name} (Inactive)</option>)}</optgroup>}</select></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Department Head</label><select value={form.headId || ''} onChange={e => updateForm('headId', e.target.value)} className={inputClass}><option value="">No head assigned</option>{headOptions.map(h => <option key={h.id} value={h.id}>{h.name}{h.email ? ` · ${h.email}` : ''}</option>)}</select><p className="mt-1 text-[11px] text-thb-text-muted">The head is the Department Manager — they raise requisitions for this department and approve as department_head.</p></div>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
@@ -202,16 +224,16 @@ export default function DepartmentsPage() {
         <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div>
       ) : (
         <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-teal-500" />} count={departments.length}>
-          <thead><tr><TH>Department</TH><TH>Company</TH><TH>Employees</TH><TH>Designations</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
+          <thead><tr><TH>Department</TH><TH>Company</TH><TH>Department Head</TH><TH>Employees</TH><TH>Designations</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
           <tbody>
             {fDepartments.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center"><FiBriefcase className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No departments found</p></td></tr>
+              <tr><td colSpan={7} className="px-4 py-12 text-center"><FiBriefcase className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No departments found</p></td></tr>
             ) : fDepartments.map(d => {
               const badge = getStatusBadge(d.status)
               return (
                 <tr key={d.id} className={`transition-colors ${deleteConfirmId === d.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
                   {deleteConfirmId === d.id ? (
-                    <td colSpan={6} className="px-4 py-3">
+                    <td colSpan={7} className="px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2"><FiAlertTriangle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-600">Delete <b>{d.name}</b>?</span></div>
                         <div className="flex items-center gap-2">
@@ -224,6 +246,7 @@ export default function DepartmentsPage() {
                     <>
                       <TD className="font-medium text-thb-text-primary">{d.name}</TD>
                       <TD>{d.company?.name || '—'}</TD>
+                      <TD>{(d as any)?.head?.name || '—'}</TD>
                       <TD>{d._count?.employees || 0}</TD>
                       <TD>{d._count?.designations || 0}</TD>
                       <TD><span className={badge.className}>{badge.label}</span></TD>

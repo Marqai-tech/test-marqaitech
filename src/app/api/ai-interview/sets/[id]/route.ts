@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET /api/ai-interview/sets/[id] — Get single set with questions
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(req);
   try {
     const { id } = await params;
     const set = await db.interviewSet.findUnique({
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // PUT /api/ai-interview/sets/[id] — Update set
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(req);
   try {
     const { id } = await params;
     const body = await req.json();
@@ -61,6 +63,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // DELETE /api/ai-interview/sets/[id] — Archive set
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(req);
   try {
     const { id } = await params;
     const set = await db.interviewSet.update({

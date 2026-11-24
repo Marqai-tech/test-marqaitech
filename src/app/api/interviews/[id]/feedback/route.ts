@@ -43,6 +43,60 @@ export async function POST(
 
     const { id } = await params;
     const body = await req.json();
+
+    // ─── Legacy / AI-review "time-stamped note" shape ───
+    // The AI Interview Review tab posts { interviewerName, interviewerId,
+    // timestampSec, sentiment, body, rating }. Store it as an InterviewFeedback
+    // row using the original WAVE2-C columns (interviewerName/timestampSec/
+    // sentiment/body/rating) attributed to the signed-in user.
+    if (typeof body?.sentiment === 'string' && typeof body?.body === 'string') {
+      try {
+        await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InterviewFeedback" (
+          "id" TEXT NOT NULL,
+          "interviewId" TEXT NOT NULL,
+          "userId" TEXT NOT NULL,
+          "technicalSkills" TEXT,
+          "communication" TEXT,
+          "experience" TEXT,
+          "problemSolving" TEXT,
+          "roleSuitability" TEXT,
+          "culturalFit" TEXT,
+          "strengths" TEXT,
+          "concerns" TEXT,
+          "rating" INT,
+          "recommendation" TEXT,
+          "comments" TEXT,
+          "interviewerName" TEXT,
+          "timestampSec" INT,
+          "sentiment" TEXT,
+          "body" TEXT,
+          "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "isFinal" BOOLEAN NOT NULL DEFAULT false,
+          "customFields" TEXT,
+          CONSTRAINT "InterviewFeedback_pkey" PRIMARY KEY ("id")
+        )`);
+        await db.$executeRawUnsafe(`ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "timestampSec" INT`).catch(() => null);
+        await db.$executeRawUnsafe(`ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "sentiment" TEXT`).catch(() => null);
+        await db.$executeRawUnsafe(`ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "body" TEXT`).catch(() => null);
+        await db.$executeRawUnsafe(`ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "interviewerName" TEXT`).catch(() => null);
+        await db.$executeRawUnsafe(`ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "isFinal" BOOLEAN NOT NULL DEFAULT false`).catch(() => null);
+        await db.$executeRawUnsafe(`ALTER TABLE "InterviewFeedback" ADD COLUMN IF NOT EXISTS "customFields" TEXT`).catch(() => null);
+        const legacyId = `fb${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+        await db.$executeRawUnsafe(
+          `INSERT INTO "InterviewFeedback" ("id", "interviewId", "userId", "interviewerName", "timestampSec", "sentiment", "body", "rating", "submittedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+          legacyId, id, String(decoded.userId || ''), body.interviewerName || null,
+          Number.isFinite(Number(body.timestampSec)) ? Number(body.timestampSec) : null,
+          String(body.sentiment || 'neutral'), String(body.body || ''),
+          Number.isFinite(Number(body.rating)) ? Math.max(1, Math.min(5, Number(body.rating))) : null,
+        );
+        return NextResponse.json({ success: true, id: legacyId }, { headers: corsHeaders() });
+      } catch (e) {
+        console.error('[InterviewFeedback POST] legacy shape failed:', e);
+        return NextResponse.json({ error: 'Failed to save the note' }, { status: 500, headers: corsHeaders() });
+      }
+    }
+
     const {
       userId,
       technicalSkills, communication, experience, problemSolving,

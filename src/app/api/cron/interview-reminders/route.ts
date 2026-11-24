@@ -262,6 +262,105 @@ export async function POST(req: NextRequest) {
           }
         } catch (e) { results.push(`No-response error: ${e instanceof Error ? e.message : e}`); }
 
+        // 5. LOCKED-5: DAILY candidate-acceptance reminder.
+        // For every scheduled/rescheduled interview whose candidate has NOT
+        // accepted in the portal yet and whose date is still ≥ 1 day away,
+        // email the candidate every day until they accept.
+        try {
+          await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "candidateResponse" TEXT`).catch(() => null);
+          const unconfirmed = await db.$queryRawUnsafe(
+            `SELECT i."id", i."date", i."time", ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+               FROM "Interview" i
+               JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+               LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+              WHERE i."status" IN ('scheduled','rescheduled')
+                AND i."date" >= NOW() + INTERVAL '1 day'
+                AND (i."candidateResponse" IS NULL OR i."candidateResponse" = 'pending')
+                AND ja."candidateEmail" IS NOT NULL`,
+          ) as any[];
+          const { sendEmail } = await import('@/lib/email');
+          for (const iv of unconfirmed) {
+            try {
+              const dateStr = iv.date ? new Date(iv.date).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'TBD';
+              await sendEmail({
+                to: iv.candidateEmail,
+                subject: `Reminder: Accept your interview for ${iv.jobTitle || 'the position'}`,
+                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#f59e0b;">Action Required — Accept Your Interview</h2>
+                  <p>Dear ${iv.candidateName || 'Candidate'},</p>
+                  <p>This is a daily reminder: your interview for <strong>${iv.jobTitle || 'the position'}</strong> is scheduled for <strong>${dateStr}</strong>.</p>
+                  <p>You must <strong>ACCEPT this interview in your candidate portal</strong> to confirm your participation. If you do not accept at least <strong>1 day before the scheduled time</strong>, the interview will be <strong>automatically cancelled</strong>.</p>
+                  <p><a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews" style="background:#f59e0b;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;">Accept in Candidate Portal</a></p>
+                  <p style="color:#64748b;font-size:12px;">You will receive this reminder every day until you accept.</p>
+                </div>`,
+              }).catch(() => null);
+              results.push(`Candidate acceptance reminder sent for interview ${iv.id}`);
+            } catch { /* per-interview non-fatal */ }
+          }
+        } catch (e) { results.push(`Candidate reminder error: ${e instanceof Error ? e.message : e}`); }
+
+        // 6. LOCKED-5: AUTO-CANCEL unaccepted interviews.
+        // A scheduled/rescheduled interview starting in less than 1 day whose
+        // candidate never accepted in the portal is cancelled automatically;
+        // the candidate and HR are informed.
+        try {
+          await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "candidateResponse" TEXT`).catch(() => null);
+          const toCancel = await db.$queryRawUnsafe(
+            `SELECT i."id", ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+               FROM "Interview" i
+               JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+               LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+              WHERE i."status" IN ('scheduled','rescheduled')
+                AND i."date" < NOW() + INTERVAL '1 day'
+                AND i."candidateResponse" IS DISTINCT FROM 'confirmed'`,
+          ) as any[];
+          const { sendEmail } = await import('@/lib/email');
+          for (const iv of toCancel) {
+            try {
+              await db.$executeRawUnsafe(
+                `UPDATE "Interview" SET "status" = 'cancelled',
+                    "cancelReason" = 'Auto-cancelled: candidate did not accept the interview at least 1 day before the scheduled time',
+                    "cancelledAt" = NOW(), "updatedAt" = NOW()
+                  WHERE "id" = $1 AND "status" IN ('scheduled','rescheduled')`,
+                iv.id,
+              );
+              if (iv.candidateEmail) {
+                await sendEmail({
+                  to: iv.candidateEmail,
+                  subject: `Interview Cancelled — Not Accepted in Portal (${iv.jobTitle || 'position'})`,
+                  html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                    <h2 style="color:#ef4444;">Interview Auto-Cancelled</h2>
+                    <p>Dear ${iv.candidateName || 'Candidate'},</p>
+                    <p>Your interview for <strong>${iv.jobTitle || 'the position'}</strong> has been automatically cancelled because it was not accepted in the candidate portal at least 1 day before the scheduled time.</p>
+                    <p>If you are still interested in this position, please contact the HR team to schedule a new interview.</p>
+                  </div>`,
+                }).catch(() => null);
+              }
+              // Notify HR
+              try {
+                const hrUsers = await db.user.findMany({
+                  where: { role: { in: ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin'] }, status: 'active', tenantId },
+                  select: { id: true },
+                }).catch(() => []);
+                for (const hr of hrUsers) {
+                  await dispatchNotification({
+                    tenantId,
+                    module: 'recruitment',
+                    eventKey: 'recruitment.interview.cancelled',
+                    recipients: [{ userId: hr.id }],
+                    vars: {
+                      Candidate_Name: iv.candidateName || 'a candidate',
+                      Job_Title: `${iv.jobTitle || 'position'} — auto-cancelled (candidate did not accept)`,
+                    },
+                    entity: { type: 'interview', id: iv.id, link: '/interviews' },
+                  }).catch(() => null);
+                }
+              } catch {}
+              results.push(`Auto-cancelled interview ${iv.id} (candidate never accepted)`);
+            } catch { /* per-interview non-fatal */ }
+          }
+        } catch (e) { results.push(`Auto-cancel error: ${e instanceof Error ? e.message : e}`); }
+
       } catch (e) {
         results.push(`Tenant ${td.tenant?.slug} error: ${e instanceof Error ? e.message : e}`);
       }

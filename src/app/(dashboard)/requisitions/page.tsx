@@ -184,6 +184,32 @@ export default function RequisitionsPage() {
   }, []);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
   const [designations, setDesignations] = useState<Array<{ id: string; title: string; departmentId: string | null }>>([]);
+  // NEW-8: the logged-in user's managed department (if they are a department
+  // head). When set, the requisition form locks the department to it — the
+  // API enforces the same rule server-side.
+  const [managerDepartment, setManagerDepartment] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user?.id) return;
+      try {
+        const r = await fetch('/api/departments?limit=200&noDedupe=1', { headers: getAuthHeaders() });
+        const json = await r.json().catch(() => null);
+        const rows: any[] = json?.data || [];
+        const mine = rows.find((d) => d?.head?.userId === user.id);
+        if (!cancelled && mine) setManagerDepartment({ id: mine.id, name: mine.name });
+      } catch { /* non-fatal — falls back to unrestricted view */ }
+    })();
+    return () => { cancelled = true };
+  }, [user?.id]);
+
+  // NEW-8: lock the form department once the manager department is known
+  useEffect(() => {
+    if (managerDepartment) {
+      setForm(prev => ({ ...prev, departmentId: managerDepartment.id }));
+    }
+  }, [managerDepartment]);
 
   const fetchDeptDesignations = useCallback(async () => {
     try {
@@ -535,6 +561,21 @@ export default function RequisitionsPage() {
         </button>
       );
     }
+    // NEW-8/NEW-9: tier-aware actions for ANY chain state (department_head,
+    // specific_user, tier_3+, custom chains). The API annotates each row with
+    // `nextTier` = the next pending tier + whether the current user is
+    // eligible. The generic 'approve' action advances whatever tier is next.
+    const nextTier: { approverType: string; label: string; eligible: boolean } | null = (r as any).nextTier || null;
+    if (nextTier?.eligible) {
+      actions.push(
+        <button key="tier_approve" onClick={() => handleApproval(r.id, 'approve')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
+          <FiCheck className="h-4 w-4" />Approve ({nextTier.label})
+        </button>,
+        <button key="tier_return" onClick={() => handleApproval(r.id, 'return')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
+          <FiRotateCcw className="h-4 w-4" />Return for Changes
+        </button>
+      );
+    }
     return actions;
   };
 
@@ -583,7 +624,16 @@ export default function RequisitionsPage() {
             </div>
             <div className="mt-2 grid grid-cols-[118px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1">
               <label className="text-[11px] font-semibold text-slate-600">Department <span className="text-red-500">*</span></label>
-              {departments.length > 0 ? (
+              {managerDepartment ? (
+                // NEW-8: Department Manager — locked to their own department.
+                // The API also forces this server-side, so it cannot be bypassed.
+                <div>
+                  <select required disabled value={managerDepartment.id} className={`${INPUT_CLS} bg-slate-100 text-slate-600`} title="Locked to your department">
+                    <option value={managerDepartment.id}>{managerDepartment.name} (your department)</option>
+                  </select>
+                  <p className="mt-0.5 text-[10px] text-slate-500">You can raise requisitions only for your own department. Hiring Manager is set to you automatically.</p>
+                </div>
+              ) : departments.length > 0 ? (
                 <select required value={form.departmentId} onChange={(e) => {
                   const newDeptId = e.target.value;
                   const stillValid = visibleDesignations.some(d => d.id === form.designationId);
@@ -759,9 +809,16 @@ export default function RequisitionsPage() {
           <h1 className="text-base font-bold leading-tight tracking-tight text-slate-900">Requisitions</h1>
           <p className="mt-0.5 text-[11px] text-slate-500">Raise, review, and approve hiring requests in one place</p>
         </div>
-        <button onClick={handleAddNew} className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-green-600/25 transition hover:bg-green-700">
-          <FiPlus className="h-3.5 w-3.5" /> Raise Requisition
-        </button>
+        <div className="flex items-center gap-2">
+          {isHr && (
+            <a href="/settings/requisition-approval" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50" title="Configure who approves requisitions and in which order">
+              Approval Chain Settings
+            </a>
+          )}
+          <button onClick={handleAddNew} className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-green-600/25 transition hover:bg-green-700">
+            <FiPlus className="h-3.5 w-3.5" /> Raise Requisition
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

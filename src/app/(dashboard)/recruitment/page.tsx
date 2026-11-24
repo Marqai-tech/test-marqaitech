@@ -1117,10 +1117,43 @@ export default function RecruitmentPage() {
   const [jobFormStep, setJobFormStep] = useState(1);
   const [hiringTeamEnabled, setHiringTeamEnabled] = useState(true);
   const [hiringTeam, setHiringTeam] = useState<Array<{ id: string; name: string; role: string; round?: number }>>([]);
+  // Employees of the job form's selected department — the Hiring Team picker's
+  // source. (The old picker read `panelMembers`, which is only populated by the
+  // Schedule Interview modal, so inside the job form the dropdown was empty.)
+  const [jobTeamMembers, setJobTeamMembers] = useState<Array<{ id: string; name: string; department: string }>>([]);
   const [screeningQuestions, setScreeningQuestions] = useState<Array<{ id: string; text: string; kind: 'knock-out' | 'standard' }>>([
     { id: 'experience', text: 'How many years of relevant experience do you have?', kind: 'knock-out' },
     { id: 'location', text: 'Are you comfortable with the stated work location?', kind: 'standard' },
   ]);
+
+  // Load the department's employees for the Hiring Team picker whenever the
+  // job form is open AND a department is chosen. Clearing on close / empty
+  // department keeps the dropdown from showing stale options. The employees
+  // API supports ?departmentId= and requires the same Bearer auth as every
+  // other call in this file (getAuthHeaders). Response: { employees: [...] }
+  // with firstName/lastName/email and department: { id, name } per row.
+  useEffect(() => {
+    if (!showJobForm || !jobForm.departmentId) { setJobTeamMembers([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/employees?departmentId=${encodeURIComponent(jobForm.departmentId)}&limit=200`, { headers: getAuthHeaders() });
+        if (!res.ok) throw new Error(`Employees fetch failed with status ${res.status}`);
+        const data = await res.json();
+        const rows: any[] = Array.isArray(data?.employees) ? data.employees : [];
+        if (cancelled) return;
+        setJobTeamMembers(rows.map((e: any) => ({
+          id: e.id,
+          name: e.name || [e.firstName, e.lastName].filter(Boolean).join(' ') || e.email,
+          department: e.department?.name || e.department || '',
+        })));
+      } catch (err) {
+        console.warn('[recruitment] Failed to load department employees for hiring team:', err);
+        if (!cancelled) setJobTeamMembers([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showJobForm, jobForm.departmentId]);
 
   useEffect(() => {
     const editor = descriptionInputRef.current;
@@ -1516,6 +1549,8 @@ export default function RecruitmentPage() {
     setEditingJobId(null);
     setJobForm(initialJobForm);
     setJobFormStep(1);
+    setHiringTeam([]);
+    setHiringTeamEnabled(true);
     setShowJobForm(true);
     setShowAppForm(false);
     setDeleteConfirmId(null);
@@ -1541,6 +1576,17 @@ export default function RecruitmentPage() {
       status: job.status || 'open',
       interviewPlan: job.interviewPlan || initialJobForm.interviewPlan,
     });
+    // Prefill the saved hiring team (stored as a JSON string column) so the
+    // picker shows the existing members and the "Configure team" toggle
+    // reflects whether a team was set.
+    let parsedHiringTeam: Array<{ id: string; name: string; role: string; round?: number }> = [];
+    try {
+      const rawTeam = (job as JobPosting & { hiringTeam?: string | null }).hiringTeam;
+      const parsed = rawTeam ? (typeof rawTeam === 'string' ? JSON.parse(rawTeam) : rawTeam) : [];
+      if (Array.isArray(parsed)) parsedHiringTeam = parsed;
+    } catch { /* keep default [] */ }
+    setHiringTeam(parsedHiringTeam);
+    setHiringTeamEnabled(Array.isArray(parsedHiringTeam) && parsedHiringTeam.length > 0);
     setJobFormStep(1);
     setShowJobForm(true);
     setShowAppForm(false);
@@ -1587,7 +1633,7 @@ export default function RecruitmentPage() {
     }
     try {
       setSubmittingJob(true);
-      const payload = { ...jobForm, status: statusOverride || jobForm.status, vacancies: parseInt(jobForm.vacancies) || 1 };
+      const payload = { ...jobForm, status: statusOverride || jobForm.status, vacancies: parseInt(jobForm.vacancies) || 1, hiringTeam: hiringTeamEnabled ? JSON.stringify(hiringTeam) : '[]' };
 
       if (editingJobId) {
         const res = await fetch(`/api/recruitment/${editingJobId}`, {
@@ -1990,7 +2036,7 @@ export default function RecruitmentPage() {
                 <div className="mb-5 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2"><FiBriefcase className="h-4 w-4 text-emerald-700" /><div><h3 className="font-bold text-slate-900">Compensation & Team</h3><p className="text-[11px] text-slate-500">Set the approved range and assign the people who will run this hire.</p></div></div>
                 <div className="mb-5 grid gap-4 border-b border-slate-100 pb-5 sm:grid-cols-2"><div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary range (annual)</label><input type="text" value={jobForm.salary} onChange={e => setJobForm(p => ({ ...p, salary: e.target.value }))} placeholder="e.g., ₹18,00,000 – ₹24,00,000" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" /><p className="mt-1 text-[11px] text-slate-500">Currency & pay period: INR · Annual</p></div><div className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800"><b>Budget check</b><p className="mt-1">This range is checked against the requisition budget before publishing.</p></div></div>
                 <div className="space-y-3 border-b border-slate-100 pb-5"><label className="flex items-center gap-3 text-sm"><input type="checkbox" defaultChecked className="h-4 w-4 accent-emerald-600" /> Show salary range to candidates</label><label className="flex items-center gap-3 text-sm"><input type="checkbox" defaultChecked className="h-4 w-4 accent-emerald-600" /> Show salary range to internal employees</label></div>
-                <div className="mt-5 mb-4"><div className="flex items-center justify-between"><div><h4 className="font-bold text-slate-900">Hiring Team</h4><p className="text-xs text-slate-500">Everyone who will screen, interview, or approve this job.</p></div><label className="flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" checked={hiringTeamEnabled} onChange={e => setHiringTeamEnabled(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Configure team</label></div>{hiringTeamEnabled && <div className="mt-3 rounded-lg border border-slate-200 p-3"><select className="w-full rounded-md border border-slate-200 px-2 py-2 text-xs" defaultValue="" onChange={e => { const employee = panelMembers.find((member: any) => member.id === e.target.value); if (employee) setHiringTeam(team => [...team.filter(item => item.id !== employee.id), { id: employee.id, name: employee.name || employee.email || 'Employee', role: 'interviewer' }]); }}><option value="">Add employee from selected department…</option>{panelMembers.map((member: any) => <option key={member.id} value={member.id}>{member.name || member.email} · {member.department?.name || 'Selected department'}</option>)}</select><p className="mt-2 text-[11px] text-slate-500">Only employees from the selected department are shown.</p>{hiringTeam.map(member => <div key={member.id} className="mt-2 flex items-center gap-2 rounded-md bg-slate-50 p-2 text-xs"><span className="min-w-0 flex-1 font-semibold">{member.name}</span><select value={member.role} onChange={e => setHiringTeam(team => team.map(item => item.id === member.id ? { ...item, role: e.target.value } : item))} className="rounded border border-slate-200 px-2 py-1"><option value="hiring_manager">Hiring manager</option><option value="recruiter">Recruiter</option><option value="interviewer">Interviewer</option><option value="sourcer">Sourcer</option></select><button type="button" onClick={() => setHiringTeam(team => team.filter(item => item.id !== member.id))} className="font-bold text-red-600">Remove</button></div>)}</div>}</div>
+                <div className="mt-5 mb-4"><div className="flex items-center justify-between"><div><h4 className="font-bold text-slate-900">Interviewer's</h4><p className="text-xs text-slate-500">Everyone who will screen, interview, or approve this job.</p></div><label className="flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" checked={hiringTeamEnabled} onChange={e => setHiringTeamEnabled(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Configure team</label></div>{hiringTeamEnabled && <div className="mt-3 rounded-lg border border-slate-200 p-3"><select className="w-full rounded-md border border-slate-200 px-2 py-2 text-xs" defaultValue="" onChange={e => { const employee = jobTeamMembers.find((member: any) => member.id === e.target.value); if (employee) setHiringTeam(team => [...team.filter(item => item.id !== employee.id), { id: employee.id, name: employee.name || 'Employee', role: 'interviewer' }]); }}><option value="">{jobForm.departmentId ? 'Add employee from selected department…' : 'Pick a department first'}</option>{jobTeamMembers.map((member: any) => <option key={member.id} value={member.id}>{member.name} · {member.department || 'Selected department'}</option>)}</select><p className="mt-2 text-[11px] text-slate-500">Only employees from the selected department are shown.</p>{hiringTeam.map(member => <div key={member.id} className="mt-2 flex items-center gap-2 rounded-md bg-slate-50 p-2 text-xs"><span className="min-w-0 flex-1 font-semibold">{member.name}</span><select value={member.role} onChange={e => setHiringTeam(team => team.map(item => item.id === member.id ? { ...item, role: e.target.value } : item))} className="rounded border border-slate-200 px-2 py-1"><option value="hiring_manager">Hiring manager</option><option value="recruiter">Recruiter</option><option value="interviewer">Interviewer</option><option value="sourcer">Sourcer</option></select><button type="button" onClick={() => setHiringTeam(team => team.filter(item => item.id !== member.id))} className="font-bold text-red-600">Remove</button></div>)}</div>}</div>
                 <div className="flex items-center justify-between mb-3"><div><label className="block text-sm font-semibold text-thb-text-primary">Number of Interview Rounds for This Role <span className="text-red-500">*</span></label><p className="text-[11px] text-thb-text-muted mt-0.5">{parseInterviewPlan(jobForm.interviewPlan).length} round(s) configured.</p></div><button type="button" onClick={() => { const rows = parseInterviewPlan(jobForm.interviewPlan); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan([...rows, { name: '', type: 'technical' }]) })); }} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">+ Add Round</button></div>
                 <div className="space-y-2">{parseInterviewPlan(jobForm.interviewPlan).map((row, i, rows) => <div key={i} className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 p-2"><span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">{i + 1}</span><input required value={row.name} placeholder="Enter your own round name" onChange={e => { const next = [...rows]; next[i] = { ...row, name: e.target.value }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="flex-1 min-w-0 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} name`} /><select value={row.type} onChange={e => { const next = [...rows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="w-36 px-2.5 py-2 rounded-md border border-thb-border text-sm" aria-label={`Round ${i + 1} type`}><option value="technical">Technical</option><option value="hr">HR</option><option value="client">Client</option><option value="ai">AI</option></select><button type="button" onClick={() => { const next = rows.filter((_, index) => index !== i); setJobForm(p => ({ ...p, interviewPlan: serializeInterviewPlan(next) })); }} className="px-2 py-2 rounded-md text-xs text-red-600 hover:bg-red-50" aria-label={`Remove round ${i + 1}`}>Remove</button></div>)}</div>
                 {parseInterviewPlan(jobForm.interviewPlan).length === 0 && <p className="rounded-lg border border-dashed border-red-200 bg-red-50 p-3 text-center text-xs text-red-700">At least one named interview round is required.</p>}

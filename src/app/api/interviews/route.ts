@@ -778,6 +778,135 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, message: 'Interview cancelled — panel members notified' }, { headers: corsHeaders() });
     }
 
+    // ─── Action: SEND FEEDBACK REMINDER (NEW: HR feedback tracker) ──────
+    // HR nudges panel members who have NOT submitted their feedback yet
+    // (in-app notification + email). Members who already submitted are
+    // skipped. Optionally targets one member via { userId }.
+    if (action === 'send_feedback_reminder') {
+      if (!HR_ROLES.includes((decoded.role as string) || '')) {
+        return NextResponse.json({ error: 'Only HR/Admin can send feedback reminders' }, { status: 403, headers: corsHeaders() });
+      }
+      const { userId: onlyUserId } = body;
+      try {
+        const pendingRows = await db.$queryRawUnsafe(
+          `SELECT pm."userId", u."email", u."name"
+             FROM "InterviewPanelMember" pm
+             LEFT JOIN "User" u ON u."id" = pm."userId"
+            WHERE pm."interviewId" = $1
+              AND pm."status" IN ('pending', 'accepted', 'requested_reschedule')
+              AND (pm."userId" = $2 OR $2 IS NULL)
+              AND NOT EXISTS (
+                SELECT 1 FROM "InterviewFeedback" f
+                 WHERE f."interviewId" = pm."interviewId" AND f."userId" = pm."userId"
+              )`,
+          id, onlyUserId || null,
+        ) as any[];
+        let sent = 0;
+        for (const pm of pendingRows) {
+          if (!pm.userId) continue;
+          sent++;
+          if (decoded.tenantId) {
+            await createNotification({
+              tenantId: decoded.tenantId as string, userId: pm.userId,
+              title: 'Feedback Reminder',
+              message: 'HR is waiting for your interview feedback. Please submit it in My Interviews.',
+              type: 'warning', category: 'recruitment', link: '/my-interviews',
+            }).catch(() => null);
+          }
+          if (pm.email) {
+            const { sendEmail } = await import('@/lib/email');
+            await sendEmail({
+              to: pm.email,
+              subject: 'Reminder: Interview Feedback Pending',
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#f59e0b;">Interview Feedback Pending</h2>
+                <p>Dear ${pm.name || 'Interviewer'},</p>
+                <p>HR is waiting for your interview feedback. Please open <strong>My Interviews</strong> in the portal and submit your feedback for this interview.</p>
+                <p><a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/my-interviews" style="background:#0d9488;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;">Open My Interviews</a></p>
+              </div>`,
+            }).catch(() => null);
+          }
+        }
+        return NextResponse.json({ success: true, message: `Reminder sent to ${sent} panel member(s)` }, { headers: corsHeaders() });
+      } catch (e) {
+        return NextResponse.json({ error: 'Failed to send reminders' }, { status: 500, headers: corsHeaders() });
+      }
+    }
+
+    // ─── Action: HR FINAL FEEDBACK → CANDIDATE (NEW: LOCKED-3) ──────────
+    // HR writes the consolidated final feedback (based on the panel feedbacks)
+    // and takes the decision. The final feedback is stored on the interview
+    // and delivered to the CANDIDATE — in the candidate portal AND by email.
+    // Individual interviewer feedbacks are never exposed to the candidate.
+    if (action === 'final_feedback') {
+      if (!HR_ROLES.includes((decoded.role as string) || '')) {
+        return NextResponse.json({ error: 'Only HR/Admin can send final feedback' }, { status: 403, headers: corsHeaders() });
+      }
+      const { finalFeedback, finalDecision } = body;
+      const validDecisions = ['cleared', 'rejected', 'next_round', 'on_hold'];
+      if (!finalFeedback || !String(finalFeedback).trim()) {
+        return NextResponse.json({ error: 'Final feedback text is required' }, { status: 400, headers: corsHeaders() });
+      }
+      if (!validDecisions.includes(finalDecision)) {
+        return NextResponse.json({ error: `Decision must be one of: ${validDecisions.join(', ')}` }, { status: 400, headers: corsHeaders() });
+      }
+
+      // Lazy-migrate the final feedback columns (codebase pattern)
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalFeedback" TEXT`);
+        await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalDecision" TEXT`);
+        await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalFeedbackById" TEXT`);
+        await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalFeedbackAt" TIMESTAMP`);
+      } catch {}
+
+      await db.$executeRawUnsafe(
+        `UPDATE "Interview" SET "finalFeedback" = $1, "finalDecision" = $2, "finalFeedbackById" = $3, "finalFeedbackAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $4`,
+        String(finalFeedback), finalDecision, decoded.userId as string, id,
+      );
+
+      // Deliver to the CANDIDATE: portal (columns read by candidate-portal
+      // interviews GET) + email with the decision and the feedback text.
+      try {
+        const candRows = await db.$queryRawUnsafe(
+          `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle", i."round"
+             FROM "Interview" i
+             JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+             LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+            WHERE i."id" = $1 LIMIT 1`, id,
+        ) as any[];
+        const cand = candRows[0];
+        if (cand?.candidateEmail) {
+          const decisionMeta: Record<string, { subject: string; heading: string; color: string }> = {
+            cleared: { subject: 'Interview Result — Cleared', heading: 'Congratulations — Interview Cleared', color: '#16a34a' },
+            next_round: { subject: 'Interview Result — Cleared for Next Round', heading: 'You Are Cleared for the Next Round', color: '#0d9488' },
+            rejected: { subject: 'Interview Result', heading: 'Interview Result', color: '#64748b' },
+            on_hold: { subject: 'Interview Result — On Hold', heading: 'Interview Result — On Hold', color: '#f59e0b' },
+          };
+          const meta = decisionMeta[finalDecision] || decisionMeta.rejected;
+          const { sendEmail } = await import('@/lib/email');
+          await sendEmail({
+            to: cand.candidateEmail,
+            subject: meta.subject,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <h2 style="color:${meta.color};">${meta.heading}</h2>
+              <p>Dear ${cand.candidateName || 'Candidate'},</p>
+              <p>Here is the final feedback from our team for your interview${cand.round ? ` (Round ${cand.round})` : ''} for <strong>${cand.jobTitle || 'the position'}</strong>:</p>
+              <div style="background:#f8fafc;border-left:4px solid ${meta.color};padding:12px 16px;border-radius:6px;white-space:pre-wrap;">${String(finalFeedback)}</div>
+              <p style="margin-top:16px;">You can also view this feedback in your candidate portal.</p>
+            </div>`,
+          }).catch(() => null);
+        }
+      } catch {}
+
+      // Audit log
+      await db.auditLog.create({
+        data: { userId: decoded.userId as string, action: 'INTERVIEW_FINAL_FEEDBACK', module: 'recruitment',
+          details: `Final feedback (${finalDecision}) sent to candidate for interview ${id}` },
+      }).catch(() => null);
+
+      return NextResponse.json({ success: true, message: 'Final feedback saved and sent to the candidate (portal + email)' }, { headers: corsHeaders() });
+    }
+
     // ─── Action: MARK COMPLETED ─────────────────────────────────────────
     // HR marks the interview as completed. Optionally records attendance in
     // the same call (so HR doesn't have to do two PATCH calls).

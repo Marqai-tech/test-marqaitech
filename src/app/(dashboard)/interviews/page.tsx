@@ -307,6 +307,9 @@ export default function InterviewsPage() {
   const [replaceDraft, setReplaceDraft] = useState<{ interviewId: string; oldUserId: string; oldName: string; newUserId: string; reason: string } | null>(null);
   const [panelCandidates, setPanelCandidates] = useState<Array<{ id: string; name: string; email: string; designation: string }>>([]);
 
+  /* ── NEW LOCKED-3: HR final feedback composer (goes to the candidate) ── */
+  const [finalFeedbackDraft, setFinalFeedbackDraft] = useState<{ interviewId: string; decision: string; feedback: string } | null>(null);
+
   /* ── schedule drawer ── */
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -415,6 +418,69 @@ export default function InterviewsPage() {
       if (pm.confirmationStatus === 'accepted') initialPanelAttendance[pm.userId] = 'present';
     });
     setAttendanceDraft({ interviewId, candidateAttendance: 'attended', panelAttendance: initialPanelAttendance });
+  };
+
+  /* NEW LOCKED-2: nudge panel member(s) who haven't submitted feedback yet. */
+  const handleSendFeedbackReminder = async (interviewId: string, userId?: string) => {
+    setActionLoading(interviewId + '-remind');
+    try {
+      const res = await fetch('/api/interviews', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: interviewId, action: 'send_feedback_reminder', ...(userId ? { userId } : {}) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(data.message || 'Reminder sent');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+    } finally { setActionLoading(null); }
+  };
+
+  /* NEW LOCKED-3: HR writes the consolidated final feedback + decision.
+     It is stored on the interview and delivered to the candidate (portal + email). */
+  const handleSendFinalFeedback = async () => {
+    if (!finalFeedbackDraft) return;
+    if (!finalFeedbackDraft.feedback.trim()) { toast.error('Write the final feedback first'); return; }
+    setActionLoading(finalFeedbackDraft.interviewId + '-final');
+    try {
+      const res = await fetch('/api/interviews', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: finalFeedbackDraft.interviewId, action: 'final_feedback', finalFeedback: finalFeedbackDraft.feedback, finalDecision: finalFeedbackDraft.decision }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success('Final feedback sent to the candidate (portal + email)');
+      setFinalFeedbackDraft(null);
+      fetchInterviews();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+    } finally { setActionLoading(null); }
+  };
+
+  /* NEW LOCKED-4: reschedule is two explicit steps — CANCEL first, then
+     schedule the fresh slot (drawer opens right after the cancel). */
+  const handleCancelForReschedule = async (interviewId: string) => {
+    const reason = prompt('Reschedule: first CANCEL the current interview, then schedule the new slot.\nCancellation reason (visible to panel + candidate):', 'Rescheduled by HR');
+    if (reason === null) return;
+    if (!reason.trim()) { toast.error('A cancellation reason is required'); return; }
+    if (!confirm('Cancel this interview now? The candidate and panel will be informed. The schedule drawer opens next so you can book the new slot.')) return;
+    setActionLoading(interviewId + '-cancel');
+    try {
+      const res = await fetch('/api/interviews', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: interviewId, action: 'cancel', cancelReason: reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success('Interview cancelled. Now schedule the new slot.');
+      fetchInterviews();
+      setDrawerOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+    } finally { setActionLoading(null); }
   };
 
   const handleSubmitAttendance = async () => {
@@ -990,6 +1056,18 @@ export default function InterviewsPage() {
                                   <FiUser className="w-3 h-3 text-green-600" />
                                   Panel &amp; Feedback — {pm.filter(p => p.hasFeedback).length} of {pm.length} submitted
                                   {loadingFeedbackId === interview.id && <span className="text-slate-400 font-bold normal-case tracking-normal">loading…</span>}
+                                  <span className="ml-auto inline-flex items-center gap-1.5 normal-case tracking-normal">
+                                    <span className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-1.5 py-0.5 text-[9.5px] font-extrabold text-green-700"><FiCheck className="w-2.5 h-2.5" />{pm.filter(p => p.hasFeedback).length} Received</span>
+                                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9.5px] font-extrabold text-amber-700"><FiClock className="w-2.5 h-2.5" />{pm.filter(p => !p.hasFeedback).length} Pending</span>
+                                    <button
+                                      onClick={e => { e.stopPropagation(); handleSendFeedbackReminder(interview.id); }}
+                                      disabled={actionLoading === interview.id + '-remind' || pm.every(p => p.hasFeedback)}
+                                      className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[9.5px] font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                                      title="Nudge every panel member who has not submitted feedback"
+                                    >
+                                      {actionLoading === interview.id + '-remind' ? 'Sending…' : 'Send Reminder'}
+                                    </button>
+                                  </span>
                                 </h4>
                                 {pm.length === 0 && <p className="text-[11.5px] text-slate-400">No panel members assigned.</p>}
                                 {pm.map(p => {
@@ -1013,6 +1091,21 @@ export default function InterviewsPage() {
                                           <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9.5px] font-extrabold shrink-0 ${REC_META[p.feedbackRecommendation || '']?.cls || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                                             <FiStar className="w-2.5 h-2.5" />{p.feedbackRating}/5 · {REC_META[p.feedbackRecommendation || '']?.label || 'Feedback'}
                                           </span>
+                                        )}
+                                        {!p.hasFeedback && (
+                                          <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9.5px] font-extrabold text-amber-700 shrink-0">
+                                            <FiClock className="w-2.5 h-2.5" />Feedback Pending
+                                          </span>
+                                        )}
+                                        {!p.hasFeedback && (
+                                          <button
+                                            onClick={e => { e.stopPropagation(); handleSendFeedbackReminder(interview.id, p.userId); }}
+                                            disabled={actionLoading === interview.id + '-remind'}
+                                            className="text-[10px] font-bold text-amber-600 hover:underline shrink-0"
+                                            title={`Send a feedback reminder to ${p.name}`}
+                                          >
+                                            Remind
+                                          </button>
                                         )}
                                         {p.confirmationStatus === 'declined' && !replaceUi && (
                                           <button
@@ -1100,11 +1193,70 @@ export default function InterviewsPage() {
                                     </button>
                                     <button
                                       onClick={() => handleMarkCompleted(interview.id, true)}
-                                      className={BTN_GHOST + ' w-full mb-2'}
+                                      className={BTN_GHOST + ' w-full mb-1.5'}
                                     >
                                       <FiCalendar className="w-3 h-3" /> Complete + Attendance
                                     </button>
                                   </>
+                                )}
+
+                                {/* NEW LOCKED-4: Reschedule = CANCEL first, then schedule fresh.
+                                    Nothing changes silently: cancel informs panel + candidate,
+                                    then the schedule drawer opens for the new slot. */}
+                                {(interview.status === 'scheduled' || interview.status === 'rescheduled') && (
+                                  <button
+                                    onClick={() => handleCancelForReschedule(interview.id)}
+                                    disabled={actionLoading === interview.id + '-cancel'}
+                                    className={BTN_GHOST + ' w-full mb-2 border-amber-300 text-amber-700 hover:bg-amber-50'}
+                                    title="Two steps: cancel this interview, then schedule the new slot"
+                                  >
+                                    <FiRefreshCw className="w-3 h-3" /> {actionLoading === interview.id + '-cancel' ? 'Cancelling…' : 'Reschedule (Cancel → New Slot)'}
+                                  </button>
+                                )}
+
+                                {/* NEW LOCKED-3: HR final feedback — written by HR, delivered to the
+                                    candidate in the portal and by email. Individual interviewer
+                                    feedbacks stay internal. */}
+                                {(interview.status === 'completed' || interview.status === 'scheduled' || interview.status === 'rescheduled') && (
+                                  <div className="rounded-lg border border-teal-200 bg-teal-50/50 px-2.5 py-2 mb-2">
+                                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-teal-800 mb-1">Final Feedback to Candidate</p>
+                                    {(interview as any).finalFeedback ? (
+                                      <div className="text-[10.5px] leading-relaxed text-slate-600">
+                                        <p><b className="text-teal-700">Decision:</b> {{ cleared: 'Cleared', rejected: 'Rejected', next_round: 'Cleared for Next Round', on_hold: 'On Hold' }[(interview as any).finalDecision] || (interview as any).finalDecision}</p>
+                                        <p className="whitespace-pre-wrap mt-0.5">{(interview as any).finalFeedback}</p>
+                                        <p className="text-[9.5px] text-slate-400 mt-1">Sent to the candidate (portal + email)</p>
+                                      </div>
+                                    ) : finalFeedbackDraft?.interviewId === interview.id ? (
+                                      <div onClick={e => e.stopPropagation()}>
+                                        <select value={finalFeedbackDraft.decision} onChange={e => setFinalFeedbackDraft({ ...finalFeedbackDraft, decision: e.target.value })} className={INPUT_CLS + ' mb-1.5'}>
+                                          <option value="cleared">Cleared</option>
+                                          <option value="next_round">Cleared for Next Round</option>
+                                          <option value="rejected">Rejected</option>
+                                          <option value="on_hold">On Hold</option>
+                                        </select>
+                                        <textarea
+                                          value={finalFeedbackDraft.feedback}
+                                          onChange={e => setFinalFeedbackDraft({ ...finalFeedbackDraft, feedback: e.target.value })}
+                                          placeholder="Write the final feedback for the candidate (based on the panel feedbacks above)…"
+                                          rows={4}
+                                          className={INPUT_CLS + ' mb-1.5'}
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                          <button onClick={() => setFinalFeedbackDraft(null)} className={BTN_GHOST}>Cancel</button>
+                                          <button onClick={handleSendFinalFeedback} disabled={actionLoading === interview.id + '-final' || !finalFeedbackDraft.feedback.trim()} className={BTN_PRI}>
+                                            <FiCheck className="w-3 h-3" /> {actionLoading === interview.id + '-final' ? 'Sending…' : 'Send to Candidate'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={e => { e.stopPropagation(); setFinalFeedbackDraft({ interviewId: interview.id, decision: 'cleared', feedback: '' }); }}
+                                        className={BTN_GHOST + ' w-full'}
+                                      >
+                                        <FiUser className="w-3 h-3" /> Write &amp; Send Final Feedback
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
 
                                 {/* inline attendance panel */}

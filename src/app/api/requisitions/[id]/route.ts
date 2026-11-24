@@ -93,18 +93,47 @@ function rolesForTier(tier: RequisitionApprovalTier): { roles: string[]; specifi
   }
 }
 
+// NEW-8: resolve the requisition department's head login user.
+// Department.headId stores an Employee id; the head acts through their
+// linked User account. Returns null when the department has no head
+// (or the head has no login) — callers then fall back to legacy behavior.
+async function resolveDepartmentHeadUserId(db: Record<string, any>, departmentId: string | null | undefined): Promise<string | null> {
+  if (!departmentId) return null;
+  try {
+    const rows = await db.$queryRawUnsafe(
+      `SELECT u."id" AS "userId" FROM "Department" d
+         JOIN "Employee" e ON e."id" = d."headId"
+         LEFT JOIN "User" u ON u."id" = e."userId"
+        WHERE d."id" = $1 LIMIT 1`,
+      departmentId,
+    ) as any[];
+    return rows[0]?.userId || null;
+  } catch {
+    return null;
+  }
+}
+
 // Check whether the current user can approve at the given tier.
 function canApproveAtTier(
   tier: RequisitionApprovalTier,
   userRole: string,
   userId: string,
   requisitionHiringManagerId: string | null,
+  departmentHeadUserId: string | null = null,
 ): boolean {
   // reporting_manager: the requisition's hiringManager is the "reporting
   // manager" of the requester — but the requester themselves can't approve
   // their own request. So the current user must be the hiringManager.
   if (tier.approverType === 'reporting_manager') {
     return !!requisitionHiringManagerId && requisitionHiringManagerId === userId;
+  }
+  // NEW-8: department_head is the REAL department head (Department.headId →
+  // Employee → User). Only that user can approve the tier. If the department
+  // has no head assigned, fall back to the legacy role list so approvals
+  // don't deadlock.
+  if (tier.approverType === 'department_head') {
+    if (departmentHeadUserId) return departmentHeadUserId === userId;
+    return ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(userRole);
   }
   const { roles, specificUserId } = rolesForTier(tier);
   if (tier.approverType === 'specific_user') {
@@ -174,7 +203,43 @@ export async function GET(
       }) as any[];
     } catch {}
 
-    return NextResponse.json({ requisition, approvalHistory }, { headers: corsHeaders() });
+    // NEW-8/NEW-9: expose the next pending approval tier + whether the current
+    // user can act on it, so the UI renders correct buttons for every tier
+    // state (not just the legacy 2-tier statuses).
+    let nextTier: { tierIdx: number; approverType: string; label: string; eligible: boolean } | null = null;
+    try {
+      const status = (requisition as any).approvalStatus || 'pending';
+      if (!['draft', 'rejected', 'returned', 'budget_approved'].includes(status)) {
+        const wfConfig: RequisitionWorkflowConfig = await resolveRequisitionConfig(
+          db,
+          decoded.tenantId as string | undefined,
+          (requisition as any).companyId || undefined,
+        ).catch(() => ({
+          tiers: [
+            { tier: 1, approverType: 'hr_admin', label: 'HR Approval' },
+            { tier: 2, approverType: 'finance', label: 'Finance Approval' },
+          ],
+          skipFinanceBelowBudget: null,
+          allowManagerSubmit: false,
+        }));
+        const salaryBudgetNum = parseSalaryBudget((requisition as any).salaryBudget);
+        const skipFinance = wfConfig.skipFinanceBelowBudget != null && salaryBudgetNum != null && salaryBudgetNum < wfConfig.skipFinanceBelowBudget;
+        const tiers = skipFinance ? wfConfig.tiers.filter((t) => t.approverType !== 'finance') : wfConfig.tiers;
+        const tierIdxDone = STATUS_TO_TIER_INDEX[status] ?? 0;
+        if (tierIdxDone < tiers.length) {
+          const tier = tiers[tierIdxDone];
+          const headUserId = await resolveDepartmentHeadUserId(db, (requisition as any).departmentId);
+          nextTier = {
+            tierIdx: tierIdxDone,
+            approverType: tier.approverType,
+            label: tier.label || tier.approverType,
+            eligible: canApproveAtTier(tier, (decoded.role as string) || '', String(decoded.userId || ''), (requisition as any).hiringManagerId || null, headUserId),
+          };
+        }
+      }
+    } catch {}
+
+    return NextResponse.json({ requisition, approvalHistory, nextTier }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get requisition error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -251,6 +316,10 @@ export async function PATCH(
     if (skipFinance) {
       console.log(`[requisitions] Skipping Finance tier(s) for req ${existing.requisitionId} — budget ${salaryBudgetNum} < threshold ${reqWfConfig.skipFinanceBelowBudget}`);
     }
+
+    // NEW-8: resolve the department head's login user once — used by
+    // department_head tiers (real head approval) across all tier actions.
+    const departmentHeadUserId = await resolveDepartmentHeadUserId(db, (existing as any).departmentId || existing.departmentId || null);
 
     // ─── Task 164: field edits (only requester or admin, only if draft/returned) ───
     const updateData: Record<string, unknown> = {};
@@ -366,7 +435,7 @@ export async function PATCH(
           return NextResponse.json({ error: 'Cannot use Finance approval here — the current tier requires HR approval' }, { status: 400, headers: corsHeaders() });
         }
         // C-32: enforce the approver role/identity against the configured tier.
-        const canApprove = canApproveAtTier(currentTier, userRole, String(decoded.userId || ''), existing.hiringManagerId || null);
+        const canApprove = canApproveAtTier(currentTier, userRole, String(decoded.userId || ''), existing.hiringManagerId || null, departmentHeadUserId);
         if (!canApprove) {
           const tierLabel = currentTier.label || currentTier.approverType;
           return NextResponse.json({ error: `Only ${tierLabel} can approve at this tier` }, { status: 403, headers: corsHeaders() });
@@ -401,7 +470,7 @@ export async function PATCH(
         if (action === 'finance_reject' && currentTier.approverType === 'hr_admin') {
           return NextResponse.json({ error: 'Cannot use Finance rejection here — the current tier requires HR action' }, { status: 400, headers: corsHeaders() });
         }
-        const canApprove = canApproveAtTier(currentTier, userRole, String(decoded.userId || ''), existing.hiringManagerId || null);
+        const canApprove = canApproveAtTier(currentTier, userRole, String(decoded.userId || ''), existing.hiringManagerId || null, departmentHeadUserId);
         if (!canApprove) {
           const tierLabel = currentTier.label || currentTier.approverType;
           return NextResponse.json({ error: `Only ${tierLabel} can reject at this tier` }, { status: 403, headers: corsHeaders() });
@@ -430,7 +499,7 @@ export async function PATCH(
         //  the configured chain. The legacy behavior of "HR can return
         //  at any time" is preserved as long as Tier 1 is configured as
         //  'hr_admin', which is the default.)
-        const canApprove = canApproveAtTier(currentTier, userRole, String(decoded.userId || ''), existing.hiringManagerId || null);
+        const canApprove = canApproveAtTier(currentTier, userRole, String(decoded.userId || ''), existing.hiringManagerId || null, departmentHeadUserId);
         if (!canApprove) {
           const tierLabel = currentTier.label || currentTier.approverType;
           return NextResponse.json({ error: `Only ${tierLabel} can return at this tier` }, { status: 403, headers: corsHeaders() });

@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification, sendNotificationEmail } from '@/lib/notifications';
 import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
+import { resolveRequisitionConfig } from '@/lib/recruitment-workflow';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 function corsHeaders() {
@@ -88,6 +89,67 @@ export async function GET(request: Request) {
       db.requisition.count({ where }),
     ]);
 
+    // NEW-8/NEW-9: annotate each requisition with its next pending approval
+    // tier + whether the current user can act on it — the UI renders
+    // approve/return buttons from this (works for any tier count, not just
+    // the legacy 2-tier statuses). Exact enforcement stays in the PATCH
+    // handler of [id]/route.ts; this annotation is display-only.
+    const STATUS_TO_TIER: Record<string, number> = { pending: 0, hr_approved: 1, tier_2_approved: 2, tier_3_approved: 3, tier_4_approved: 4, tier_5_approved: 5, tier_6_approved: 6, tier_7_approved: 7, tier_8_approved: 8, tier_9_approved: 9 };
+    const LEGACY_TIERS = [
+      { tier: 1, approverType: 'hr_admin', label: 'HR Approval' },
+      { tier: 2, approverType: 'finance', label: 'Finance Approval' },
+    ];
+    let wfTiers: Array<{ tier: number; approverType: string; label?: string; approverUserId?: string | null }> | null = null;
+    const hasActiveRows = (requisitions as any[]).some((r) => {
+      const s = r.approvalStatus || 'pending';
+      return !['draft', 'rejected', 'returned', 'budget_approved'].includes(s);
+    });
+    if (hasActiveRows) {
+      try {
+        const wfConfig: any = await resolveRequisitionConfig(db, decoded.tenantId as string | undefined, undefined).catch(() => null);
+        wfTiers = wfConfig?.tiers || LEGACY_TIERS;
+      } catch { wfTiers = LEGACY_TIERS; }
+    }
+    if (wfTiers) {
+      // Resolve department heads once for department_head tiers
+      const deptIds = Array.from(new Set((requisitions as any[]).filter((r) => r.departmentId).map((r) => r.departmentId)));
+      const headUserByDept = new Map<string, string | null>();
+      if (deptIds.length > 0) {
+        try {
+          const headRows = await db.$queryRawUnsafe(
+            `SELECT d."id" AS "deptId", u."id" AS "userId" FROM "Department" d
+               JOIN "Employee" e ON e."id" = d."headId"
+               LEFT JOIN "User" u ON u."id" = e."userId"
+              WHERE d."id" IN (${deptIds.map((_, i) => `$${i + 1}`).join(',')})`,
+            ...deptIds,
+          ) as any[];
+          headRows.forEach((row: any) => headUserByDept.set(row.deptId, row.userId || null));
+        } catch {}
+      }
+      const userRoleL = (decoded.role as string) || '';
+      for (const r of requisitions as any[]) {
+        const s = r.approvalStatus || 'pending';
+        if (['draft', 'rejected', 'returned', 'budget_approved'].includes(s)) { r.nextTier = null; continue; }
+        const idx = STATUS_TO_TIER[s] ?? 0;
+        if (idx >= (wfTiers?.length || 0)) { r.nextTier = null; continue; }
+        const tier = wfTiers![idx];
+        let eligible = false;
+        if (tier.approverType === 'reporting_manager') eligible = !!r.hiringManagerId && r.hiringManagerId === decoded.userId;
+        else if (tier.approverType === 'department_head') {
+          const headUserId = headUserByDept.get(r.departmentId) || null;
+          // Real head approves; if the department has no head, HR roles may
+          // (matches the PATCH fallback so buttons never deadlock).
+          eligible = headUserId ? headUserId === decoded.userId : HR_ROLES.includes(userRoleL);
+        }
+        else if (tier.approverType === 'specific_user') eligible = !!tier.approverUserId && tier.approverUserId === decoded.userId;
+        else if (tier.approverType === 'finance') eligible = FINANCE_ROLES.includes(userRoleL);
+        else if (tier.approverType === 'hr_admin') eligible = HR_ROLES.includes(userRoleL);
+        else if (tier.approverType === 'tenant_admin') eligible = ['super_admin', 'tenant_admin'].includes(userRoleL);
+        else if (tier.approverType === 'ceo') eligible = ['super_admin', 'ceo'].includes(userRoleL);
+        r.nextTier = { approverType: tier.approverType, label: tier.label || tier.approverType, eligible };
+      }
+    }
+
     return NextResponse.json({ requisitions, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get requisitions error:', error);
@@ -167,6 +229,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Could not resolve company. Please contact admin.' }, { status: 400, headers: corsHeaders() });
     }
 
+    // ─── NEW-8: Department Manager enforcement (server-side, cannot be bypassed) ───
+    // If the requester is the HEAD of a department (Department.headId → Employee),
+    // the requisition department is FORCED to their own department and the
+    // client-sent value cannot override it. The hiring manager stays the
+    // requester (hiringManagerId = decoded.userId below).
+    const managedDeptRows = await db.$queryRawUnsafe(
+      `SELECT d."id", d."name" FROM "Department" d
+         JOIN "Employee" e ON e."id" = d."headId"
+        WHERE e."userId" = $1
+        LIMIT 1`,
+      decoded.userId,
+    ).catch(() => []) as any[];
+    const managedDepartment: { id: string; name: string } | null = managedDeptRows[0] || null;
+    if (managedDepartment) {
+      resolvedDepartmentId = managedDepartment.id;
+    }
+
     let normalizedInterviewPlan: string | null = null;
     if (interviewPlan !== undefined && interviewPlan !== null && String(interviewPlan).trim()) {
       try {
@@ -229,6 +308,19 @@ export async function POST(request: Request) {
           // If create fails, leave it null (designation is optional)
           resolvedDesignationId = null;
         }
+      }
+    }
+
+    // ─── NEW-8: managed-department position guard ───
+    // A department manager may only request positions (designations) that
+    // belong to their own department.
+    if (managedDepartment && resolvedDesignationId) {
+      const desigDeptRows = await db.$queryRawUnsafe(
+        `SELECT "departmentId" FROM "Designation" WHERE "id" = $1 LIMIT 1`,
+        resolvedDesignationId,
+      ).catch(() => []) as any[];
+      if (desigDeptRows[0]?.departmentId && desigDeptRows[0].departmentId !== managedDepartment.id) {
+        return NextResponse.json({ error: 'Position/Designation must belong to your own department.' }, { status: 403, headers: corsHeaders() });
       }
     }
 

@@ -161,6 +161,7 @@ export async function PUT(
       closingDate,
       vacancies,
       interviewPlan,
+      hiringTeam,
       status,
     } = body;
 
@@ -215,6 +216,16 @@ export async function PUT(
         return NextResponse.json({ error: 'Interview plan must be a valid non-empty JSON array with name and type for every round.' }, { status: 400, headers: corsHeaders() });
       }
     }
+
+    if (hiringTeam !== undefined) {
+      updateData.hiringTeam = hiringTeam ? (typeof hiringTeam === 'string' ? hiringTeam : JSON.stringify(hiringTeam)) : null;
+    }
+
+    // Runtime column safety: hiringTeam is a new additive column; create it
+    // if the tenant DB hasn't been schema-synced yet (P2022 guard).
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "hiringTeam" TEXT`);
+    } catch { /* already exists */ }
 
     const jobPosting = await db.jobPosting.update({
       where: { id },

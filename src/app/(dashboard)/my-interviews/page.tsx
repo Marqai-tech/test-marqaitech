@@ -515,7 +515,11 @@ export default function MyInterviewsPage() {
                 const mine = myPanel(interview);
                 const isOpen = expandedId === interview.id;
                 const canRespond = interview.status === 'scheduled' && myst === 'pending';
-                const canFeedback = (myst === 'accepted' || interview.status === 'completed') && !mine?.hasFeedback && myst !== 'declined';
+                // LOCKED-1: the feedback form must always be reachable once the
+                // interview has actually happened — accepted members, completed
+                // interviews AND interviews whose scheduled time has passed.
+                const interviewPassed = interview.date ? new Date(interview.date).getTime() < Date.now() : false;
+                const canFeedback = (myst === 'accepted' || interview.status === 'completed' || (interviewPassed && interview.status !== 'cancelled')) && !mine?.hasFeedback && myst !== 'declined';
                 const overdue = myFeedbackMissing(interview) && interview.feedbackDeadline && new Date(interview.feedbackDeadline).getTime() < Date.now();
                 return (
                   <Fragment key={interview.id}>

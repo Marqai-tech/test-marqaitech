@@ -119,9 +119,29 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // NEW-8: attach department head info. headId stores an Employee id;
+    // resolve it to a display name + linked login user so the UI can show
+    // "Department Head" and the requisition engine can address the manager.
+    const headIds = Array.from(new Set(deduped.map((d) => d.headId).filter((v): v is string => !!v)));
+    const headMap = new Map<string, { id: string; name: string; email: string | null; userId: string | null; departmentId: string }>();
+    if (headIds.length > 0) {
+      const heads = await db.employee.findMany({
+        where: { id: { in: headIds } },
+        select: { id: true, firstName: true, lastName: true, email: true, departmentId: true, user: { select: { id: true } } },
+      });
+      headMap = new Map(heads.map((h) => [h.id, {
+        id: h.id,
+        name: [h.firstName, h.lastName].filter(Boolean).join(' ') || h.email,
+        email: h.email,
+        userId: h.user?.id || null,
+        departmentId: h.departmentId,
+      }]));
+    }
+    const withHead = deduped.map((d) => ({ ...d, head: d.headId ? (headMap.get(d.headId) || null) : null }));
+
     return NextResponse.json({
-      data: deduped,
-      pagination: { page, limit, total: deduped.length, totalPages: Math.ceil(deduped.length / limit) || 0 },
+      data: withHead,
+      pagination: { page, limit, total: withHead.length, totalPages: Math.ceil(withHead.length / limit) || 0 },
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Departments GET error:', error);

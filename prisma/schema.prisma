@@ -758,6 +758,7 @@ model JobPosting {
   // JSON array defining the required interview sequence for this specific job posting.
   // Example: [{"name":"Technical Interview Round 1","type":"technical"}, ...]
   interviewPlan String?
+  hiringTeam   String? // JSON array of team members: [{"id","name","role":"interviewer|hiring_manager|recruiter|sourcer"}]
 
   applications JobApplication[]
   referrals    Referral[]

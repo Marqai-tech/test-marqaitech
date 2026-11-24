@@ -46,18 +46,28 @@ export async function GET(req: NextRequest) {
         const { getDbForTenant } = await import('@/lib/tenant-db');
         const db = await getDbForTenant(td.tenant.slug);
 
-        // Find interviews via JobApplication.candidateEmail
+        // LOCKED-3: ensure the final-feedback columns exist so the SELECT
+        // below never fails on older deployments (lazy-migration pattern).
+        await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalFeedback" TEXT`).catch(() => null);
+        await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalDecision" TEXT`).catch(() => null);
+        await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalFeedbackAt" TIMESTAMP`).catch(() => null);
+
+        // Find interviews via JobApplication.candidateEmail.
+        // LOCKED-3: completed interviews that carry HR's final feedback are
+        // also returned so the candidate can read the result in the portal.
         const interviews = await db.$queryRawUnsafe(
           `SELECT i."id", i."date", i."time", i."duration", i."type", i."location",
                   i."meetingUrl", i."status", i."instructions", i."mode",
                   i."candidateAttendance",
+                  i."finalFeedback", i."finalDecision", i."finalFeedbackAt",
                   ja."candidateName", ja."candidateEmail",
                   jp."title" AS "jobTitle"
            FROM "Interview" i
            JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
            LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
            WHERE LOWER(ja."candidateEmail") = LOWER($1)
-             AND i."status" IN ('scheduled', 'rescheduled')
+             AND ( i."status" IN ('scheduled', 'rescheduled')
+                   OR (i."finalFeedback" IS NOT NULL AND i."finalFeedback" <> '') )
            ORDER BY i."date" ASC`,
           candidateEmail,
         ).catch(() => []) as any[];

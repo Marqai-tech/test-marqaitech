@@ -200,6 +200,7 @@ export default function AIInterviewPage() {
   // ─── WAVE2-C: Time-Stamped Interview Feedback state ───
   const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>([]);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackUnavailable, setFeedbackUnavailable] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({
     timestamp: '',          // mm:ss
     sentiment: 'neutral',   // positive | negative | neutral | concern | highlight
@@ -332,10 +333,20 @@ export default function AIInterviewPage() {
     setFeedbackLoading(true);
     try {
       const r = await fetch(`/api/interviews/${interviewId}/feedback`, { headers: getAuthHeaders() });
-      const d = r.ok ? await r.json() : { feedback: [] };
-      setFeedbackList(Array.isArray(d.feedback) ? d.feedback : []);
+      // Parse defensively — the endpoint (owned elsewhere) may return { feedback },
+      // { feedbacks }, a raw array, or a non-JSON error body (404/405/HTML).
+      const d = r.ok ? await r.json().catch(() => null) : null;
+      const list = Array.isArray(d) ? d : (Array.isArray(d?.feedback) ? d.feedback : (Array.isArray(d?.feedbacks) ? d.feedbacks : null));
+      if (list) {
+        setFeedbackList(list);
+        setFeedbackUnavailable(false);
+      } else {
+        setFeedbackList([]);
+        setFeedbackUnavailable(true);
+      }
     } catch {
       setFeedbackList([]);
+      setFeedbackUnavailable(true);
     } finally {
       setFeedbackLoading(false);
     }
@@ -396,8 +407,8 @@ export default function AIInterviewPage() {
           rating: feedbackForm.rating || null,
         }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d?.error || 'Failed to save feedback');
+      const d = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(d?.error || d?.details || 'Failed to save feedback');
       toast.success('Feedback added');
       setFeedbackForm({ timestamp: '', sentiment: 'neutral', rating: 0, body: '' });
       await fetchFeedback(viewingId);
@@ -430,6 +441,7 @@ export default function AIInterviewPage() {
     setViewingSession(null);
     setViewingId(null);
     setFeedbackList([]);
+    setFeedbackUnavailable(false);
     setFeedbackForm({ timestamp: '', sentiment: 'neutral', rating: 0, body: '' });
   };
 
@@ -1243,10 +1255,17 @@ export default function AIInterviewPage() {
                     <FiRefreshCw className="w-4 h-4 animate-spin" /> Loading feedback…
                   </div>
                 ) : feedbackList.length === 0 ? (
-                  <div className="py-6 text-center text-sm text-thb-text-muted">
-                    <FiMessageSquare className="w-7 h-7 mx-auto mb-2 opacity-60" />
-                    No feedback yet. Add your first time-stamped note below.
-                  </div>
+                  feedbackUnavailable ? (
+                    <div className="py-6 text-center text-sm text-thb-text-muted">
+                      <FiAlertTriangle className="w-7 h-7 mx-auto mb-2 opacity-60" />
+                      Feedback history unavailable
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center text-sm text-thb-text-muted">
+                      <FiMessageSquare className="w-7 h-7 mx-auto mb-2 opacity-60" />
+                      No feedback yet. Add your first time-stamped note below.
+                    </div>
+                  )
                 ) : (
                   <div className="space-y-2 mb-5 max-h-72 overflow-y-auto">
                     {feedbackList.map(fb => (

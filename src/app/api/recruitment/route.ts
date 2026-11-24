@@ -451,6 +451,8 @@ export async function POST(request: Request) {
       closingDate,
       vacancies,
       interviewPlan,
+      requisitionId,
+      hiringTeam,
     } = body;
 
     if (!title || !departmentId || !description) {
@@ -491,6 +493,37 @@ export async function POST(request: Request) {
       }
     }
 
+    // Requisition gate (mirrors /api/jobs): when the form is driven by a
+    // requisition, it must be fully approved before a posting can be created.
+    // Absent requisitionId → allowed (manual posting).
+    if (requisitionId) {
+      let reqRows: any[] = [];
+      try {
+        reqRows = await db.$queryRawUnsafe(
+          `SELECT "approvalStatus", "status" FROM "Requisition" WHERE "id" = $1 LIMIT 1`,
+          requisitionId,
+        ) as any[];
+      } catch { /* Requisition table might not exist on an old tenant */ }
+      if (!reqRows[0]) {
+        return NextResponse.json(
+          { error: 'Requisition not found' },
+          { status: 404, headers: corsHeaders() }
+        );
+      }
+      if (reqRows[0].approvalStatus !== 'budget_approved' || reqRows[0].status !== 'approved') {
+        return NextResponse.json(
+          { error: 'Requisition must be fully approved before creating a job posting' },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+    }
+
+    // Runtime column safety: hiringTeam is a new additive column; create it
+    // if the tenant DB hasn't been schema-synced yet (P2022 guard).
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "hiringTeam" TEXT`);
+    } catch { /* already exists */ }
+
     const jobPosting = await db.jobPosting.create({
       data: {
         title,
@@ -505,6 +538,7 @@ export async function POST(request: Request) {
         closingDate: closingDate ? new Date(closingDate) : null,
         vacancies: vacancies || 1,
         interviewPlan: normalizedInterviewPlan,
+        hiringTeam: hiringTeam ? (typeof hiringTeam === 'string' ? hiringTeam : JSON.stringify(hiringTeam)) : null,
         status: 'open',
       },
       include: {
@@ -513,6 +547,16 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Link the approved requisition back to the new posting (non-fatal)
+    if (requisitionId) {
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "Requisition" SET "jobPostingId" = $1 WHERE "id" = $2`,
+          (jobPosting as any).id, requisitionId,
+        );
+      } catch { /* non-fatal */ }
+    }
 
     // Notify HR admins about the new job posting
     const hrAdmins = await db.user.findMany({

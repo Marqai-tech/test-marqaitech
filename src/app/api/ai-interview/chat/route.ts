@@ -102,7 +102,7 @@ function buildSystemPrompt(interviewType: string, jobTitle: string): string {
 }
 
 function generateFallbackResponse(interviewType: string, candidateMessage: string, history: ChatMessage[]): string {
-  const exchangeCount = history.filter(m => m.role === 'admin').length;
+  const exchangeCount = history.filter(m => m.role === 'candidate').length;
 
   // Opening message
   if (exchangeCount === 0) {

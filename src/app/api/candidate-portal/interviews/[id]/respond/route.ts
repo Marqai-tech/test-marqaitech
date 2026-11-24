@@ -103,6 +103,38 @@ export async function POST(
           } catch {}
         }
 
+        // LOCKED-5: acknowledge the candidate's action by email.
+        // - confirm → "Interview Accepted — You Are Confirmed"
+        // - reschedule → acknowledgement that HR will send a new slot
+        try {
+          if (interviewRow[0]?.candidateEmail) {
+            const { sendEmail } = await import('@/lib/email');
+            if (action === 'confirm') {
+              await sendEmail({
+                to: interviewRow[0].candidateEmail,
+                subject: 'Interview Accepted — You Are Confirmed',
+                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#16a34a;">Interview Accepted</h2>
+                  <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
+                  <p>You have <strong>accepted</strong> your interview for <strong>${interviewRow[0].jobTitle || 'the position'}</strong>. Your participation is now confirmed.</p>
+                  <p>Please be available at the scheduled date and time. You can view the details any time in your candidate portal → Interviews.</p>
+                </div>`,
+              }).catch(() => null);
+            } else if (action === 'reschedule') {
+              await sendEmail({
+                to: interviewRow[0].candidateEmail,
+                subject: 'Reschedule Request Received',
+                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#f59e0b;">Reschedule Request Received</h2>
+                  <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
+                  <p>We have received your reschedule request for the <strong>${interviewRow[0].jobTitle || ''}</strong> interview${reason ? `. Reason: ${reason}` : ''}.</p>
+                  <p>The HR team will contact you with a new slot. Note: until a new slot is accepted, the current interview may be cancelled if it is not accepted at least 1 day before its scheduled time.</p>
+                </div>`,
+              }).catch(() => null);
+            }
+          }
+        } catch {}
+
         // CRITICAL FIX #4: Move responseLabels OUTSIDE the try block so it's
         // available in the audit log expression. Previously it was declared
         // inside the HR notification try block, causing a ReferenceError in

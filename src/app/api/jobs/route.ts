@@ -116,21 +116,25 @@ export async function POST(req: NextRequest) {
       } catch { /* table might not exist — non-fatal, skip duplicate check */ }
     }
 
-    // Task 165: if requisitionId is provided, verify it's approved
+    // Task 165: if requisitionId is provided, verify it's approved.
+    // FATAL gate — a missing or disapproved requisition must always stop the
+    // create, so the guard returns live OUTSIDE the try (the catch must never
+    // swallow a failed check and fall through to create).
     if (requisitionId) {
+      let reqRows: any[] = [];
       try {
-        const reqRows = await db.$queryRawUnsafe(
+        reqRows = await db.$queryRawUnsafe(
           `SELECT "approvalStatus", "status" FROM "Requisition" WHERE "id" = $1 LIMIT 1`,
           requisitionId,
         ) as any[];
-        if (!reqRows[0]) {
-          return NextResponse.json({ error: 'Requisition not found' }, { status: 404 });
-        }
-        if (reqRows[0].approvalStatus !== 'budget_approved' || reqRows[0].status !== 'approved') {
-          return NextResponse.json({ error: 'Requisition must be fully approved before creating a job posting' }, { status: 400 });
-        }
       } catch {
-        // Requisition table might not exist — non-fatal
+        // Requisition table might not exist — treated as "not found" below
+      }
+      if (!reqRows[0]) {
+        return NextResponse.json({ error: 'Requisition not found' }, { status: 404 });
+      }
+      if (reqRows[0].approvalStatus !== 'budget_approved' || reqRows[0].status !== 'approved') {
+        return NextResponse.json({ error: 'Requisition must be fully approved before creating a job posting' }, { status: 400 });
       }
     }
 

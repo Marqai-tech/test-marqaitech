@@ -131,6 +131,11 @@ export async function POST(
             <tr><td style="padding:8px 12px;background:#f1f5f9;font-weight:600;">Mode</td><td style="padding:8px 12px;">${interview.location ? `Offline — ${interview.location}` : interview.meetingUrl ? `Online — ${interview.meetingUrl}` : 'TBD'}</td></tr>
           </table>
           ${interview.meetingUrl ? `<p><a href="${interview.meetingUrl}" style="display:inline-block;padding:10px 20px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">Join Meeting</a></p>` : ''}
+          <div style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px 16px;border-radius:6px;margin:16px 0;">
+            <p style="margin:0 0 8px;font-weight:bold;color:#9a3412;">ACTION REQUIRED — Accept this interview</p>
+            <p style="margin:0;font-size:13px;color:#7c2d12;">You must <strong>ACCEPT this interview in your candidate portal</strong> to confirm your participation. Open Candidate Portal → Interviews and press <strong>Accept</strong>. If you do not accept at least <strong>1 day before the scheduled time</strong>, the interview will be <strong>automatically cancelled</strong>. You will also receive daily reminders until you accept.</p>
+          </div>
+          <p><a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews" style="display:inline-block;padding:10px 20px;background:#f59e0b;color:#fff;text-decoration:none;border-radius:6px;">Accept in Candidate Portal</a></p>
           <p>Regards,<br/>HR Team</p>
         </div>`;
         let sent = false;
@@ -146,6 +151,14 @@ export async function POST(
           error = error || fallback.error || '';
         }
         console.log(`[AcceptDecline] Candidate interview-confirmed email to ${interview.candidateEmail}: ${sent ? 'SENT' : 'FAILED'} — ${error}`);
+
+        // LOCKED-5: candidate acceptance deadline = interview date − 1 day.
+        // The daily cron uses this to auto-cancel interviews the candidate
+        // never accepted in the portal.
+        await db.$executeRawUnsafe(
+          `UPDATE "Interview" SET "confirmationDeadline" = "date" - INTERVAL '1 day' WHERE "id" = $1 AND "confirmationDeadline" IS NULL`,
+          id,
+        ).catch(() => null);
       } catch (emailErr) {
         console.warn('[AcceptDecline] Candidate confirmation email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
       }

@@ -47,7 +47,7 @@ export default function CandidateInterviewPage() {
 
   const [phase, setPhase] = useState<'loading' | 'invalid' | 'expired' | 'pre_screen' | 'interview' | 'thank_you' | 'disqualified'>('loading');
   const [session, setSession] = useState<SessionDataType | null>(null);
-  const [invitationData, setInvitationData] = useState<{ setId: string; candidateName: string; candidateEmail: string } | null>(null);
+  const [invitationData, setInvitationData] = useState<{ id: string; setId: string; candidateName: string; candidateEmail: string } | null>(null);
 
   // Pre-screen form
   const [preScreen, setPreScreen] = useState<PreScreenData>({
@@ -67,6 +67,9 @@ export default function CandidateInterviewPage() {
   const [interviewStartTime, setInterviewStartTime] = useState<Date | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  // Proctoring: throttled tab-switch reporting (at most once per 30s) + listener cleanup
+  const lastTabSwitchAtRef = useRef(0);
+  const proctoringCleanupRef = useRef<(() => void) | null>(null);
 
   // MCQ state
   const [mcqOptions, setMcqOptions] = useState<string[]>([]);
@@ -83,7 +86,7 @@ export default function CandidateInterviewPage() {
           const d = await res.json();
           const inv = (d.data || []).find((i: { invitationToken: string; status: string }) => i.invitationToken === token && ['pending', 'sent', 'opened'].includes(i.status));
           if (inv) {
-            setInvitationData({ setId: inv.setId, candidateName: inv.candidateName, candidateEmail: inv.candidateEmail });
+            setInvitationData({ id: inv.id, setId: inv.setId, candidateName: inv.candidateName, candidateEmail: inv.candidateEmail });
             // Check if expired
             if (inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
               setPhase('expired');
@@ -114,6 +117,16 @@ export default function CandidateInterviewPage() {
 
   // Auto-scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
+
+  // Proctoring — remove tab-switch listener on unmount
+  useEffect(() => {
+    return () => {
+      if (proctoringCleanupRef.current) {
+        proctoringCleanupRef.current();
+        proctoringCleanupRef.current = null;
+      }
+    };
+  }, []);
 
   /* ── Pre-screening submission ── */
   const handlePreScreenSubmit = async () => {
@@ -161,12 +174,32 @@ export default function CandidateInterviewPage() {
           setId: invitationData.setId,
           candidateName: invitationData.candidateName,
           candidateEmail: invitationData.candidateEmail,
+          ...(invitationData && { invitationId: invitationData.id }),
         }),
       });
 
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();
         const newSession = sessionData.data;
+
+        // Proctoring — report tab switches (throttled to once per 30s) for this session
+        if (newSession?.id) {
+          const handleVisibilityChange = () => {
+            if (!document.hidden) return;
+            const now = Date.now();
+            if (now - lastTabSwitchAtRef.current < 30000) return;
+            lastTabSwitchAtRef.current = now;
+            try {
+              fetch('/api/ai-interview/proctoring', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: newSession.id, eventType: 'tab_switch', severity: 'medium' }),
+              }).catch(() => { /* proctoring logging failure is non-fatal */ });
+            } catch { /* ignore */ }
+          };
+          document.addEventListener('visibilitychange', handleVisibilityChange);
+          proctoringCleanupRef.current = () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
 
         // Save pre-screen result
         await fetch(`/api/ai-interview/sessions/${newSession.id}`, {
