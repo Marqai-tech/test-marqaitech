@@ -18,24 +18,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   FiArrowLeft, FiPlus, FiTrash2, FiArrowUp, FiArrowDown, FiSave, FiInfo,
-  FiRotateCcw, FiCheckCircle, FiLoader,
+  FiRotateCcw, FiCheckCircle, FiLoader, FiUserCheck, FiUserX, FiSearch,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+import { canAccessEmployeeSettings } from '@/lib/roleAccess';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-type WfType = 'recruitment' | 'preboarding' | 'onboarding' | 'requisition';
+type WfType = 'recruitment' | 'preboarding' | 'onboarding' | 'requisition' | 'interview-panel';
 
 const TABS: { key: WfType; label: string; hint: string }[] = [
   { key: 'recruitment', label: 'Recruitment Pipeline', hint: 'Application stages & offer approval chain' },
   { key: 'preboarding', label: 'Preboarding Stages', hint: 'Offer acceptance → Day 1 stage machine' },
   { key: 'onboarding', label: 'Onboarding Checklist', hint: 'Tasks auto-generated when a candidate converts' },
   { key: 'requisition', label: 'Requisition Approval', hint: 'Configurable approval chain (Manager → HR → Finance → …)' },
+  { key: 'interview-panel', label: 'Interview Panel', hint: 'Mark employees as interviewers — they see the "My Interviews" tab' },
 ];
 
 const STAGE_COLORS = ['slate', 'blue', 'amber', 'violet', 'green', 'red', 'cyan', 'pink'];
@@ -79,10 +82,36 @@ function NumberInput({ value, onChange, min, max, placeholder, className = '' }:
   );
 }
 
+// Interview Panel tab row — mirrors the EmployeeCredential shape returned by
+// /api/employees/credentials (only the fields this tab renders).
+interface InterviewPanelEmployee {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  department: string
+  designation: string
+  status: string
+  hasLoginAccount: boolean
+  loginStatus: string
+  isInterviewer?: boolean
+  userRole: string | null
+}
+
 export default function WorkflowConfigPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const canManage = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'].includes(user?.role || '');
+
+  // Interview Panel tab — employee list with interviewer pills (same data
+  // source as Employees → Settings → Login Credentials, but surfaced here
+  // in the Recruitment module where "My Interviews" belongs).
+  const { scopeQuery } = useCompanyContextStore();
+  const [panelEmployees, setPanelEmployees] = useState<InterviewPanelEmployee[]>([]);
+  const [panelLoading, setPanelLoading] = useState(false);
+  const [panelSearch, setPanelSearch] = useState('');
+  const [panelTenantId, setPanelTenantId] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<WfType>('recruitment');
   const [loading, setLoading] = useState(true);
@@ -165,6 +194,61 @@ export default function WorkflowConfigPage() {
     }
   };
 
+  // ─── Interview Panel tab: employee list + interviewer toggle ───
+  // Same API as Employees → Settings → Login Credentials, so the flag stays
+  // consistent everywhere. Toggling flips User.isInterviewer in both the
+  // tenant DB and the platform DB — the flagged user's sidebar immediately
+  // shows/hides the "My Interviews" tab.
+  const fetchPanel = useCallback(async (search = '') => {
+    setPanelLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      params.set('limit', '200');
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees/credentials?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setPanelEmployees(data.employees || []);
+        setPanelTenantId(sq ? new URLSearchParams(sq).get('tenantId') : null);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || 'Failed to load employees');
+      }
+    } catch {
+      toast.error('Network error while loading employees');
+    } finally {
+      setPanelLoading(false);
+    }
+  }, [scopeQuery]);
+
+  useEffect(() => {
+    if (activeTab === 'interview-panel') fetchPanel(panelSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const toggleInterviewer = async (emp: InterviewPanelEmployee) => {
+    try {
+      const q = panelTenantId ? `?tenantId=${panelTenantId}` : '';
+      const res = await fetch(`/api/employees/${emp.id}/interviewer${q}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ isInterviewer: !emp.isInterviewer }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.isInterviewer
+          ? `${emp.firstName} ${emp.lastName} marked as interviewer — "My Interviews" tab is now visible to them`
+          : `${emp.firstName} ${emp.lastName} removed from interviewers — "My Interviews" tab hidden`);
+        setPanelEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, isInterviewer: data.isInterviewer } : e)));
+      } else {
+        toast.error(data.error || 'Failed to update interviewer flag');
+      }
+    } catch {
+      toast.error('Failed to update interviewer flag');
+    }
+  };
+
   const move = <T,>(arr: T[], i: number, dir: -1 | 1): T[] => {
     const j = i + dir;
     if (j < 0 || j >= arr.length) return arr;
@@ -203,7 +287,7 @@ export default function WorkflowConfigPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {TABS.map((t) => (
+        {TABS.filter((t) => t.key !== 'interview-panel' || canAccessEmployeeSettings(user?.role)).map((t) => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
@@ -587,6 +671,111 @@ export default function WorkflowConfigPage() {
               </div>
 
               <SaveBar onSave={() => save('requisition')} saving={saving} />
+            </div>
+          )}
+
+          {/* ═══════════ INTERVIEW PANEL ═══════════ */}
+          {activeTab === 'interview-panel' && canAccessEmployeeSettings(user?.role) && (
+            <div className="space-y-4">
+              <div className="thb-card p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-sm font-bold text-thb-text-primary">Interview Panel Members</h2>
+                  <span className="text-[11px] text-thb-text-muted">
+                    {panelEmployees.filter((e) => e.isInterviewer).length} marked interviewer{panelEmployees.filter((e) => e.isInterviewer).length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-thb-text-muted mb-4">
+                  Mark employees as interviewers — they get the <strong>&quot;My Interviews&quot;</strong> tab in the Recruitment module of their sidebar.
+                  The flag also turns on automatically when HR schedules them onto an interview panel; this toggle overrides it.
+                </p>
+
+                {/* Search */}
+                <div className="relative mb-4 max-w-sm">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+                  <input
+                    type="text"
+                    value={panelSearch}
+                    onChange={(e) => { setPanelSearch(e.target.value); fetchPanel(e.target.value); }}
+                    placeholder="Search by name, email, ID…"
+                    className="w-full pl-9 pr-3 py-2 border border-thb-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                  />
+                </div>
+
+                {/* Employee table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-thb-border bg-slate-50/80">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Employee</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Official Email</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Department</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Account Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Interviewer</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-thb-border">
+                      {panelLoading ? (
+                        <tr><td colSpan={5} className="px-4 py-12 text-center"><div className="animate-spin w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full mx-auto" /></td></tr>
+                      ) : panelEmployees.length === 0 ? (
+                        <tr><td colSpan={5} className="px-4 py-12 text-center text-thb-text-muted">
+                          No employees found{panelSearch ? ` for "${panelSearch}"` : ' — select a company first if you are a super admin'}.
+                        </td></tr>
+                      ) : panelEmployees.map((emp) => (
+                        <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <p className="text-sm font-medium text-thb-text-primary">{emp.firstName} {emp.lastName}</p>
+                            <p className="text-xs text-thb-text-muted">{emp.employeeId}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-sm text-thb-text-secondary">{emp.email}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-sm text-thb-text-secondary">{emp.department}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {!emp.hasLoginAccount ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                <FiUserX className="w-3 h-3" /> No Account
+                              </span>
+                            ) : emp.loginStatus === 'active' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <FiUserCheck className="w-3 h-3" /> Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                                <FiUserX className="w-3 h-3" /> Inactive
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {emp.hasLoginAccount ? (
+                              <button
+                                onClick={() => toggleInterviewer(emp)}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                  emp.isInterviewer
+                                    ? 'bg-teal-50 text-teal-700 border-teal-300 hover:bg-teal-100'
+                                    : 'bg-slate-50 text-thb-text-muted border-thb-border hover:bg-slate-100'
+                                }`}
+                                title={emp.isInterviewer ? 'Interviewer ON — they see the "My Interviews" tab. Click to remove.' : 'Interviewer OFF. Click to let them see the "My Interviews" tab.'}
+                              >
+                                <FiUserCheck className="w-3.5 h-3.5" />
+                                {emp.isInterviewer ? 'Interviewer' : 'Not set'}
+                              </button>
+                            ) : (
+                              <span className="text-xs text-thb-text-muted" title="Create login credentials first, then mark them as an interviewer">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="text-[11px] text-thb-text-muted mt-3 flex items-center gap-1.5">
+                  <FiCheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                  Changes apply immediately — no save needed. The employee&apos;s sidebar updates on their next login/refresh.
+                </p>
+              </div>
             </div>
           )}
         </>
