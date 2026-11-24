@@ -49,6 +49,7 @@ interface LeaveBalance {
   total: number;
   used: number;
   remaining: number;
+  pending?: number;
   year: number;
   leaveType: { id: string; name: string; code: string };
 }
@@ -98,6 +99,10 @@ export default function ApplyLeaveByHRPage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [recentRequests, setRecentRequests] = useState<LeaveRequest[]>([]);
+  // BUG FIX: fetch rules + policies to filter leave types by employee's
+  // assigned policies and resolve entitledDaysPerYear (same as dashboard)
+  const [leaveRules, setLeaveRules] = useState<any[]>([]);
+  const [leavePolicies, setLeavePolicies] = useState<any[]>([]);
   // Task 135 — the selected employee's regularization dates + pending requests
   const [attendanceContext, setAttendanceContext] = useState<AttendanceContextLite | null>(null);
   // Holiday calendar (for working-day duration display)
@@ -189,55 +194,86 @@ export default function ApplyLeaveByHRPage() {
   const fetchLeaveData = useCallback(async (employee: Employee) => {
     setLoadingLeaveData(true);
     try {
-      const typesUrl = employee.companyId
-        ? `/api/leave-types?companyId=${encodeURIComponent(employee.companyId)}&employeeId=${encodeURIComponent(employee.id)}`
-        : '/api/leave-types';
-      const [typesRes, balanceRes, requestsRes, regRes, attReqRes] = await Promise.all([
+      // BUG FIX: Always pass employeeId so /api/leave-types filters by the
+      // employee's mapping/policy. Also fetch policies + rules + ALL leave
+      // requests (not just 5) to compute taken/pending days.
+      const typesUrl = `/api/leave-types?employeeId=${encodeURIComponent(employee.id)}${employee.companyId ? `&companyId=${encodeURIComponent(employee.companyId)}` : ''}`;
+      const [typesRes, balanceRes, requestsRes, ruleRes, polRes, regRes, attReqRes] = await Promise.all([
         fetch(typesUrl, { headers: getAuthHeaders() }),
         fetch(`/api/leave/balance?employeeId=${employee.id}`, { headers: getAuthHeaders() }),
-        fetch(`/api/leave?employeeId=${employee.id}&limit=5`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave?employeeId=${employee.id}&limit=100`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave-policy-rules?limit=100`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/policies?category=leave&limit=100`, { headers: getAuthHeaders() }).catch(() => null),
         // Task 135 — regularization dates + pending attendance requests
         fetch(`/api/attendance/regularize?employeeId=${employee.id}&limit=50`, { headers: getAuthHeaders() }).catch(() => null),
         fetch(`/api/attendance/requests?scope=all&status=pending&limit=200`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
 
+      // Fetch rules + policies for entitled days resolution
+      let localRules: any[] = [];
+      let localPolicies: any[] = [];
+      if (ruleRes?.ok) { const rd = await ruleRes.json(); localRules = rd.data || []; setLeaveRules(localRules); }
+      if (polRes?.ok) { const pd = await polRes.json(); localPolicies = pd.data || pd.policies || []; setLeavePolicies(localPolicies); }
+
       const typesData = await typesRes.json();
       if (typesRes.ok) setLeaveTypes(typesData.leaveTypes || typesData.data || []);
       else setLeaveTypes([]);
 
-      const balanceData = await balanceRes.json();
-      if (balanceRes.ok) {
-        // A tenant can contain duplicate balance rows for the same leave type
-        // (for example after a policy/employee migration). The HR proxy page
-        // is a leave-type summary, so show one balance per leave type while
-        // retaining the first canonical row for submissions.
-        const uniqueBalances = new Map<string, LeaveBalance>();
-        for (const balance of (balanceData.balances || []) as LeaveBalance[]) {
-          const key = String(balance.leaveType?.name || balance.leaveType?.code || balance.leaveType?.id || '')
-            .toLowerCase().replace(/\s+/g, ' ').trim();
-          if (key && !uniqueBalances.has(key)) uniqueBalances.set(key, balance);
+      // Fetch ALL leave requests for this employee to compute taken/pending
+      const allRequests: LeaveRequest[] = requestsRes.ok ? (await requestsRes.json()).leaveRequests || [] : [];
+      setRecentRequests(allRequests.slice(0, 5)); // keep recent 5 for display
+
+      // Compute taken (approved) and pending per leave type from requests
+      const year = new Date().getFullYear();
+      const takenByType = new Map<string, number>();
+      const pendingByType = new Map<string, number>();
+      for (const req of allRequests) {
+        if (new Date(req.startDate).getFullYear() !== year) continue;
+        let days = (req as any).chargeableDays;
+        if (days == null) {
+          if (req.halfDay) { days = 0.5; }
+          else {
+            const s = new Date(req.startDate); const e = new Date(req.endDate);
+            if (!isNaN(s.getTime()) && !isNaN(e.getTime()))
+              days = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            else days = 1;
+          }
         }
-        // These policy categories must be visible for every employee even
-        // when the tenant has not created a balance row for them yet.
-        if (!uniqueBalances.has('personal leave')) {
-          uniqueBalances.set('personal leave', {
-            id: 'synthetic-personal-leave', total: 0, used: 0, remaining: 0,
-            year: new Date().getFullYear(),
-            leaveType: { id: 'synthetic-personal-leave', name: 'Personal Leave', code: 'PL' },
-          });
-        }
-        if (!uniqueBalances.has('loss of pay') && !uniqueBalances.has('lop')) {
-          uniqueBalances.set('loss of pay', {
-            id: 'synthetic-loss-of-pay', total: 0, used: 0, remaining: 0,
-            year: new Date().getFullYear(),
-            leaveType: { id: 'synthetic-loss-of-pay', name: 'Loss of Pay (LOP)', code: 'LOP' },
-          });
-        }
-        setLeaveBalances(Array.from(uniqueBalances.values()));
+        const d = Number(days) || 0;
+        const ltId = req.leaveType?.id || (req as any).leaveTypeId || '';
+        if (!ltId) continue;
+        if (req.status === 'approved') takenByType.set(ltId, (takenByType.get(ltId) || 0) + d);
+        else if (req.status === 'pending') pendingByType.set(ltId, (pendingByType.get(ltId) || 0) + d);
       }
 
-      const requestData = await requestsRes.json();
-      if (requestsRes.ok) setRecentRequests(requestData.leaveRequests || []);
+      const balanceData = await balanceRes.json();
+      if (balanceRes.ok) {
+        // Deduplicate balance rows by leave type
+        const uniqueBalances = new Map<string, LeaveBalance>();
+        for (const balance of (balanceData.balances || []) as LeaveBalance[]) {
+          const key = String(balance.leaveType?.id || balance.leaveType?.name || '').toLowerCase().trim();
+          if (key && !uniqueBalances.has(key)) uniqueBalances.set(key, balance);
+        }
+
+        // Override with live taken/pending values computed from leave requests.
+        // Also resolve entitled days from rules if the balance total is 0.
+        const result = Array.from(uniqueBalances.values()).map(b => {
+          const ltId = b.leaveType?.id || '';
+          const liveTaken = takenByType.get(ltId) || 0;
+          const livePending = pendingByType.get(ltId) || 0;
+          // Resolve entitled from rule if total is 0
+          const rule = localRules.find((r: any) => r.leaveTypeId === ltId && r.status === 'active');
+          const effectiveTotal = rule?.entitledDaysPerYear || b.total || 0;
+          return {
+            ...b,
+            total: effectiveTotal,
+            used: liveTaken,
+            pending: livePending,
+            remaining: Math.max(0, effectiveTotal - liveTaken - livePending),
+          } as LeaveBalance;
+        });
+        setLeaveBalances(result);
+      }
 
       // Task 135 — build the attendance context panel (best-effort)
       const ctx: AttendanceContextLite = { regularizations: [], pendingByType: [] };
@@ -512,7 +548,7 @@ export default function ApplyLeaveByHRPage() {
               <p className="text-xs text-slate-400">{selectedEmployee.department?.name || 'No Department'} · {selectedEmployee.designation?.title || 'No Designation'}</p>
             </div>
             <button
-              onClick={() => { setSelectedEmployee(null); setLeaveTypes([]); setLeaveBalances([]); setRecentRequests([]); }}
+              onClick={() => { setSelectedEmployee(null); setLeaveTypes([]); setLeaveBalances([]); setRecentRequests([]); setLeaveRules([]); setLeavePolicies([]); }}
               className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
               title="Clear selection"
             >
@@ -561,7 +597,7 @@ export default function ApplyLeaveByHRPage() {
                     <div className="text-xs text-blue-700">
                       <span className="font-medium">{selectedLeaveBalance.leaveType.name}</span> Balance:
                       Total <strong>{selectedLeaveBalance.total}</strong> ·
-                      Used <strong>{selectedLeaveBalance.used}</strong> ·
+                      Taken <strong>{selectedLeaveBalance.used}</strong>{selectedLeaveBalance.pending ? <> · Pending <strong className="text-amber-600">{selectedLeaveBalance.pending}</strong></> : null} ·
                       Remaining <strong className="text-blue-900">{selectedLeaveBalance.remaining}</strong>
                     </div>
                   </div>
