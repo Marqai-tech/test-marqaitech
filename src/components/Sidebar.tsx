@@ -86,15 +86,13 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
           (item) => {
             // 1. Module-level check (sidebar visibility for the whole module)
             if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) {
-              // CRITICAL FIX #2 companion: employees are allowed to reach
-              // /my-interviews and /referrals (self-service allowlist in
-              // roleAccess.ts), but the module check above hid their nav tabs
-              // even though the pages + APIs are server-scoped (scope=mine).
-              // Keep exactly these self-service tabs visible for self-service
-              // roles; every other module-locked item stays hidden.
-              const selfServiceNavTabs = ['/my-interviews', '/referrals'];
+              // Interviewer toggle: HR/Admin can mark a user as an interviewer
+              // (User.isInterviewer). Marked employees see ONLY the "My
+              // Interviews" tab from the recruitment module — everything else
+              // stays hidden for self-service roles. The page + scope=mine API
+              // are server-scoped to the logged-in panelist.
               const itemPath = (item.href || '').split('?')[0];
-              if (!(isSelfServiceRole(userRole) && selfServiceNavTabs.includes(itemPath))) {
+              if (!(itemPath === '/my-interviews' && user?.isInterviewer === true)) {
                 return false;
               }
             }
@@ -120,7 +118,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
         ),
       }))
       .filter((section) => section.items.length > 0);
-  }, [userRole, tenantSlug, effectiveRoles, enabledModules]);
+  }, [userRole, tenantSlug, effectiveRoles, enabledModules, user]);
 
   // Filter pinned items based on role (same logic as above)
   const visiblePinnedItems = useMemo(() => {

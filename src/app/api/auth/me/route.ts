@@ -58,6 +58,7 @@ export async function GET(request: Request) {
       name: true,
       email: true,
       role: true,
+      isInterviewer: true,
       avatar: true,
       status: true,
       lastLogin: true,

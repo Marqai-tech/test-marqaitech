@@ -407,6 +407,10 @@ model User {
 
   role       String @default("admin") // super_admin, tenant_admin, admin
   status     String @default("active")
+  // Interviewer toggle: HR/Admin marks users who take interviews as panel
+  // members; flagged users get the "My Interviews" sidebar tab only
+  // (recruitment module itself stays locked for them).
+  isInterviewer Boolean @default(false)
   lastLogin  DateTime?
   lastLogout DateTime?
 

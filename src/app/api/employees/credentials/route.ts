@@ -265,7 +265,7 @@ export async function GET(request: Request) {
             department: { select: { name: true } },
             designation: { select: { title: true } },
             userId: true,
-            user: { select: { id: true, email: true, status: true, lastLogin: true, role: true } },
+            user: { select: { id: true, email: true, status: true, lastLogin: true, role: true, isInterviewer: true } },
             // Source-of-truth for credentials status — see schema-sync above
             credentialsStatus: true,
             credentialsInvitedAt: true,
@@ -394,6 +394,8 @@ export async function GET(request: Request) {
         status: emp.status,
         department: emp.department?.name || '—',
         designation: emp.designation?.title || '—',
+        // Interviewer toggle state (drives the "My Interviews" sidebar tab)
+        isInterviewer: emp.user?.isInterviewer === true,
         hasLoginAccount,
         loginStatus,
         credentialsStatus: credStatus,

@@ -30,6 +30,7 @@ interface EmployeeCredential {
   loginEmail: string
   emailMismatch?: boolean
   loginStatus: string
+  isInterviewer?: boolean
   lastLogin: string | null
   userRole: string | null
 }
@@ -790,6 +791,28 @@ export default function EmployeeSettingsPage() {
     }
   }
 
+  // Interviewer toggle — flagged users see ONLY the "My Interviews" sidebar tab
+  const handleToggleInterviewer = async (emp: EmployeeCredential) => {
+    try {
+      const res = await fetch(`/api/employees/${emp.id}/interviewer`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ isInterviewer: !emp.isInterviewer }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.isInterviewer
+          ? `${emp.firstName} ${emp.lastName} marked as interviewer — "My Interviews" tab is now visible to them`
+          : `${emp.firstName} ${emp.lastName} removed from interviewers — "My Interviews" tab hidden`)
+        fetchEmployees()
+      } else {
+        toast.error(data.error)
+      }
+    } catch (err) {
+      toast.error('Failed to update interviewer flag')
+    }
+  }
+
   const handleDeleteAccount = async (emp: EmployeeCredential) => {
     if (!confirm(`Remove login account for ${emp.firstName} ${emp.lastName}? They will no longer be able to sign in.`)) return
     try {
@@ -1259,14 +1282,15 @@ export default function EmployeeSettingsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Department</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Account Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Last Login</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Interviewer</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-thb-border">
                   {loading ? (
-                    <tr><td colSpan={7} className="px-4 py-12 text-center"><div className="animate-spin w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full mx-auto" /></td></tr>
+                    <tr><td colSpan={8} className="px-4 py-12 text-center"><div className="animate-spin w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full mx-auto" /></td></tr>
                   ) : filteredEmployees.length === 0 ? (
-                    <tr><td colSpan={7} className="px-4 py-12 text-center text-thb-text-muted">No employees found</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-12 text-center text-thb-text-muted">No employees found</td></tr>
                   ) : filteredEmployees.map(emp => (
                     <tr key={emp.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(emp.id) ? 'bg-teal-50/40' : ''}`}>
                       <td className="px-4 py-3">
@@ -1306,6 +1330,24 @@ export default function EmployeeSettingsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-xs text-thb-text-muted">{emp.lastLogin ? new Date(emp.lastLogin).toLocaleDateString() : '—'}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {emp.hasLoginAccount ? (
+                          <button
+                            onClick={() => handleToggleInterviewer(emp)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              emp.isInterviewer
+                                ? 'bg-teal-50 text-teal-700 border-teal-300 hover:bg-teal-100'
+                                : 'bg-slate-50 text-thb-text-muted border-thb-border hover:bg-slate-100'
+                            }`}
+                            title={emp.isInterviewer ? 'Interviewer ON — they see the "My Interviews" tab. Click to remove.' : 'Interviewer OFF. Click to let them see the "My Interviews" tab.'}
+                          >
+                            <FiUserCheck className="w-3.5 h-3.5" />
+                            {emp.isInterviewer ? 'Interviewer' : 'Not set'}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-thb-text-muted">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">

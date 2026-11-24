@@ -796,6 +796,7 @@ export async function POST(request: Request) {
           name: user.name,
           email: user.email,
           role: user.role,
+          isInterviewer: (user as any)?.isInterviewer === true,
           tenantId: safeTenantId,
           avatar: loginAvatar,
           tenant: safeTenant,

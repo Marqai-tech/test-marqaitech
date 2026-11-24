@@ -91,6 +91,8 @@ interface UserInfo {
   name: string;
   email: string;
   role: string;
+  // Interviewer toggle (HR/Admin-set): shows the "My Interviews" sidebar tab
+  isInterviewer?: boolean;
   avatar?: string | null;
   tenantId?: string;
   tenant?: TenantInfo;
