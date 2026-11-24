@@ -74,9 +74,11 @@ export async function GET(req: NextRequest) {
 
     // getDesignationCompanyFilter() already reads ?companyId= from the URL for admins
     // (via resolveCompanyScope), so no manual queryCompanyId handling needed.
-    // status filter accepts legacy/imported rows with status null so they
-    // still appear in dropdowns (POST always defaults new rows to 'active').
-    const where: Record<string, unknown> = { OR: [{ status: 'active' }, { status: null }] };
+    // status is a required field with DB default 'active' (schema.prisma),
+    // so every row has a status — filtering on 'active' alone is correct.
+    // (A status:null OR-clause here throws PrismaClientValidationError on
+    // this non-nullable column and empties the whole list — do not add it.)
+    const where: Record<string, unknown> = { status: 'active' };
 
     if (departmentId) {
       where.departmentId = departmentId;
