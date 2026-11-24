@@ -176,6 +176,9 @@ function LeavePageContent() {
   const [leavePolicies, setLeavePolicies] = useState<any[]>([]);
   // BUG FIX: fetch mappings (LeaveTypePolicyMapping) for the 3-source filter
   const [leaveMappings, setLeaveMappings] = useState<any[]>([]);
+  // BUG FIX: fetch employee's directly-assigned policy IDs (Source 1 of the
+  // 3-source filter — same as Apply Leave page)
+  const [empLeavePolicyIds, setEmpLeavePolicyIds] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -218,6 +221,19 @@ function LeavePageContent() {
         }
         if (myEmp) {
           setEmployee(myEmp);
+          // BUG FIX: Fetch employee's directly-assigned policies (Source 1)
+          // — same as Apply Leave page. Without this, the dashboard misses
+          // leave types from policies directly assigned to the employee.
+          try {
+            const empPolRes = await fetch(`/api/employees/${myEmp.id}/policies`, { headers });
+            if (empPolRes.ok) {
+              const empPolData = await empPolRes.json();
+              const empPol = empPolData.data?.employee || {};
+              const raw = empPol.leavePolicyIds || empPol.leavePolicyId;
+              const ids = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : (raw ? [raw] : []));
+              setEmpLeavePolicyIds(ids);
+            }
+          } catch { /* non-fatal */ }
           const probation = isActiveProbation(myEmp);
           const currentBalances = balanceData?.balances || myEmp.leaveBalances || [];
           const normalizedBalances = normalizeLeaveBalances(currentBalances as LeaveBalance[], { gender: myEmp.gender || balanceData?.gender, probation });
@@ -286,7 +302,7 @@ function LeavePageContent() {
 
     // Filter leave types using the shared resolver (same as Apply Leave page)
     const filteredTypes = filterLeaveTypesForEmployee(
-      leaveTypes, employee, leavePolicies, leaveMappings, []
+      leaveTypes, employee, leavePolicies, leaveMappings, empLeavePolicyIds
     );
 
     return filteredTypes.map(lt => {
@@ -311,7 +327,7 @@ function LeavePageContent() {
         carryForward: 0,
       } as LeaveBalance;
     });
-  }, [leaveBalances, leaveTypes, blocked, leaveRules, leaveRequests, leavePolicies, leaveMappings, employee]);
+  }, [leaveBalances, leaveTypes, blocked, leaveRules, leaveRequests, leavePolicies, leaveMappings, empLeavePolicyIds, employee]);
 
   const sortedBalances = useMemo(() => effectiveBalances.slice().sort((a, b) => {
     const ai = order.indexOf(a.leaveType?.name?.toLowerCase() || ''); const bi = order.indexOf(b.leaveType?.name?.toLowerCase() || '');

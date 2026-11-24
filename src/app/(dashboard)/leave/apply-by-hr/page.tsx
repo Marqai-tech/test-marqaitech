@@ -35,6 +35,11 @@ interface Employee {
   // BUG_136: probation status + dateOfJoining for paid-leave blocking.
   employeeStatus?: string | null;
   dateOfJoining?: string | null;
+  // BUG FIX: fields needed by the shared leave type resolver
+  employmentType?: string | null;
+  branchId?: string | null;
+  departmentId?: string | null;
+  gender?: string | null;
 }
 
 interface LeaveType {
@@ -220,13 +225,27 @@ export default function ApplyLeaveByHRPage() {
       if (polRes?.ok) { const pd = await polRes.json(); localPolicies = pd.data || pd.policies || []; setLeavePolicies(localPolicies); }
       if (mapRes?.ok) { const md = await mapRes.json(); localMappings = md.data || []; setLeaveMappings(localMappings); }
 
+      // BUG FIX: Fetch employee's directly-assigned policies (Source 1)
+      // — same as Apply Leave page. Without this, directly-assigned policies
+      // are missed and the leave type list differs from /leave/apply.
+      let localEmpPolicyIds: string[] = [];
+      try {
+        const empPolRes = await fetch(`/api/employees/${employee.id}/policies`, { headers: getAuthHeaders() });
+        if (empPolRes.ok) {
+          const empPolData = await empPolRes.json();
+          const empPol = empPolData.data?.employee || {};
+          const raw = empPol.leavePolicyIds || empPol.leavePolicyId;
+          localEmpPolicyIds = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : (raw ? [raw] : []));
+        }
+      } catch { /* non-fatal */ }
+
       const typesData = await typesRes.json();
       // Filter leave types using the SAME 3-source resolver as Apply Leave page
       let rawTypes = typesRes.ok ? (typesData.leaveTypes || typesData.data || []) : [];
       rawTypes = rawTypes.filter((t: any) => t.status === 'active' || t.status === undefined);
       // Apply the shared filter (employee's policies + scope-based + mappings)
       const filteredTypes = filterLeaveTypesForEmployee(
-        rawTypes, employee, localPolicies, localMappings, []
+        rawTypes, employee, localPolicies, localMappings, localEmpPolicyIds
       );
       setLeaveTypes(filteredTypes);
 
