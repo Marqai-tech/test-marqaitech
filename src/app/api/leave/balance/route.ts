@@ -466,49 +466,71 @@ export async function GET(request: Request) {
       }
     }
 
-    // ─── FINAL SAFETY-NET FALLBACK (HRMS_BUG_241): If mapping enforcement
-    // filtered everything out but active leave types DO exist, show them all.
-    // This matches /api/leave-types' behavior (lines 408-419) — an empty
-    // result blocks the employee from seeing any balance cards, which is
-    // never acceptable. The apply page works because /api/leave-types has
-    // this fallback; the balance API didn't, causing the dashboard to show
-    // "No leave balances configured" while the apply page showed leave types.
+    // ─── FINAL FALLBACK (HRMS_BUG_241): If mapping enforcement filtered
+    // everything out, fall back to the employee's ASSIGNED POLICIES
+    // (Policy.leaveTypeIds with "Applies to" filtering). This ensures we
+    // only show leave types the employee actually has — NOT all active types.
+    // Previously this showed ALL active leave types which was wrong (e.g.
+    // showing LOP when the employee's policies only cover CL and SL).
     if (result.length === 0 && activeLeaveTypes.length === 0) {
       try {
-        const allTypes = await db.leaveType.findMany({
-          where: { status: 'active' },
-          select: { id: true, name: true, code: true, defaultDays: true, probationRestricted: true },
-          orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
-        }).catch(() => []);
-        if (allTypes.length > 0) {
-          // Override defaultDays with rule's entitledDaysPerYear (same as
-          // branches 2 and 3 above) so the total is correct.
-          const ltIds = allTypes.map((lt: any) => lt.id);
-          if (ltIds.length > 0) {
-            try {
-              const placeholders = ltIds.map((_: any, i: number) => `$${i + 1}`).join(',');
-              const ruleRows: any[] = await db.$queryRawUnsafe(
-                `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
-                 WHERE "leaveTypeId" IN (${placeholders}) AND status = 'active'`,
-                ...ltIds
-              );
-              const ruleMap = new Map<string, number>();
-              for (const r of ruleRows) {
-                const entitled = Number(r.entitledDaysPerYear || 0);
-                if (!ruleMap.has(r.leaveTypeId) || ruleMap.get(r.leaveTypeId)! < entitled) {
-                  ruleMap.set(r.leaveTypeId, entitled);
-                }
-              }
-              allTypes.forEach((lt: any) => {
-                const ruleQuota = ruleMap.get(lt.id);
-                if (ruleQuota !== undefined && ruleQuota > 0) lt.defaultDays = ruleQuota;
-              });
-            } catch {}
-          }
-          console.warn(`[leave/balance] Final fallback: showing all ${allTypes.length} active type(s) — mapping enforcement returned 0 for employee=${employeeId}`);
-          activeLeaveTypes = allTypes as typeof activeLeaveTypes;
+        const policyRows: any[] = await db.$queryRawUnsafe(
+          `SELECT "leaveTypeIds", "empStatus", "branchIds", "departmentIds", "designationIds"
+           FROM "Policy"
+           WHERE category = 'leave' AND status = 'active'
+             AND "leaveTypeIds" IS NOT NULL AND "leaveTypeIds" != ''`
+        );
+        const safeJsonArray = (v: any): string[] => {
+          try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; }
+        };
+        const policyLtIds = new Set<string>();
+        for (const p of policyRows) {
+          // Check "Applies to" filters against this employee
+          const pStatuses = safeJsonArray(p.empStatus);
+          const pBranches = safeJsonArray(p.branchIds);
+          const pDepts = safeJsonArray(p.departmentIds);
+          if (pStatuses.length > 0 && targetEmployee?.employeeStatus && !pStatuses.includes(targetEmployee.employeeStatus)) continue;
+          if (pBranches.length > 0 && targetEmployee?.branchId && !pBranches.includes(targetEmployee.branchId)) continue;
+          if (pDepts.length > 0 && targetEmployee?.departmentId && !pDepts.includes(targetEmployee.departmentId)) continue;
+          for (const id of safeJsonArray(p.leaveTypeIds)) policyLtIds.add(id);
         }
-      } catch {}
+
+        if (policyLtIds.size > 0) {
+          // Fetch only the leave types that are in the employee's policies
+          const ltIdArr = Array.from(policyLtIds);
+          const placeholders = ltIdArr.map((_, i) => `$${i + 1}`).join(',');
+          const policyTypes: any[] = await db.$queryRawUnsafe(
+            `SELECT id, name, code, "defaultDays", "probationRestricted" FROM "LeaveType"
+             WHERE id IN (${placeholders}) AND status = 'active'
+             ORDER BY "displayOrder" ASC NULLS LAST, name ASC`,
+            ...ltIdArr
+          );
+          // Override defaultDays with rule's entitledDaysPerYear
+          try {
+            const ruleRows: any[] = await db.$queryRawUnsafe(
+              `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
+               WHERE "leaveTypeId" IN (${placeholders}) AND status = 'active'`,
+              ...ltIdArr
+            );
+            const ruleMap = new Map<string, number>();
+            for (const r of ruleRows) {
+              const entitled = Number(r.entitledDaysPerYear || 0);
+              if (!ruleMap.has(r.leaveTypeId) || ruleMap.get(r.leaveTypeId)! < entitled) {
+                ruleMap.set(r.leaveTypeId, entitled);
+              }
+            }
+            policyTypes.forEach((lt: any) => {
+              const ruleQuota = ruleMap.get(lt.id);
+              if (ruleQuota !== undefined && ruleQuota > 0) lt.defaultDays = ruleQuota;
+            });
+          } catch {}
+          console.warn(`[leave/balance] Policy-based fallback: showing ${policyTypes.length} type(s) from employee's assigned policies (mapping enforcement returned 0)`);
+          activeLeaveTypes = policyTypes as typeof activeLeaveTypes;
+        }
+        // If policyLtIds.size === 0, the employee has no assigned policies → show nothing
+      } catch (e) {
+        console.warn('[leave/balance] policy-based final fallback failed (non-fatal):', e);
+      }
     }
 
     const existingLeaveTypeIds = new Set(result.map((b: any) => b.leaveTypeId));

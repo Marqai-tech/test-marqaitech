@@ -32,6 +32,7 @@ interface Employee {
   dateOfJoining?: string | null; dateOfConfirmation?: string | null; employeeType?: string | null; gender?: string | null;
   leaveBalances?: LeaveBalance[]; reportingManager?: { id: string; firstName: string; lastName: string } | null; leavePolicyId?: string | null;
   department?: { id: string; name: string } | null; departmentId?: string | null;
+  branchId?: string | null;
 }
 interface Holiday { id: string; name: string; date: string; type?: string }
 
@@ -169,6 +170,9 @@ function LeavePageContent() {
   const [onLeaveTodayCount, setOnLeaveTodayCount] = useState(0);
   // BUG FIX: fetch rules so we can resolve entitledDaysPerYear (same as Apply Leave page)
   const [leaveRules, setLeaveRules] = useState<any[]>([]);
+  // BUG FIX: fetch policies so we can filter leave types to only those
+  // assigned to the employee (not ALL active leave types)
+  const [leavePolicies, setLeavePolicies] = useState<any[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -230,6 +234,13 @@ function LeavePageContent() {
           const ruleData = await ruleRes.json();
           setLeaveRules(ruleData.data || []);
         }
+        // BUG FIX: fetch policies so we can filter leave types to only those
+        // assigned to the employee via Policy.leaveTypeIds
+        const polRes = await fetch(`/api/policies?category=leave&limit=100${sq ? `&${sq}` : ''}`, { headers }).catch(() => null);
+        if (polRes?.ok) {
+          const polData = await polRes.json();
+          setLeavePolicies(polData.data || polData.policies || []);
+        }
       }
       if (holRes?.ok) {
         const holData = await holRes.json();
@@ -259,13 +270,32 @@ function LeavePageContent() {
 
   // BUG FIX (HRMS_BUG_241): If the balance API returned nothing (mapping
   // enforcement filtered everything), fall back to synthesizing balance
-  // cards from the leave types already fetched. Uses rule.entitledDaysPerYear
-  // (same as Apply Leave page) so the total is correct even when
-  // LeaveType.defaultDays is 0 but the rule specifies 12 days.
+  // cards from the leave types — BUT ONLY those assigned to the employee
+  // via their policies (Policy.leaveTypeIds). Uses rule.entitledDaysPerYear
+  // (same as Apply Leave page) so the total is correct.
   const effectiveBalances = useMemo(() => {
     if (leaveBalances.length > 0) return leaveBalances;
-    // Synthesize from leaveTypes + rules when balances are empty
-    return leaveTypes.map(lt => {
+
+    // Resolve which leave type IDs are assigned to this employee via policies
+    const assignedLtIds = new Set<string>();
+    const safeJsonArray = (v: any): string[] => {
+      try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; }
+    };
+    for (const p of leavePolicies) {
+      // Check "Applies to" filters
+      const pStatuses = safeJsonArray((p as any).empStatus);
+      const pBranches = safeJsonArray((p as any).branchIds);
+      const pDepts = safeJsonArray((p as any).departmentIds);
+      if (pStatuses.length > 0 && employee?.employeeStatus && !pStatuses.includes(employee.employeeStatus)) continue;
+      if (pBranches.length > 0 && employee?.branchId && !pBranches.includes(employee.branchId)) continue;
+      if (pDepts.length > 0 && employee?.departmentId && !pDepts.includes(employee.departmentId)) continue;
+      for (const id of safeJsonArray((p as any).leaveTypeIds)) assignedLtIds.add(id);
+    }
+
+    // Only show leave types that are in the employee's assigned policies
+    const filteredTypes = leaveTypes.filter(lt => assignedLtIds.has(lt.id));
+
+    return filteredTypes.map(lt => {
       // Resolve entitled days from the rule (same as apply page's computeRemaining)
       const rule = leaveRules.find((r: any) => r.leaveTypeId === lt.id && r.status === 'active');
       const entitled = rule?.entitledDaysPerYear || lt.defaultDays || 0;
@@ -289,7 +319,7 @@ function LeavePageContent() {
         carryForward: 0,
       } as LeaveBalance;
     });
-  }, [leaveBalances, leaveTypes, blocked, leaveRules, leaveRequests]);
+  }, [leaveBalances, leaveTypes, blocked, leaveRules, leaveRequests, leavePolicies, employee]);
 
   const sortedBalances = useMemo(() => effectiveBalances.slice().sort((a, b) => {
     const ai = order.indexOf(a.leaveType?.name?.toLowerCase() || ''); const bi = order.indexOf(b.leaveType?.name?.toLowerCase() || '');
