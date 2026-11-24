@@ -28,6 +28,8 @@ module.exports = [
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastLogout" TIMESTAMP(3)`,
+  // Interviewer toggle — flagged users see only the "My Interviews" tab
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,

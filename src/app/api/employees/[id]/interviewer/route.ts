@@ -75,8 +75,15 @@ export async function PATCH(
       );
     }
 
-    // Dual write: tenant DB + platform DB (auth/me reads the platform copy first)
+    // Dual write: tenant DB + platform DB (auth/me reads the platform copy first).
+    // Self-heal the column first (ADD COLUMN IF NOT EXISTS, idempotent) so the
+    // toggle works even on a DB provisioned before schema-sync added it.
     const platformDb = getPlatformDb();
+    await Promise.all([
+      db.$queryRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false').catch(() => null),
+      platformDb.$queryRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false').catch(() => null),
+    ]);
+
     const results = await Promise.all([
       db.user.update({ where: { id: employee.userId }, data: { isInterviewer } }).catch((e: any) => ({ error: e?.message || 'tenant update failed' })),
       platformDb.user.update({ where: { id: employee.userId }, data: { isInterviewer } }).catch((e: any) => ({ error: e?.message || 'platform update failed' })),

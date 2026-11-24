@@ -53,6 +53,17 @@ export async function GET(request: Request) {
     // Super admin lives only on the platform DB. Nested tenant include + employee
     // lookup were extra Neon hops on every layout /api/auth/me.
     const platformDb = getPlatformDb();
+
+    // ─── Interviewer toggle: ensure the User.isInterviewer column exists ───
+    // schema-sync.js adds it at build time, but a tenant DB provisioned before
+    // this feature (or a missed sync) would 500 every /api/auth/me below on
+    // the explicit select. Self-heal with ADD COLUMN IF NOT EXISTS — the same
+    // pattern the interviews route uses for candidateAttendance/panelAttendance.
+    // Once present this is a single fast no-op round-trip per cold instance.
+    await platformDb.$queryRawUnsafe(
+      'ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false'
+    ).catch(() => null);
+
     const userSelectCore = {
       id: true,
       name: true,

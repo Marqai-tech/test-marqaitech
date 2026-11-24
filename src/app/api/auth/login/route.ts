@@ -139,6 +139,7 @@ export async function POST(request: Request) {
       status: true,
       avatar: true,
       tenantId: true,
+      isInterviewer: true,
     };
 
     const tenantSelect = {
