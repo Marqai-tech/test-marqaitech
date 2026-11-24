@@ -167,6 +167,8 @@ function LeavePageContent() {
   const [activeTab, setActiveTab] = useState<'my' | 'team' | 'admin'>('my');
   const [teamCalendar, setTeamCalendar] = useState<{ team: any[]; leaves: any[]; byDate: Record<string, number[]> } | null>(null);
   const [onLeaveTodayCount, setOnLeaveTodayCount] = useState(0);
+  // BUG FIX: fetch rules so we can resolve entitledDaysPerYear (same as Apply Leave page)
+  const [leaveRules, setLeaveRules] = useState<any[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -221,6 +223,13 @@ function LeavePageContent() {
             id: lt.id, name: lt.name, code: lt.code, defaultDays: lt.defaultDays || 0, isPaid: lt.isPaid ?? true,
           })));
         }
+        // BUG FIX: fetch leave policy rules so we can resolve entitledDaysPerYear
+        // (same as Apply Leave page — the dashboard needs this to show correct totals)
+        const ruleRes = await fetch(`/api/leave-policy-rules?limit=100${sq ? `&${sq}` : ''}`, { headers }).catch(() => null);
+        if (ruleRes?.ok) {
+          const ruleData = await ruleRes.json();
+          setLeaveRules(ruleData.data || []);
+        }
       }
       if (holRes?.ok) {
         const holData = await holRes.json();
@@ -250,22 +259,37 @@ function LeavePageContent() {
 
   // BUG FIX (HRMS_BUG_241): If the balance API returned nothing (mapping
   // enforcement filtered everything), fall back to synthesizing balance
-  // cards from the leave types already fetched at line 217. This mirrors
-  // how the Apply Leave page shows leave types — same data source.
+  // cards from the leave types already fetched. Uses rule.entitledDaysPerYear
+  // (same as Apply Leave page) so the total is correct even when
+  // LeaveType.defaultDays is 0 but the rule specifies 12 days.
   const effectiveBalances = useMemo(() => {
     if (leaveBalances.length > 0) return leaveBalances;
-    // Synthesize from leaveTypes when balances are empty
-    return leaveTypes.map(lt => ({
-      id: `synthetic-${lt.id}`,
-      leaveTypeId: lt.id,
-      leaveType: { id: lt.id, name: lt.name, code: lt.code },
-      year: new Date().getFullYear(),
-      total: blocked ? 0 : (lt.defaultDays || 0),
-      used: 0,
-      remaining: blocked ? 0 : (lt.defaultDays || 0),
-      carryForward: 0,
-    } as LeaveBalance));
-  }, [leaveBalances, leaveTypes, blocked]);
+    // Synthesize from leaveTypes + rules when balances are empty
+    return leaveTypes.map(lt => {
+      // Resolve entitled days from the rule (same as apply page's computeRemaining)
+      const rule = leaveRules.find((r: any) => r.leaveTypeId === lt.id && r.status === 'active');
+      const entitled = rule?.entitledDaysPerYear || lt.defaultDays || 0;
+      // Compute taken from approved + pending leave requests
+      const year = new Date().getFullYear();
+      const taken = leaveRequests
+        .filter(l => l.leaveTypeId === lt.id && (l.status === 'approved' || l.status === 'pending') && new Date(l.startDate).getFullYear() === year)
+        .reduce((sum, l) => {
+          if ((l as any).chargeableDays != null) return sum + Number((l as any).chargeableDays);
+          if (l.halfDay) return sum + 0.5;
+          return sum + getDaysBetween(l.startDate, l.endDate, new Set());
+        }, 0);
+      return {
+        id: `synthetic-${lt.id}`,
+        leaveTypeId: lt.id,
+        leaveType: { id: lt.id, name: lt.name, code: lt.code },
+        year,
+        total: blocked ? 0 : entitled,
+        used: taken,
+        remaining: blocked ? 0 : Math.max(0, entitled - taken),
+        carryForward: 0,
+      } as LeaveBalance;
+    });
+  }, [leaveBalances, leaveTypes, blocked, leaveRules, leaveRequests]);
 
   const sortedBalances = useMemo(() => effectiveBalances.slice().sort((a, b) => {
     const ai = order.indexOf(a.leaveType?.name?.toLowerCase() || ''); const bi = order.indexOf(b.leaveType?.name?.toLowerCase() || '');

@@ -241,17 +241,37 @@ export async function GET(request: Request) {
         },
         orderBy: { name: 'asc' },
       });
-      result = leaveTypes.map((lt) => ({
-        id: `synthetic-${lt.id}`,
-        leaveTypeId: lt.id,
-        leaveType: { id: lt.id, name: lt.name, code: lt.code, probationRestricted: lt.probationRestricted },
-        year,
-        total: isProbation ? 0 : (lt.defaultDays || 0),
-        used: 0,
-        remaining: isProbation ? 0 : (lt.defaultDays || 0),
-        carryForward: 0,
-        synthetic: true,
-      })) as typeof balances;
+      // Override defaultDays with rule's entitledDaysPerYear where available
+      const ltIdsForRules = leaveTypes.map(lt => lt.id);
+      const ruleMapSynthetic = new Map<string, number>();
+      if (ltIdsForRules.length > 0) {
+        try {
+          const ph = ltIdsForRules.map((_, i) => `$${i + 1}`).join(',');
+          const rr: any[] = await db.$queryRawUnsafe(
+            `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
+             WHERE "leaveTypeId" IN (${ph}) AND status = 'active'`, ...ltIdsForRules
+          );
+          for (const r of rr) {
+            const e = Number(r.entitledDaysPerYear || 0);
+            if (!ruleMapSynthetic.has(r.leaveTypeId) || ruleMapSynthetic.get(r.leaveTypeId)! < e)
+              ruleMapSynthetic.set(r.leaveTypeId, e);
+          }
+        } catch {}
+      }
+      result = leaveTypes.map((lt) => {
+        const entitled = ruleMapSynthetic.get(lt.id) || lt.defaultDays || 0;
+        return {
+          id: `synthetic-${lt.id}`,
+          leaveTypeId: lt.id,
+          leaveType: { id: lt.id, name: lt.name, code: lt.code, probationRestricted: lt.probationRestricted },
+          year,
+          total: isProbation ? 0 : entitled,
+          used: 0,
+          remaining: isProbation ? 0 : entitled,
+          carryForward: 0,
+          synthetic: true,
+        } as typeof balances[number];
+      });
     }
 
     // Always expose every active leave type, even when an employee has no
@@ -461,6 +481,30 @@ export async function GET(request: Request) {
           orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
         }).catch(() => []);
         if (allTypes.length > 0) {
+          // Override defaultDays with rule's entitledDaysPerYear (same as
+          // branches 2 and 3 above) so the total is correct.
+          const ltIds = allTypes.map((lt: any) => lt.id);
+          if (ltIds.length > 0) {
+            try {
+              const placeholders = ltIds.map((_: any, i: number) => `$${i + 1}`).join(',');
+              const ruleRows: any[] = await db.$queryRawUnsafe(
+                `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
+                 WHERE "leaveTypeId" IN (${placeholders}) AND status = 'active'`,
+                ...ltIds
+              );
+              const ruleMap = new Map<string, number>();
+              for (const r of ruleRows) {
+                const entitled = Number(r.entitledDaysPerYear || 0);
+                if (!ruleMap.has(r.leaveTypeId) || ruleMap.get(r.leaveTypeId)! < entitled) {
+                  ruleMap.set(r.leaveTypeId, entitled);
+                }
+              }
+              allTypes.forEach((lt: any) => {
+                const ruleQuota = ruleMap.get(lt.id);
+                if (ruleQuota !== undefined && ruleQuota > 0) lt.defaultDays = ruleQuota;
+              });
+            } catch {}
+          }
           console.warn(`[leave/balance] Final fallback: showing all ${allTypes.length} active type(s) — mapping enforcement returned 0 for employee=${employeeId}`);
           activeLeaveTypes = allTypes as typeof activeLeaveTypes;
         }
