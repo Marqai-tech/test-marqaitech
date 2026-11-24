@@ -1485,11 +1485,10 @@ export default function RecruitmentPage() {
       if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
         const data = await jobsRes.value.json();
         setJobPostings(data.jobPostings || []);
-        const deptMap = new Map<string, Department>();
-        (data.jobPostings || []).forEach((j: JobPosting) => {
-          if (j.department) deptMap.set(j.department.id, j.department);
-        });
-        setDepartments(Array.from(deptMap.values()));
+        // NOTE: departments are NOT derived from job postings here — the
+        // department dropdowns (Create Job wizard + page filter) load from
+        // company master data in the dedicated effect below, exactly like
+        // the Employee module.
 
         const allApps: JobApplication[] = [];
         (data.jobPostings || []).forEach((j: JobPosting) => {
@@ -1526,19 +1525,23 @@ export default function RecruitmentPage() {
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
-  /* Also fetch departments from employees API */
+  /* Departments come ONLY from company master data (Company → Departments)
+     via /api/departments — same source, company scope (scopeQuery) and
+     server-side name-dedupe as the Employee module dropdown. Never derive
+     this list from job postings or employees: those only cover departments
+     that already have a posting or a hire, so they diverge from master data
+     (that was the source of the "Finance"/"Accounts" mismatch). */
   useEffect(() => {
     queueMicrotask(async () => {
       try {
         const sq = scopeQuery();
-        const deptRes = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+        const deptRes = await fetch(`/api/departments?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
         if (deptRes.ok) {
           const data = await deptRes.json();
-          const deptMap = new Map<string, Department>();
-          (data.employees || []).forEach((e: { department?: { id: string; name: string } }) => {
-            if (e.department) deptMap.set(e.department.id, e.department);
-          });
-          if (deptMap.size > 0) setDepartments(Array.from(deptMap.values()));
+          const list: Department[] = ((data.data || data.departments || []) as Array<{ id: string; name: string }>)
+            .filter(d => d?.id && d?.name)
+            .map(d => ({ id: d.id, name: d.name }));
+          if (list.length > 0) setDepartments(list);
         }
       } catch { /* ignore */ }
     });
