@@ -866,6 +866,94 @@ export async function POST(request: Request) {
       await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "appliedPolicySnapshot" TEXT`);
     } catch { /* non-fatal — column may already exist */ }
 
+    // ─── BUG 2 FIX: Monthly leave credit validation ──────────────────
+    // When a LeavePolicyRule has creditFrequency='Monthly' + creditDays=N,
+    // or monthlyLimit=true + monthlyMaxDays=N, the employee can only use
+    // that many days in the current calendar month. This server-side guard
+    // prevents bypassing the client-side check. LOP / unpaid types are exempt.
+    //
+    // Logic mirrors the apply page's "Monthly credit limit" system check:
+    //   1. Fetch the rule for this leave type (entitledDaysPerYear + the
+    //      runtime creditFrequency / creditDays / monthlyLimit / monthlyMaxDays
+    //      columns).
+    //   2. Determine the effective monthly limit (tighter of creditDays vs
+    //      monthlyMaxDays if both are set).
+    //   3. Sum the chargeable days of all approved + pending leave requests
+    //      for this employee + leave type whose startDate falls in the
+    //      current calendar month.
+    //   4. If monthTaken + requestedDays > monthlyLimit → reject.
+    if (!isUnpaidLeaveType) {
+      try {
+        // Fetch the rule with all monthly-limit columns (raw SQL because
+        // these are runtime-added columns not in the Prisma schema).
+        const ruleRows = await db.$queryRawUnsafe(
+          `SELECT "creditFrequency", "creditDays", "monthlyLimit", "monthlyMaxDays"
+           FROM "LeavePolicyRule"
+           WHERE "leaveTypeId" = $1 AND status = 'active'
+           ORDER BY "updatedAt" DESC LIMIT 1`,
+          leaveTypeId,
+        ) as any[];
+        if (ruleRows.length > 0) {
+          const r = ruleRows[0];
+          const freq = String(r.creditFrequency || 'Monthly').toLowerCase();
+          const creditDays = Number(r.creditDays || 0);
+          const hasMonthlyCap = r.monthlyLimit === true;
+          const monthlyCapDays = Number(r.monthlyMaxDays || 0);
+
+          let monthlyLimit = 0;
+          if (freq === 'monthly' && creditDays > 0) monthlyLimit = creditDays;
+          if (hasMonthlyCap && monthlyCapDays > 0 && (monthlyLimit === 0 || monthlyCapDays < monthlyLimit)) monthlyLimit = monthlyCapDays;
+
+          if (monthlyLimit > 0) {
+            // Sum days already taken in the current calendar month
+            const now = new Date();
+            const cy = now.getFullYear();
+            const cm = now.getMonth() + 1; // 1-indexed for SQL
+            const monthRows = await db.$queryRawUnsafe(
+              `SELECT lr."startDate", lr."endDate", lr."halfDay"
+               FROM "LeaveRequest" lr
+               WHERE lr."employeeId" = $1
+                 AND lr."leaveTypeId" = $2
+                 AND lr.status IN ('approved', 'pending')
+                 AND EXTRACT(YEAR FROM lr."startDate") = $3
+                 AND EXTRACT(MONTH FROM lr."startDate") = $4`,
+              employeeId, leaveTypeId, cy, cm,
+            ) as any[];
+            // Compute chargeable days for each (use calendar days as a
+            // conservative fallback; working-days would require holiday data
+            // which isn't worth fetching for a guard that's almost always a
+            // no-op once the rule is configured).
+            const monthTaken = monthRows.reduce((sum: number, lr: any) => {
+              if (lr.halfDay) return sum + 0.5;
+              const s = new Date(lr.startDate); const e = new Date(lr.endDate);
+              if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+                return sum + Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+              }
+              return sum;
+            }, 0);
+
+            const projected = monthTaken + requestedDays;
+            if (projected > monthlyLimit) {
+              const monthName = now.toLocaleDateString('en-GB', { month: 'short' });
+              return NextResponse.json({
+                error: `Monthly leave limit exceeded for "${leaveType.name}". You have used ${monthTaken} of ${monthlyLimit} day(s) allowed in ${monthName}. Remaining this month: ${Math.max(0, monthlyLimit - monthTaken)} day(s). Requested: ${requestedDays} day(s).`,
+                code: 'MONTHLY_LIMIT_EXCEEDED',
+                monthlyLimit,
+                monthTaken,
+                requestedDays,
+                remainingThisMonth: Math.max(0, monthlyLimit - monthTaken),
+              }, { status: 400, headers: corsHeaders() });
+            }
+            console.log(`[leave] Monthly credit check passed: ${leaveType.name} — ${monthTaken}/${monthlyLimit} day(s) used this month, requesting ${requestedDays} → projected ${projected}.`);
+          }
+        }
+      } catch (monthlyErr) {
+        // Non-fatal — the rule columns might not exist on some tenant DBs.
+        // Log but don't block the leave application.
+        console.warn('[leave] Monthly credit validation failed (non-fatal):', monthlyErr instanceof Error ? monthlyErr.message : String(monthlyErr));
+      }
+    }
+
     // ─── Resolve the applicable policy for this employee + leave type ───
     // This is done BEFORE creating the request so we can:
     //   1. Enforce eligibility (employee must have a matching mapping/policy)

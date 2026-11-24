@@ -335,8 +335,8 @@ function ApplyLeaveContent() {
   // so we can disable zero-balance non-LOP types before the user picks them.
   // Also returns the resolved Rule object so downstream UI can read its
   // properties (advanceNoticeDays, halfDayAllowed, min/maxDaysPerRequest, etc.).
-  const computeRemaining = useCallback((leaveTypeId: string): { entitled: number; taken: number; remaining: number; isLop: boolean; rule: any | null } => {
-    if (!leaveTypeId) return { entitled: 0, taken: 0, remaining: 0, isLop: false, rule: null };
+  const computeRemaining = useCallback((leaveTypeId: string): { entitled: number; taken: number; remaining: number; isLop: boolean; rule: any | null; monthTaken: number } => {
+    if (!leaveTypeId) return { entitled: 0, taken: 0, remaining: 0, isLop: false, rule: null, monthTaken: 0 };
     // Path 1: LeaveType → Mapping → Rule
     const mapping = mappings.find((m: any) => m.leaveTypeId === leaveTypeId && m.status === 'active');
     const ruleViaMapping = mapping ? rules.find((r: any) => r.id === mapping.policyRuleId) : null;
@@ -354,23 +354,47 @@ function ApplyLeaveContent() {
     const lt = leaveTypes.find(t => t.id === leaveTypeId);
     const bal = leaveBalances.find(b => b.leaveType.id === leaveTypeId);
     const entitled = rule?.entitledDaysPerYear || bal?.total || lt?.defaultDays || 0;
+
+    // Helper: compute chargeable days from a single leave record
+    const daysOf = (l: any): number => {
+      if (l.chargeableDays != null) return l.chargeableDays;
+      if (l.days != null) return l.days;
+      if (l.halfDay) return 0.5;
+      const s = new Date(l.startDate); const e = new Date(l.endDate);
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        return Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
+      return 0;
+    };
+
+    // Year-total taken (approved + pending)
     const taken = ownLeaves
       .filter((l: any) => l.leaveTypeId === leaveTypeId && (l.status === 'approved' || l.status === 'pending'))
-      .reduce((sum: number, l: any) => {
-        // Both 'approved' and 'pending' leaves consume balance, so both are
-        // subtracted from entitlement here (pending is already accounted for).
-        if (l.chargeableDays != null) return sum + l.chargeableDays;
-        if (l.days != null) return sum + l.days;
-        if (l.halfDay) return sum + 0.5;
-        const s = new Date(l.startDate); const e = new Date(l.endDate);
-        if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
-          return sum + Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        }
-        return sum;
-      }, 0);
+      .reduce((sum: number, l: any) => sum + daysOf(l), 0);
+
+    // ─── Monthly taken: days already consumed in the CURRENT calendar month ───
+    // Used for monthly credit validation (Bug 2): if the rule's creditFrequency
+    // is 'Monthly' with creditDays=N, or monthlyLimit=true with monthlyMaxDays=N,
+    // the employee can only use N days in the current month.
+    const now = new Date();
+    const cy = now.getFullYear();
+    const cm = now.getMonth(); // 0-indexed
+    const monthTaken = ownLeaves
+      .filter((l: any) => {
+        if (l.leaveTypeId !== leaveTypeId) return false;
+        if (l.status !== 'approved' && l.status !== 'pending') return false;
+        // Check if the leave's start date falls in the current calendar month.
+        // We use startDate because that's when the leave is "taken" from the
+        // employee's perspective. (A leave spanning month boundaries is counted
+        // in its start month — matching how monthly credit is typically granted.)
+        const s = new Date(l.startDate);
+        return !isNaN(s.getTime()) && s.getFullYear() === cy && s.getMonth() === cm;
+      })
+      .reduce((sum: number, l: any) => sum + daysOf(l), 0);
+
     const remaining = Math.max(0, entitled - taken);
     const isLop = (lt?.code || '').toLowerCase().includes('lop') || (lt?.name || '').toLowerCase().includes('loss of pay');
-    return { entitled, taken, remaining, isLop, rule };
+    return { entitled, taken, remaining, isLop, rule, monthTaken };
   }, [mappings, rules, policies, leaveTypes, leaveBalances, ownLeaves]);
 
   // Selected type values (uses the reusable helper)
@@ -424,7 +448,7 @@ function ApplyLeaveContent() {
     push('Required fields filled', filled ? 'ok' : 'idle', filled ? null : 'Leave type, dates and reason are mandatory.');
 
     if (!selectedType || !form.startDate || !form.endDate) {
-      ['Leave type allowed for employee', 'Applied early enough (notice)', 'Within minimum & maximum days', 'Half-day allowed', 'Document attached when required', 'Back-date limit', 'Service days required', 'Sufficient balance (or LOP)', 'No overlap with existing leave', 'Sandwich & clubbing rules']
+      ['Leave type allowed for employee', 'Applied early enough (notice)', 'Within minimum & maximum days', 'Half-day allowed', 'Document attached when required', 'Back-date limit', 'Service days required', 'Sufficient balance (or LOP)', 'Monthly credit limit', 'No overlap with existing leave', 'Sandwich & clubbing rules']
         .forEach(l => push(l, 'idle'));
       return out;
     }
@@ -472,6 +496,60 @@ function ApplyLeaveContent() {
       push('Sufficient balance (or LOP)', 'ok', `${fmtNum(remainingDays)} day(s) remaining.`);
     }
 
+    // ─── Monthly credit limit check (Bug 2) ───
+    // Two independent monthly limits can apply:
+    //   A. creditFrequency === 'Monthly' + creditDays > 0
+    //      → the rule grants creditDays per month; the employee can only use
+    //        that many days in the current calendar month.
+    //   B. monthlyLimit === true + monthlyMaxDays > 0
+    //      → a separate monthly cap on how many days can be taken per month.
+    // The TIGHTER of the two applies (if both are set). LOP types are exempt.
+    if (!selectedTypeInfo.isLop && selectedRule) {
+      const freq = (selectedRule.creditFrequency || 'Monthly').toLowerCase();
+      const creditDays = Number(selectedRule.creditDays || 0);
+      const hasMonthlyCap = selectedRule.monthlyLimit === true;
+      const monthlyCapDays = Number(selectedRule.monthlyMaxDays || 0);
+
+      // Determine the effective monthly limit
+      let monthlyLimit = 0;
+      let limitSource = '';
+      if (freq === 'monthly' && creditDays > 0) {
+        monthlyLimit = creditDays;
+        limitSource = `monthly credit of ${fmtNum(creditDays)} day(s)`;
+      }
+      if (hasMonthlyCap && monthlyCapDays > 0) {
+        if (monthlyLimit === 0 || monthlyCapDays < monthlyLimit) {
+          monthlyLimit = monthlyCapDays;
+          limitSource = `monthly cap of ${fmtNum(monthlyCapDays)} day(s)`;
+        }
+      }
+
+      if (monthlyLimit > 0) {
+        const monthName = new Date().toLocaleDateString('en-GB', { month: 'short' });
+        const projected = selectedTypeInfo.monthTaken + calc.days;
+        if (selectedTypeInfo.monthTaken >= monthlyLimit) {
+          // Already at/over the monthly limit — block entirely
+          push('Monthly credit limit', 'err',
+            `You have already used ${fmtNum(selectedTypeInfo.monthTaken)} of ${fmtNum(monthlyLimit)} day(s) allowed in ${monthName}. No more ${selectedType.name} can be applied this month.`,
+            'LV-E10');
+        } else if (projected > monthlyLimit) {
+          // This request would push over the monthly limit — block
+          push('Monthly credit limit', 'err',
+            `You have used ${fmtNum(selectedTypeInfo.monthTaken)} day(s) in ${monthName}. This request (${fmtNum(calc.days)} day(s)) would exceed the ${limitSource}. Remaining this month: ${fmtNum(Math.max(0, monthlyLimit - selectedTypeInfo.monthTaken))} day(s).`,
+            'LV-E11');
+        } else {
+          push('Monthly credit limit', 'ok',
+            `${fmtNum(selectedTypeInfo.monthTaken)} / ${fmtNum(monthlyLimit)} day(s) used in ${monthName} · ${fmtNum(Math.max(0, monthlyLimit - projected))} day(s) left after this request.`);
+        }
+      } else {
+        push('Monthly credit limit', 'ok', 'No monthly limit for this leave type.');
+      }
+    } else if (!selectedTypeInfo.isLop) {
+      push('Monthly credit limit', 'ok', 'No monthly limit configured.');
+    } else {
+      push('Monthly credit limit', 'ok', 'LOP — no monthly limit.');
+    }
+
     // Overlap check
     const overlap = ownLeaves.find((r: any) => (r.status === 'pending' || r.status === 'approved') &&
       !(form.endDate < (r.startDate || '').split('T')[0] || form.startDate > (r.endDate || '').split('T')[0]));
@@ -500,6 +578,23 @@ function ApplyLeaveContent() {
     if (selectedType && !selectedTypeInfo.isLop && selectedTypeInfo.remaining <= 0) {
       toast.error(`Cannot apply for ${selectedType.name} — you have 0 days available. Please choose another leave type.`);
       return;
+    }
+    // Monthly credit guard (Bug 2): if the selected leave type has a monthly
+    // credit limit (creditFrequency=Monthly+creditDays, or monthlyLimit+
+    // monthlyMaxDays), block submission when the current month's usage + this
+    // request would exceed the limit. LOP types are exempt.
+    if (selectedType && !selectedTypeInfo.isLop && selectedRule) {
+      const freq = (selectedRule.creditFrequency || 'Monthly').toLowerCase();
+      const creditDays = Number(selectedRule.creditDays || 0);
+      const monthlyCapDays = Number(selectedRule.monthlyMaxDays || 0);
+      let monthlyLimit = 0;
+      if (freq === 'monthly' && creditDays > 0) monthlyLimit = creditDays;
+      if (selectedRule.monthlyLimit === true && monthlyCapDays > 0 && (monthlyLimit === 0 || monthlyCapDays < monthlyLimit)) monthlyLimit = monthlyCapDays;
+      if (monthlyLimit > 0 && selectedTypeInfo.monthTaken + calc.days > monthlyLimit) {
+        const monthName = new Date().toLocaleDateString('en-GB', { month: 'short' });
+        toast.error(`Monthly limit exceeded for ${selectedType.name}: you have used ${fmtNum(selectedTypeInfo.monthTaken)} of ${fmtNum(monthlyLimit)} day(s) in ${monthName}. Remaining: ${fmtNum(Math.max(0, monthlyLimit - selectedTypeInfo.monthTaken))} day(s).`);
+        return;
+      }
     }
     if (!employee?.id) {
       toast.error('Employee record not found');

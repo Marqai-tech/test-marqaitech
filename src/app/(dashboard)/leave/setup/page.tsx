@@ -1133,8 +1133,8 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
                 {f.cfMode === 'Limited' && fld('Carry forward days', true, undefined, undefined, false, <input type="number" className={inp} value={f.cfDays} onChange={e => set('cfDays', e.target.value)} placeholder="6"/>)}
               </div>}
               <div className="grid grid-cols-2 gap-x-6 py-3">
-                {fld('Maximum accumulation', 'Highest balance an employee can hold', undefined, undefined, false, <input type="number" className={inp} value={f.maxAccum} onChange={e => set('maxAccum', e.target.value)} placeholder="30"/>)}
-                {fld('Credit expires after', 'Used for Comp Off; blank if no expiry', undefined, undefined, false, <input type="number" className={inp} value={f.expiryDays} onChange={e => set('expiryDays', e.target.value)} placeholder="60"/>)}
+                {fld('Maximum accumulation', undefined, 'Highest balance an employee can hold', undefined, false, <input type="number" className={inp} value={f.maxAccum} onChange={e => set('maxAccum', e.target.value)} placeholder="30"/>)}
+                {fld('Credit expires after', undefined, 'Used for Comp Off; blank if no expiry', undefined, false, <input type="number" className={inp} value={f.expiryDays} onChange={e => set('expiryDays', e.target.value)} placeholder="60"/>)}
               </div>
               <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3 border-b border-dashed border-slate-100"><div><b className="block text-[13px] font-bold">Leave encashment applicable?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">Unused days paid out at year end / exit</span></div>{yn('encash')}</div>
               {f.encash && <div className="py-3 bg-slate-50 rounded-xl p-3.5 border border-slate-100"><div className="grid grid-cols-2 gap-x-6">{fld('Encashment limit', true, undefined, undefined, false, <input type="number" className={inp} value={f.encashLimit} onChange={e => set('encashLimit', e.target.value)} placeholder="30"/>)}</div></div>}
