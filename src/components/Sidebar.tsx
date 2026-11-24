@@ -103,6 +103,14 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
               const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
               if (!hasRole) return false;
             }
+            // Interviewer toggle: the self-service "My Interviews" item
+            // (employees section) shows ONLY when HR/Admin has flagged this
+            // user (User.isInterviewer) — i.e., once an interview is scheduled
+            // for them as a panel member. Admins/HR keep it visible always.
+            const itemPath = (item.href || '').split('?')[0];
+            if (itemPath === '/my-interviews' && isSelfServiceRole(userRole) && user?.isInterviewer !== true) {
+              return false;
+            }
             // Self-service users may access only explicitly employee-tagged items
             // or routes that are on the approved self-service allowlist. This
             // keeps newly added admin links hidden even when a module is enabled.
