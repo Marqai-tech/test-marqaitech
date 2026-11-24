@@ -12,6 +12,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { getDataScope } from '@/lib/roleAccess';
 import { useRouter } from 'next/navigation';
 import TeamLeaveSidebar from '@/components/TeamLeaveSidebar';
+import { filterLeaveTypesForEmployee } from '@/lib/leave-type-resolver-client';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -99,10 +100,11 @@ export default function ApplyLeaveByHRPage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [recentRequests, setRecentRequests] = useState<LeaveRequest[]>([]);
-  // BUG FIX: fetch rules + policies to filter leave types by employee's
-  // assigned policies and resolve entitledDaysPerYear (same as dashboard)
+  // BUG FIX: fetch rules + policies + mappings to filter leave types by
+  // employee's assigned policies (same 3-source logic as Apply Leave page)
   const [leaveRules, setLeaveRules] = useState<any[]>([]);
   const [leavePolicies, setLeavePolicies] = useState<any[]>([]);
+  const [leaveMappings, setLeaveMappings] = useState<any[]>([]);
   // Task 135 — the selected employee's regularization dates + pending requests
   const [attendanceContext, setAttendanceContext] = useState<AttendanceContextLite | null>(null);
   // Holiday calendar (for working-day duration display)
@@ -198,26 +200,35 @@ export default function ApplyLeaveByHRPage() {
       // employee's mapping/policy. Also fetch policies + rules + ALL leave
       // requests (not just 5) to compute taken/pending days.
       const typesUrl = `/api/leave-types?employeeId=${encodeURIComponent(employee.id)}${employee.companyId ? `&companyId=${encodeURIComponent(employee.companyId)}` : ''}`;
-      const [typesRes, balanceRes, requestsRes, ruleRes, polRes, regRes, attReqRes] = await Promise.all([
+      const [typesRes, balanceRes, requestsRes, ruleRes, polRes, mapRes, regRes, attReqRes] = await Promise.all([
         fetch(typesUrl, { headers: getAuthHeaders() }),
         fetch(`/api/leave/balance?employeeId=${employee.id}`, { headers: getAuthHeaders() }),
         fetch(`/api/leave?employeeId=${employee.id}&limit=100`, { headers: getAuthHeaders() }),
         fetch(`/api/leave-policy-rules?limit=100`, { headers: getAuthHeaders() }).catch(() => null),
         fetch(`/api/policies?category=leave&limit=100`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/leave-type-policy-mappings?includeInactive=1`, { headers: getAuthHeaders() }).catch(() => null),
         // Task 135 — regularization dates + pending attendance requests
         fetch(`/api/attendance/regularize?employeeId=${employee.id}&limit=50`, { headers: getAuthHeaders() }).catch(() => null),
         fetch(`/api/attendance/requests?scope=all&status=pending&limit=200`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
 
-      // Fetch rules + policies for entitled days resolution
+      // Fetch rules + policies + mappings for the 3-source leave type filter
       let localRules: any[] = [];
       let localPolicies: any[] = [];
+      let localMappings: any[] = [];
       if (ruleRes?.ok) { const rd = await ruleRes.json(); localRules = rd.data || []; setLeaveRules(localRules); }
       if (polRes?.ok) { const pd = await polRes.json(); localPolicies = pd.data || pd.policies || []; setLeavePolicies(localPolicies); }
+      if (mapRes?.ok) { const md = await mapRes.json(); localMappings = md.data || []; setLeaveMappings(localMappings); }
 
       const typesData = await typesRes.json();
-      if (typesRes.ok) setLeaveTypes(typesData.leaveTypes || typesData.data || []);
-      else setLeaveTypes([]);
+      // Filter leave types using the SAME 3-source resolver as Apply Leave page
+      let rawTypes = typesRes.ok ? (typesData.leaveTypes || typesData.data || []) : [];
+      rawTypes = rawTypes.filter((t: any) => t.status === 'active' || t.status === undefined);
+      // Apply the shared filter (employee's policies + scope-based + mappings)
+      const filteredTypes = filterLeaveTypesForEmployee(
+        rawTypes, employee, localPolicies, localMappings, []
+      );
+      setLeaveTypes(filteredTypes);
 
       // Fetch ALL leave requests for this employee to compute taken/pending
       const allRequests: LeaveRequest[] = requestsRes.ok ? (await requestsRes.json()).leaveRequests || [] : [];
@@ -548,7 +559,7 @@ export default function ApplyLeaveByHRPage() {
               <p className="text-xs text-slate-400">{selectedEmployee.department?.name || 'No Department'} · {selectedEmployee.designation?.title || 'No Designation'}</p>
             </div>
             <button
-              onClick={() => { setSelectedEmployee(null); setLeaveTypes([]); setLeaveBalances([]); setRecentRequests([]); setLeaveRules([]); setLeavePolicies([]); }}
+              onClick={() => { setSelectedEmployee(null); setLeaveTypes([]); setLeaveBalances([]); setRecentRequests([]); setLeaveRules([]); setLeavePolicies([]); setLeaveMappings([]); }}
               className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
               title="Clear selection"
             >
