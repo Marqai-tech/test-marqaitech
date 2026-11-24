@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformDb } from '@/lib/tenant-db';
 // GAP FIX #3: import dispatchNotification for proper email + delivery log
 import { dispatchNotification } from '@/lib/notification-center';
+import { sendConfiguredEmail, getRecruitmentTimings } from '@/lib/configured-email';
 
 function corsHeaders() {
   return {
@@ -49,6 +50,9 @@ export async function POST(req: NextRequest) {
         const { getDbForTenant } = await import('@/lib/tenant-db');
         const db = await getDbForTenant(td.tenant.slug);
         const tenantId = td.tenant.id;
+        // Dynamic workflow timings (RecruitmentWorkflowConfig.config.timings —
+        // admin-editable; defaults keep the previous hardcoded behavior)
+        const timings = await getRecruitmentTimings(db, tenantId);
         const now = new Date();
 
         // 1. Reminders 24h before
@@ -121,10 +125,11 @@ export async function POST(req: NextRequest) {
           }
         } catch (e) { results.push(`24h reminder error: ${e instanceof Error ? e.message : e}`); }
 
-        // 2. Reminders 1h before
+        // 2. Reminders 1h before (toggle: timings.lastHourReminderEnabled)
         // Phase 16 fix: The original SQL subtracted NOW from interview start,
         // finding interviews ALREADY STARTED 30-90 min ago. Fixed to subtract
         // NOW from interview start to find interviews STARTING in 30-90 min.
+        if (timings.lastHourReminderEnabled) {
         try {
           const upcoming1h = await db.$queryRawUnsafe(
             `SELECT i."id", i."date", i."time", i."type", i."location", i."meetingUrl",
@@ -165,6 +170,7 @@ export async function POST(req: NextRequest) {
             results.push(`1h reminder sent for interview ${interview.id}`);
           }
         } catch (e) { results.push(`1h reminder error: ${e instanceof Error ? e.message : e}`); }
+        }
 
         // 3. Feedback-pending reminders
         try {
@@ -274,28 +280,34 @@ export async function POST(req: NextRequest) {
                JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
                LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
               WHERE i."status" IN ('scheduled','rescheduled')
-                AND i."date" >= NOW() + INTERVAL '1 day'
+                AND i."date" >= NOW() + INTERVAL '${timings.acceptanceReminderDaysBefore} days'
                 AND (i."candidateResponse" IS NULL OR i."candidateResponse" = 'pending')
                 AND ja."candidateEmail" IS NOT NULL`,
           ) as any[];
-          const { sendEmail } = await import('@/lib/email');
+          // Acceptance reminders: toggle + cadence come from RecruitmentWorkflowConfig
+          if (timings.acceptanceReminderEnabled) {
           for (const iv of unconfirmed) {
             try {
               const dateStr = iv.date ? new Date(iv.date).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'TBD';
-              await sendEmail({
+              await sendConfiguredEmail({
+                db, tenantId,
+                module: 'recruitment', eventKey: 'recruitment.interview.acceptance_reminder',
                 to: iv.candidateEmail,
-                subject: `Reminder: Accept your interview for ${iv.jobTitle || 'the position'}`,
-                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                  <h2 style="color:#f59e0b;">Action Required — Accept Your Interview</h2>
-                  <p>Dear ${iv.candidateName || 'Candidate'},</p>
-                  <p>This is a daily reminder: your interview for <strong>${iv.jobTitle || 'the position'}</strong> is scheduled for <strong>${dateStr}</strong>.</p>
-                  <p>You must <strong>ACCEPT this interview in your candidate portal</strong> to confirm your participation. If you do not accept at least <strong>1 day before the scheduled time</strong>, the interview will be <strong>automatically cancelled</strong>.</p>
-                  <p><a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews" style="background:#f59e0b;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;">Accept in Candidate Portal</a></p>
-                  <p style="color:#64748b;font-size:12px;">You will receive this reminder every day until you accept.</p>
-                </div>`,
+                toName: iv.candidateName || undefined,
+                vars: {
+                  Candidate_Name: iv.candidateName || 'Candidate',
+                  Job_Title: iv.jobTitle || 'the position',
+                  Interview_Date: dateStr,
+                  Interview_Time: iv.time ? String(iv.time) : '',
+                  Auto_Cancel_Rule: `If you do not accept at least ${timings.autoCancelHoursBefore} hours before the scheduled time, the interview will be automatically cancelled.`,
+                  Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews`,
+                },
+                entityType: 'interview', entityId: iv.id, entityLink: '/candidate-portal/interviews',
+                status: 'warning',
               }).catch(() => null);
               results.push(`Candidate acceptance reminder sent for interview ${iv.id}`);
             } catch { /* per-interview non-fatal */ }
+          }
           }
         } catch (e) { results.push(`Candidate reminder error: ${e instanceof Error ? e.message : e}`); }
 
@@ -311,10 +323,9 @@ export async function POST(req: NextRequest) {
                JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
                LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
               WHERE i."status" IN ('scheduled','rescheduled')
-                AND i."date" < NOW() + INTERVAL '1 day'
+                AND i."date" < NOW() + INTERVAL '${timings.autoCancelHoursBefore} hours'
                 AND i."candidateResponse" IS DISTINCT FROM 'confirmed'`,
           ) as any[];
-          const { sendEmail } = await import('@/lib/email');
           for (const iv of toCancel) {
             try {
               await db.$executeRawUnsafe(
@@ -325,15 +336,19 @@ export async function POST(req: NextRequest) {
                 iv.id,
               );
               if (iv.candidateEmail) {
-                await sendEmail({
+                await sendConfiguredEmail({
+                  db, tenantId,
+                  module: 'recruitment', eventKey: 'recruitment.interview.candidate_decision',
                   to: iv.candidateEmail,
-                  subject: `Interview Cancelled — Not Accepted in Portal (${iv.jobTitle || 'position'})`,
-                  html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                    <h2 style="color:#ef4444;">Interview Auto-Cancelled</h2>
-                    <p>Dear ${iv.candidateName || 'Candidate'},</p>
-                    <p>Your interview for <strong>${iv.jobTitle || 'the position'}</strong> has been automatically cancelled because it was not accepted in the candidate portal at least 1 day before the scheduled time.</p>
-                    <p>If you are still interested in this position, please contact the HR team to schedule a new interview.</p>
-                  </div>`,
+                  toName: iv.candidateName || undefined,
+                  vars: {
+                    Decision: 'auto-cancelled — not accepted in portal',
+                    Reason: 'Your interview was automatically cancelled because it was not accepted in the candidate portal before the deadline. If you are still interested in this position, please contact the HR team to schedule a new interview.',
+                    Job_Title: iv.jobTitle || 'the position',
+                    Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews`,
+                  },
+                  entityType: 'interview', entityId: iv.id, entityLink: '/interviews',
+                  status: 'warning',
                 }).catch(() => null);
               }
               // Notify HR

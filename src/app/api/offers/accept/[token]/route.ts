@@ -11,6 +11,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 const PUBLIC_SELECT = {
@@ -225,6 +226,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     // Notify tenant admins + HR
     try {
+      // Tenant resolution (same pattern as the Notification Center block below)
+      const { getPlatformDb } = await import('@/lib/tenant-db');
+      const slugAcc0 = req.headers.get('x-tenant-slug') || new URL(req.url).searchParams.get('tenant') || '';
+      const tenantAcc0 = slugAcc0 ? await getPlatformDb().tenant.findUnique({ where: { slug: slugAcc0 }, select: { id: true } }) : null;
+      const tenantIdAcc = tenantAcc0?.id || '';
       const admins = await (db as any).user.findMany({
         where: { role: { in: ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'] }, status: 'active' },
         select: { id: true, email: true },
@@ -249,19 +255,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
               isEmailSent: false,
             },
           }).catch(() => null);
-          // Also send email to HR/admin (smart routing — internal goes via SMTP)
+          // Also send email to HR/admin — template-driven (Notification Center)
           if (a.email) {
             try {
-              const { sendEmail } = await import('@/lib/email');
-              await sendEmail({
+              await sendConfiguredEmail({
+                db, tenantId: tenantIdAcc,
+                module: 'recruitment',
+                eventKey: action === 'accept' ? 'recruitment.offer.accepted' : 'recruitment.offer.declined',
                 to: a.email,
-                subject: `Offer ${label} — ${candidateName} — ${position}`,
-                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                  <h2 style="color:${action === 'accept' ? '#10b981' : '#f59e0b'};">Offer ${label}</h2>
-                  <p>${candidateName} has ${label} the offer for the ${position} position.</p>
-                  ${comments ? `<p><strong>Candidate comments:</strong> ${comments}</p>` : ''}
-                  <p>View the offer details on the Offers page.</p>
-                </div>`,
+                vars: {
+                  Candidate_Name: candidateName,
+                  Position: position,
+                  Reason: comments || '',
+                },
+                entityType: 'offer', entityId: offer.id, entityLink: '/offers',
+                status: action === 'accept' ? 'approved' : 'warning',
               }).catch(() => null);
             } catch { /* non-fatal */ }
           }

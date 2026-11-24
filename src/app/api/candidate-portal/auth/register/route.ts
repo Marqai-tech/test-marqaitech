@@ -1,8 +1,8 @@
 import { randomInt } from 'crypto';
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/tenant-db';
+import { getDb, getTenantSlugFromRequest, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 const OTP_TTL_MS = 15 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -40,12 +40,27 @@ export async function POST(request: Request) {
       update: { candidateName, currentOtpHash: otpHash, otpExpiresAt, magicToken: pendingPasswordHash },
     });
 
-    const delivery = await sendEmail({
+    // Template-driven OTP email (Notification Center; admin-editable).
+    // Tenant resolution: x-tenant-slug header → platform tenant id (empty id
+    // is safe — resolveTemplate falls back to the global default template).
+    let tenantIdReg = '';
+    try {
+      const slugReg = await getTenantSlugFromRequest(request);
+      if (slugReg) {
+        tenantIdReg = (await getPlatformDb().tenant.findUnique({ where: { slug: slugReg }, select: { id: true } }))?.id || '';
+      }
+    } catch { /* tenant resolution best-effort — global template fallback applies */ }
+
+    const delivery = await sendConfiguredEmail({
+      db, tenantId: tenantIdReg,
+      module: 'recruitment', eventKey: 'recruitment.candidate.portal_otp',
       to: email,
-      subject: 'Verify your 3Boxes candidate account',
-      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1e293b"><h2>Verify your candidate account</h2><p>Hello ${escapeHtml(candidateName)},</p><p>Use this verification code to finish creating your candidate account:</p><div style="font-size:30px;font-weight:700;letter-spacing:8px;padding:18px;background:#ecfdf5;color:#047857;text-align:center;border-radius:10px">${otp}</div><p>This code expires in 15 minutes. Do not share it with anyone.</p><p>If you did not request this account, you can ignore this email.</p></div>`,
+      toName: candidateName || undefined,
+      vars: { Candidate_Name: candidateName || 'Candidate', OTP_Code: otp, Expiry_Minutes: '15' },
+      entityType: 'candidate_portal', entityId: email,
+      status: 'info',
     });
-    if (!delivery.success) return NextResponse.json({ error: 'We could not deliver the verification email. Please try again.' }, { status: 502 });
+    if (!delivery.sent) return NextResponse.json({ error: 'We could not deliver the verification email. Please try again.' }, { status: 502 });
     return NextResponse.json({ ok: true, email, message: 'Verification code sent to your email.', expiresIn: 900, resendAfter: 60 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not start candidate registration.' }, { status: 500 });

@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 const VALID_STATUSES = ['pending', 'initiated', 'in_progress', 'cleared', 'failed', 'cancelled'];
 const VALID_VENDORS = ['sterling', 'hireright', 'first_advantage', 'internal', 'manual'];
@@ -168,11 +169,19 @@ export async function PATCH(req: NextRequest) {
       }
       if (pb?.candidateEmail && ['in_progress', 'cleared', 'failed'].includes(status)) {
         const label = status === 'cleared' ? 'BGV Passed' : status === 'failed' ? 'BGV Failed' : 'BGV In Progress';
-        await import('@/lib/email').then(({ sendEmail }) => sendEmail({
+        await sendConfiguredEmail({
+          db, tenantId: auth.tenantId || '',
+          module: 'onboarding', eventKey: 'onboarding.preboarding.bgv_status_changed',
           to: pb.candidateEmail,
-          subject: `Background verification update: ${label}`,
-          html: `<p>Dear ${pb.candidateName || 'Candidate'},</p><p>Your background verification status is now <strong>${label}</strong>.</p>${status === 'cleared' ? '<p>HR will now complete your employee conversion and share your employee access details.</p>' : ''}`,
-        })).catch(() => null);
+          toName: pb.candidateName || undefined,
+          vars: {
+            Candidate_Name: pb.candidateName || 'Candidate',
+            BGV_Status: label,
+            Next_Steps: status === 'cleared' ? 'HR will now complete your employee conversion and share your employee access details.' : '',
+          },
+          entityType: 'background_check', entityId: check.id, entityLink: '/preboarding',
+          status: status === 'failed' ? 'warning' : status === 'cleared' ? 'approved' : 'info',
+        }).catch(() => null);
       }
     }
 

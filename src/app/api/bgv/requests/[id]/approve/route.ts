@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'node:crypto';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
@@ -139,19 +140,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
           await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "onboardingStatus"='active_employee',"status"='joined',"employeeId"=$1,"activatedAt"=NOW(),"backgroundCheckStatus"='cleared',"updatedAt"=NOW() WHERE "id"=$2`, employeeId, pb.id).catch(() => 0);
 
-          // Send activation email to personal email
+          // Send activation email to personal email — template-driven (Notification Center)
           try {
-            const { sendEmail } = await import('@/lib/email');
-            await sendEmail({ to: pb.candidateEmail, subject: 'Welcome! Your employee account is active',
-              html: `<h2>Welcome aboard, ${firstName}!</h2>
-                     <p>BGV approved. Your account is active.</p>
-                     <table style="border-collapse:collapse;font-family:Arial;">
-                       <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Employee ID:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><b style="color:#0F766E;font-size:16px;">${empCode}</b></td></tr>
-                       <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Company Email:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${pb.companyEmail||pb.candidateEmail}</td></tr>
-                       <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Temporary password:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${temporaryPassword}</td></tr>
-                       <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Login URL:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><a href="https://3boxes-hrms-beta.vercel.app/login">https://3boxes-hrms-beta.vercel.app/login</a></td></tr>
-                     </table>
-                     <p style="margin-top:16px;font-size:13px;color:#475569;">Log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Change this temporary password immediately after signing in.</p>` }).catch(() => null);
+            await sendConfiguredEmail({
+              db, tenantId: auth.tenantId || '',
+              module: 'onboarding', eventKey: 'onboarding.employee.account_activated',
+              to: pb.candidateEmail,
+              toName: firstName || undefined,
+              vars: {
+                Employee_Name: firstName || 'there',
+                Employee_Id: empCode,
+                Company_Email: pb.companyEmail || pb.candidateEmail,
+                Temporary_Password: temporaryPassword,
+                Login_Url: 'https://3boxes-hrms-beta.vercel.app/login',
+              },
+              entityType: 'preboarding_candidate', entityId: pb.id, entityLink: '/preboarding',
+              status: 'welcome',
+            }).catch(() => null);
           } catch {}
 
           if (user && auth.tenantId) { try { await db.notification.create({ data: { userId: user.id, tenantId: auth.tenantId, title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: false } }).catch(() => null); } catch {} }

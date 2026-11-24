@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 function corsHeaders() {
   return {
@@ -108,30 +109,23 @@ export async function POST(
         // - reschedule → acknowledgement that HR will send a new slot
         try {
           if (interviewRow[0]?.candidateEmail) {
-            const { sendEmail } = await import('@/lib/email');
-            if (action === 'confirm') {
-              await sendEmail({
-                to: interviewRow[0].candidateEmail,
-                subject: 'Interview Accepted — You Are Confirmed',
-                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                  <h2 style="color:#16a34a;">Interview Accepted</h2>
-                  <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
-                  <p>You have <strong>accepted</strong> your interview for <strong>${interviewRow[0].jobTitle || 'the position'}</strong>. Your participation is now confirmed.</p>
-                  <p>Please be available at the scheduled date and time. You can view the details any time in your candidate portal → Interviews.</p>
-                </div>`,
-              }).catch(() => null);
-            } else if (action === 'reschedule') {
-              await sendEmail({
-                to: interviewRow[0].candidateEmail,
-                subject: 'Reschedule Request Received',
-                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                  <h2 style="color:#f59e0b;">Reschedule Request Received</h2>
-                  <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
-                  <p>We have received your reschedule request for the <strong>${interviewRow[0].jobTitle || ''}</strong> interview${reason ? `. Reason: ${reason}` : ''}.</p>
-                  <p>The HR team will contact you with a new slot. Note: until a new slot is accepted, the current interview may be cancelled if it is not accepted at least 1 day before its scheduled time.</p>
-                </div>`,
-              }).catch(() => null);
-            }
+            const ackDecision = action === 'confirm' ? 'accepted — you are confirmed' : 'reschedule requested';
+            await sendConfiguredEmail({
+              db, tenantId: td.tenant.id,
+              module: 'recruitment', eventKey: 'recruitment.interview.candidate_decision',
+              to: interviewRow[0].candidateEmail,
+              toName: interviewRow[0].candidateName || undefined,
+              vars: {
+                Decision: ackDecision,
+                Reason: action === 'reschedule'
+                  ? `${reason ? `Reason: ${reason}. ` : ''}The HR team will contact you with a new slot. Until a new slot is accepted, the current interview may be cancelled if it is not accepted in time.`
+                  : '',
+                Job_Title: interviewRow[0].jobTitle || 'the position',
+                Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews`,
+              },
+              entityType: 'interview', entityId: id, entityLink: '/candidate-portal/interviews',
+              status: action === 'confirm' ? 'approved' : 'warning',
+            }).catch(() => null);
           }
         } catch {}
 

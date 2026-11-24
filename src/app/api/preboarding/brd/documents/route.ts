@@ -21,6 +21,7 @@ import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { HR_ROLES, notifyCandidate, audit, ensurePreboardingId } from '@/lib/preboarding';
 import { isExpired } from '@/lib/onboarding-documents';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -197,11 +198,23 @@ export async function PATCH(req: NextRequest) {
         ? `Your document "${label}" was rejected. Reason: ${remarks} Please re-upload a corrected copy.`
         : `Correction required for "${label}": ${remarks} Please re-upload.`;
     await notifyCandidate(db, doc.candidateEmail, msg);
-    await import('@/lib/email').then(({ sendEmail }) => sendEmail({
+    // Template-driven document decision email (Notification Center)
+    const decisionLabel = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'correction required';
+    await sendConfiguredEmail({
+      db, tenantId: String((decoded as any).tenantId || ''),
+      module: 'onboarding', eventKey: 'onboarding.preboarding.document_decision',
       to: doc.candidateEmail,
-      subject: action === 'approve' ? `Document approved: ${label}` : `Action required: ${label}`,
-      html: `<p>Dear candidate,</p><p>${msg}</p>`,
-    }).catch(() => null)).catch(() => null);
+      toName: doc.candidateName || undefined,
+      vars: {
+        Candidate_Name: doc.candidateName || 'Candidate',
+        Document_Label: label,
+        Decision: decisionLabel,
+        Remarks: remarks ? `Remarks: ${remarks}` : '',
+        Upload_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/preboarding`,
+      },
+      entityType: 'preboarding_document', entityId: documentId, entityLink: '/preboarding',
+      status: action === 'approve' ? 'approved' : 'warning',
+    }).catch(() => null);
 
     // Ensure the parent has a preboardingId for the audit trail
     const pbRows = await db.$queryRawUnsafe(`SELECT id, "preboardingId", "candidateName" FROM "PreboardingCandidate" WHERE "id"=$1 LIMIT 1`, doc.preboardingCandidateId).catch(() => []) as any[];

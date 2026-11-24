@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 import { resolveRecruitmentConfig, ApprovalTier } from '@/lib/recruitment-workflow';
 
 function corsHeaders() {
@@ -341,37 +342,22 @@ export async function PATCH(
           const offerUrl = offer.accessToken ? `${requestOrigin}/offer/${offer.accessToken}` : '';
           if (offer.candidateEmail) {
             try {
-              const { sendEmail } = await import('@/lib/email');
-              const { sendTenantEmail } = await import('@/lib/notification-channels');
-              const subject = `Your Offer Letter — ${offer.candidateName} — ${offer.position}`;
-              const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                <h2 style="color:#10b981;">Your Offer Letter is Ready</h2>
-                <p>Dear ${offer.candidateName},</p>
-                <p>We are pleased to share your offer letter for the <strong>${offer.position}</strong> position.</p>
-                <p>Please review and respond to your offer by clicking the link below:</p>
-                <p><a href="${offerUrl}" style="display:inline-block;padding:12px 28px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View & Respond to Offer</a></p>
-                <p>This link is secure and unique to you. Please do not share it with others.</p>
-                <p>Regards,<br/>HR Team</p>
-              </div>`;
-              let emailSent = false;
-              let emailError = '';
-              try {
-                const res = await sendEmail({ to: offer.candidateEmail, subject, html });
-                emailSent = res.success;
-                emailError = res.error || '';
-              } catch (e) {
-                emailError = e instanceof Error ? e.message : String(e);
-              }
-              if (!emailSent) {
-                try {
-                  const fbRes = await sendTenantEmail(db, tenantIdOff, { to: offer.candidateEmail, subject, html });
-                  emailSent = fbRes.success;
-                  emailError = emailError || fbRes.error || '';
-                } catch (e) {
-                  emailError = emailError + ' | fallback failed: ' + (e instanceof Error ? e.message : String(e));
-                }
-              }
-              console.log(`[Offer PATCH] Offer-issued email to ${offer.candidateEmail}: ${emailSent ? 'SENT' : 'FAILED'} — ${emailError}`);
+              // Template-driven offer letter email (Notification Center; admin-editable).
+              // The helper internally falls back to tenant SMTP on failure.
+              const res = await sendConfiguredEmail({
+                db, tenantId: tenantIdOff,
+                module: 'recruitment', eventKey: 'recruitment.offer.issued',
+                to: offer.candidateEmail,
+                toName: offer.candidateName || undefined,
+                vars: {
+                  Candidate_Name: offer.candidateName || 'Candidate',
+                  Position: offer.position || 'the position',
+                  Offer_Url: offerUrl,
+                },
+                entityType: 'offer', entityId: offer.id, entityLink: '/offers',
+                status: 'approved',
+              });
+              console.log(`[Offer PATCH] Offer-issued email to ${offer.candidateEmail}: ${res.sent ? 'SENT' : 'FAILED'} — ${res.error || res.skipped || ''}`);
             } catch (emailErr) {
               console.warn('[Offer PATCH] Offer-issued email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
             }

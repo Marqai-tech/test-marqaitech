@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { sendConfiguredEmail, getOfferExpiryDays } from '@/lib/configured-email';
 
 function corsHeaders() {
   return {
@@ -116,19 +117,10 @@ export async function POST(
       accessToken = `off_${crypto.randomUUID().replace(/-/g, '')}${Date.now().toString(36)}`;
     }
 
-    // 4. Build email
+    // 4. Build email — template-driven via Notification Center (admin-editable).
+    // Expiry days come from OfferWorkflowConfig.rules.offerExpiryDays (default 7).
     const candidatePortalLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://test-marqaitech-ontt.vercel.app'}/offer/${accessToken}`;
-    const subject = `Offer of Employment — ${offer.position} at ${'(Your Company)'}`;
-    const html = buildOfferEmailHtml({
-      candidateName: offer.candidateName,
-      position: offer.position,
-      department: offer.department,
-      offeredSalary: offer.offeredSalary,
-      offeredCurrency: offer.offeredCurrency,
-      joiningDate: offer.joiningDate,
-      portalLink: candidatePortalLink,
-      expiryDays: 7,
-    });
+    const expiryDays = await getOfferExpiryDays(db, tenantId);
 
     // 5. Update offer to 'sent' BEFORE sending email (atomic-ish)
     // This way even if email fails, the audit trail reflects the attempt.
@@ -143,39 +135,37 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to mark offer as sent' }, { status: 500, headers: corsHeaders() });
     }
 
-    // 6. Send email with delivery tracking
+    // 6. Send email with delivery tracking — template-driven (Notification Center).
+    // The helper internally falls back to tenant SMTP on failure.
     let deliveryStatus: 'pending' | 'sent' | 'delivered' | 'failed' = 'pending';
     let emailError: string | null = null;
     try {
-      const { sendEmail } = await import('@/lib/email');
-      const to = [candidateEmail, ...ccEmails];
-      const res = await sendEmail({ to, subject, html });
-      if (res.success) {
+      const res = await sendConfiguredEmail({
+        db, tenantId,
+        module: 'recruitment', eventKey: 'recruitment.offer.issued',
+        to: [candidateEmail, ...ccEmails],
+        toName: offer.candidateName || undefined,
+        vars: {
+          Candidate_Name: offer.candidateName || 'Candidate',
+          Position: offer.position || 'the position',
+          Department: offer.department || '—',
+          Offered_Salary: offer.offeredSalary != null ? `${offer.offeredCurrency || ''} ${offer.offeredSalary}`.trim() : 'TBD',
+          Joining_Date: offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD',
+          Expiry_Days: String(expiryDays),
+          Offer_Url: candidatePortalLink,
+        },
+        entityType: 'offer', entityId: offerId, entityLink: '/offers',
+        status: 'approved',
+      });
+      if (res.sent) {
         deliveryStatus = 'sent';
       } else {
         deliveryStatus = 'failed';
-        emailError = res.error || 'Unknown email failure';
+        emailError = res.skipped || res.error || 'Unknown email failure';
       }
     } catch (e) {
       deliveryStatus = 'failed';
       emailError = e instanceof Error ? e.message : String(e);
-    }
-
-    // 7. Try sendTenantEmail fallback if first attempt failed
-    if (deliveryStatus === 'failed') {
-      try {
-        const { sendTenantEmail } = await import('@/lib/notification-channels');
-        const to = [candidateEmail, ...ccEmails];
-        const fbRes = await sendTenantEmail(db, tenantId, { to, subject, html });
-        if (fbRes?.success) {
-          deliveryStatus = 'sent';
-          emailError = null;
-        } else {
-          emailError = fbRes?.error || emailError;
-        }
-      } catch (e) {
-        emailError = `${emailError}; fallback failed: ${e instanceof Error ? e.message : String(e)}`;
-      }
     }
 
     // 8. If BCC HR is requested, find HR users and notify them
@@ -187,20 +177,18 @@ export async function POST(
           take: 10,
         }).catch(() => []);
         if (hrUsers.length > 0) {
-          const { sendEmail } = await import('@/lib/email');
-          await sendEmail({
-            to: hrUsers.map(u => u.email),
-            subject: `[HR Copy] Offer sent to ${offer.candidateName} — ${offer.position}`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2>Offer Sent — HR Notification</h2>
-              <p>You sent an offer to <strong>${offer.candidateName}</strong> for the position of <strong>${offer.position}</strong>.</p>
-              <p><strong>Candidate email:</strong> ${candidateEmail}</p>
-              <p><strong>Delivery status:</strong> ${deliveryStatus}</p>
-              <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
-              <p>The candidate can view and respond to their offer here:<br/>
-              <a href="${candidatePortalLink}">${candidatePortalLink}</a></p>
-              <p>An automated notification will be sent to you when the candidate views, downloads, accepts, or declines the offer.</p>
-            </div>`,
+          await sendConfiguredEmail({
+            db, tenantId,
+            module: 'recruitment', eventKey: 'recruitment.offer.hr_copy',
+            to: hrUsers.map((u: any) => u.email).filter(Boolean),
+            vars: {
+              Candidate_Name: offer.candidateName || 'Candidate',
+              Position: offer.position || 'the position',
+              Delivery_Status: deliveryStatus,
+              Offer_Url: candidatePortalLink,
+            },
+            entityType: 'offer', entityId: offerId, entityLink: '/offers',
+            status: 'info',
           }).catch(() => null);
         }
       } catch {}

@@ -25,6 +25,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { HR_ROLES, parsePortalDetails, notifyCandidate, audit, ensurePreboardingId } from '@/lib/preboarding';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -231,11 +232,23 @@ export async function POST(req: NextRequest) {
     await notifyCandidate(db, pb.candidateEmail, `Your employee record has been created (provisional ID: ${provCode}). System access details will be shared shortly. Formal Employee ID is issued after BGV clearance.`);
     await audit(db, (decoded as any).userId, 'CREATE_EMPLOYEE_FROM_PREBOARDING', 'preboarding',
       `${preboardingId} ${pb.candidateName}: employee created (provisional ${provCode}) — dept ${deptId}, designation ${desigId}, manager ${mgrId}, DOJ ${jDate.toISOString().slice(0, 10)}`);
-    await import('@/lib/email').then(({ sendEmail }) => sendEmail({
+    await sendConfiguredEmail({
+      db, tenantId: String((decoded as any).tenantId || ''),
+      module: 'onboarding', eventKey: 'onboarding.preboarding.employee_created',
       to: pb.candidateEmail,
-      subject: 'Your employee account has been created',
-      html: `<p>Dear ${pb.candidateName},</p><p>Your employee record has been created (provisional ID: <b>${provCode}</b>).</p><p>You can sign in with ${userEmail.toLowerCase()} — password <b>Welcome@123</b> (change on first login).</p>`,
-    }).catch(() => null)).catch(() => null);
+      toName: pb.candidateName || undefined,
+      vars: {
+        Candidate_Name: pb.candidateName || 'Candidate',
+        Employee_Id: provCode,
+        Position: 'your position',
+        Joining_Date: jDate ? jDate.toISOString().slice(0, 10) : 'TBD',
+        Login_Email: userEmail.toLowerCase(),
+        Temporary_Password: 'Welcome@123',
+        Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal`,
+      },
+      entityType: 'preboarding', entityId: preboardingId, entityLink: '/preboarding',
+      status: 'welcome',
+    }).catch(() => null);
 
     return NextResponse.json({
       message: 'Employee created successfully (provisional). Formal Employee ID (MarqNNN) is issued at BGV approval.',

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken, hashPassword } from '@/lib/auth';
 import { HR_ROLES, ensurePreboardingId } from '@/lib/preboarding';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -425,21 +426,28 @@ export async function POST(req: NextRequest) {
     let emailSent = false;
     if (communication.sendEmail !== false) {
       try {
-        const { sendEmail } = await import('@/lib/email');
+        // Template-driven preboarding initiation email (Notification Center)
         const requiredDocumentList = documents
           .filter((doc: any) => doc.required !== false)
-          .map((doc: any) => `<li>${doc.label || doc.type}</li>`)
-          .join('');
-        const res = await sendEmail({
+          .map((doc: any) => `• ${doc.label || doc.type}`)
+          .join('\n') || 'See the checklist in your portal';
+        const res = await sendConfiguredEmail({
+          db, tenantId: String(decoded.tenantId || ''),
+          module: 'onboarding', eventKey: 'onboarding.preboarding.brd_initiated',
           to: candidateEmail,
-          subject: `Preboarding initiated — ${offer.position || 'your application'} (joining ${joinDateStr})`,
-          html: `<p>Hi ${offer.candidateName},</p>
-<p>Your preboarding has started for <strong>${offer.position || 'your application'}</strong>. Expected joining date: <strong>${joinDateStr}</strong>.</p>
-<p>Use your existing candidate-portal login and open <strong>Preboarding</strong>. Complete your personal, address, bank, tax, emergency-contact and joining details, then upload the required documents.</p>
-<p><strong>Required documents:</strong></p><ul>${requiredDocumentList || '<li>See the checklist in your portal</li>'}</ul>
-<p>Upload clear files in the allowed format and size. If HR rejects a document, open the rejected item, read the remarks, correct it and upload it again. Your employee ID and company email will be created only after BGV and employee conversion are completed.</p>${remarks ? `<p><em>Note from HR: ${remarks}</em></p>` : ''}`,
+          toName: offer.candidateName || undefined,
+          vars: {
+            Candidate_Name: offer.candidateName || 'Candidate',
+            Position: offer.position || 'your application',
+            Joining_Date: joinDateStr,
+            Required_Documents: requiredDocumentList,
+            HR_Note: remarks ? `Note from HR: ${remarks}` : '',
+            BRD_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/preboarding`,
+          },
+          entityType: 'preboarding', entityId: preboardingId, entityLink: '/preboarding',
+          status: 'info',
         });
-        emailSent = Boolean(res?.success);
+        emailSent = Boolean(res.sent);
       } catch { /* honest reporting below */ }
     }
 

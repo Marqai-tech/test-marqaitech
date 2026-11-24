@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { isTestPlatformHost } from '@/lib/tenant-filter';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 function corsHeaders() {
   return {
@@ -417,36 +418,29 @@ export async function PATCH(
               if (jobRows[0]?.title) jobTitle = jobRows[0].title;
             } catch {}
 
-            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2 style="color:#4f46e5;">Application Status Update</h2>
-              <p>Dear ${updated.candidateName},</p>
-              <p>Your application for <strong>${jobTitle}</strong> has been updated to: <strong>${statusLabel}</strong>.</p>
-              ${status === 'rejected' ? '<p>We appreciate your interest and wish you the best in your job search.</p>' : ''}
-              ${status === 'interview' ? '<p>Please watch for further communication regarding interview scheduling.</p>' : ''}
-              ${status === 'offered' ? '<p>Congratulations! Please check your email for offer details.</p>' : ''}
-              <p>Thank you for your interest in joining our team.</p>
-              <p>Regards,<br/>HR Team</p>
-            </div>`;
             let emailSent = false;
             let emailError = '';
-            // Task 167: Use sendEmail FIRST — it has smart routing (SMTP for internal,
-            // Resend for external). sendTenantEmail has circuit breakers that may be open.
+            // Template-driven status email (Notification Center; admin-editable).
+            // The helper internally falls back to tenant SMTP on failure.
             try {
-              const emailRes = await sendEmail({
-                to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
+              const emailRes = await sendConfiguredEmail({
+                db, tenantId: String(decoded.tenantId || ''),
+                module: 'recruitment', eventKey: 'recruitment.candidate.status_changed',
+                to: updated.candidateEmail,
+                toName: updated.candidateName || undefined,
+                vars: {
+                  Candidate_Name: updated.candidateName || 'Candidate',
+                  Job_Title: jobTitle,
+                  New_Status: statusLabel,
+                  Reason: status === 'rejected' ? 'We appreciate your interest and wish you the best in your job search.' : status === 'interview' ? 'Please watch for further communication regarding interview scheduling.' : status === 'offered' ? 'Congratulations! Please check your email for offer details.' : '',
+                  Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal`,
+                },
+                entityType: 'job_application', entityId: String(id), entityLink: '/recruitment',
+                status: status === 'rejected' ? 'warning' : status === 'hired' ? 'approved' : 'info',
               });
-              emailSent = emailRes.success;
-              emailError = emailRes.error || '';
+              emailSent = emailRes.sent;
+              emailError = emailRes.error || emailRes.skipped || '';
             } catch (e) { emailError = e instanceof Error ? e.message : String(e); }
-            if (!emailSent) {
-              try {
-                const fallbackRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
-                  to: updated.candidateEmail, subject: `Application Status Update: ${statusLabel}`, html,
-                });
-                emailSent = fallbackRes.success;
-                emailError = fallbackRes.error || '';
-              } catch (e) { emailError = e instanceof Error ? e.message : String(e); }
-            }
             console.log(`[Recruitment PATCH] Candidate email (re-send) to ${updated.candidateEmail}: ${emailSent ? 'SENT' : 'FAILED'} — ${emailError}`);
           } catch (emailErr) {
             console.warn('[Recruitment PATCH] Candidate email failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr);
@@ -539,44 +533,30 @@ export async function PATCH(
             if (jobRows[0]?.title) jobTitle = jobRows[0].title;
           } catch {}
 
-          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-            <h2 style="color:#4f46e5;">Application Status Update</h2>
-            <p>Dear ${updated.candidateName},</p>
-            <p>Your application for <strong>${jobTitle}</strong> has been updated to: <strong>${statusLabel}</strong>.</p>
-            ${status === 'rejected' ? '<p>We appreciate your interest and wish you the best in your job search.</p>' : ''}
-            ${status === 'interview' ? '<p>Please watch for further communication regarding interview scheduling.</p>' : ''}
-            ${status === 'offered' ? '<p>Congratulations! Please check your email for offer details.</p>' : ''}
-            <p>Thank you for your interest in joining our team.</p>
-            <p>Regards,<br/>HR Team</p>
-          </div>`;
-          // Task 167: Use sendEmail FIRST — it has smart routing (SMTP for internal,
-          // Resend for external). sendTenantEmail has circuit breakers that may be open.
+          // Template-driven status email (Notification Center; admin-editable).
+          // The helper internally falls back to tenant SMTP on failure.
           let emailSent = false;
           let emailError = '';
           try {
-            const emailRes = await sendEmail({
+            const emailRes = await sendConfiguredEmail({
+              db, tenantId: String(decoded.tenantId || ''),
+              module: 'recruitment', eventKey: 'recruitment.candidate.status_changed',
               to: updated.candidateEmail,
-              subject: `Application Status Update: ${statusLabel}`,
-              html,
+              toName: updated.candidateName || undefined,
+              vars: {
+                Candidate_Name: updated.candidateName || 'Candidate',
+                Job_Title: jobTitle,
+                New_Status: statusLabel,
+                Reason: status === 'rejected' ? 'We appreciate your interest and wish you the best in your job search.' : status === 'interview' ? 'Please watch for further communication regarding interview scheduling.' : status === 'offered' ? 'Congratulations! Please check your email for offer details.' : '',
+                Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal`,
+              },
+              entityType: 'job_application', entityId: String(id), entityLink: '/recruitment',
+              status: status === 'rejected' ? 'warning' : status === 'hired' ? 'approved' : 'info',
             });
-            emailSent = emailRes.success;
-            emailError = emailRes.error || '';
+            emailSent = emailRes.sent;
+            emailError = emailRes.error || emailRes.skipped || '';
           } catch (e) {
             emailError = e instanceof Error ? e.message : String(e);
-          }
-          if (!emailSent) {
-            // Fallback: sendTenantEmail (tenant SMTP → env SMTP → Resend)
-            try {
-              const fallbackRes = await sendTenantEmail(db, String(decoded.tenantId || ''), {
-                to: updated.candidateEmail,
-                subject: `Application Status Update: ${statusLabel}`,
-                html,
-              });
-              emailSent = fallbackRes.success;
-              emailError = fallbackRes.error || '';
-            } catch (e) {
-              emailError = e instanceof Error ? e.message : String(e);
-            }
           }
           console.log(`[Recruitment PATCH] Candidate email to ${updated.candidateEmail}: ${emailSent ? 'SENT' : 'FAILED'} — ${emailError}`);
         } catch (emailErr) {

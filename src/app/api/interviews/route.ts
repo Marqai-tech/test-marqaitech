@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification, sendNotificationEmail } from '@/lib/notifications';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 
 function corsHeaders() {
   return {
@@ -675,27 +676,28 @@ export async function PATCH(req: NextRequest) {
       try {
         if (decoded.tenantId) {
           const interviewRow = await db.$queryRawUnsafe(
-            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle", i."mode" AS "interviewMode"
              FROM "Interview" i
              JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
              LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
              WHERE i."id" = $1 LIMIT 1`, id,
           ) as any[];
           if (interviewRow[0]?.candidateEmail) {
-            const { sendEmail } = await import('@/lib/email');
-            await sendEmail({
+            await sendConfiguredEmail({
+              db, tenantId: decoded.tenantId as string,
+              module: 'recruitment', eventKey: 'recruitment.interview.candidate_decision',
               to: interviewRow[0].candidateEmail,
-              subject: 'Interview Rescheduled',
-              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                <h2 style="color:#4f46e5;">Interview Rescheduled</h2>
-                <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
-                <p>Your interview for <strong>${interviewRow[0].jobTitle || 'the position'}</strong> has been rescheduled.</p>
-                <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-                  <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">New Date:</td><td style="padding:8px;border:1px solid #ddd;">${newDate}</td></tr>
-                  <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">New Time:</td><td style="padding:8px;border:1px solid #ddd;">${newTime || 'TBD'}</td></tr>
-                </table>
-                <p>Please check your candidate portal for updated details.</p>
-              </div>`,
+              toName: interviewRow[0].candidateName || undefined,
+              vars: {
+                Decision: 'rescheduled',
+                Job_Title: interviewRow[0].jobTitle || 'the position',
+                Interview_Date: String(newDate),
+                Interview_Time: String(newTime || 'TBD'),
+                Interview_Mode: interviewRow[0].interviewMode || 'TBD',
+                Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews`,
+              },
+              entityType: 'interview', entityId: id, entityLink: '/recruitment',
+              status: 'info',
             }).catch(() => null);
           }
         }
@@ -746,24 +748,27 @@ export async function PATCH(req: NextRequest) {
       try {
         if (decoded.tenantId) {
           const interviewRow = await db.$queryRawUnsafe(
-            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
+            `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle", i."mode" AS "interviewMode"
              FROM "Interview" i
              JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
              LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
              WHERE i."id" = $1 LIMIT 1`, id,
           ) as any[];
           if (interviewRow[0]?.candidateEmail) {
-            const { sendEmail } = await import('@/lib/email');
-            await sendEmail({
+            await sendConfiguredEmail({
+              db, tenantId: decoded.tenantId as string,
+              module: 'recruitment', eventKey: 'recruitment.interview.candidate_decision',
               to: interviewRow[0].candidateEmail,
-              subject: 'Interview Cancelled',
-              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                <h2 style="color:#ef4444;">Interview Cancelled</h2>
-                <p>Dear ${interviewRow[0].candidateName || 'Candidate'},</p>
-                <p>Your interview for <strong>${interviewRow[0].jobTitle || 'the position'}</strong> has been cancelled.</p>
-                <p><strong>Reason:</strong> ${cancelReason}</p>
-                <p>If you have any questions, please contact the HR team.</p>
-              </div>`,
+              toName: interviewRow[0].candidateName || undefined,
+              vars: {
+                Decision: 'cancelled',
+                Reason: `Reason: ${cancelReason}`,
+                Job_Title: interviewRow[0].jobTitle || 'the position',
+                Interview_Mode: interviewRow[0].interviewMode || 'TBD',
+                Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews`,
+              },
+              entityType: 'interview', entityId: id, entityLink: '/recruitment',
+              status: 'warning',
             }).catch(() => null);
           }
         }
@@ -802,6 +807,15 @@ export async function PATCH(req: NextRequest) {
           id, onlyUserId || null,
         ) as any[];
         let sent = 0;
+        const ivRows = await db.$queryRawUnsafe(
+          `SELECT ja."candidateName", jp."title" AS "jobTitle", i."date"
+             FROM "Interview" i
+             JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+             LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
+            WHERE i."id" = $1 LIMIT 1`, id,
+        ) as any[];
+        const iv = ivRows[0] || {};
+        const ivDateStr = iv.date ? new Date(iv.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD';
         for (const pm of pendingRows) {
           if (!pm.userId) continue;
           sent++;
@@ -814,16 +828,18 @@ export async function PATCH(req: NextRequest) {
             }).catch(() => null);
           }
           if (pm.email) {
-            const { sendEmail } = await import('@/lib/email');
-            await sendEmail({
-              to: pm.email,
-              subject: 'Reminder: Interview Feedback Pending',
-              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                <h2 style="color:#f59e0b;">Interview Feedback Pending</h2>
-                <p>Dear ${pm.name || 'Interviewer'},</p>
-                <p>HR is waiting for your interview feedback. Please open <strong>My Interviews</strong> in the portal and submit your feedback for this interview.</p>
-                <p><a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/my-interviews" style="background:#0d9488;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;">Open My Interviews</a></p>
-              </div>`,
+            await sendConfiguredEmail({
+              db, tenantId: decoded.tenantId as string,
+              module: 'recruitment', eventKey: 'recruitment.interview.feedback_pending',
+              to: pm.email, toName: pm.name || undefined,
+              vars: {
+                Candidate_Name: iv.candidateName || 'the candidate',
+                Job_Title: iv.jobTitle || 'the position',
+                Interview_Date: ivDateStr,
+                Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/my-interviews`,
+              },
+              entityType: 'interview', entityId: id, entityLink: '/my-interviews',
+              status: 'warning',
             }).catch(() => null);
           }
         }
@@ -876,24 +892,26 @@ export async function PATCH(req: NextRequest) {
         ) as any[];
         const cand = candRows[0];
         if (cand?.candidateEmail) {
-          const decisionMeta: Record<string, { subject: string; heading: string; color: string }> = {
-            cleared: { subject: 'Interview Result — Cleared', heading: 'Congratulations — Interview Cleared', color: '#16a34a' },
-            next_round: { subject: 'Interview Result — Cleared for Next Round', heading: 'You Are Cleared for the Next Round', color: '#0d9488' },
-            rejected: { subject: 'Interview Result', heading: 'Interview Result', color: '#64748b' },
-            on_hold: { subject: 'Interview Result — On Hold', heading: 'Interview Result — On Hold', color: '#f59e0b' },
+          const decisionLabel: Record<string, string> = {
+            cleared: 'Cleared',
+            next_round: 'Cleared for the Next Round',
+            rejected: 'Not Selected',
+            on_hold: 'On Hold',
           };
-          const meta = decisionMeta[finalDecision] || decisionMeta.rejected;
-          const { sendEmail } = await import('@/lib/email');
-          await sendEmail({
+          await sendConfiguredEmail({
+            db, tenantId: decoded.tenantId as string,
+            module: 'recruitment', eventKey: 'recruitment.interview.final_feedback',
             to: cand.candidateEmail,
-            subject: meta.subject,
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2 style="color:${meta.color};">${meta.heading}</h2>
-              <p>Dear ${cand.candidateName || 'Candidate'},</p>
-              <p>Here is the final feedback from our team for your interview${cand.round ? ` (Round ${cand.round})` : ''} for <strong>${cand.jobTitle || 'the position'}</strong>:</p>
-              <div style="background:#f8fafc;border-left:4px solid ${meta.color};padding:12px 16px;border-radius:6px;white-space:pre-wrap;">${String(finalFeedback)}</div>
-              <p style="margin-top:16px;">You can also view this feedback in your candidate portal.</p>
-            </div>`,
+            toName: cand.candidateName || undefined,
+            vars: {
+              Decision: decisionLabel[finalDecision] || String(finalDecision),
+              Job_Title: cand.jobTitle || 'the position',
+              Round: cand.round ? ` (Round ${cand.round})` : '',
+              Feedback_Text: String(finalFeedback),
+              Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews`,
+            },
+            entityType: 'interview', entityId: id, entityLink: '/candidate-portal/interviews',
+            status: finalDecision === 'rejected' ? 'warning' : 'approved',
           }).catch(() => null);
         }
       } catch {}

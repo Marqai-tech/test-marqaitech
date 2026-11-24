@@ -137,7 +137,7 @@ export async function ensureTemplatesSeeded(db: PrismaClient): Promise<void> {
   }
 }
 
-async function resolveTemplate(db: PrismaClient, tenantId: string, module: string, eventKey: string): Promise<ResolvedTemplate> {
+export async function resolveTemplate(db: PrismaClient, tenantId: string, module: string, eventKey: string): Promise<ResolvedTemplate> {
   const [tenantTpl, globalTpl] = await Promise.all([
     (db as any).notificationTemplate.findFirst({ where: { tenantId, module, eventKey } }),
     (db as any).notificationTemplate.findFirst({ where: { tenantId: null, module, eventKey } }),
@@ -291,7 +291,7 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
     const platformDb = getPlatformDb();
     const tenant = await platformDb.tenant.findUnique({
       where: { id: tenantId },
-      select: { slug: true, name: true, logo: true, brandColor: true, website: true, phone: true, email: true },
+      select: { slug: true, name: true, logo: true },
     });
     tenantSlug = tenant?.slug || '';
     if (!companyName) companyName = tenant?.name || '3Boxes HRMS';
@@ -299,10 +299,6 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
       tenantBranding = {
         name: tenant.name,
         logoUrl: tenant.logo,
-        brandColor: tenant.brandColor,
-        website: tenant.website,
-        phone: tenant.phone,
-        email: tenant.email,
       };
     }
   } catch { /* branding fallback below */ }

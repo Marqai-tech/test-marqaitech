@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { hashPassword } from '@/lib/auth';
+import { sendConfiguredEmail } from '@/lib/configured-email';
 import { findJoiningBlockers } from '@/lib/onboarding-documents';
 import { randomBytes } from 'node:crypto';
 
@@ -140,21 +141,22 @@ export async function PATCH(req: NextRequest) {
         await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='hired', "updatedAt"=NOW() WHERE "id"=$1`, pb.jobApplicationId).catch(() => 0);
       }
 
-      // ─── Send activation email to personal email ───
+      // ─── Send activation email to personal email — template-driven (Notification Center) ───
       try {
-        const { sendEmail } = await import('@/lib/email');
-        await sendEmail({
+        await sendConfiguredEmail({
+          db, tenantId: auth.tenantId || '',
+          module: 'onboarding', eventKey: 'onboarding.employee.account_activated',
           to: pb.candidateEmail || userEmail,
-          subject: 'Welcome to the team! Your employee account is now active',
-          html: `<h2>Welcome aboard, ${firstName}!</h2>
-                 <p>Your background verification has been approved. Your employee account is now active.</p>
-                 <table style="border-collapse:collapse;font-family:Arial;">
-                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Employee ID:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><b style="color:#0F766E;font-size:16px;">${empCode}</b></td></tr>
-                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Company Email:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${pb.companyEmail || pb.candidateEmail}</td></tr>
-                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Temporary password:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;">${temporaryPassword}</td></tr>
-                   <tr><td style="padding:6px 12px;background:#F0FDFA;border:1px solid #99F6E4;"><b>Login URL:</b></td><td style="padding:6px 12px;border:1px solid #99F6E4;"><a href="https://3boxes-hrms-beta.vercel.app/login">https://3boxes-hrms-beta.vercel.app/login</a></td></tr>
-                 </table>
-                 <p style="margin-top:16px;font-size:13px;color:#475569;">You can now log in with either your <b>Employee ID</b> (${empCode}) or your <b>company email</b> (${pb.companyEmail || pb.candidateEmail}). Change this temporary password immediately after signing in.</p>`,
+          toName: firstName || undefined,
+          vars: {
+            Employee_Name: firstName || 'there',
+            Employee_Id: empCode,
+            Company_Email: pb.companyEmail || pb.candidateEmail,
+            Temporary_Password: temporaryPassword,
+            Login_Url: 'https://3boxes-hrms-beta.vercel.app/login',
+          },
+          entityType: 'preboarding_candidate', entityId: pb.id, entityLink: '/preboarding',
+          status: 'welcome',
         }).catch(() => null);
       } catch (e:any) { console.warn('[BGV approve] Email send failed:', e.message); }
 
