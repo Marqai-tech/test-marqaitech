@@ -270,7 +270,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Resolve departmentId: if it's a name (not a CUID), look it up or create it
+    // Resolve departmentId: if it's a name (not a CUID), look it up.
+    // Departments come ONLY from company master data (Company → Departments) —
+    // never auto-create one from typed text or fall back to a random
+    // department; reject instead so requisitions always link to real
+    // master-data departments.
     if (resolvedDepartmentId && !resolvedDepartmentId.startsWith('cm')) {
       const deptRows = await db.$queryRawUnsafe(
         `SELECT "id" FROM "Department" WHERE LOWER("name") = LOWER($1) LIMIT 1`,
@@ -279,22 +283,10 @@ export async function POST(request: Request) {
       if (deptRows[0]?.id) {
         resolvedDepartmentId = deptRows[0].id;
       } else {
-        // No matching department — create a new one with the typed name
-        // (per user request: "if no dropdowns, whatever we provide should be taken")
-        const newDeptId = `cm${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-        try {
-          await db.$executeRawUnsafe(
-            `INSERT INTO "Department" ("id", "name", "companyId") VALUES ($1, $2, $3)`,
-            newDeptId, resolvedDepartmentId, resolvedCompanyId,
-          );
-          resolvedDepartmentId = newDeptId;
-        } catch (createErr) {
-          // If create fails (e.g. missing columns), fall back to first available department
-          const firstDept = await db.$queryRawUnsafe(
-            `SELECT "id" FROM "Department" WHERE "companyId" = $1 LIMIT 1`, resolvedCompanyId,
-          ).catch(() => []) as any[];
-          if (firstDept[0]?.id) resolvedDepartmentId = firstDept[0].id;
-        }
+        return NextResponse.json(
+          { error: 'Department not found in company master data. Create it under Company → Departments first, then retry.' },
+          { status: 400, headers: corsHeaders() },
+        );
       }
     }
 

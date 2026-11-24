@@ -478,7 +478,11 @@ export default function RequisitionsPage() {
     const params = new URLSearchParams({
       requisitionId: r.id,
       title: r.designation?.title || 'Position',
-      departmentId: r.department?.name || '',
+      // Departments come from company master data only: pass the real
+      // department ID (name kept as fallback for legacy links), never a
+      // free-typed string for the Create Jobs screen to store verbatim.
+      departmentId: r.department?.id || '',
+      departmentName: r.department?.name || '',
       vacancies: String(r.numberOfOpenings || 1),
       type: r.employmentType || 'full-time',
       experience: r.experienceRequired || '',
@@ -690,7 +694,14 @@ export default function RequisitionsPage() {
                   {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.companyName ? ` — ${d.companyName}` : ''}</option>)}
                 </select>
               ) : (
-                <input required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} placeholder="Department name" className={INPUT_CLS} />
+                // Departments come ONLY from company master data
+                // (Company → Departments). Never let users type one here.
+                <div>
+                  <select required disabled value="" className={`${INPUT_CLS} bg-slate-50 text-slate-400`}>
+                    <option value="">No departments found</option>
+                  </select>
+                  <p className="mt-0.5 text-[10px] text-amber-600">No departments exist yet — HR/Admin must create them under Company → Departments, then refresh this page.</p>
+                </div>
               )}
 
               <label className="text-[11px] font-semibold text-slate-600">Position / Designation <span className="text-red-500">*</span></label>

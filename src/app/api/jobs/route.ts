@@ -81,22 +81,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Task 167 fix: resolve departmentId from name to ID if needed
-    let resolvedDeptId = departmentId;
+    // Resolve departmentId. Departments come ONLY from company master data
+    // (Company → Departments): accept a real CUID (verified to exist) or an
+    // exact case-insensitive NAME match (legacy links from old requisitions).
+    // Never fuzzy-match (LIKE %…% matched "Sales" against "Pre-Sales") and
+    // never fall back to "first department" — a job posting silently attached
+    // to the wrong department corrupts hiring data. Reject instead.
+    let resolvedDeptId: string | null = null;
     if (departmentId && !departmentId.startsWith('cm')) {
+      // Legacy path: exact department NAME → ID
       try {
         const deptRows = await db.$queryRawUnsafe(
-          `SELECT "id" FROM "Department" WHERE LOWER("name") LIKE LOWER($1) LIMIT 1`,
-          `%${departmentId}%`,
+          `SELECT "id" FROM "Department" WHERE LOWER("name") = LOWER($1) LIMIT 1`,
+          departmentId,
         ) as any[];
-        if (deptRows[0]?.id) {
-          resolvedDeptId = deptRows[0].id;
-        } else {
-          // Fall back to first department
-          const firstDept = await db.$queryRawUnsafe(`SELECT "id" FROM "Department" LIMIT 1`) as any[];
-          if (firstDept[0]?.id) resolvedDeptId = firstDept[0].id;
-        }
-      } catch { /* keep raw value */ }
+        resolvedDeptId = deptRows[0]?.id || null;
+      } catch { resolvedDeptId = null; }
+    } else if (departmentId) {
+      // Master-data path: verify the CUID actually exists
+      try {
+        const deptRows = await db.$queryRawUnsafe(
+          `SELECT "id" FROM "Department" WHERE "id" = $1 LIMIT 1`,
+          departmentId,
+        ) as any[];
+        resolvedDeptId = deptRows[0]?.id || null;
+      } catch { resolvedDeptId = null; }
+    }
+    if (!resolvedDeptId) {
+      return NextResponse.json(
+        { error: 'Department not found in company master data. Create it under Company → Departments first, then retry.' },
+        { status: 400 },
+      );
     }
 
     // RD-017 fix: Check for duplicate job posting (same title + same department)

@@ -391,6 +391,9 @@ function CreateJobPostingForm() {
   });
   const [saving, setSaving] = useState(false);
   const [requisitionId, setRequisitionId] = useState('');
+  // Departments come ONLY from company master data (Company → Departments) —
+  // same source as the Employee and Requisition screens.
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -409,6 +412,27 @@ function CreateJobPostingForm() {
       vacancies: parseInt(params.get('vacancies') || '1'),
     });
   }, []);
+
+  // Load departments from company master data for the dropdown
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/departments?limit=500&noDedupe=1', { headers: getAuthHeaders() });
+        const json = await res.json().catch(() => null);
+        const rows: any[] = json?.departments || json?.data || [];
+        setDepartments(rows.filter((d: any) => d?.id && d?.name).map((d: any) => ({ id: d.id, name: d.name })));
+      } catch { /* non-fatal — dropdown falls back to the "no departments" state */ }
+    })();
+  }, []);
+
+  // Prefill from the requisition link: ?departmentId= used to carry a NAME
+  // (legacy) and now carries the master-data ID. Normalize either to the ID.
+  useEffect(() => {
+    if (departments.length === 0 || !form.departmentId) return;
+    if (departments.some(d => d.id === form.departmentId)) return; // already a valid ID
+    const byName = departments.find(d => d.name.toLowerCase() === form.departmentId.toLowerCase());
+    if (byName) setForm(f => ({ ...f, departmentId: byName.id }));
+  }, [departments, form.departmentId]);
 
   const handlePublish = async (status: 'open' | 'draft') => {
     if (!form.title || !form.description || !form.departmentId) {
@@ -459,7 +483,7 @@ function CreateJobPostingForm() {
       <div className="p-6">
         <div className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
           <div><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Role</p><p className="mt-1 text-sm font-semibold text-slate-800">{form.title || 'Position title'}</p></div>
-          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Department</p><p className="mt-1 text-sm font-semibold text-slate-800">{form.departmentId || 'Department'}</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Department</p><p className="mt-1 text-sm font-semibold text-slate-800">{departments.find(d => d.id === form.departmentId)?.name || form.departmentId || 'Department'}</p></div>
           <div><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Requisition status</p><p className="mt-1 text-sm font-semibold text-emerald-700">Approved · Ready to publish</p></div>
         </div>
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">1</span> Role details</div>
@@ -470,7 +494,19 @@ function CreateJobPostingForm() {
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500">*</span></label>
-            <input value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+            {departments.length > 0 ? (
+              <select required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                <option value="">Select department…</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            ) : (
+              <div>
+                <select required disabled value="" className="w-full px-3 py-2.5 rounded-lg border border-thb-border bg-slate-50 text-sm text-slate-400">
+                  <option value="">No departments found</option>
+                </select>
+                <p className="mt-1 text-[10px] text-amber-600">Departments come from Company → Departments master data. None exist yet — ask HR/Admin to create one, then refresh.</p>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
