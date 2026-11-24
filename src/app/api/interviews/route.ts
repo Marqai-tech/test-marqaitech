@@ -476,6 +476,38 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
+    // ─── Interviewer auto-enable ───
+    // Scheduling someone onto an interview panel IS the signal that they take
+    // interviews: flip User.isInterviewer = true for every panel member so
+    // their "My Interviews" sidebar tab activates immediately (Sidebar.tsx
+    // gates the tab on this flag). One-way only — scheduling never un-flags;
+    // only HR/Admin can turn the toggle off explicitly.
+    if (panelMembers.length > 0) {
+      try {
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false`
+        );
+        await db.$executeRawUnsafe(
+          `UPDATE "User" SET "isInterviewer" = true WHERE "id" = ANY($1::text[]) AND "isInterviewer" IS NOT TRUE`,
+          panelMembers,
+        );
+        // Mirror to the platform DB — /api/auth/me reads the platform copy first
+        try {
+          const { getPlatformDb } = await import('@/lib/tenant-db');
+          const pdb = getPlatformDb();
+          await pdb.$executeRawUnsafe(
+            `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false`
+          ).catch(() => null);
+          await pdb.$executeRawUnsafe(
+            `UPDATE "User" SET "isInterviewer" = true WHERE "id" = ANY($1::text[]) AND "isInterviewer" IS NOT TRUE`,
+            panelMembers,
+          ).catch(() => null);
+        } catch {}
+      } catch (e) {
+        console.warn('[Interviews POST] interviewer auto-enable failed (non-fatal):', (e as Error).message);
+      }
+    }
+
     // Audit log — who scheduled the interview (pt 24)
     await db.auditLog.create({
       data: { userId: decoded.userId as string, action: 'INTERVIEW_SCHEDULED', module: 'recruitment',
