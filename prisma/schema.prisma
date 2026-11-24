@@ -458,6 +458,8 @@ model Employee {
 
   dateOfJoining  DateTime
   dateOfBirth    DateTime?
+  // Task 136/138 — real birth date for wishes; route also mirrors dateOfBirth into it
+  originalBirthday DateTime?
   gender         String?
   maritalStatus  String?
   nationality    String?
