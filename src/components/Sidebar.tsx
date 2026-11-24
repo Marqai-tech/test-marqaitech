@@ -86,7 +86,17 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
           (item) => {
             // 1. Module-level check (sidebar visibility for the whole module)
             if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) {
-              return false;
+              // CRITICAL FIX #2 companion: employees are allowed to reach
+              // /my-interviews and /referrals (self-service allowlist in
+              // roleAccess.ts), but the module check above hid their nav tabs
+              // even though the pages + APIs are server-scoped (scope=mine).
+              // Keep exactly these self-service tabs visible for self-service
+              // roles; every other module-locked item stays hidden.
+              const selfServiceNavTabs = ['/my-interviews', '/referrals'];
+              const itemPath = (item.href || '').split('?')[0];
+              if (!(isSelfServiceRole(userRole) && selfServiceNavTabs.includes(itemPath))) {
+                return false;
+              }
             }
             // 2. Per-item role check (granular — e.g., 'employee' can see 'Apply Leave'
             //    but not 'Leave Policy & Settings' even though both are moduleKey='leave')
