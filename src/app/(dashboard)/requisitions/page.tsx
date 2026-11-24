@@ -222,15 +222,20 @@ export default function RequisitionsPage() {
     try {
       const sq = scopeQuery();
       const scopeParam = sq ? `&${sq}` : '';
-      const noDedupeParam = sq ? '' : '&noDedupe=1';
+      // Departments must match the Employee module dropdown EXACTLY: same
+      // company scope (scopeQuery → ?companyId=…) and the same server-side
+      // name-dedupe. Never request ?noDedupe=1 here — without a scope it
+      // exposed every company's own copy of "Finance"/"Accounts" in this
+      // dropdown, which is how requisition showed departments that don't
+      // belong to the company the employee module works with.
       // Master-data dropdowns use high limits so large tenants never have
       // their lists silently truncated by the default page size.
-      // Designations always request noDedupe: this page scopes them by
-      // department client-side, and server-side title-dedup would otherwise
-      // hide another department's same-titled designation (two departments
-      // can legitimately both have "Manager").
+      // Designations keep noDedupe: this page scopes them by department
+      // client-side, and server-side title-dedup would otherwise hide
+      // another department's same-titled designation (two departments can
+      // legitimately both have "Manager").
       const [deptRes, desigRes] = await Promise.all([
-        fetch(`/api/departments?limit=500${scopeParam}${noDedupeParam}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/departments?limit=500${scopeParam}`, { headers: getAuthHeaders() }).catch(() => null),
         fetch(`/api/designations?limit=1000${scopeParam}&noDedupe=1`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
       let anyFailed = false;

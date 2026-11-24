@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -392,7 +393,10 @@ function CreateJobPostingForm() {
   const [saving, setSaving] = useState(false);
   const [requisitionId, setRequisitionId] = useState('');
   // Departments come ONLY from company master data (Company → Departments) —
-  // same source as the Employee and Requisition screens.
+  // and the request must match the Employee module EXACTLY: company scope
+  // (scopeQuery → ?companyId=…) + server-side name-dedupe, never ?noDedupe=1
+  // (that exposed every company's own copy of "Finance"/"Accounts").
+  const { scopeQuery } = useCompanyContextStore();
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
@@ -413,17 +417,19 @@ function CreateJobPostingForm() {
     });
   }, []);
 
-  // Load departments from company master data for the dropdown
+  // Load departments from company master data for the dropdown — same
+  // request as the Employee and Requisition screens (company scope + dedupe).
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/departments?limit=500&noDedupe=1', { headers: getAuthHeaders() });
+        const sq = scopeQuery();
+        const res = await fetch(`/api/departments?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
         const json = await res.json().catch(() => null);
         const rows: any[] = json?.departments || json?.data || [];
         setDepartments(rows.filter((d: any) => d?.id && d?.name).map((d: any) => ({ id: d.id, name: d.name })));
       } catch { /* non-fatal — dropdown falls back to the "no departments" state */ }
     })();
-  }, []);
+  }, [scopeQuery]);
 
   // Prefill from the requisition link: ?departmentId= used to carry a NAME
   // (legacy) and now carries the master-data ID. Normalize either to the ID.
