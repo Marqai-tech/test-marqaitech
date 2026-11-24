@@ -107,7 +107,8 @@ export default function WorkflowConfigPage() {
   // Interview Panel tab — employee list with interviewer pills (same data
   // source as Employees → Settings → Login Credentials, but surfaced here
   // in the Recruitment module where "My Interviews" belongs).
-  const { scopeQuery } = useCompanyContextStore();
+  const { scopeQuery, effectiveCompanyId, selectedTenantId } = useCompanyContextStore();
+  const scopeCompanyId = effectiveCompanyId();
   const [panelEmployees, setPanelEmployees] = useState<InterviewPanelEmployee[]>([]);
   const [panelLoading, setPanelLoading] = useState(false);
   const [panelSearch, setPanelSearch] = useState('');
@@ -220,12 +221,15 @@ export default function WorkflowConfigPage() {
     } finally {
       setPanelLoading(false);
     }
-  }, [scopeQuery]);
+  }, [scopeQuery, scopeCompanyId, selectedTenantId]);
 
+  // Fetch when the tab opens and whenever the company/tenant scope changes
+  // (super admin switching companies mid-session), mirroring the credentials
+  // page's refetch-on-scope-change behaviour.
   useEffect(() => {
     if (activeTab === 'interview-panel') fetchPanel(panelSearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, scopeCompanyId, selectedTenantId, fetchPanel]);
 
   const toggleInterviewer = async (emp: InterviewPanelEmployee) => {
     try {
