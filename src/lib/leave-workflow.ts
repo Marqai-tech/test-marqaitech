@@ -646,32 +646,75 @@ export async function canUserApproveCurrentTier(
   userRole: string,
   tenantId: string,
 ): Promise<boolean> {
-  // Super admins and tenant admins can always approve
+  // Super admins and tenant admins can always approve (override capability)
   if (userRole === 'super_admin' || (userRole === 'tenant_admin' || userRole === 'ceo')) return true;
 
-  // Get the currentApproverId from the leave request
+  // Get the currentApproverId + workflowStage + employeeId from the leave request
   try {
     const rows = await db.$queryRawUnsafe(
-      `SELECT "currentApproverId", "status" FROM "LeaveRequest" WHERE "id" = $1 LIMIT 1`,
+      `SELECT "currentApproverId", "status", "workflowStage", "employeeId", "workflowConfigSnapshot"
+       FROM "LeaveRequest" WHERE "id" = $1 LIMIT 1`,
       leaveRequestId,
     ) as any[];
     if (!rows?.[0]) return false;
     if (rows[0].status !== 'pending') return false; // Can't approve non-pending
 
     const currentApproverId = rows[0].currentapproverid || rows[0].currentApproverId;
+    // Primary check: is this user the assigned approver for the current tier?
     if (currentApproverId === userId) return true;
 
-    // HR admins (role='admin' or 'hr_admin') in the same tenant can also
-    // approve. 2026-09-09: 'hr_admin' added — the LIVE tenant's HR account
-    // (admin@marqaitech.com) has role 'hr_admin' and tier approverType is
-    // 'hr_admin', but this check only knew role 'admin' → tier-2 approvals
-    // were impossible ("not authorized to approve this tier").
+    // BUG FIX (HRMS_BUG_251 — Critical): Previously, HR/admin could approve
+    // ANY tier (not just their own) via a blanket bypass. This defeated the
+    // entire multi-tier workflow — HR could approve a tier-1 (reporting
+    // manager) request directly, skipping the manager entirely.
+    //
+    // Now: HR/admin can only approve if the CURRENT tier's approverType
+    // resolves to them. We load the workflow config snapshot to find the
+    // current tier, resolve its approver, and check if it matches this user.
     if (userRole === 'admin' || userRole === 'hr_admin') {
-      const admin = await db.user.findFirst({
-        where: { id: userId, tenantId, role: { in: ['admin', 'hr_admin'] }, status: 'active' },
-        select: { id: true },
-      });
-      if (admin) return true;
+      const employeeId = rows[0].employeeid || rows[0].employeeId;
+      const workflowStage = rows[0].workflowstage || rows[0].workflowStage;
+
+      // Parse the config snapshot to find the current tier
+      let configSnapshot: any = null;
+      try {
+        const raw = rows[0].workflowconfigsnapshot || rows[0].workflowConfigSnapshot;
+        configSnapshot = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      } catch {}
+
+      if (configSnapshot?.config?.tiers && workflowStage) {
+        // Extract current tier number from workflowStage (e.g. "tier_1_review" → 1)
+        const tierMatch = workflowStage.match(/tier_(\d+)_/);
+        const currentTierNum = tierMatch ? parseInt(tierMatch[1], 10) : null;
+        if (currentTierNum) {
+          const currentTier = configSnapshot.config.tiers.find(
+            (t: any) => t.tier === currentTierNum
+          );
+          if (currentTier) {
+            // Check if this HR/admin user matches the current tier's approverType
+            const tierApproverType = (currentTier.approverType || '').toLowerCase();
+            const hrApproverTypes = ['hr_admin', 'admin', 'tenant_admin'];
+            if (hrApproverTypes.includes(tierApproverType)) {
+              // Verify this user actually has the HR/admin role in this tenant
+              const admin = await db.user.findFirst({
+                where: { id: userId, tenantId, role: { in: ['admin', 'hr_admin'] }, status: 'active' },
+                select: { id: true },
+              });
+              if (admin) return true;
+            }
+            // If the tier has a specific approverId, check if it resolves to this user
+            if (currentTier.approverId) {
+              try {
+                const empRow: any[] = await db.$queryRawUnsafe(
+                  `SELECT "userId" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+                  currentTier.approverId,
+                );
+                if (empRow?.[0]?.userId === userId) return true;
+              } catch {}
+            }
+          }
+        }
+      }
     }
 
     return false;

@@ -421,3 +421,77 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// BUG FIX (HRMS_BUG_250): Add PUT and DELETE handlers so workflows can be
+// updated by ID and deactivated. Previously only POST (upsert) existed.
+export async function PUT(request: Request) {
+  const db = await getDb(request);
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+
+    const role = (decoded as any).role;
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(role)) {
+      return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
+    }
+
+    const body = await request.json();
+    const { id, config, name, description, isActive } = body;
+    if (!id) return NextResponse.json({ error: 'Workflow ID is required' }, { status: 400, headers: corsHeaders() });
+
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (config !== undefined) {
+      const configStr = typeof config === 'string' ? config : JSON.stringify(config);
+      vals.push(configStr); sets.push(`"config" = $${vals.length}`);
+    }
+    if (name !== undefined) { vals.push(name); sets.push(`"name" = $${vals.length}`); }
+    if (description !== undefined) { vals.push(description); sets.push(`"description" = $${vals.length}`); }
+    if (isActive !== undefined) { vals.push(isActive); sets.push(`"isActive" = $${vals.length}`); }
+    vals.push(id);
+
+    if (sets.length > 0) {
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveWorkflowConfig" SET ${sets.join(', ')}, "updatedAt" = NOW() WHERE "id" = $${vals.length}`,
+        ...vals,
+      );
+    }
+
+    return NextResponse.json({ success: true }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('[WorkflowConfig PUT] Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const db = await getDb(request);
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+
+    const role = (decoded as any).role;
+    if (!['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin'].includes(role)) {
+      return NextResponse.json({ error: 'Admin only' }, { status: 403, headers: corsHeaders() });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Workflow ID is required' }, { status: 400, headers: corsHeaders() });
+
+    // Soft-delete: set isActive = false instead of hard delete
+    await db.$executeRawUnsafe(
+      `UPDATE "LeaveWorkflowConfig" SET "isActive" = false, "updatedAt" = NOW() WHERE "id" = $1`,
+      id,
+    );
+
+    return NextResponse.json({ success: true, message: 'Workflow deactivated' }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('[WorkflowConfig DELETE] Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}

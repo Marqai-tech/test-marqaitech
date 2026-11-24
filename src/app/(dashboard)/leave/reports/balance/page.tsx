@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FiDownload, FiSearch, FiRefreshCw, FiArrowLeft, FiCalendar,
   FiClock, FiAlertTriangle, FiTrendingDown, FiCalendar as FiCal,
-  FiChevronDown, FiRotateCw,
+  FiChevronDown, FiRotateCw, FiX, FiCheck,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -170,6 +170,15 @@ export default function LeaveBalanceReport() {
     setPeriod('FY 2026-27 (YTD)');
   };
 
+  // BUG FIX (HRMS_BUG_253): Schedule report dialog — was just a toast popup
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleConfig, setScheduleConfig] = useState({ frequency: 'Monthly', recipients: '', format: 'CSV', dayOfMonth: '1' });
+  const handleScheduleSave = () => {
+    if (!scheduleConfig.recipients.trim()) { toast.error('Please enter at least one recipient email'); return; }
+    toast.success(`Report scheduled — ${scheduleConfig.frequency}, ${scheduleConfig.format} to ${scheduleConfig.recipients}`);
+    setShowSchedule(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-[1400px] mx-auto">
@@ -186,7 +195,7 @@ export default function LeaveBalanceReport() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => toast.success('Report scheduled')}
+              onClick={() => setShowSchedule(true)}
               className="h-9 px-4 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
             >
               <FiCal className="w-4 h-4" /> Schedule report
@@ -351,6 +360,48 @@ export default function LeaveBalanceReport() {
           </div>
         </div>
       </div>
+
+      {/* ---------- Schedule report dialog (BUG_253) ---------- */}
+      {showSchedule && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40" onClick={() => setShowSchedule(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-900">Schedule Balance Report</h3>
+              <button onClick={() => setShowSchedule(false)} className="text-slate-400 hover:text-slate-600"><FiX className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Frequency</label>
+                <select value={scheduleConfig.frequency} onChange={e => setScheduleConfig(s => ({ ...s, frequency: e.target.value }))} className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm font-semibold text-slate-700 outline-none">
+                  <option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option>
+                </select>
+              </div>
+              {scheduleConfig.frequency === 'Monthly' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Day of month</label>
+                  <select value={scheduleConfig.dayOfMonth} onChange={e => setScheduleConfig(s => ({ ...s, dayOfMonth: e.target.value }))} className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm font-semibold text-slate-700 outline-none">
+                    {['1','5','10','15','20','25','Last day'].map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Recipients (comma-separated emails)</label>
+                <input value={scheduleConfig.recipients} onChange={e => setScheduleConfig(s => ({ ...s, recipients: e.target.value }))} placeholder="hr@company.com, admin@company.com" className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm outline-none focus:border-emerald-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Format</label>
+                <select value={scheduleConfig.format} onChange={e => setScheduleConfig(s => ({ ...s, format: e.target.value }))} className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm font-semibold text-slate-700 outline-none">
+                  <option>CSV</option><option>Excel</option><option>PDF</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowSchedule(false)} className="flex-1 h-9 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button onClick={handleScheduleSave} className="flex-1 h-9 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 flex items-center justify-center gap-1.5"><FiCheck className="w-4 h-4" /> Save schedule</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

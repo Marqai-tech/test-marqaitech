@@ -273,6 +273,36 @@ export async function PATCH(
       workflowStage = null;
     }
 
+    // BUG FIX (HRMS_BUG_251): If workflowStage is null (workflow init failed
+    // on POST, or the request was created before workflow support), try to
+    // re-initialize the workflow NOW before falling through to the legacy
+    // single-step path. This prevents the legacy path from being used as a
+    // bypass to skip tiers when a workflow config IS configured.
+    if (!workflowStage && (status === 'approved' || status === 'rejected') && scope.tenantId) {
+      try {
+        const { loadWorkflowConfig, initializeLeaveWorkflow } = await import('@/lib/leave-workflow');
+        const { config: wfConfig, configId: wfConfigId } = await loadWorkflowConfig(
+          db, scope.tenantId, existingLeave.leaveTypeId,
+        );
+        if (wfConfig?.tiers?.length > 0) {
+          // Re-initialize the workflow on the fly
+          await initializeLeaveWorkflow(
+            db, id, existingLeave.employeeId, scope.tenantId,
+            wfConfig, wfConfigId, existingLeave.leaveType?.name,
+          );
+          // Re-read workflowStage after initialization
+          const reRows = await db.$queryRawUnsafe(
+            `SELECT "workflowStage" FROM "LeaveRequest" WHERE "id" = $1 LIMIT 1`,
+            id,
+          ) as any[];
+          workflowStage = reRows?.[0]?.workflowstage || reRows?.[0]?.workflowStage || null;
+        }
+      } catch (wfErr) {
+        // If re-init fails, fall through to legacy path (existing behavior)
+        console.warn('[leave PATCH] workflow re-init failed, using legacy path:', wfErr);
+      }
+    }
+
     // ─── Multi-tier workflow path ───
     if (workflowStage && workflowStage !== 'final_approval' && workflowStage !== 'rejected') {
       // Verify the user is authorized to approve the current tier
