@@ -13,6 +13,7 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   FiSettings, FiBookOpen, FiPlus, FiTrash2, FiChevronDown, FiRefreshCw, FiSave,
 } from 'react-icons/fi';
@@ -54,6 +55,7 @@ function getAuthHeadersWF() {
 }
 
 export default function LeaveApprovalWorkflowConfig() {
+  const { scopeQuery } = useCompanyContextStore();
   const [config, setConfig] = useState<WorkflowConfig>({
     tiers: [
       { tier: 1, approverType: 'reporting_manager', label: 'Reporting Manager' },
@@ -93,10 +95,12 @@ export default function LeaveApprovalWorkflowConfig() {
     loadConfig();
     // Fetch policy documents (category=leave) + branches + departments
     const hdrs = getAuthHeadersWF();
+    // Same company-scoped source as the Employee module dropdown
+    const sq = scopeQuery();
     Promise.allSettled([
       fetch('/api/policies?category=leave', { headers: hdrs }),
       fetch('/api/branches', { headers: hdrs }),
-      fetch('/api/departments', { headers: hdrs }),
+      fetch(`/api/departments${sq ? `?${sq}` : ''}`, { headers: hdrs }),
     ]).then(results => {
       if (results[0].status === 'fulfilled' && results[0].value.ok) {
         results[0].value.json().then((d: any) => setLeavePolicies(d.policies || d.data || []));

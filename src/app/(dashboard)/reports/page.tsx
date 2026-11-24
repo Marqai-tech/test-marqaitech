@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { isClientDemoMode } from '@/lib/site-mode';
 import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import RoleAccessGuard from '@/components/RoleAccessGuard';
@@ -277,6 +278,7 @@ interface AIInsight {
 /* ── Component ── */
 export default function ReportsPage() {
   const { user } = useAuthStore();
+  const { scopeQuery } = useCompanyContextStore();
   const userRole = user?.role || 'employee';
   const reportAccess = getReportAccess(userRole);
   const isSelfOnly = reportAccess === 'self' || reportAccess === 'none';
@@ -352,8 +354,10 @@ export default function ReportsPage() {
   // Fetch departments + designations for report filters (real tenant data)
   const fetchFilterOptions = useCallback(async () => {
     try {
+      // Same company-scoped source as the Employee module dropdown
+      const sq = scopeQuery();
       const [dRes, gRes] = await Promise.all([
-        fetch('/api/departments?limit=100', { headers: getAuthHeaders() }),
+        fetch(`/api/departments?limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
         fetch('/api/designations?limit=100', { headers: getAuthHeaders() }),
       ]);
       if (dRes.ok) {

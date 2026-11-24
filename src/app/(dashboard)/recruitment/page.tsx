@@ -1359,10 +1359,10 @@ export default function RecruitmentPage() {
     try {
       const sq = scopeQuery();
       const scopeParam = sq ? `&${sq}` : '';
-      // Always pass noDedupe=1 here — this modal shows the company name in
-      // the dropdown label, so duplicates are intentionally visible and
-      // disambiguated by the company suffix.
-      const res = await fetch(`/api/departments?limit=200${scopeParam}&noDedupe=1`, { headers: getAuthHeaders() });
+      // Same request as the Employee module: company scope + server-side
+      // name-dedupe. Other companies' same-named departments must not leak
+      // into this dropdown (they caused wrong-department panel links).
+      const res = await fetch(`/api/departments?limit=200${scopeParam}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const list = (data.data || []).map((d: { id: string; name: string; company?: { name?: string } }) => ({

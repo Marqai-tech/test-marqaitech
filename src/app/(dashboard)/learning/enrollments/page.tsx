@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { FiUsers, FiPlus, FiX, FiSearch } from 'react-icons/fi';
 import ModuleTips from '@/components/ModuleTips';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders(): HeadersInit {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -27,6 +28,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default function AssignmentsPage() {
   const user = useAuthStore((s) => s.user);
+  const { scopeQuery } = useCompanyContextStore();
   const isApprover = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_manager', 'manager'].includes(user?.role || '');
   const [rows, setRows] = useState<Enrollment[]>([]);
   const [stats, setStats] = useState<{ total: number; byStatus: Record<string, number>; overdue: number } | null>(null);
@@ -57,9 +59,11 @@ export default function AssignmentsPage() {
     setForm({ assigneeType: 'individual', isMandatory: true });
     setShowAssign(true);
     try {
+      // Same company-scoped source as the Employee module dropdown
+      const sq = scopeQuery();
       const [c, d, e] = await Promise.all([
         fetch('/api/learning/courses', { headers: getAuthHeaders() }).then((r) => r.json()),
-        fetch('/api/departments', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`/api/departments${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
         fetch('/api/employees?limit=500', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ employees: [] })),
       ]);
       setCourses((c.data || []).map((x: { id: string; title: string }) => ({ id: x.id, title: x.title })));

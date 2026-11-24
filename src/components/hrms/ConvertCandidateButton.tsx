@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiUserPlus, FiX, FiLoader } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -40,6 +41,7 @@ export default function ConvertCandidateButton({
   className?: string;
 }) {
   const router = useRouter();
+  const { scopeQuery } = useCompanyContextStore();
   const [open, setOpen] = useState(false);
   const [converting, setConverting] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
@@ -79,8 +81,9 @@ export default function ConvertCandidateButton({
   // Fetch departments, designations, managers when modal opens
   useEffect(() => {
     if (!open) return;
-    // Fetch departments
-    fetch('/api/departments', { headers: getAuthHeaders() })
+    // Fetch departments — same company-scoped source as the Employee module
+    const sq = scopeQuery();
+    fetch(`/api/departments${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : { departments: [] })
       .then(d => setDepartments(d.departments || d.data || d || []))
       .catch(() => {});

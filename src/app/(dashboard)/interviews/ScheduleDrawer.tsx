@@ -10,7 +10,7 @@
 
    Endpoints (unchanged from the old modal):
      GET  /api/recruitment?limit=200              applicants (via job postings)
-     GET  /api/departments?limit=200&noDedupe=1   departments for panel picker
+     GET  /api/departments?limit=200              departments for panel picker (company-scoped)
      GET  /api/interviews/panel-availability      availability + conflicts
      POST /api/interviews                         schedule (round auto-computed)
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -18,6 +18,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { FiCalendar, FiClock, FiSearch, FiX, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -105,6 +106,7 @@ export default function ScheduleDrawer({
   onScheduled: () => void;
 }) {
   /* ── data ── */
+  const { scopeQuery } = useCompanyContextStore();
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [panelMembers, setPanelMembers] = useState<PanelEmployee[]>([]);
@@ -165,7 +167,10 @@ export default function ScheduleDrawer({
 
   const fetchDepartments = useCallback(async () => {
     try {
-      const res = await fetch('/api/departments?limit=200&noDedupe=1', { headers: getAuthHeaders() });
+      // Same company-scoped source as the Employee module dropdown — no
+      // ?noDedupe=1: other companies' same-named departments must not leak in.
+      const sq = scopeQuery();
+      const res = await fetch(`/api/departments?limit=200${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const rawDepts = data.data || data.departments || (Array.isArray(data) ? data : []);

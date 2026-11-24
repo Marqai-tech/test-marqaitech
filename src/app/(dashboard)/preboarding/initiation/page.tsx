@@ -17,6 +17,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   FiRefreshCw, FiChevronLeft, FiUserPlus, FiSave, FiSend, FiXCircle,
   FiLoader, FiAlertCircle, FiCheckCircle, FiFileText, FiPlus, FiTrash2,
@@ -107,6 +108,7 @@ export default function InitiationPage() {
 function InitiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { scopeQuery } = useCompanyContextStore();
   const deepOfferId = searchParams.get('offerId');
 
   const [loading, setLoading] = useState(true);
@@ -227,7 +229,9 @@ function InitiationContent() {
   // Reference data for the HR Details form.
   useEffect(() => {
     if (!activeOffer) return;
-    fetch('/api/departments', { headers: getAuthHeaders() })
+    // Same company-scoped source as the Employee module dropdown
+    const sq = scopeQuery();
+    fetch(`/api/departments${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : { departments: [] })
       .then(d => setDepartments(d.departments || d.data || d || []))
       .catch(() => {});

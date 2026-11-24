@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FiDownload, FiCalendar, FiUsers, FiClock, FiBarChart2, FiFileText, FiGrid, FiRefreshCw, FiUserX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCompanyData } from '@/components/company/useCompanyData';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ────────────────────────────── helpers ────────────────────────────── */
 
@@ -76,6 +77,7 @@ interface DeptOption { id: string; name: string }
 
 export default function AttendanceReportsPage() {
   const { selectedCompanyId } = useCompanyData();
+  const { scopeQuery } = useCompanyContextStore();
   const [activeReport, setActiveReport] = useState<ReportType>('daily-summary');
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -89,7 +91,9 @@ export default function AttendanceReportsPage() {
   /* department options */
   const [departments, setDepartments] = useState<DeptOption[]>([]);
   useEffect(() => {
-    fetch('/api/departments?limit=100', { headers: getAuthHeaders() })
+    // Same company-scoped source as the Employee module dropdown
+    const sq = scopeQuery();
+    fetch(`/api/departments?limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => (r.ok ? r.json() : { departments: [] }))
       .then(d => setDepartments(d.departments || d.data || []))
       .catch(() => setDepartments([]));

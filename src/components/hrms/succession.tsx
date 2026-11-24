@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/app-store';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
 interface Candidate {
@@ -94,6 +95,7 @@ function getReadinessDotColor(readiness: string) {
 
 export function Succession() {
   const { user } = useAppStore();
+  const { scopeQuery } = useCompanyContextStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
 
   const [plans, setPlans] = useState<PlanItem[]>([]);
@@ -139,7 +141,9 @@ export function Succession() {
   useEffect(() => { queueMicrotask(async () => {
     fetchData();
     try {
-      const res = await fetch('/api/departments?limit=100', { headers: getAuthHeaders() });
+      // Same company-scoped source as the Employee module dropdown
+      const sq = scopeQuery();
+      const res = await fetch(`/api/departments?limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) { const data = await res.json(); setDepartments(data.departments || []); }
     } catch { /* ignore */ }
   }); }, [fetchData]);
