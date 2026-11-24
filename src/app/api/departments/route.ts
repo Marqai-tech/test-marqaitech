@@ -73,7 +73,9 @@ export async function GET(req: NextRequest) {
 
     // getCompanyFilter() already reads ?companyId= from the URL for admins
     // (via resolveCompanyScope), so no manual queryCompanyId handling needed.
-    const where: Record<string, unknown> = { status: 'active', ...companyFilter };
+    // status filter accepts legacy/imported rows with status null so they
+    // still appear in dropdowns (POST always defaults new rows to 'active').
+    const where: Record<string, unknown> = { ...companyFilter, OR: [{ status: 'active' }, { status: null }] };
 
     const departments = await db.department.findMany({
       where,

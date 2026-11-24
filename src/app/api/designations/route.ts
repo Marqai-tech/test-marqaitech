@@ -74,7 +74,9 @@ export async function GET(req: NextRequest) {
 
     // getDesignationCompanyFilter() already reads ?companyId= from the URL for admins
     // (via resolveCompanyScope), so no manual queryCompanyId handling needed.
-    const where: Record<string, unknown> = { status: 'active' };
+    // status filter accepts legacy/imported rows with status null so they
+    // still appear in dropdowns (POST always defaults new rows to 'active').
+    const where: Record<string, unknown> = { OR: [{ status: 'active' }, { status: null }] };
 
     if (departmentId) {
       where.departmentId = departmentId;
@@ -98,22 +100,23 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // C-29 FIX: Deduplicate designations by TITLE only.
-    // When an admin (scope='all') doesn't specify a companyId, designations
-    // across ALL companies are returned — many companies share the same
-    // title (e.g. "Software Engineer", "Manager"). These appear as
-    // visually duplicated entries in the requisition dropdown, because
-    // the dropdown only displays the title (not the company or department).
-    // We dedup by lowercase+trimmed TITLE, keeping the first occurrence.
-    // The department name is still attached in the `department` field for
-    // downstream use (e.g. audit / tooltips).
-    const seen = new Set<string>();
-    const deduped = designations.filter((d) => {
-      const key = `${(d.title || '').toLowerCase().trim()}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // C-29 FIX (revised): Deduplicate by TITLE only for flat, unscoped
+    // pickers. When the caller scopes the list itself (?departmentId=… or
+    // ?noDedupe=1 — e.g. the requisition form filters client-side by
+    // department), title-dedup would HIDE another department's designation
+    // that shares a title (e.g. "Manager" in Engineering AND in Sales) and
+    // leave that department's dropdown incomplete.
+    const noDedupe = url.searchParams.get('noDedupe') === '1';
+    let deduped = designations;
+    if (!departmentId && !noDedupe) {
+      const seen = new Set<string>();
+      deduped = designations.filter((d) => {
+        const key = `${(d.title || '').toLowerCase().trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
 
     return NextResponse.json({
       data: deduped,

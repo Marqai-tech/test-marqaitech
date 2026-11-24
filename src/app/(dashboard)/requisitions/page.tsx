@@ -216,50 +216,87 @@ export default function RequisitionsPage() {
       const sq = scopeQuery();
       const scopeParam = sq ? `&${sq}` : '';
       const noDedupeParam = sq ? '' : '&noDedupe=1';
+      // Master-data dropdowns use high limits so large tenants never have
+      // their lists silently truncated by the default page size.
+      // Designations always request noDedupe: this page scopes them by
+      // department client-side, and server-side title-dedup would otherwise
+      // hide another department's same-titled designation (two departments
+      // can legitimately both have "Manager").
       const [deptRes, desigRes] = await Promise.all([
-        fetch(`/api/departments?limit=100${scopeParam}${noDedupeParam}`, { headers: getAuthHeaders() }).catch(() => null),
-        fetch(`/api/designations?limit=100${scopeParam}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/departments?limit=500${scopeParam}${noDedupeParam}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/designations?limit=1000${scopeParam}&noDedupe=1`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
+      let anyFailed = false;
       if (deptRes?.ok) {
-        const deptData = await deptRes.json();
-        const deptList = deptData.departments || deptData.data || (Array.isArray(deptData) ? deptData : []);
-        const seenDept = new Set<string>();
-        const dedupedDepts: Array<{ id: string; name: string; companyName?: string }> = [];
-        for (const d of deptList) {
-          if (!d?.id || !d?.name) continue;
-          const companyName = d.company?.name;
-          const key = `${String(d.name).toLowerCase().trim()}|${(companyName || '').toLowerCase().trim()}`;
-          if (seenDept.has(key)) continue;
-          seenDept.add(key);
-          dedupedDepts.push({ id: d.id, name: d.name, companyName });
-        }
-        dedupedDepts.sort((a, b) => {
-          const n = a.name.localeCompare(b.name);
-          if (n !== 0) return n;
-          return (a.companyName || '').localeCompare(b.companyName || '');
-        });
-        setDepartments(dedupedDepts);
+        try {
+          const deptData = await deptRes.json();
+          const deptList = deptData.departments || deptData.data || (Array.isArray(deptData) ? deptData : []);
+          const seenDept = new Set<string>();
+          const dedupedDepts: Array<{ id: string; name: string; companyName?: string }> = [];
+          for (const d of deptList) {
+            if (!d?.id || !d?.name) continue;
+            const companyName = d.company?.name;
+            const key = `${String(d.name).toLowerCase().trim()}|${(companyName || '').toLowerCase().trim()}`;
+            if (seenDept.has(key)) continue;
+            seenDept.add(key);
+            dedupedDepts.push({ id: d.id, name: d.name, companyName });
+          }
+          dedupedDepts.sort((a, b) => {
+            const n = a.name.localeCompare(b.name);
+            if (n !== 0) return n;
+            return (a.companyName || '').localeCompare(b.companyName || '');
+          });
+          setDepartments(dedupedDepts);
+        } catch { anyFailed = true; }
+      } else {
+        anyFailed = true;
       }
       if (desigRes?.ok) {
-        const desigData = await desigRes.json();
-        const desigList = desigData.designations || desigData.data || (Array.isArray(desigData) ? desigData : []);
-        const seenDesig = new Set<string>();
-        const dedupedDesigs: Array<{ id: string; title: string; departmentId: string | null }> = [];
-        for (const d of desigList) {
-          if (!d?.id || !d?.title) continue;
-          const key = String(d.title).toLowerCase().trim();
-          if (seenDesig.has(key)) continue;
-          seenDesig.add(key);
-          const deptId = d.departmentId || d.department?.id || null;
-          dedupedDesigs.push({ id: d.id, title: d.title, departmentId: deptId });
-        }
-        dedupedDesigs.sort((a, b) => a.title.localeCompare(b.title));
-        setDesignations(dedupedDesigs);
+        try {
+          const desigData = await desigRes.json();
+          const desigList = desigData.designations || desigData.data || (Array.isArray(desigData) ? desigData : []);
+          const seenDesig = new Set<string>();
+          const dedupedDesigs: Array<{ id: string; title: string; departmentId: string | null }> = [];
+          for (const d of desigList) {
+            if (!d?.id || !d?.title) continue;
+            // Dedupe by ID, never by title — same-titled designations in
+            // different departments are all valid choices.
+            if (seenDesig.has(d.id)) continue;
+            seenDesig.add(d.id);
+            const deptId = d.departmentId || d.department?.id || null;
+            dedupedDesigs.push({ id: d.id, title: d.title, departmentId: deptId });
+          }
+          dedupedDesigs.sort((a, b) => a.title.localeCompare(b.title));
+          setDesignations(dedupedDesigs);
+        } catch { anyFailed = true; }
+      } else {
+        anyFailed = true;
       }
-    } catch { /* non-fatal — fallback to text input */ }
-  }, [scopeQuery]);
+      if (anyFailed) {
+        console.error('Requisition master-data fetch failed', {
+          departments: deptRes ? `HTTP ${deptRes.status}` : 'network error',
+          designations: desigRes ? `HTTP ${desigRes.status}` : 'network error',
+        });
+        toast.error('Could not load departments/positions. Please refresh the page and try again.');
+      }
+    } catch {
+      toast.error('Could not load departments/positions. Please refresh the page and try again.');
+    }
+  }, [scopeQuery, companyId]);
 
   useEffect(() => { queueMicrotask(() => fetchDeptDesignations()); }, [fetchDeptDesignations]);
+
+  // When the company context switches, drop any department/designation
+  // chosen under the previous company — otherwise the form can submit a
+  // stale cross-company selection. managerDepartment is read from closure
+  // on purpose: it loads once at mount and must not re-trigger this reset.
+  useEffect(() => {
+    setForm(prev => ({
+      ...prev,
+      designationId: '',
+      departmentId: managerDepartment ? managerDepartment.id : '',
+    }));
+  }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleDesignations = useMemo(() => {
     if (!form.departmentId) return [];
