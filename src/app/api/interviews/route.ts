@@ -66,6 +66,36 @@ export async function GET(req: NextRequest) {
 
     const interviews = await db.$queryRawUnsafe(sql, ...params).catch(() => []) as any[];
 
+    // ─── Interviewer auto-enable (scope=mine backfill) ───
+    // "Until an interview is scheduled, the My Interviews tab is inactive for
+    // the employee": if this user IS a panel member on an existing interview
+    // (scheduled before the toggle feature existed), flip User.isInterviewer
+    // to true so the sidebar tab activates. HR's explicit OFF only wins when
+    // no scheduled interview references them — i.e., we never un-flag here.
+    if (scope === 'mine' && decoded.userId && interviews.length > 0) {
+      try {
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false`
+        ).catch(() => null);
+        await db.$executeRawUnsafe(
+          `UPDATE "User" SET "isInterviewer" = true WHERE "id" = $1 AND "isInterviewer" IS NOT TRUE`,
+          decoded.userId,
+        ).catch(() => null);
+        // Mirror to the platform DB — /api/auth/me reads the platform copy first
+        try {
+          const { getPlatformDb } = await import('@/lib/tenant-db');
+          const pdb = getPlatformDb();
+          await pdb.$executeRawUnsafe(
+            `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isInterviewer" BOOLEAN NOT NULL DEFAULT false`
+          ).catch(() => null);
+          await pdb.$executeRawUnsafe(
+            `UPDATE "User" SET "isInterviewer" = true WHERE "id" = $1 AND "isInterviewer" IS NOT TRUE`,
+            decoded.userId,
+          ).catch(() => null);
+        } catch {}
+      } catch {}
+    }
+
     // Task 167: For each interview, fetch panel members with their confirmation + feedback status
     for (const interview of interviews) {
       try {
