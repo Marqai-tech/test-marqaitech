@@ -580,9 +580,30 @@ export async function POST(request: Request) {
           });
         } else {
           // Create new user account
-          // Resolve tenantId for the new user — use admin's tenantId,
-          // or fall back to the tenant from the x-tenant-slug header
+          // Resolve tenantId for the new user. The User row is created in the
+          // tenant DB (possibly switched above via tenantId/companyId params),
+          // so the FK must reference a Tenant row in THAT database — not the
+          // calling admin's tenant (super admin lives in the platform DB and
+          // their tenantId violates User_tenantId_fkey here). Resolve, in order:
+          //   1. the tenant the request scoped to (tenantIdParam / companyIdParam)
+          //   2. the x-tenant-slug header (demo links)
+          //   3. the admin's own tenantId (same-tenant admin — the old behaviour)
           let userTenantId = admin.tenantId || '';
+          if (tenantIdParam) {
+            const targetTenant = await getPlatformDb().tenant.findUnique({
+              where: { id: tenantIdParam },
+              select: { id: true },
+            }).catch(() => null);
+            if (targetTenant?.id) userTenantId = targetTenant.id;
+          } else if (companyIdParam) {
+            let company = await db.company.findUnique({ where: { id: companyIdParam }, select: { companyGroupId: true } }).catch(() => null);
+            if (!company) company = await getPlatformDb().company.findUnique({ where: { id: companyIdParam }, select: { companyGroupId: true } }).catch(() => null);
+            if (company?.companyGroupId) {
+              let group = await db.companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+              if (!group) group = await getPlatformDb().companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+              if (group?.tenantId) userTenantId = group.tenantId;
+            }
+          }
           if (!userTenantId) {
             const slugHeader = request.headers.get('x-tenant-slug') || '';
             if (slugHeader) {
