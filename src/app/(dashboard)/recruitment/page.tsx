@@ -269,6 +269,47 @@ function parseInterviewPlan(value: string): InterviewPlanRow[] {
 }
 function serializeInterviewPlan(rows: InterviewPlanRow[]) { return JSON.stringify(rows.map((row, i) => ({ sequence: i + 1, ...row }))); }
 
+/* Shape of a fully-approved requisition row as returned by /api/requisitions.
+   Used by the "From Requisition" sub-tab inside the Jobs tab. */
+type ApprovedRequisition = {
+  id: string;
+  requisitionId: string;
+  departmentId?: string;
+  positionTitle?: string | null;
+  department?: { id: string; name: string; code?: string | null } | null;
+  designation?: { id: string; title: string } | null;
+  numberOfOpenings: number;
+  employmentType: string;
+  priority: string;
+  skillsRequired?: string | null;
+  experienceRequired?: string | null;
+  qualification?: string | null;
+  salaryBudget?: string | null;
+  expectedJoiningDate?: string | null;
+  interviewPlan?: string | null;
+  status: string;
+  jobPostingId?: string | null;
+};
+
+/* Convert a requisition's interview plan JSON into the job form's plan JSON.
+   Same round schema, but falls back to the default 3-round plan when the
+   requisition has no usable rounds stored. */
+function requisitionPlanToJobForm(value: string | null | undefined): string {
+  try {
+    const parsed = typeof value === 'string' && value.trim() ? JSON.parse(value) : null;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const rows: InterviewPlanRow[] = parsed
+        .map((r: any) => ({
+          name: String(r?.name || ''),
+          type: r?.type === 'offline_panel' ? 'client' : (['technical', 'hr', 'ai', 'client'].includes(r?.type) ? r.type : 'technical'),
+        }))
+        .filter((r: InterviewPlanRow) => r.name.trim().length > 0);
+      if (rows.length > 0) return serializeInterviewPlan(rows);
+    }
+  } catch { /* fall through to the default plan */ }
+  return initialJobForm.interviewPlan;
+}
+
 const initialAppForm = {
   jobPostingId: '',
   candidateName: '',
@@ -1052,6 +1093,73 @@ function KanbanPipelineView({ applications, onMove, isAdmin, onSchedule }: {
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* ApprovedRequisitionsPanel — sub-tab inside the Jobs tab: fully    */
+/* approved requisitions that don't have a job posting yet. Clicking */
+/* one opens the Create Job form auto-filled from the requisition.   */
+/* ═══════════════════════════════════════════════════════════════ */
+function ApprovedRequisitionsPanel({ requisitions, loading, onConvert, onRefresh }: {
+  requisitions: ApprovedRequisition[];
+  loading: boolean;
+  onConvert: (req: ApprovedRequisition) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="thb-card p-3">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-thb-text-primary">Approved Requisitions</h2>
+            <p className="text-[11px] text-thb-text-muted">Fully approved requisitions ready to become job postings — click one and the job form auto-fills.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-thb-text-muted">{requisitions.length} waiting</span>
+            <button type="button" onClick={onRefresh} className="px-3 py-1.5 rounded-lg border border-thb-border text-xs font-semibold text-slate-700 hover:bg-slate-50">Refresh</button>
+          </div>
+        </div>
+      </div>
+      {loading ? (
+        <div className="thb-card p-10 text-center text-sm text-thb-text-muted">Loading approved requisitions…</div>
+      ) : requisitions.length === 0 ? (
+        <div className="thb-card p-10 text-center">
+          <p className="text-sm font-semibold text-thb-text-primary">No approved requisitions waiting</p>
+          <p className="mt-1 text-xs text-thb-text-muted">Requisitions appear here once they are fully approved in the Requisitions module and don't have a job posting yet.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {requisitions.map((req) => {
+            const role = req.positionTitle || req.designation?.title || 'Untitled position';
+            return (
+              <div key={req.id} className="thb-card flex flex-col gap-3 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold tracking-wide text-teal-700">{req.requisitionId}</p>
+                    <h3 className="truncate text-sm font-bold text-thb-text-primary">{role}</h3>
+                    <p className="truncate text-xs text-thb-text-muted">{req.department?.name || 'Department'}{req.designation?.title ? ` · ${req.designation.title}` : ''}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">Approved</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold">
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{req.numberOfOpenings} opening(s)</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 capitalize text-slate-700">{req.employmentType}</span>
+                  <span className="rounded-full bg-amber-50 px-2 py-1 capitalize text-amber-700">{req.priority} priority</span>
+                  {req.experienceRequired && <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Exp: {req.experienceRequired}</span>}
+                  {req.salaryBudget && <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Budget: {req.salaryBudget}</span>}
+                  {req.expectedJoiningDate && <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Join by {String(req.expectedJoiningDate).split('T')[0]}</span>}
+                </div>
+                {req.skillsRequired && <p className="text-xs leading-5 text-slate-600"><b className="text-slate-800">Skills:</b> {req.skillsRequired}</p>}
+                <button type="button" onClick={() => onConvert(req)} className="mt-auto inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-teal-700">
+                  Create Job from Requisition
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Component ── */
 export default function RecruitmentPage() {
   const { user } = useAuthStore();
@@ -1103,6 +1211,13 @@ export default function RecruitmentPage() {
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
+
+  // "From Requisition" sub-tab inside the Jobs tab
+  const [jobsSubTab, setJobsSubTab] = useState<'list' | 'requisitions'>('list');
+  const [approvedRequisitions, setApprovedRequisitions] = useState<ApprovedRequisition[]>([]);
+  const [loadingApprovedReqs, setLoadingApprovedReqs] = useState(false);
+  // Requisition driving the open job form (set by "Create Job from Requisition")
+  const [jobRequisitionId, setJobRequisitionId] = useState<string | null>(null);
 
   // Filters
   const [jobSearch, setJobSearch] = useState('');
@@ -1574,9 +1689,38 @@ export default function RecruitmentPage() {
     });
   }, [scopeQuery, selectedTenantId]);
 
+  /* Approved requisitions for the "From Requisition" sub-tab inside the Jobs
+     tab. Fully approved = approvalStatus 'budget_approved' AND status 'approved'
+     (both set together by the approval engine on the final tier). Requisitions
+     that already have a jobPostingId were converted — they live in My Jobs. */
+  const fetchApprovedRequisitions = useCallback(async () => {
+    setLoadingApprovedReqs(true);
+    try {
+      const sq = scopeQuery();
+      const res = await fetch(`/api/requisitions?approvalStatus=budget_approved&status=approved&limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const rows: ApprovedRequisition[] = (data.requisitions || []).filter((r: any) => r?.status === 'approved' && !r?.jobPostingId);
+        setApprovedRequisitions(rows);
+      } else {
+        setApprovedRequisitions([]);
+      }
+    } catch {
+      setApprovedRequisitions([]);
+    } finally {
+      setLoadingApprovedReqs(false);
+    }
+  }, [scopeQuery, selectedTenantId]);
+  // Refresh when the Jobs tab mounts and again whenever the job form closes
+  // (a successful save converts one requisition → it disappears from the list).
+  useEffect(() => {
+    queueMicrotask(() => { fetchApprovedRequisitions(); });
+  }, [fetchApprovedRequisitions, showJobForm]);
+
   /* Open Job Form - Add */
   const handleOpenAddJobForm = () => {
     setEditingJobId(null);
+    setJobRequisitionId(null);
     setJobForm(initialJobForm);
     setJobFormStep(1);
     setHiringTeam([]);
@@ -1624,9 +1768,48 @@ export default function RecruitmentPage() {
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
+  /* Create Job from an approved requisition: auto-fill everything the
+     requisition already knows (department, role, skills, experience,
+     interview rounds, openings, employment type, salary budget). HR only
+     completes the remaining fields (description, location, closing date…).
+     The payload carries requisitionId so /api/recruitment links the new
+     posting back to the requisition (jobPostingId + status in_progress). */
+  const handleCreateJobFromRequisition = (req: ApprovedRequisition) => {
+    setEditingJobId(null);
+    setJobRequisitionId(req.id);
+    const role = req.positionTitle || req.designation?.title || '';
+    const experience = req.experienceRequired
+      ? (/^\d+(\.\d+)?$/.test(String(req.experienceRequired).trim()) ? `${String(req.experienceRequired).trim()} years` : String(req.experienceRequired))
+      : '';
+    const requirementParts: string[] = [];
+    if (req.skillsRequired) requirementParts.push(`Skills: ${req.skillsRequired}`);
+    if (req.qualification) requirementParts.push(`Qualification: ${req.qualification}`);
+    setJobForm({
+      ...initialJobForm,
+      title: role || `${req.department?.name || 'New'} Opening (${req.requisitionId})`,
+      departmentId: req.departmentId || req.department?.id || '',
+      position: role,
+      type: ['full-time', 'part-time', 'contract', 'internship'].includes(req.employmentType) ? req.employmentType : 'full-time',
+      experience,
+      salary: req.salaryBudget || '',
+      vacancies: String(req.numberOfOpenings || 1),
+      requirements: requirementParts.join('\n'),
+      interviewPlan: requisitionPlanToJobForm(req.interviewPlan),
+    });
+    setHiringTeam([]);
+    setHiringTeamEnabled(true);
+    setJobFormStep(1);
+    setShowJobForm(true);
+    setShowAppForm(false);
+    setDeleteConfirmId(null);
+    toast.success(`Auto-filled from ${req.requisitionId} — review and complete the remaining fields`);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
   const handleCancelJobForm = () => {
     setShowJobForm(false);
     setEditingJobId(null);
+    setJobRequisitionId(null);
     setJobForm(initialJobForm);
     setJobFormStep(1);
   };
@@ -1663,7 +1846,7 @@ export default function RecruitmentPage() {
     }
     try {
       setSubmittingJob(true);
-      const payload = { ...jobForm, status: statusOverride || jobForm.status, vacancies: parseInt(jobForm.vacancies) || 1, hiringTeam: hiringTeamEnabled ? JSON.stringify(hiringTeam) : '[]' };
+      const payload = { ...jobForm, status: statusOverride || jobForm.status, vacancies: parseInt(jobForm.vacancies) || 1, hiringTeam: hiringTeamEnabled ? JSON.stringify(hiringTeam) : '[]', requisitionId: jobRequisitionId || undefined };
 
       if (editingJobId) {
         const res = await fetch(`/api/recruitment/${editingJobId}`, {
@@ -1987,6 +2170,12 @@ export default function RecruitmentPage() {
                 <FiX className="w-5 h-5" />
               </button>
             </div>
+            {jobRequisitionId && !editingJobId && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+                <FiCheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Auto-filled from approved requisition — department, role, skills, experience, openings and interview rounds came from the requisition. Complete the remaining fields (description, location, closing date…) and publish.</span>
+              </div>
+            )}
           </div>
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-4 sm:px-6"><div className="grid grid-cols-5 gap-2">{['Basics', 'Description & Requirements', 'Compensation & Team', 'Review & Approvals', 'Publish to Portals'].map((label, index) => { const number = index + 1; const complete = number < jobFormStep; const active = number === jobFormStep; return <button type="button" key={label} onClick={() => number < jobFormStep && setJobFormStep(number)} className={`relative flex min-w-0 flex-col items-center gap-1 text-center ${number < jobFormStep ? 'cursor-pointer' : 'cursor-default'}`}><span className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold ${complete ? 'border-emerald-600 bg-emerald-600 text-white' : active ? 'border-emerald-600 bg-white text-emerald-700' : 'border-slate-300 bg-white text-slate-400'}`}>{complete ? <FiCheckCircle className="h-4 w-4" /> : number}</span><span className={`hidden text-[11px] font-semibold leading-4 sm:block ${active ? 'text-emerald-700' : complete ? 'text-slate-700' : 'text-slate-400'}`}>{label}</span>{index < 4 && <span className={`absolute left-[60%] top-4 h-0.5 w-[80%] ${complete ? 'bg-emerald-500' : 'bg-slate-200'}`} />}</button>; })}</div></div>
           <div className={`grid gap-5 p-4 xl:p-5 ${jobFormStep === 4 ? 'xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)]' : 'xl:grid-cols-[minmax(0,1fr)_280px]'}`}>
@@ -2202,6 +2391,27 @@ export default function RecruitmentPage() {
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'jobs' && (
         <>
+        {/* Sub-tabs: My Jobs | From Requisition (approved requisitions → job) */}
+        <div className="thb-card p-1.5">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setJobsSubTab('list')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${jobsSubTab === 'list' ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25' : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'}`}
+            >
+              <FiBriefcase className="w-4 h-4" />
+              My Jobs
+            </button>
+            <button
+              onClick={() => setJobsSubTab('requisitions')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${jobsSubTab === 'requisitions' ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25' : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'}`}
+            >
+              <FiFileText className="w-4 h-4" />
+              From Requisition
+              {approvedRequisitions.length > 0 && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{approvedRequisitions.length}</span>}
+            </button>
+          </div>
+        </div>
+        {jobsSubTab === 'list' && (
         <div className="flex flex-col gap-4">
           <div className="flex min-h-0 h-full flex-col gap-4">
           {/* Filter Bar */}
@@ -2518,6 +2728,15 @@ export default function RecruitmentPage() {
             </div> : <div className="flex h-[420px] items-center justify-center p-6 text-center text-sm text-slate-500">No job postings available.</div>}
           </section>
         </div>
+        )}
+        {jobsSubTab === 'requisitions' && (
+          <ApprovedRequisitionsPanel
+            requisitions={approvedRequisitions}
+            loading={loadingApprovedReqs}
+            onConvert={handleCreateJobFromRequisition}
+            onRefresh={fetchApprovedRequisitions}
+          />
+        )}
         </>
       )}
 

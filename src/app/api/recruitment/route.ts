@@ -548,11 +548,13 @@ export async function POST(request: Request) {
       },
     });
 
-    // Link the approved requisition back to the new posting (non-fatal)
+    // Link the approved requisition back to the new posting (non-fatal).
+    // status → 'in_progress' marks it as converted so the "From Requisition"
+    // sub-tab in Create Jobs only lists requisitions still waiting for a job.
     if (requisitionId) {
       try {
         await db.$executeRawUnsafe(
-          `UPDATE "Requisition" SET "jobPostingId" = $1 WHERE "id" = $2`,
+          `UPDATE "Requisition" SET "jobPostingId" = $1, "status" = 'in_progress', "updatedAt" = NOW() WHERE "id" = $2`,
           (jobPosting as any).id, requisitionId,
         );
       } catch { /* non-fatal */ }
