@@ -1208,16 +1208,30 @@ export default function RecruitmentPage() {
   const editorToolbarClass = (format: string) => `rounded px-2 py-1 transition-colors ${activeDescriptionFormat === format ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-200' : 'text-slate-600 hover:bg-emerald-100'}`;
 
   const handleResetTestCandidate = async () => {
-    const email = window.prompt('Enter the test candidate email whose recruitment, offer, preboarding and BGV data must be deleted:')?.trim().toLowerCase();
+    const email = window.prompt('Enter the test candidate email whose recruitment, offer, preboarding, employee and user data must be deleted:')?.trim().toLowerCase();
     if (!email) return;
-    const confirmation = window.prompt(`This permanently deletes all test-flow data for ${email}. Type DELETE ${email} to confirm:`);
+    const confirmation = window.prompt(`This permanently deletes ALL data for ${email} (applications, offers, preboarding, BGV, interviews, employee record, HR history and the login user). Type DELETE ${email} to confirm:`);
     if (confirmation !== `DELETE ${email}`) { toast.error('Confirmation did not match. Nothing was deleted.'); return; }
     setResettingCandidate(true);
     try {
-      const res = await fetch('/api/recruitment/test-candidate-reset', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ email, confirmation }) });
+      // Carry the company-switcher scope so a super admin wipes the SAME
+      // tenant database the data lives in (mirrors the departments route).
+      const sq = scopeQuery();
+      const res = await fetch(`/api/recruitment/test-candidate-reset${sq ? `?${sq}` : ''}`, { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ email, confirmation }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Reset failed');
-      toast.success(`All available test data for ${email} was deleted`);
+      const deleted: Record<string, number> = data.deleted || {};
+      const failed: Record<string, string> = data.failed || {};
+      const total = Object.values(deleted).reduce((a, b) => a + Number(b), 0);
+      const summary = Object.entries(deleted).map(([t, n]) => `${t}×${n}`).join(', ');
+      const failedTables = Object.keys(failed);
+      if (failedTables.length) {
+        toast.error(`${total} records deleted for ${email}, but these tables failed: ${failedTables.join(', ')}. Run the delete again to retry.`);
+      } else if (summary) {
+        toast.success(`Deleted ${total} records for ${email} (${summary})`);
+      } else {
+        toast.success(`No records found for ${email} — nothing to delete`);
+      }
       fetchData();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Reset failed'); }
     finally { setResettingCandidate(false); }
