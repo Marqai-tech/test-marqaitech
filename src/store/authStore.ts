@@ -471,6 +471,20 @@ if (typeof window !== 'undefined') {
     // sessionStorage as a fallback for offline/quick-refresh scenarios,
     // but it is no longer set as the initial authStore.user.
     useAuthStore.setState({ token, isLoading: true });
+    useAuthStore.getState().fetchUser();
+  } else {
+    // ─── FIX: don't call fetchUser() when there's no token ───
+    // Previously this called fetchUser() UNCONDITIONALLY — even without a
+    // token. That meant every page load (including /login) fired a
+    // /api/auth/me request that took 30-48 seconds on Neon cold start and
+    // always returned 401. In dev mode with Turbopack HMR, the module
+    // re-evaluates on every hot-reload, stacking multiple in-flight 401
+    // requests and creating the "automatically hitting" loop the user
+    // reported.
+    //
+    // Without a token, the user is definitively not authenticated — no
+    // need to ask the server. Set isLoading=false immediately so the
+    // login page renders without waiting for a pointless 401.
+    useAuthStore.setState({ token: null, isLoading: false, isAuthenticated: false, user: null });
   }
-  useAuthStore.getState().fetchUser();
 }
