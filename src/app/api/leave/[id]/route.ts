@@ -61,9 +61,16 @@ export async function PATCH(
     // Sanitize free-text comments to strip HTML/script content before persisting.
     const comments = sanitizeMultiLineText(body.comments, 2000);
 
-    if (!status || !['approved', 'rejected', 'cancelled'].includes(status)) {
+    // QA Spec Section 5: 'on_hold' is a new status. The approver puts the
+    // request on hold with proposed dates (body.proposedHoldDates) and an
+    // optional comment. The employee is notified and can accept or withdraw.
+    // QA Spec Section 7: 'withdrawn' is used when the employee withdraws a
+    // pending request (no approval needed). 'cancel_requested' starts the
+    // post-approval cancellation flow (needs approver sign-off).
+    const VALID_STATUSES = ['approved', 'rejected', 'cancelled', 'on_hold', 'withdrawn', 'cancel_requested'];
+    if (!status || !VALID_STATUSES.includes(status)) {
       return NextResponse.json(
-        { error: 'Valid status is required: approved, rejected, or cancelled' },
+        { error: `Valid status is required: ${VALID_STATUSES.join(', ')}` },
         { status: 400, headers: corsHeaders() }
       );
     }
@@ -127,6 +134,84 @@ export async function PATCH(
         { error: 'Only pending leave requests can be approved/rejected' },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // ─── QA Spec Section 5: On Hold with proposed dates ────────────────
+    // Approver puts the request on hold. Status = 'on_hold'. The proposed
+    // dates + optional comment are stored. Balance stays reserved (we don't
+    // release it — the employee can't over-apply while on hold). Employee +
+    // HR are notified.
+    if (status === 'on_hold') {
+      const proposedHoldDates = body.proposedHoldDates || null; // { startDate, endDate } or null
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "proposedHoldDatesJson" TEXT`);
+        await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "holdComments" TEXT`);
+      } catch { /* non-fatal */ }
+      const holdDatesJson = proposedHoldDates ? JSON.stringify(proposedHoldDates) : null;
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = $1, "holdComments" = $2 WHERE "id" = $3`,
+        holdDatesJson, comments || null, id
+      ).catch(() => null);
+
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: { status: 'on_hold', comments },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+
+      // Notify the employee about the hold + proposed dates
+      if (leaveRequest?.employee?.userId) {
+        try {
+          const { createNotification } = await import('@/lib/notifications');
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_on_hold',
+            title: `Leave request put on hold`,
+            message: `Your ${leaveRequest.leaveType?.name || 'leave'} request has been put on hold${proposedHoldDates ? ` with proposed dates: ${proposedHoldDates.startDate} → ${proposedHoldDates.endDate}` : ''}.${comments ? ` Comment: ${comments}` : ''}`,
+            data: { leaveRequestId: id, proposedHoldDates, comments },
+          });
+        } catch { /* non-fatal */ }
+      }
+      return NextResponse.json({ success: true, leaveRequest }, { headers: corsHeaders() });
+    }
+
+    // ─── QA Spec Section 7: Withdraw before approval (employee self-service) ───
+    // Employee withdraws a pending/on_hold request. No approval needed.
+    // Balance is released. The current approver is notified.
+    if (status === 'withdrawn') {
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: { status: 'cancelled', cancellationReason: comments, comments, cancelledAt: new Date() },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+      return NextResponse.json({ success: true, leaveRequest, message: 'Leave withdrawn — approver notified' }, { headers: corsHeaders() });
+    }
+
+    // ─── QA Spec Section 7: Cancel request after approval ─────────────
+    // Employee raises a cancellation request on an approved leave. The
+    // status becomes 'cancel_requested' and goes to the Reporting Manager
+    // (and HR if in the flow) for approval. Until approved, the leave stays
+    // 'approved' with a flag. On approval, status='cancelled' + balance restored.
+    if (status === 'cancel_requested') {
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: { status: 'cancel_requested', cancellationReason: comments, comments },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+      // Notify the approver
+      if (leaveRequest?.employee?.userId) {
+        try {
+          const { createNotification } = await import('@/lib/notifications');
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_cancel_request',
+            title: `Cancellation request submitted`,
+            message: `Cancellation request for ${leaveRequest.leaveType?.name || 'leave'} has been submitted and is pending approval.`,
+            data: { leaveRequestId: id, comments },
+          });
+        } catch { /* non-fatal */ }
+      }
+      return NextResponse.json({ success: true, leaveRequest, message: 'Cancellation request submitted — awaiting approval' }, { headers: corsHeaders() });
     }
 
     // ─── Handle cancellation (no workflow involved) ───

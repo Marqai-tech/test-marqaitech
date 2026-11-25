@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
       ];
       for (const col of ensureCols) { try { await db.$executeRawUnsafe(col); } catch {} }
 
-      const sql = 'UPDATE "LeavePolicyRule" SET "gender" = $1, "entitledDaysPerYear" = $2, "advanceNoticeDays" = $3, "minDaysPerRequest" = $4, "maxDaysPerRequest" = $5, "carryForwardToNextYear" = $6, "leaveEncashmentApplicable" = $7, "leaveTypeId" = $8, "ruleCode" = $9, "specificEmployeeIds" = $10, "onlyTheseEmployees" = $11, "creditFrequency" = $12, "creditDays" = $13, "prorata" = $14, "applyNextYear" = $15, "maxStretch" = $16, "monthlyLimit" = $17, "monthlyMaxDays" = $18, "monthlyMaxTimes" = $19, "backDate" = $20, "backDateWithin" = $21, "docRequired" = $22, "docAfterDays" = $23, "docWithin" = $24, "excludeHoliday" = $25, "excludeWeeklyOff" = $26, "maritalStatus" = $27, "empStatusJson" = $28, "workingReq" = $29, "workingDays" = $30, "esi" = $31, "esiSalary" = $32, "cfMode" = $33, "cfDays" = $34, "maxAccum" = $35, "expiryDays" = $36, "encashLimit" = $37, "halfDayAllowed" = $38 WHERE "id" = $39';
+      const sql = 'UPDATE "LeavePolicyRule" SET "gender" = $1, "entitledDaysPerYear" = $2, "advanceNoticeDays" = $3, "minDaysPerRequest" = $4, "maxDaysPerRequest" = $5, "carryForwardToNextYear" = $6, "leaveEncashmentApplicable" = $7, "leaveTypeId" = $8, "ruleCode" = $9, "specificEmployeeIds" = $10, "onlyTheseEmployees" = $11, "creditFrequency" = $12, "creditDays" = $13, "prorata" = $14, "applyNextYear" = $15, "maxStretch" = $16, "monthlyLimit" = $17, "monthlyMaxDays" = $18, "monthlyMaxTimes" = $19, "backDate" = $20, "backDateWithin" = $21, "docRequired" = $22, "docAfterDays" = $23, "docWithin" = $24, "excludeHoliday" = $25, "excludeWeeklyOff" = $26, "maritalStatus" = $27, "empStatusJson" = $28, "workingReq" = $29, "workingDays" = $30, "esi" = $31, "esiSalary" = $32, "cfMode" = $33, "cfDays" = $34, "maxAccum" = $35, "expiryDays" = $36, "encashLimit" = $37, "halfDayAllowed" = $38, "showReason" = $39, "mandatoryReason" = $40, "showDaySelection" = $41, "showShift" = $42, "showAttachment" = $43, "mandatoryAttachment" = $44, "showContactNumber" = $45, "mandatoryContactNumber" = $46, "showContactAddress" = $47, "mandatoryContactAddress" = $48, "showHandover" = $49, "mandatoryHandover" = $50, "showTeamOnLeave" = $51, "showRelocation" = $52, "mandatoryRelocation" = $53, "showNotifyCc" = $54 WHERE "id" = $55';
       await db.$executeRawUnsafe(sql,
         String(body.gender || 'both'),
         Number(body.entitledDaysPerYear || 0),
@@ -290,6 +290,23 @@ export async function POST(req: NextRequest) {
         Number(body.expiryDays || 0),
         Number(body.encashLimit || 0),
         Boolean(body.halfDayAllowed ?? true),
+        // QA Spec Section 4: Application form settings
+        Boolean(body.showReason ?? true),
+        Boolean(body.mandatoryReason ?? false),
+        Boolean(body.showDaySelection ?? true),
+        Boolean(body.showShift ?? false),
+        Boolean(body.showAttachment ?? true),
+        Boolean(body.mandatoryAttachment ?? false),
+        Boolean(body.showContactNumber ?? true),
+        Boolean(body.mandatoryContactNumber ?? false),
+        Boolean(body.showContactAddress ?? true),
+        Boolean(body.mandatoryContactAddress ?? false),
+        Boolean(body.showHandover ?? true),
+        Boolean(body.mandatoryHandover ?? false),
+        Boolean(body.showTeamOnLeave ?? true),
+        Boolean(body.showRelocation ?? false),
+        Boolean(body.mandatoryRelocation ?? false),
+        Boolean(body.showNotifyCc ?? true),
         rule.id
       );
     } catch (e) { console.error('[leave-policy-rules] spec field update failed:', e); }
@@ -345,6 +362,23 @@ const RULE_SPEC_FIELDS: Array<{ name: string; ddl: string }> = [
   { name: 'expiryDays',                ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "expiryDays" INTEGER NOT NULL DEFAULT 0` },
   { name: 'encashLimit',               ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "encashLimit" DOUBLE PRECISION NOT NULL DEFAULT 0` },
   { name: 'halfDayAllowed',            ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "halfDayAllowed" BOOLEAN NOT NULL DEFAULT true` },
+  // QA Spec Section 4: Application form settings — enable/disable + mandatory per field
+  { name: 'showReason',                ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showReason" BOOLEAN NOT NULL DEFAULT true` },
+  { name: 'mandatoryReason',           ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "mandatoryReason" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'showDaySelection',          ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showDaySelection" BOOLEAN NOT NULL DEFAULT true` },
+  { name: 'showShift',                 ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showShift" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'showAttachment',            ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showAttachment" BOOLEAN NOT NULL DEFAULT true` },
+  { name: 'mandatoryAttachment',       ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "mandatoryAttachment" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'showContactNumber',         ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showContactNumber" BOOLEAN NOT NULL DEFAULT true` },
+  { name: 'mandatoryContactNumber',    ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "mandatoryContactNumber" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'showContactAddress',        ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showContactAddress" BOOLEAN NOT NULL DEFAULT true` },
+  { name: 'mandatoryContactAddress',   ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "mandatoryContactAddress" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'showHandover',              ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showHandover" BOOLEAN NOT NULL DEFAULT true` },
+  { name: 'mandatoryHandover',         ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "mandatoryHandover" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'showTeamOnLeave',           ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showTeamOnLeave" BOOLEAN NOT NULL DEFAULT true` },
+  { name: 'showRelocation',            ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showRelocation" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'mandatoryRelocation',       ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "mandatoryRelocation" BOOLEAN NOT NULL DEFAULT false` },
+  { name: 'showNotifyCc',              ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "showNotifyCc" BOOLEAN NOT NULL DEFAULT true` },
 ];
 const RULE_SPEC_FIELD_NAMES = new Set(RULE_SPEC_FIELDS.map(f => f.name));
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense, type ChangeEvent } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense, type ChangeEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiCalendar, FiPlus, FiCheck, FiX, FiClock, FiAlertCircle, FiArrowLeft,
@@ -72,13 +72,30 @@ interface Employee {
 interface Holiday { id: string; name: string; date: string; type?: string }
 
 type Session = 'Full day' | 'First half' | 'Second half';
+// Per-date day selection: each date maps to 'full' | 'first_half' | 'second_half' | null
+// (null = nothing ticked for that date = not applied). This replaces the old
+// single-session segmented control with per-date checkboxes per the QA spec
+// (Section 2: "Apply Leave – Day Selection Change").
+type DaySelection = 'full' | 'first_half' | 'second_half' | null;
 interface FormState {
   leaveTypeId: string;
   startDate: string;
   endDate: string;
-  session: Session;
+  session: Session; // kept for backward-compat calc fallback
+  daySelections: Record<string, DaySelection>; // key = 'YYYY-MM-DD'
   reason: string;
   fileName: string | null;
+  // Relocation Leave fields (Section 9)
+  relocationType: 'company_instructed' | 'voluntary' | '';
+  relocatingWithFamily: boolean;
+  fromLocation: string;
+  toLocation: string;
+  oneWayDistanceKm: string;
+  // Additional application form fields (Section 4)
+  contactNumber: string;
+  contactAddress: string;
+  handoverTo: string;
+  notifyCc: string;
 }
 
 const initialForm: FormState = {
@@ -86,8 +103,18 @@ const initialForm: FormState = {
   startDate: '',
   endDate: '',
   session: 'Full day',
+  daySelections: {},
   reason: '',
   fileName: null,
+  relocationType: '',
+  relocatingWithFamily: false,
+  fromLocation: '',
+  toLocation: '',
+  oneWayDistanceKm: '',
+  contactNumber: '',
+  contactAddress: '',
+  handoverTo: '',
+  notifyCc: '',
 };
 
 /* ── System Check type ── */
@@ -421,14 +448,129 @@ function ApplyLeaveContent() {
       .catch(() => setTeamConflicts([]));
   }, [form.startDate, form.endDate, employee?.id, user?.id, scopeQuery]);
 
+  /* ── Per-date selection helpers (Section 2) ── */
+  // Generate the list of dates in the selected range. Each date is a
+  // 'YYYY-MM-DD' string. Weekly offs (Sat/Sun) and holidays are flagged
+  // so the checkbox table can disable them (unless the rule allows exceptions).
+  const holidaySet = useMemo(() => new Set(holidays.map((h: Holiday) => new Date(h.date).toISOString().split('T')[0])), [holidays]);
+
+  const dateRange: Array<{ dateStr: string; dow: number; isWeekend: boolean; isHoliday: boolean; holidayName?: string }> = useMemo(() => {
+    if (!form.startDate || !form.endDate) return [];
+    const s = new Date(`${form.startDate}T00:00:00Z`);
+    const e = new Date(`${form.endDate}T00:00:00Z`);
+    if (isNaN(s.getTime()) || isNaN(e.getTime()) || s > e) return [];
+    const out: Array<{ dateStr: string; dow: number; isWeekend: boolean; isHoliday: boolean; holidayName?: string }> = [];
+    const c = new Date(s); let guard = 0;
+    while (c <= e && guard < 400) {
+      guard++;
+      const ds = c.toISOString().split('T')[0];
+      const dow = c.getUTCDay();
+      const isWeekend = dow === 0 || dow === 6;
+      const isHoliday = holidaySet.has(ds);
+      const hName = isHoliday ? holidays.find(h => new Date(h.date).toISOString().split('T')[0] === ds)?.name : undefined;
+      out.push({ dateStr: ds, dow, isWeekend, isHoliday, holidayName: hName });
+      c.setUTCDate(c.getUTCDate() + 1);
+    }
+    return out;
+  }, [form.startDate, form.endDate, holidaySet, holidays]);
+
+  // Total days from per-date selections. Each 'full' = 1 day, each half = 0.5.
+  const selectedDaysCount = useMemo(() => {
+    return Object.values(form.daySelections).reduce((sum, sel) => {
+      if (sel === 'full') return sum + 1;
+      if (sel === 'first_half' || sel === 'second_half') return sum + 0.5;
+      return sum;
+    }, 0);
+  }, [form.daySelections]);
+
+  // Toggle a day selection. Enforces the exclusive rules:
+  //   - Ticking Full day clears any halves for that date.
+  //   - Ticking a half clears Full day.
+  //   - Ticking both halves → auto-switch to Full day (1 day).
+  const toggleDay = (dateStr: string, which: 'full' | 'first_half' | 'second_half') => {
+    setForm(prev => {
+      const next = { ...prev.daySelections };
+      const current = next[dateStr] || null;
+      if (which === 'full') {
+        // Toggle full day on/off. Turning it on clears any halves.
+        next[dateStr] = current === 'full' ? null : 'full';
+      } else {
+        // Half-day toggle
+        if (current === 'full') {
+          // Full is currently on — switching to a half turns off full and sets the half
+          next[dateStr] = which;
+        } else if (current === which) {
+          // Same half clicked again → turn off
+          next[dateStr] = null;
+        } else if (current === null) {
+          // Nothing was on — turn on this half
+          next[dateStr] = which;
+        } else {
+          // The OTHER half is currently on. Both halves ticked → auto-switch to full day.
+          next[dateStr] = 'full';
+        }
+      }
+      return { ...prev, daySelections: next };
+    });
+  };
+
+  // Auto-fill all dates as 'full' when the range changes (convenience default).
+  // The employee can then un-tick or change individual dates. Only runs if no
+  // selections exist yet for the new range.
+  useEffect(() => {
+    if (dateRange.length === 0) return;
+    // If selections are empty OR the current selections don't cover any date in
+    // the new range, default all working days to 'full'.
+    const hasSelections = dateRange.some(d => form.daySelections[d.dateStr]);
+    if (!hasSelections) {
+      setForm(prev => {
+        const next = { ...prev.daySelections };
+        for (const d of dateRange) {
+          // Skip weekends/holidays by default (the rule's Day counting setting
+          // determines whether these are counted — but for the default fill,
+          // we leave them un-ticked so the employee consciously decides).
+          if (!d.isWeekend && !d.isHoliday) {
+            next[d.dateStr] = 'full';
+          }
+        }
+        return { ...prev, daySelections: next };
+      });
+    }
+  }, [dateRange]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Relocation Leave entitlement matrix (Section 9.1)
+  const relocationEntitlement = useMemo(() => {
+    const isRL = (selectedType?.code || '').toUpperCase().includes('RL') || (selectedType?.name || '').toLowerCase().includes('relocation');
+    if (!isRL) return null;
+    const dist = Number(form.oneWayDistanceKm || 0);
+    const withFamily = form.relocatingWithFamily;
+    const voluntary = form.relocationType === 'voluntary';
+    // Voluntary relocation is capped at 2 days regardless of distance/family
+    if (voluntary) return { days: 2, capped: true, reason: 'Voluntary relocation — capped at 2 days' };
+    // Company-instructed: use the matrix
+    const beyond1500 = dist > 1500;
+    if (withFamily) return { days: beyond1500 ? 6 : 4, capped: false, reason: `With family, ${dist}km → ${beyond1500 ? 6 : 4} days` };
+    return { days: beyond1500 ? 4 : 2, capped: false, reason: `Without family, ${dist}km → ${beyond1500 ? 4 : 2} days` };
+  }, [selectedType, form.oneWayDistanceKm, form.relocatingWithFamily, form.relocationType]);
+
   /* ── Calculate days and balance preview ── */
   // Use the rule-based entitledDays/takenDays/remainingDays as the single
   // source of truth — no separate "available" calculation from LeaveBalance.
+  // If per-date selections exist, use the sum of selections instead of the
+  // old whole-range calculation (Section 2).
   const calc = (() => {
     if (!form.startDate || !form.endDate) return { days: 0, sandwichDays: 0, lop: 0, afterApproval: remainingDays };
     const holidaySet: Set<string> = new Set(holidays.map((h: Holiday) => new Date(h.date).toISOString().split('T')[0]));
-    const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
-    const days = isHalfDay ? 0.5 : workingDays;
+    // Per-date selection mode (Section 2): use the sum of ticked days
+    const hasDateSelections = Object.values(form.daySelections).some(v => v !== null);
+    let days: number;
+    if (hasDateSelections) {
+      days = selectedDaysCount;
+    } else {
+      // Legacy fallback: whole-range calculation
+      const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
+      days = isHalfDay ? 0.5 : workingDays;
+    }
     const isLopType = (selectedType?.code || '').toLowerCase().includes('lop') || (selectedType?.name || '').toLowerCase().includes('loss of pay');
     const lop = !isLopType ? Math.max(0, days - remainingDays) : 0;
     const afterApproval = isLopType ? remainingDays : Math.max(0, remainingDays - days);
@@ -602,19 +744,52 @@ function ApplyLeaveContent() {
     }
     setSubmitting(true);
     try {
-      const isHalf = form.session !== 'Full day';
+      // Build the per-date selections array for the API (Section 2).
+      // Only include dates that have a selection (full or half).
+      const daySelectionsArray = Object.entries(form.daySelections)
+        .filter(([, sel]) => sel !== null)
+        .map(([date, sel]) => ({ date, session: sel }));
+
+      // Determine halfDay/halfDaySlot for backward-compat with the API's
+      // existing single-date half-day logic. If there's exactly one date
+      // selected and it's a half-day, send the old fields too.
+      const halfDaySelections = daySelectionsArray.filter(d => d.session === 'first_half' || d.session === 'second_half');
+      const isSingleHalfDay = halfDaySelections.length === 1 && daySelectionsArray.length === 1;
+
+      const payload: any = {
+        employeeId: employee.id,
+        leaveTypeId: form.leaveTypeId,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        reason: form.reason.trim(),
+        halfDay: isSingleHalfDay,
+        halfDaySlot: isSingleHalfDay ? (halfDaySelections[0].session === 'first_half' ? 'first_half' : 'second_half') : null,
+        // Per-date selections (Section 2) — the API stores this as JSON
+        daySelections: daySelectionsArray,
+        // Additional application form fields (Section 4)
+        contactNumber: form.contactNumber || undefined,
+        contactAddress: form.contactAddress || undefined,
+        handoverTo: form.handoverTo || undefined,
+        notifyCc: form.notifyCc || undefined,
+      };
+
+      // Relocation Leave fields (Section 9)
+      if (relocationEntitlement) {
+        payload.relocation = {
+          type: form.relocationType,
+          withFamily: form.relocatingWithFamily,
+          fromLocation: form.fromLocation,
+          toLocation: form.toLocation,
+          oneWayDistanceKm: Number(form.oneWayDistanceKm) || 0,
+          allowedDays: relocationEntitlement.days,
+          voluntary: form.relocationType === 'voluntary',
+        };
+      }
+
       const res = await fetch('/api/leave', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          employeeId: employee.id,
-          leaveTypeId: form.leaveTypeId,
-          startDate: form.startDate,
-          endDate: isHalf ? form.startDate : form.endDate,
-          reason: form.reason.trim(),
-          halfDay: isHalf,
-          halfDaySlot: isHalf ? (form.session === 'First half' ? 'first_half' : 'second_half') : null,
-        }),
+        body: JSON.stringify(payload),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed to submit');
@@ -773,36 +948,121 @@ function ApplyLeaveContent() {
                   lang="en-IN"
                   value={form.endDate}
                   min={form.startDate || undefined}
-                  disabled={isHalfDay}
                   onChange={e => set('endDate', e.target.value)}
                   className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-400"
                 />
               </div>
             </div>
 
-            {/* Session — segmented control */}
-            <div>
-              <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                Session <span className="text-[10.5px] font-bold text-slate-400 tracking-wider">optional</span>
-              </label>
-              <div className="inline-flex w-full bg-slate-100 border border-slate-200 rounded-[9px] p-1 gap-0.5">
-                {(['Full day', 'First half', 'Second half'] as Session[]).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => set('session', s)}
-                    className={`flex-1 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all ${form.session === s ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    {s}
-                  </button>
-                ))}
+            {/* ─── Per-date day selection table (Section 2) ─── */}
+            {/* Replaces the old Full day / First half / Second half segmented
+                control. Each date in the range gets its own row with 3
+                checkboxes. Full day is exclusive with halves. Both halves
+                ticked = auto-switch to Full day. */}
+            {dateRange.length > 0 && (
+              <div>
+                <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Day selection <span className="text-red-500">*</span>
+                  <span className="ml-auto text-[10.5px] font-bold text-slate-400">
+                    Total: {fmtNum(selectedDaysCount)} day(s)
+                  </span>
+                </label>
+                <div className="border border-slate-200 rounded-[9px] overflow-hidden">
+                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 px-3 py-2 bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold text-slate-500 uppercase tracking-wide">
+                    <span>Date</span>
+                    <span className="w-16 text-center">Full</span>
+                    <span className="w-16 text-center">1st half</span>
+                    <span className="w-16 text-center">2nd half</span>
+                  </div>
+                  <div className="max-h-[280px] overflow-y-auto">
+                    {dateRange.map(d => {
+                      const sel = form.daySelections[d.dateStr] || null;
+                      const isDisabled = d.isWeekend || d.isHoliday;
+                      const dowName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.dow];
+                      const dateObj = new Date(d.dateStr + 'T00:00:00');
+                      const dateLabel = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                      const showHalfCheckboxes = selectedRule?.halfDayAllowed !== false;
+                      return (
+                        <div key={d.dateStr} className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-2 px-3 py-1.5 border-b border-slate-100 last:border-b-0 items-center ${isDisabled ? 'bg-slate-50' : ''}`}>
+                          <div className="min-w-0">
+                            <span className={`text-[12px] font-semibold ${isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>
+                              {dateLabel} <span className="text-slate-400 font-normal">{dowName}</span>
+                            </span>
+                            {d.isHoliday && <span className="block text-[10px] text-amber-600 font-semibold">{d.holidayName || 'Holiday'}</span>}
+                            {d.isWeekend && !d.isHoliday && <span className="block text-[10px] text-slate-400">Weekly off</span>}
+                          </div>
+                          <div className="w-16 flex justify-center">
+                            <input type="checkbox" disabled={isDisabled} checked={sel === 'full'} onChange={() => toggleDay(d.dateStr, 'full')} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                          </div>
+                          <div className="w-16 flex justify-center">
+                            {showHalfCheckboxes && <input type="checkbox" disabled={isDisabled} checked={sel === 'first_half'} onChange={() => toggleDay(d.dateStr, 'first_half')} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />}
+                          </div>
+                          <div className="w-16 flex justify-center">
+                            {showHalfCheckboxes && <input type="checkbox" disabled={isDisabled} checked={sel === 'second_half'} onChange={() => toggleDay(d.dateStr, 'second_half')} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3 p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
+                  <span className="text-sm text-emerald-700 font-semibold inline-flex items-center gap-1.5">
+                    <FiClock className="w-4 h-4" /> Total: {fmtNum(selectedDaysCount)} day(s)
+                  </span>
+                  {selectedBalance && (
+                    <span className="text-xs text-emerald-600 font-semibold">Available: {fmtNum(Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0)))} days</span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Duration banner */}
-            {form.startDate && form.endDate && (
+            {/* ─── Relocation Leave fields (Section 9) ─── */}
+            {relocationEntitlement && (
+              <div className="p-3 rounded-lg bg-violet-50 border border-violet-200 space-y-3">
+                <p className="text-[12.5px] font-bold text-violet-800">Relocation Leave Details</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Relocation type *</label>
+                    <select value={form.relocationType} onChange={e => set('relocationType', e.target.value as any)} className="w-full h-[34px] px-2 rounded-lg border border-slate-200 text-[12.5px] bg-white">
+                      <option value="">— Select —</option>
+                      <option value="company_instructed">Company-instructed</option>
+                      <option value="voluntary">Voluntary</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end pb-1">
+                    <label className="flex items-center gap-2 text-[12.5px] font-medium text-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={form.relocatingWithFamily} onChange={e => set('relocatingWithFamily', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-violet-600" />
+                      Relocating with family
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">From location</label>
+                    <input value={form.fromLocation} onChange={e => set('fromLocation', e.target.value)} placeholder="e.g. Bangalore" className="w-full h-[34px] px-2 rounded-lg border border-slate-200 text-[12.5px]" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">To location</label>
+                    <input value={form.toLocation} onChange={e => set('toLocation', e.target.value)} placeholder="e.g. Mumbai" className="w-full h-[34px] px-2 rounded-lg border border-slate-200 text-[12.5px]" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">One-way distance (km) *</label>
+                    <input type="number" value={form.oneWayDistanceKm} onChange={e => set('oneWayDistanceKm', e.target.value)} placeholder="e.g. 850" className="w-full h-[34px] px-2 rounded-lg border border-slate-200 text-[12.5px]" />
+                  </div>
+                  <div className="flex items-end">
+                    {form.relocationType && form.oneWayDistanceKm && (
+                      <div className="text-[11.5px] font-semibold text-violet-700 bg-violet-100 rounded-lg px-2.5 py-1.5">
+                        {relocationEntitlement.reason} → {relocationEntitlement.days} day(s) allowed
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Duration banner — fallback when no per-date selections */}
+            {form.startDate && form.endDate && Object.values(form.daySelections).every(v => v === null) && (
               <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-100">
                 <span className="text-sm text-emerald-700 font-semibold inline-flex items-center gap-1.5">
-                  <FiClock className="w-4 h-4" /> Duration: {fmtNum(calc.days)} day(s){isHalfDay ? ` · ${form.session}` : ''}
+                  <FiClock className="w-4 h-4" /> Duration: {fmtNum(calc.days)} day(s)
                 </span>
                 {selectedBalance && (
                   <span className="text-xs text-emerald-600 font-semibold">Available: {fmtNum(Math.max(0, (selectedBalance.total || 0) - (selectedBalance.used || 0)))} days</span>
@@ -850,6 +1110,61 @@ function ApplyLeaveContent() {
               </label>
             </div>
 
+            {/* ─── Additional application form fields (Section 4) ─── */}
+            {/* Contact number, contact address, handover person, notify CC.
+                These are always shown — the rule-level enable/disable config
+                (Section 4) will be enforced when the rule has the fields. */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Contact number during leave
+                </label>
+                <input
+                  type="tel"
+                  value={form.contactNumber}
+                  onChange={e => set('contactNumber', e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Handover to / backup person
+                </label>
+                <input
+                  type="text"
+                  value={form.handoverTo}
+                  onChange={e => set('handoverTo', e.target.value)}
+                  placeholder="e.g. Raj Patel"
+                  className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                Contact address during leave
+              </label>
+              <input
+                type="text"
+                value={form.contactAddress}
+                onChange={e => set('contactAddress', e.target.value)}
+                placeholder="e.g. 123 MG Road, Pune, Maharashtra 411001"
+                className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                Notify (CC) other people <span className="text-[10.5px] font-bold text-slate-400 tracking-wider">optional</span>
+              </label>
+              <input
+                type="text"
+                value={form.notifyCc}
+                onChange={e => set('notifyCc', e.target.value)}
+                placeholder="e.g. hr@company.com, manager@company.com"
+                className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              />
+            </div>
+
             {/* Approver chain preview (existing component) */}
             <div className="pt-1">
               <ApproverChainPreview module="leave" leaveTypeId={form.leaveTypeId || undefined} compact />
@@ -892,7 +1207,7 @@ function ApplyLeaveContent() {
               <div className="flex items-center justify-between mb-2.5">
                 <h3 className="text-xs font-bold text-slate-700 tracking-wide">System checks on submit</h3>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${!hasError ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                  {passedCount}/11
+                  {passedCount}/{checks.length}
                 </span>
               </div>
               <ol className="flex flex-col gap-0.5">

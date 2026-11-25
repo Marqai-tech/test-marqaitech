@@ -1092,6 +1092,56 @@ export async function POST(request: Request) {
       console.warn('[leave] Failed to set appliedByUserId/policy snapshot (non-fatal):', auditErr);
     }
 
+    // ─── QA Spec Section 2: per-date day selections ───────────────────
+    // Store the per-date checkbox selections (Full day / First half /
+    // Second half per date) as a JSON column on the LeaveRequest. The
+    // column is added via ALTER TABLE IF NOT EXISTS so it's safe on
+    // existing DBs. Also store the additional application form fields
+    // (Section 4) and relocation details (Section 9).
+    try {
+      // Ensure the new columns exist
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "daySelectionsJson" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "contactPhone" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "contactAddress" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "handoverTo" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "notifyCc" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "relocationDetailsJson" TEXT`);
+
+      const daySelJson = Array.isArray(body.daySelections) && body.daySelections.length > 0
+        ? JSON.stringify(body.daySelections) : null;
+      const relocJson = body.relocation ? JSON.stringify(body.relocation) : null;
+
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest"
+           SET "daySelectionsJson" = $1,
+               "contactPhone" = $2,
+               "contactAddress" = $3,
+               "handoverTo" = $4,
+               "notifyCc" = $5,
+               "relocationDetailsJson" = $6
+         WHERE id = $7`,
+        daySelJson,
+        body.contactNumber || null,
+        body.contactAddress || null,
+        body.handoverTo || null,
+        body.notifyCc || null,
+        relocJson,
+        leaveRequest.id
+      );
+    } catch (extraFieldsErr) {
+      console.warn('[leave] Failed to store per-date/relocation fields (non-fatal):', extraFieldsErr);
+    }
+
+    // ─── QA Spec Section 5: On Hold status support ────────────────────
+    // Ensure the LeaveRequest table accepts 'on_hold' as a valid status.
+    // The status column is TEXT (not an enum), so any value works. The
+    // PATCH /api/leave/[id] route handles the 'on_hold' transition.
+    // Also add the proposedHoldDatesJson + holdComments columns.
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "proposedHoldDatesJson" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "holdComments" TEXT`);
+    } catch { /* non-fatal */ }
+
     // ─── HR "Skip Approval" option ──────────────────────────────────────
     // When HR checks "Skip approval (auto-approve)" on the Apply Leave by HR
     // page, the leave is approved immediately — no manager approval needed.

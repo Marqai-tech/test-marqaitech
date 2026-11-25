@@ -959,6 +959,23 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
     carryForward: orig?.carryForwardToNextYear ?? false, cfMode: orig?.cfMode || 'Limited', cfDays: String(orig?.cfDays || ''),
     maxAccum: String(orig?.maxAccum || ''), expiryDays: String(orig?.expiryDays || ''),
     encash: orig?.leaveEncashmentApplicable ?? false, encashLimit: String(orig?.encashLimit || ''),
+    // Section 7: Application form settings (QA Spec Section 4) — default all visible + optional
+    showReason: (orig as any)?.showReason !== false,
+    mandatoryReason: (orig as any)?.mandatoryReason === true,
+    showDaySelection: (orig as any)?.showDaySelection !== false,
+    showShift: (orig as any)?.showShift === true,
+    showAttachment: (orig as any)?.showAttachment !== false,
+    mandatoryAttachment: (orig as any)?.mandatoryAttachment === true,
+    showContactNumber: (orig as any)?.showContactNumber !== false,
+    mandatoryContactNumber: (orig as any)?.mandatoryContactNumber === true,
+    showContactAddress: (orig as any)?.showContactAddress !== false,
+    mandatoryContactAddress: (orig as any)?.mandatoryContactAddress === true,
+    showHandover: (orig as any)?.showHandover !== false,
+    mandatoryHandover: (orig as any)?.mandatoryHandover === true,
+    showTeamOnLeave: (orig as any)?.showTeamOnLeave !== false,
+    showRelocation: (orig as any)?.showRelocation === true,
+    mandatoryRelocation: (orig as any)?.mandatoryRelocation === true,
+    showNotifyCc: (orig as any)?.showNotifyCc !== false,
   });
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1018,6 +1035,16 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
         cfMode: f.cfMode, cfDays: Number(f.cfDays) || 0,
         maxAccum: Number(f.maxAccum) || 0, expiryDays: Number(f.expiryDays) || 0,
         encashLimit: Number(f.encashLimit) || 0,
+        // Section 7: Application form settings (QA Spec Section 4)
+        showReason: f.showReason, mandatoryReason: f.mandatoryReason,
+        showDaySelection: f.showDaySelection, showShift: f.showShift,
+        showAttachment: f.showAttachment, mandatoryAttachment: f.mandatoryAttachment,
+        showContactNumber: f.showContactNumber, mandatoryContactNumber: f.mandatoryContactNumber,
+        showContactAddress: f.showContactAddress, mandatoryContactAddress: f.mandatoryContactAddress,
+        showHandover: f.showHandover, mandatoryHandover: f.mandatoryHandover,
+        showTeamOnLeave: f.showTeamOnLeave,
+        showRelocation: f.showRelocation, mandatoryRelocation: f.mandatoryRelocation,
+        showNotifyCc: f.showNotifyCc,
       };
       const sep = sq ? '&' + sq : '';
       // BUG FIX: There is no /api/leave-policy-rules/[id]/route.ts — the PUT
@@ -1040,7 +1067,7 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_300px] gap-5 items-start">
         {/* Left nav */}
         <nav className="hidden lg:block sticky top-4 bg-white border border-slate-100 rounded-2xl shadow-sm p-2">
-          {[{id:'ru-basic',l:'Rule details'},{id:'ru-ent',l:'Entitlement & credit'},{id:'ru-apply',l:'Applying rules'},{id:'ru-count',l:'Day counting'},{id:'ru-elig',l:'Eligibility'},{id:'ru-cf',l:'Carry forward & encash'}].map((it,i) => (
+          {[{id:'ru-basic',l:'Rule details'},{id:'ru-ent',l:'Entitlement & credit'},{id:'ru-apply',l:'Applying rules'},{id:'ru-count',l:'Day counting'},{id:'ru-elig',l:'Eligibility'},{id:'ru-cf',l:'Carry forward & encash'},{id:'ru-form',l:'Form settings'}].map((it,i) => (
             <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({behavior:'smooth',block:'start'})}>
               <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i+1}</span>{it.l}
             </a>
@@ -1138,6 +1165,68 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
               </div>
               <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3 border-b border-dashed border-slate-100"><div><b className="block text-[13px] font-bold">Leave encashment applicable?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">Unused days paid out at year end / exit</span></div>{yn('encash')}</div>
               {f.encash && <div className="py-3 bg-slate-50 rounded-xl p-3.5 border border-slate-100"><div className="grid grid-cols-2 gap-x-6">{fld('Encashment limit', true, undefined, undefined, false, <input type="number" className={inp} value={f.encashLimit} onChange={e => set('encashLimit', e.target.value)} placeholder="30"/>)}</div></div>}
+            </div>
+          )}
+
+          {/* Section 7: Application form settings (QA Spec Section 4) */}
+          {sec(7, 'Application form settings', 'Control which fields appear on the Apply Leave form for this rule.', 'ru-form',
+            <div className="space-y-0">
+              <p className="text-[11.5px] text-slate-500 mb-3">Each field has an <b>Enabled</b> toggle (show/hide on the form) and a <b>Mandatory</b> toggle (block submission if empty). Disabled fields are not shown to the employee.</p>
+              {/* Field toggle row helper */}
+              {(() => {
+                const fields: Array<{ key: string; label: string; canMandatory: boolean }> = [
+                  { key: 'showReason', label: 'Leave reason', canMandatory: true },
+                  { key: 'showDaySelection', label: 'Day selection checkboxes (Full / 1st half / 2nd half)', canMandatory: false },
+                  { key: 'showShift', label: 'Shift display', canMandatory: false },
+                  { key: 'showAttachment', label: 'Attachment / document upload', canMandatory: true },
+                  { key: 'showContactNumber', label: 'Contact number during leave', canMandatory: true },
+                  { key: 'showContactAddress', label: 'Contact address during leave', canMandatory: true },
+                  { key: 'showHandover', label: 'Handover to / backup person', canMandatory: true },
+                  { key: 'showTeamOnLeave', label: 'Team members on leave while applying', canMandatory: false },
+                  { key: 'showRelocation', label: 'Relocation fields (type, family, distance)', canMandatory: true },
+                  { key: 'showNotifyCc', label: 'Notify (CC) other people', canMandatory: false },
+                ];
+                return fields.map((field, i) => {
+                  const enabledKey = field.key;
+                  const mandatoryKey = field.key.replace('show', 'mandatory');
+                  const isEnabled = (f as any)[enabledKey] !== false; // default true
+                  const isMandatory = (f as any)[mandatoryKey] === true;
+                  return (
+                    <div key={field.key} className={`grid grid-cols-[1fr_auto_auto] gap-3 items-center py-2.5 ${i < fields.length - 1 ? 'border-b border-dashed border-slate-100' : ''}`}>
+                      <span className="text-[12.5px] font-semibold text-slate-700">{field.label}</span>
+                      {/* Enabled toggle */}
+                      <button
+                        type="button"
+                        onClick={() => set(enabledKey, !isEnabled)}
+                        className={`h-7 px-3 rounded-lg text-[11px] font-bold ${isEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
+                      >
+                        {isEnabled ? 'Enabled' : 'Hidden'}
+                      </button>
+                      {/* Mandatory toggle (only if the field can be mandatory AND is enabled) */}
+                      <button
+                        type="button"
+                        disabled={!field.canMandatory || !isEnabled}
+                        onClick={() => set(mandatoryKey, !isMandatory)}
+                        className={`h-7 px-3 rounded-lg text-[11px] font-bold ${!field.canMandatory || !isEnabled ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : isMandatory ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}
+                      >
+                        {isMandatory ? 'Mandatory' : 'Optional'}
+                      </button>
+                    </div>
+                  );
+                });
+              })()}
+              {/* Live summary of form settings */}
+              <div className="mt-3 p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-[11.5px] text-slate-600">
+                <b>Live preview:</b> {
+                  [
+                    (f as any).showReason !== false && ((f as any).mandatoryReason ? 'Reason mandatory' : 'Reason optional'),
+                    (f as any).showAttachment !== false && ((f as any).mandatoryAttachment ? 'Attachment required' : 'Attachment optional'),
+                    (f as any).showContactNumber === false && 'Contact number hidden',
+                    (f as any).showContactAddress === false && 'Contact address hidden',
+                    (f as any).showHandover === false && 'Handover hidden',
+                  ].filter(Boolean).join(' · ') || 'All fields shown (optional)'
+                }
+              </div>
             </div>
           )}
 
