@@ -38,11 +38,6 @@ const USER_CHILD_TABLES: string[] = [
   'InterviewPanelMember', 'SocialLike', 'DLPScanLog', 'WatermarkAccessLog', 'Contractor',
 ];
 
-type Delegate = {
-  findMany: (args: Record<string, unknown>) => Promise<Array<{ id: string }>>;
-  deleteMany: (args?: Record<string, unknown>) => Promise<{ count: number }>;
-};
-
 export async function DELETE(req: NextRequest) {
   const token = getTokenFromHeaders(req);
   const decoded = token ? await verifyToken(token) : null;
@@ -59,9 +54,6 @@ export async function DELETE(req: NextRequest) {
   // ─── Resolve the correct database for super_admin — EXACTLY like the
   // departments route: the company switcher's ?tenantId= / ?companyId= wins
   // over the JWT's tenant (which often points at a placeholder tenant).
-  // Plain getDb() would let the JWT tenant win on live, so a super admin
-  // deleting after switching scope would wipe the WRONG database and
-  // silently delete nothing.
   let db = await getDb(req);
   if (jwtRole === 'super_admin') {
     const url = new URL(req.url);
@@ -86,71 +78,105 @@ export async function DELETE(req: NextRequest) {
 
   const deleted: Record<string, number> = {};
   const failed: Record<string, string> = {};
-  // Prisma delegates are lowerFirst(model): Employee -> employee, JobApplication -> jobApplication.
+
+  // NOTE: `mode: 'insensitive'` is rejected by the driver-adapter tenant
+  // clients on this deployment (every email match failed with a Prisma
+  // validation error), so ALL email matching uses raw SQL LOWER() — the same
+  // pattern as the departments route. Table/column names come only from the
+  // static lists above; the email itself is always a bound $1 parameter.
+  const execRaw = async (sql: string, ...params: string[]): Promise<{ count: number; error?: Error }> => {
+    try {
+      const count = Number(await db.$executeRawUnsafe(sql, ...params));
+      return { count: Number.isFinite(count) ? count : 0 };
+    } catch (e) {
+      return { count: 0, error: e as Error };
+    }
+  };
+  const selRaw = async <T>(sql: string, ...params: string[]): Promise<T[]> => {
+    try {
+      return (await db.$queryRawUnsafe<T[]>(sql, ...params)) as T[];
+    } catch (e) {
+      fail('_lookup', e);
+      return [];
+    }
+  };
+  const fail = (model: string, e: unknown) => {
+    failed[model] = String((e as Error)?.message || e).slice(0, 160);
+  };
+  // Plain-scalar Prisma delete (id / fk IN (...) — no `mode` involved, safe
+  // on the adapter clients; same class of query the working APIs use).
+  type Delegate = { deleteMany: (args?: Record<string, unknown>) => Promise<{ count: number }> };
   const store = new Proxy(db as unknown as Record<string, Delegate>, {
     get: (target, prop: string) => target[prop.charAt(0).toLowerCase() + prop.slice(1)],
   });
-  const ins = { equals: normalizedEmail, mode: 'insensitive' as const };
-
   const del = async (model: string, where?: Record<string, unknown>) => {
     try {
       const r = await store[model].deleteMany(where);
       if (r.count) deleted[model] = (deleted[model] || 0) + Number(r.count);
     } catch (e) {
-      failed[model] = String((e as Error)?.message || e).slice(0, 160);
+      fail(model, e);
     }
   };
-  const ids = async (model: string, where: Record<string, unknown>): Promise<string[]> => {
-    try { return (await store[model].findMany({ where, select: { id: true } })).map(r => r.id); }
-    catch { return []; }
+  const delByEmail = async (table: string, column: string) => {
+    const { count, error } = await execRaw(`DELETE FROM "${table}" WHERE LOWER("${column}") = LOWER($1)`, normalizedEmail);
+    if (count > 0) deleted[table] = (deleted[table] || 0) + count;
+    else if (error) fail(table, error);
+  };
+  const idsByEmail = async (table: string, column: string): Promise<string[]> => {
+    const rows = await selRaw<{ id: string }>(`SELECT "id" FROM "${table}" WHERE LOWER("${column}") = LOWER($1)`, normalizedEmail);
+    return rows.map(r => String(r.id));
   };
 
   // ─── 1. Interview-session family (children keep sessionId FKs)
-  const sessionIds = await ids('InterviewSession', { candidateEmail: ins });
+  const sessionIds = await idsByEmail('InterviewSession', 'candidateEmail');
   for (const sid of sessionIds) {
     await del('InterviewResponse', { sessionId: sid });
     await del('ProctoringLog', { sessionId: sid });
   }
-  await del('InterviewSession', { candidateEmail: ins });
+  await delByEmail('InterviewSession', 'candidateEmail');
 
   // ─── 2. Job-application family (children keep jobApplicationId / interviewId)
-  const appIds = await ids('JobApplication', { candidateEmail: ins });
+  const appIds = await idsByEmail('JobApplication', 'candidateEmail');
   if (appIds.length) {
-    const interviewIds = await ids('Interview', { jobApplicationId: { in: appIds } });
+    const interviewRows = await selRaw<{ id: string }>(
+      `SELECT "id" FROM "Interview" WHERE "jobApplicationId" IN (${appIds.map((_, i) => `$${i + 1}`).join(',')})`,
+      ...appIds,
+    );
+    const interviewIds = interviewRows.map(r => String(r.id));
     for (const iid of interviewIds) await del('InterviewPanelMember', { interviewId: iid });
-    await del('Interview', { jobApplicationId: { in: appIds } });
+    if (interviewIds.length) await del('Interview', { id: { in: interviewIds } });
     await del('ResumeParse', { jobApplicationId: { in: appIds } });
     await del('CandidateSentimentScore', { jobApplicationId: { in: appIds } });
     await del('CandidateResumeOptimization', { jobApplicationId: { in: appIds } });
     await del('CandidateAiFeedback', { jobApplicationId: { in: appIds } });
   }
-  await del('JobApplication', { candidateEmail: ins });
+  await delByEmail('JobApplication', 'candidateEmail');
 
   // ─── 3. Offer family (OfferBranding / OfferApproval / OfferDeclineSurvey)
-  const offerIds = await ids('Offer', { candidateEmail: ins });
+  const offerIds = await idsByEmail('Offer', 'candidateEmail');
   if (offerIds.length) {
     await del('OfferBranding', { offerId: { in: offerIds } });
     await del('OfferApproval', { offerId: { in: offerIds } });
     await del('OfferDeclineSurvey', { offerId: { in: offerIds } });
   }
-  await del('Offer', { candidateEmail: ins });
+  await delByEmail('Offer', 'candidateEmail');
 
   // ─── 4. Preboarding family (BackgroundCheck / WelcomeSeriesEmail)
-  const preIds = await ids('PreboardingCandidate', { candidateEmail: ins });
+  const preIds = await idsByEmail('PreboardingCandidate', 'candidateEmail');
   if (preIds.length) {
     await del('BackgroundCheck', { preboardingCandidateId: { in: preIds } });
     await del('WelcomeSeriesEmail', { preboardingCandidateId: { in: preIds } });
   }
-  await del('PreboardingCandidate', { candidateEmail: ins });
+  await delByEmail('PreboardingCandidate', 'candidateEmail');
 
   // ─── 5. BGV family (children carry raw requestId columns, no relations)
-  const bgvIds = await ids('BgvRequest', { candidateEmail: ins });
+  const bgvIds = await idsByEmail('BgvRequest', 'candidateEmail');
   if (bgvIds.length) {
     for (const t of ['BgvEvidence', 'BgvCheck', 'BgvNotification', 'BgvReport', 'BgvAssignment', 'BgvDocumentShare']) {
       await del(t, { requestId: { in: bgvIds } });
     }
   }
-  await del('BgvRequest', { candidateEmail: ins });
+  await delByEmail('BgvRequest', 'candidateEmail');
 
   // ─── 6. Remaining candidate-side tables keyed directly by email
   for (const [t, col] of [
@@ -159,15 +185,16 @@ export async function DELETE(req: NextRequest) {
     ['CandidatePasswordReset', 'candidateEmail'], ['CandidateErasureRequest', 'candidateEmail'],
     ['CandidateJobAlert', 'candidateEmail'], ['CandidateConsent', 'candidateEmail'],
     ['CandidatePortalUser', 'email'], ['Candidate', 'email'],
-  ] as const) await del(t, { [col]: ins });
+  ] as const) await delByEmail(t, col);
 
   // ─── 7. Employee side: resolve the employee (and their user) by email
-  const userIds = (await store.User.findMany({ where: { email: ins }, select: { id: true } }).catch(() => [] as Array<{ id: string }>)).map(r => r.id);
-  const empRows = await store.Employee.findMany({
-    where: { OR: [{ email: ins }, ...(userIds.length ? [{ userId: { in: userIds } }] : [])] },
-    select: { id: true },
-  }).catch(() => [] as Array<{ id: string }>);
-  const empIds = empRows.map(r => r.id);
+  const userIds = (await selRaw<{ id: string }>(`SELECT "id" FROM "User" WHERE LOWER("email") = LOWER($1)`, normalizedEmail)).map(r => String(r.id));
+  const empRows = await selRaw<{ id: string }>(
+    `SELECT "id" FROM "Employee" WHERE LOWER("email") = LOWER($1)` +
+    (userIds.length ? ` OR "userId" IN (${userIds.map((_, i) => `$${i + 2}`).join(',')})` : ``),
+    normalizedEmail, ...userIds,
+  );
+  const empIds = empRows.map(r => String(r.id));
   if (empIds.length) {
     // Two passes: pass 1 removes children that block other children (FK order);
     // pass 2 picks up rows that became deletable afterwards.
