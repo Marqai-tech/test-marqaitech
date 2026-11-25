@@ -218,7 +218,7 @@ const INTERNAL_DOMAINS = [
   '3boxesconsulting.com', '3boxestechnologies.com',
 ];
 
-function isInternalEmail(email: string): boolean {
+export function isInternalEmail(email: string): boolean {
   const domain = email.split('@')[1]?.toLowerCase().trim() || '';
   return INTERNAL_DOMAINS.some(d => domain === d || domain.endsWith('.' + d));
 }
@@ -302,8 +302,17 @@ export async function sendEmail(
     }
   }
 
-  // ─── 2) env SMTP — last resort ───
-  const smtp = getSmtpTransport();
+  // ─── 2) env SMTP — last resort, INTERNAL recipients only ───
+  // Deliverability proof (2026-11-25): this relay (webhostbox) accepts every
+  // message with 250 OK but never delivers to external mailboxes — a polled
+  // external test mailbox stayed empty while Gmail OTP mails never arrived.
+  // Same-server internal delivery (e.g. @3boxeshrms.com) is its one working
+  // mode, so external recipients must NOT trust its "success" — they would
+  // get a fake "sent" while the mail vanishes. External sends fail honestly
+  // here so callers surface a real error instead of lying.
+  const toArr = Array.isArray(to) ? to : [to];
+  const allInternal = toArr.length > 0 && toArr.every((addr) => isInternalEmail(String(addr)));
+  const smtp = allInternal ? getSmtpTransport() : null;
   if (smtp) {
     const smtpFrom = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || sender;
     try {

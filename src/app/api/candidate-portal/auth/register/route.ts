@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       entityType: 'candidate_portal', entityId: email,
       status: 'info',
     });
+    console.log(`[RegisterRoute] delivery=${JSON.stringify(delivery)}`);
     if (!delivery.sent) return NextResponse.json({ error: 'We could not deliver the verification email. Please try again.' }, { status: 502 });
     return NextResponse.json({ ok: true, email, message: 'Verification code sent to your email.', expiresIn: 900, resendAfter: 60 });
   } catch (error: unknown) {

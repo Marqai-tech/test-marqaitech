@@ -16,6 +16,8 @@
  */
 import { renderPlaceholders, buildEmailHtml } from '@/lib/notification-render';
 import { resolveTemplate } from '@/lib/notification-center';
+// Used by the internal/external provider split below (same definition as email.ts).
+import { isInternalEmail } from '@/lib/email';
 
 export interface ConfiguredEmailParams {
   db: any;
@@ -96,32 +98,42 @@ export async function sendConfiguredEmail(params: ConfiguredEmailParams): Promis
       ? [...(Array.isArray(params.to) ? params.to : [params.to]), ...params.cc]
       : params.to;
 
-    // Provider order: per-tenant SMTP (CollaborationSettings — the relay that is
-    // actually configured with real credentials and PROVEN to deliver to real
-    // mailboxes, e.g. candidate OTP sign-in and employee invites) FIRST, then the
-    // global sender (env SMTP / Resend) as fallback. The previous global-first
-    // order let a misconfigured env SMTP relay "accept" the message without ever
-    // delivering it, so OTP emails vanished while every provider reported success.
+    // Provider order (fixed 2026-11-25 after deliverability proof): the global
+    // sender (Resend) is the ONLY provider proven to deliver to external
+    // mailboxes. The SMTP relay (both env SMTP_HOST and the seeded tenant
+    // CollaborationSettings pointed at webhostbox) ACCEPTS messages with
+    // 250 OK but never delivers them to external recipients — a test mailbox
+    // at an external provider stayed empty after 5 minutes of polling while
+    // every send reported success. That black hole is exactly why candidate
+    // OTP emails vanished while the UI claimed "Verification code sent".
+    // Tenant SMTP stays as a fallback ONLY for internal same-server recipients
+    // (its one reliably-working mode).
     let res: { success: boolean; error?: string } = { success: false, error: 'not attempted' };
     try {
-      const { sendTenantEmail } = await import('@/lib/notification-channels');
-      const fb = await sendTenantEmail(db, tenantId, { to: to as any, subject, html });
-      if (fb?.success) {
-        res = { success: true };
-      } else {
-        res = { success: false, error: `tenant SMTP: ${fb?.error || 'failed'}` };
-      }
-    } catch (fbErr: any) {
-      res = { success: false, error: `tenant SMTP error: ${fbErr?.message || fbErr}` };
-    }
-
-    if (!res.success) {
       const { sendEmail } = await import('@/lib/email');
       const g = await sendEmail({ to: to as any, subject, html });
       if (g.success) {
         res = { success: true };
       } else {
-        res = { success: false, error: `${res.error || 'tenant SMTP failed'}; global: ${g.error || 'failed'}` };
+        res = { success: false, error: `global sender: ${g.error || 'failed'}` };
+      }
+    } catch (gErr: any) {
+      res = { success: false, error: `global sender error: ${gErr?.message || gErr}` };
+    }
+
+    const toList = Array.isArray(to) ? to : [to];
+    const allInternal = toList.length > 0 && toList.every((addr) => isInternalEmail(String(addr)));
+    if (!res.success && allInternal) {
+      try {
+        const { sendTenantEmail } = await import('@/lib/notification-channels');
+        const fb = await sendTenantEmail(db, tenantId, { to: to as any, subject, html });
+        if (fb?.success) {
+          res = { success: true };
+        } else {
+          res = { success: false, error: `${res.error || 'global failed'}; tenant SMTP: ${fb?.error || 'failed'}` };
+        }
+      } catch (fbErr: any) {
+        res = { success: false, error: `${res.error || 'global failed'}; tenant SMTP error: ${fbErr?.message || fbErr}` };
       }
     }
 
@@ -150,6 +162,7 @@ export async function sendConfiguredEmail(params: ConfiguredEmailParams): Promis
     // Honest result: report what actually happened. Returning sent:true while
     // every provider failed made the UI show "Verification code sent" for an
     // email that never left the building (candidate register OTP bug).
+    console.log(`[ConfiguredEmail] eventKey=${eventKey} tplEnabled=${tpl.enabled} tplId=${tpl.id || '-'} res=${JSON.stringify(res)}`);
     return res.success
       ? { sent: true, subject }
       : { sent: false, subject, error: res.error };
