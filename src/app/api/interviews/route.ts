@@ -934,7 +934,34 @@ export async function PATCH(req: NextRequest) {
       // panel is done — e.g. 2 interviewers → both feedbacks received; a
       // single interviewer → that one feedback received. Otherwise the send
       // is rejected with the exact pending count.
+      // NOTE: the InterviewFeedback table is lazy-migrated on first feedback
+      // submit. If it does not exist yet, ZERO feedbacks have been submitted —
+      // that is a BLOCK, not an allow.
       try {
+        await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InterviewFeedback" (
+          "id" TEXT NOT NULL,
+          "interviewId" TEXT NOT NULL,
+          "userId" TEXT NOT NULL,
+          "technicalSkills" TEXT,
+          "communication" TEXT,
+          "experience" TEXT,
+          "problemSolving" TEXT,
+          "roleSuitability" TEXT,
+          "culturalFit" TEXT,
+          "strengths" TEXT,
+          "concerns" TEXT,
+          "rating" INT,
+          "recommendation" TEXT,
+          "comments" TEXT,
+          "interviewerName" TEXT,
+          "timestampSec" INT,
+          "sentiment" TEXT,
+          "body" TEXT,
+          "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "isFinal" BOOLEAN NOT NULL DEFAULT false,
+          "customFields" TEXT,
+          CONSTRAINT "InterviewFeedback_pkey" PRIMARY KEY ("id")
+        )`);
         const panelState = await db.$queryRawUnsafe(
           `SELECT pm."userId",
                   CASE WHEN f."id" IS NOT NULL THEN true ELSE false END AS "hasFeedback"
@@ -951,8 +978,17 @@ export async function PATCH(req: NextRequest) {
           );
         }
       } catch (gateErr) {
-        // If the panel table is missing entirely, allow the send (no panel to wait for)
-        console.warn('[Interviews PATCH] feedback gate check failed (allowing):', (gateErr as Error).message);
+        // Only a missing PANEL table means "nobody to wait for" — allow.
+        // Any other failure (e.g. InterviewFeedback still missing) must BLOCK,
+        // because "cannot read feedback" is not "all feedback received".
+        const gateMsg = String((gateErr as Error)?.message || '');
+        if (!/InterviewPanelMember/.test(gateMsg)) {
+          return NextResponse.json(
+            { error: 'Cannot verify panel feedback right now — send blocked. Please try again in a moment.' },
+            { status: 503, headers: corsHeaders() },
+          );
+        }
+        console.warn('[Interviews PATCH] panel table missing — no panel to wait for:', gateMsg);
       }
 
       // Lazy-migrate the final feedback columns (codebase pattern)
