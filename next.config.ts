@@ -14,10 +14,22 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    // Local LAN/WSL adapter IPs — browsing via "Network:" URL (e.g.
+    // http://172.22.144.1:3000) without these makes Next.js 16 block dev
+    // resources, which kills client-side hydration and the login form
+    // silently falls back to a native GET submit (GET /login?) that reloads
+    // the page instead of calling the API.
+    'http://172.22.144.1:3000',
+    '172.22.144.1',
     'https://test-marqaitech.vercel.app',
     'https://test-marqaitech-marshshaik-5449s-projects.vercel.app',
     'https://test-marqaitech-git-main-marshshaik-5449s-projects.vercel.app',
   ],
+  // FIX: pin the Turbopack workspace root. A stray package-lock.json in
+  // C:\Users\User made Turbopack infer the wrong root on Windows dev machines.
+  turbopack: {
+    root: __dirname,
+  },
   // Allow all subdomains of 3boxeshrms.com for image optimization and links
   images: {
     remotePatterns: [
