@@ -23,12 +23,13 @@ const { neon } = require('@neondatabase/serverless');
 
 async function main() {
   const connectionString =
-    // DATABASE_URL is the application database (tenant_marq) and must win —
-    // the Neon integration sets POSTGRES_PRISMA_URL / POSTGRES_URL to the
-    // default `neondb` database on the new Vercel account (2026-11-25).
-    process.env.DATABASE_URL ||
+    // POSTGRES_PRISMA_URL (Neon pooled) is the PLATFORM database (neondb) and
+    // wins — keep schema-sync on the same DB the app reads (src/lib/db.ts).
+    // 2026-11-25: briefly preferred DATABASE_URL (tenant_marq QA copy) which
+    // synced the QA database instead of the platform — reverted.
     process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL;
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL;
 
   if (!connectionString) {
     console.warn('[schema-sync] No DATABASE_URL — skipping schema sync.');

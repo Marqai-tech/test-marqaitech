@@ -30,13 +30,18 @@ const globalForDb = globalThis as unknown as {
   db: PrismaClient | undefined
 }
 
-// Priority: DATABASE_URL (the app's own database, e.g. tenant_marq) > POSTGRES_PRISMA_URL
-// (Neon integration pooled) > POSTGRES_URL.
-// 2026-11-25: the Neon integration on the new Vercel account sets POSTGRES_PRISMA_URL /
-// POSTGRES_URL to the project's DEFAULT `neondb` database. The application database is
-// DATABASE_URL (tenant_marq) — it must win, otherwise the whole app silently reads the
-// old platform database (neondb) and shows stale data.
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL
+// Priority: POSTGRES_PRISMA_URL (Neon pooled, the PLATFORM database `neondb`)
+// > POSTGRES_URL (Neon direct) > DATABASE_URL (fallback).
+// 2026-11-25 (restored): the platform DB must stay the real platform database
+// (`neondb` — Tenant "3 Boxes HRMS Demo" → group "TechCorp Global Group" with
+// TechCorp Global / ManufactPro Industries / HealthFirst Solutions). Commit
+// 685d112 briefly preferred DATABASE_URL (tenant_marq — the QA/seed database
+// holding the "Marq AI Tech Pvt Ltd" test tenant), which made the whole
+// platform show "Marq AI Tech" as the parent company instead of TechCorp
+// Global. QA still reaches tenant_marq locally via its own env vars, and a
+// tenant can always be routed to a dedicated DB through the TenantDatabase
+// registry (src/lib/tenant-db.ts) — never by repointing the platform DB.
+const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL
 
 // Safety log: print the connection string prefix so we can verify which DB is being used
 if (typeof window === 'undefined' && connectionString) {
