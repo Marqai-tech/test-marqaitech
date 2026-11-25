@@ -24,7 +24,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import ScheduleDrawer from './ScheduleDrawer';
+import ScheduleScreen from './ScheduleScreen';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -310,8 +310,10 @@ export default function InterviewsPage() {
   /* ── NEW LOCKED-3: HR final feedback composer (goes to the candidate) ── */
   const [finalFeedbackDraft, setFinalFeedbackDraft] = useState<{ interviewId: string; decision: string; feedback: string } | null>(null);
 
-  /* ── schedule drawer ── */
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  /* ── schedule sub-tab: the Schedule Interview screen is a SUB-TAB of this
+     page (a full-width page with room for panel conflict details), not a
+     right-side drawer/modal. ── */
+  const [pageTab, setPageTab] = useState<'list' | 'schedule'>('list');
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -477,7 +479,7 @@ export default function InterviewsPage() {
       if (!res.ok) throw new Error(data.error || 'Failed');
       toast.success('Interview cancelled. Now schedule the new slot.');
       fetchInterviews();
-      setDrawerOpen(true);
+      setPageTab('schedule');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');
     } finally { setActionLoading(null); }
@@ -597,6 +599,25 @@ export default function InterviewsPage() {
 
   /* ═══════════ RENDER ═══════════ */
 
+  /* ── Schedule Interview sub-tab ── */
+  if (pageTab === 'schedule') {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center text-[10.5px] text-slate-400 gap-1.5">
+          <span>Recruitment</span><span className="text-slate-300">/</span>
+          <button onClick={() => setPageTab('list')} className="font-semibold hover:text-green-700 transition">Scheduled Interviews</button>
+          <span className="text-slate-300">/</span>
+          <span className="font-semibold text-green-700">Schedule Interview</span>
+        </div>
+        <ScheduleScreen
+          interviews={interviews}
+          onScheduled={() => { fetchInterviews(); setPageTab('list'); }}
+          onBack={() => setPageTab('list')}
+        />
+      </div>
+    );
+  }
+
   /* ── Access gate ── */
   if (!isAdmin) {
     return (
@@ -715,14 +736,23 @@ export default function InterviewsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-[19px] font-bold text-slate-900 tracking-tight">Scheduled Interviews</h1>
-          <p className="text-[12px] text-slate-500 mt-0.5">Panel status, feedback, and final decisions — everything inline, nothing buried in modals.</p>
+          <p className="text-[12px] text-slate-500 mt-0.5">Panel acceptance, feedback, and final decisions — everything inline, nothing buried in modals.</p>
         </div>
-        <button
-          onClick={() => { setDrawerOpen(true); }}
-          className="inline-flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] bg-green-600 text-white text-[11.5px] font-bold hover:bg-green-700 transition shadow-sm shrink-0"
-        >
-          <FiCalendar className="w-3.5 h-3.5" /> Schedule Interview
-        </button>
+        {/* sub-tab switch: list | schedule */}
+        <div className="inline-flex rounded-[9px] border border-slate-300 bg-white p-0.5 shrink-0">
+          <button
+            onClick={() => setPageTab('list')}
+            className={`h-[28px] px-3 rounded-[7px] text-[11.5px] font-bold transition ${pageTab === 'list' ? 'bg-green-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+          >
+            All Interviews
+          </button>
+          <button
+            onClick={() => setPageTab('schedule')}
+            className={`h-[28px] px-3 rounded-[7px] text-[11.5px] font-bold inline-flex items-center gap-1.5 transition ${pageTab === 'schedule' ? 'bg-green-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+          >
+            <FiCalendar className="w-3 h-3" /> Schedule Interview
+          </button>
+        </div>
       </div>
 
       {/* KPI cards double as filters */}
@@ -909,6 +939,20 @@ export default function InterviewsPage() {
                       {/* status */}
                       <td className="px-2.5 py-2">
                         <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${stateChip.badge}`}>{stateChip.label}</span>
+                        {/* dynamic panel-acceptance for the next upcoming round */}
+                        {g.next && panel(g.next).length > 0 && (() => {
+                          const acc = panel(g.next).filter(p => p.confirmationStatus === 'accepted').length;
+                          const tot = panel(g.next).length;
+                          const all = acc === tot;
+                          return (
+                            <span
+                              title={`Panel acceptance for Round ${g.next.round || 1}: ${acc} of ${tot} interviewers accepted. The candidate is emailed only once all accept.`}
+                              className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold mt-1 ${all ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+                            >
+                              {all ? `Acceptance ${acc}/${tot}` : `Pending ${acc}/${tot} accepted`}
+                            </span>
+                          );
+                        })()}
                         {g.pendingDecisions > 0 && (
                           <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 mt-1">Decision pending</span>
                         )}
@@ -961,6 +1005,16 @@ export default function InterviewsPage() {
                           const st = STATUS_META[interview.status] || { label: interview.status, badge: 'bg-slate-100 text-slate-600 border-slate-200', border: 'border-l-slate-300' };
                           const wchip = whenChip(interview.date, interview.time);
                           const canComplete = interview.status === 'scheduled';
+                          // Dynamic panel-acceptance state (pending X of Y ↔ completed)
+                          const accCount = pm.filter(p => p.confirmationStatus === 'accepted').length;
+                          const decCount = pm.filter(p => p.confirmationStatus === 'declined').length;
+                          const pendCount = pm.length - accCount - decCount;
+                          const acceptanceDone = pm.length > 0 && accCount === pm.length;
+                          // Feedback gate: HR can send the consolidated feedback to the
+                          // candidate only after EVERY panel member has submitted.
+                          const fbReceived = pm.filter(p => p.hasFeedback).length;
+                          const feedbackAllIn = pm.length === 0 || fbReceived === pm.length;
+                          const roundsLeft = planTotal > 0 ? Math.max(planTotal - curRound, 0) : null;
                           return (
                           <div key={interview.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                           {/* round header — instant scannability */}
@@ -968,6 +1022,16 @@ export default function InterviewsPage() {
                             <span className="w-[24px] h-[24px] rounded-[7px] bg-green-600 text-white text-[10px] font-extrabold flex items-center justify-center shrink-0">R{curRound}</span>
                             <b className="text-[12px] text-slate-800">{typeLabel(interview.type)}</b>
                             <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${st.badge}`}>{st.label}</span>
+                            {/* dynamic panel acceptance — pending x/y or completed */}
+                            {pm.length > 0 && (interview.status === 'scheduled' || interview.status === 'rescheduled') && (
+                              <span
+                                title={`Panel acceptance: ${accCount} of ${pm.length} interviewers accepted${decCount ? `, ${decCount} declined` : ''}${pendCount ? `, ${pendCount} pending` : ''}. The candidate is emailed only once every interviewer accepts.`}
+                                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${acceptanceDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+                              >
+                                <FiUser className="w-2.5 h-2.5" />
+                                {acceptanceDone ? `Acceptance completed ${accCount}/${pm.length}` : `Acceptance pending ${accCount}/${pm.length}`}
+                              </span>
+                            )}
                             <span className="text-[10.5px] text-slate-500 whitespace-nowrap">{fmtWeekday(interview.date)}{interview.time ? ` · ${interview.time}` : ''}</span>
                             {wchip && (
                               <span className={`inline-flex items-center rounded border px-1 py-px text-[9.5px] font-extrabold ${wchip.cls}`}>{wchip.label}</span>
@@ -1216,15 +1280,24 @@ export default function InterviewsPage() {
 
                                 {/* NEW LOCKED-3: HR final feedback — written by HR, delivered to the
                                     candidate in the portal and by email. Individual interviewer
-                                    feedbacks stay internal. */}
+                                    feedbacks stay internal. GATED: unlocks only when every panel
+                                    member has submitted their feedback. */}
                                 {(interview.status === 'completed' || interview.status === 'scheduled' || interview.status === 'rescheduled') && (
                                   <div className="rounded-lg border border-teal-200 bg-teal-50/50 px-2.5 py-2 mb-2">
                                     <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-teal-800 mb-1">Final Feedback to Candidate</p>
+                                    <p className="text-[10px] text-teal-700 mb-1.5">
+                                      Round {curRound}{planTotal > 0 ? ` of ${planTotal}` : ''}{roundsLeft !== null ? ` — ${roundsLeft === 0 ? 'final round' : `${roundsLeft} round${roundsLeft === 1 ? '' : 's'} left after this`}` : ''}
+                                      {' · '}Panel feedback {fbReceived}/{pm.length || 0} received
+                                    </p>
                                     {(interview as any).finalFeedback ? (
                                       <div className="text-[10.5px] leading-relaxed text-slate-600">
                                         <p><b className="text-teal-700">Decision:</b> {{ cleared: 'Cleared', rejected: 'Rejected', next_round: 'Cleared for Next Round', on_hold: 'On Hold' }[(interview as any).finalDecision] || (interview as any).finalDecision}</p>
                                         <p className="whitespace-pre-wrap mt-0.5">{(interview as any).finalFeedback}</p>
                                         <p className="text-[9.5px] text-slate-400 mt-1">Sent to the candidate (portal + email)</p>
+                                      </div>
+                                    ) : !feedbackAllIn ? (
+                                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10.5px] text-amber-800 leading-relaxed">
+                                        <b>Locked — panel feedback pending:</b> {fbReceived} of {pm.length} interviewers have submitted. The candidate hears nothing until all feedbacks are in. Use <b>Send Reminder</b> to nudge the pending interviewer{pm.length - fbReceived > 1 ? 's' : ''}, then send the consolidated feedback.
                                       </div>
                                     ) : finalFeedbackDraft?.interviewId === interview.id ? (
                                       <div onClick={e => e.stopPropagation()}>
@@ -1433,13 +1506,6 @@ export default function InterviewsPage() {
         </div>
       </div>
 
-      {/* Schedule Interview slide-over drawer (replaces the old center modal) */}
-      <ScheduleDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        interviews={interviews}
-        onScheduled={() => fetchInterviews()}
-      />
     </div>
   );
 }

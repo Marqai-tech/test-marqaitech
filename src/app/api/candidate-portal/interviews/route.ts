@@ -58,7 +58,9 @@ export async function GET(req: NextRequest) {
         const interviews = await db.$queryRawUnsafe(
           `SELECT i."id", i."date", i."time", i."duration", i."type", i."location",
                   i."meetingUrl", i."status", i."instructions", i."mode",
-                  i."candidateAttendance",
+                  i."candidateAttendance", i."round",
+                  CASE WHEN jp."interviewPlan" IS NULL OR jp."interviewPlan" = '' THEN 0
+                       ELSE jsonb_array_length(jp."interviewPlan"::jsonb) END AS "planTotal",
                   i."finalFeedback", i."finalDecision", i."finalFeedbackAt",
                   ja."candidateName", ja."candidateEmail",
                   jp."title" AS "jobTitle"

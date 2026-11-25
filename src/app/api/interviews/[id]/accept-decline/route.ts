@@ -93,6 +93,21 @@ export async function POST(
       newStatus, reason || null, id, userId,
     );
 
+    // ─── PANEL ACCEPTANCE STATUS (dynamic, drives the candidate-mail gate) ───
+    // The candidate email is sent ONLY after EVERY panel member has accepted.
+    // Until then HR sees "pending X of Y" — e.g. 2 interviewers where 1 has
+    // accepted → "pending (1 of 2 accepted)"; a single interviewer accepting
+    // → acceptance completed and the candidate is notified immediately.
+    const panelRows = await db.$queryRawUnsafe(
+      `SELECT "userId", "status" FROM "InterviewPanelMember" WHERE "interviewId" = $1`,
+      id,
+    ) as any[];
+    const totalMembers = panelRows.length;
+    const acceptedMembers = panelRows.filter(p => p.status === 'accepted').length;
+    const declinedMembers = panelRows.filter(p => p.status === 'declined').length;
+    const pendingMembers = totalMembers - acceptedMembers - declinedMembers;
+    const allAccepted = totalMembers > 0 && acceptedMembers === totalMembers;
+
     // Fetch interview + candidate details for notifications
     const interviewRows = await db.$queryRawUnsafe(
       `SELECT i."date", i."time", i."type", i."duration", i."location", i."meetingUrl", i."round", ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle"
@@ -104,10 +119,10 @@ export async function POST(
     ) as any[];
     const interview = interviewRows[0];
 
-    // Candidate notification is sent only after an assigned interviewer has
-    // accepted the interview. Scheduling itself must not notify the candidate
-    // while the panel assignment is still pending confirmation.
-    if (action === 'accept' && interview?.candidateEmail) {
+    // Candidate notification is sent only when EVERY assigned interviewer has
+    // accepted the interview. One pending interviewer = still pending for HR;
+    // the candidate hears nothing until panel acceptance is complete.
+    if (action === 'accept' && allAccepted && interview?.candidateEmail) {
       try {
         const dateStr = interview.date
           ? new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -127,7 +142,7 @@ export async function POST(
           toName: interview.candidateName || undefined,
           vars: {
             Decision: `confirmed${roundLabel} — action required`,
-            Reason: `Your interviewer has accepted the ${interview.jobTitle || 'interview'} interview assignment (Type: ${typeLabel}). You must ACCEPT this interview in your candidate portal to confirm your participation. If you do not accept in time, the interview will be automatically cancelled. You will also receive daily reminders until you accept.`,
+            Reason: `All ${totalMembers} interviewer${totalMembers > 1 ? 's have' : ' has'} accepted your ${interview.jobTitle || 'interview'} interview (Type: ${typeLabel}). You must ACCEPT this interview in your candidate portal to confirm your participation. If you do not accept in time, the interview will be automatically cancelled. You will also receive daily reminders until you accept.`,
             Job_Title: interview.jobTitle || 'interview',
             Interview_Date: dateStr,
             Interview_Time: interview.time || 'TBD',
@@ -139,7 +154,7 @@ export async function POST(
         });
         const sent = result.sent;
         const error = result.error || result.skipped || '';
-        console.log(`[AcceptDecline] Candidate interview-confirmed email to ${interview.candidateEmail}: ${sent ? 'SENT' : 'FAILED'} — ${error}`);
+        console.log(`[AcceptDecline] Panel acceptance complete (${acceptedMembers}/${totalMembers}) — candidate interview-confirmed email to ${interview.candidateEmail}: ${sent ? 'SENT' : 'FAILED'} — ${error}`);
 
         // LOCKED-5: candidate acceptance deadline = interview date − 1 day.
         // The daily cron uses this to auto-cancel interviews the candidate
@@ -168,22 +183,26 @@ export async function POST(
         request_reschedule: 'Requested Reschedule',
       };
       const actionLabel = actionLabels[action] || action;
+      // Dynamic acceptance line so HR always knows the exact pending state.
+      const acceptanceLine = allAccepted
+        ? `Panel acceptance COMPLETED (${acceptedMembers}/${totalMembers} accepted) — candidate has been notified.`
+        : `Panel acceptance PENDING: ${acceptedMembers} of ${totalMembers} accepted${pendingMembers > 0 ? `, ${pendingMembers} still pending` : ''}${declinedMembers > 0 ? `, ${declinedMembers} declined` : ''}. Candidate email is held until every interviewer accepts.`;
 
       for (const hr of hrUsers) {
         const notif = await createNotification({
           tenantId: decoded.tenantId as string,
           userId: hr.id,
-          title: `Interview ${actionLabel}: ${interview?.candidateName || 'Candidate'}`,
-          message: `${memberName} has ${actionLabel.toLowerCase()} the interview for ${interview?.candidateName || 'the candidate'} (${interview?.jobTitle || 'position'}) on ${interview?.date ? new Date(interview.date).toLocaleDateString() : 'TBD'} at ${interview?.time || 'TBD'}.${reason ? ` Reason: ${reason}` : ''}`,
+          title: `Interview ${actionLabel} (${acceptedMembers}/${totalMembers}): ${interview?.candidateName || 'Candidate'}`,
+          message: `${memberName} has ${actionLabel.toLowerCase()} the interview for ${interview?.candidateName || 'the candidate'} (${interview?.jobTitle || 'position'}) on ${interview?.date ? new Date(interview.date).toLocaleDateString() : 'TBD'} at ${interview?.time || 'TBD'}. ${acceptanceLine}${reason ? ` Reason: ${reason}` : ''}`,
           type: action === 'accept' ? 'success' : 'warning',
           category: 'recruitment',
-          link: '/recruitment',
+          link: '/interviews',
         }).catch(() => null);
 
         if (notif?.id && hr.email) {
           await sendNotificationEmail(db, decoded.tenantId as string, notif, hr.email,
-            `Interview ${actionLabel}: ${interview?.candidateName || 'Candidate'}`,
-            `<p>${memberName} has ${actionLabel.toLowerCase()} the interview assignment.</p>${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}`
+            `Interview ${actionLabel} (${acceptedMembers}/${totalMembers}): ${interview?.candidateName || 'Candidate'}`,
+            `<p>${memberName} has ${actionLabel.toLowerCase()} the interview assignment.</p><p><strong>${acceptanceLine}</strong></p>${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}`
           ).catch(() => null);
         }
       }
@@ -199,7 +218,20 @@ export async function POST(
       },
     }).catch(() => null);
 
-    return NextResponse.json({ success: true, status: newStatus }, { headers: corsHeaders() });
+    return NextResponse.json({
+      success: true,
+      status: newStatus,
+      // Dynamic panel-acceptance state — the HR UI renders "pending X of Y"
+      // or "acceptance completed" straight from this payload.
+      panelAcceptance: {
+        accepted: acceptedMembers,
+        total: totalMembers,
+        pending: pendingMembers,
+        declined: declinedMembers,
+        allAccepted,
+        candidateNotified: action === 'accept' && allAccepted,
+      },
+    }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[AcceptDecline] error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

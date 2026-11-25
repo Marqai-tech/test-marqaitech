@@ -929,6 +929,32 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: `Decision must be one of: ${validDecisions.join(', ')}` }, { status: 400, headers: corsHeaders() });
       }
 
+      // ─── FEEDBACK GATE: every panel member must have submitted feedback ───
+      // HR can only send the consolidated feedback to the candidate once the
+      // panel is done — e.g. 2 interviewers → both feedbacks received; a
+      // single interviewer → that one feedback received. Otherwise the send
+      // is rejected with the exact pending count.
+      try {
+        const panelState = await db.$queryRawUnsafe(
+          `SELECT pm."userId",
+                  CASE WHEN f."id" IS NOT NULL THEN true ELSE false END AS "hasFeedback"
+             FROM "InterviewPanelMember" pm
+             LEFT JOIN "InterviewFeedback" f ON f."interviewId" = pm."interviewId" AND f."userId" = pm."userId"
+            WHERE pm."interviewId" = $1`, id,
+        ) as any[];
+        const totalPanel = panelState.length;
+        const gotFeedback = panelState.filter(p => p.hasFeedback).length;
+        if (totalPanel > 0 && gotFeedback < totalPanel) {
+          return NextResponse.json(
+            { error: `Cannot send yet — panel feedback pending: ${gotFeedback} of ${totalPanel} received. ${totalPanel - gotFeedback} interviewer${totalPanel - gotFeedback > 1 ? 's have' : ' has'} not submitted feedback. Use Send Reminder, then send the feedback once all are in.` },
+            { status: 409, headers: corsHeaders() },
+          );
+        }
+      } catch (gateErr) {
+        // If the panel table is missing entirely, allow the send (no panel to wait for)
+        console.warn('[Interviews PATCH] feedback gate check failed (allowing):', (gateErr as Error).message);
+      }
+
       // Lazy-migrate the final feedback columns (codebase pattern)
       try {
         await db.$executeRawUnsafe(`ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "finalFeedback" TEXT`);
@@ -946,7 +972,10 @@ export async function PATCH(req: NextRequest) {
       // interviews GET) + email with the decision and the feedback text.
       try {
         const candRows = await db.$queryRawUnsafe(
-          `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle", i."round"
+          `SELECT ja."candidateName", ja."candidateEmail", jp."title" AS "jobTitle",
+                  i."round",
+                  CASE WHEN jp."interviewPlan" IS NULL OR jp."interviewPlan" = '' THEN 0
+                       ELSE jsonb_array_length(jp."interviewPlan"::jsonb) END AS "planTotal"
              FROM "Interview" i
              JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
              LEFT JOIN "JobPosting" jp ON jp."id" = ja."jobPostingId"
@@ -960,6 +989,12 @@ export async function PATCH(req: NextRequest) {
             rejected: 'Not Selected',
             on_hold: 'On Hold',
           };
+          const curRound = Number(cand.round || 1);
+          const planTotal = Number(cand.planTotal || 0);
+          const roundsLeft = planTotal > 0 ? Math.max(planTotal - curRound, 0) : null;
+          const roundInfo = planTotal > 0
+            ? `Round ${curRound} of ${planTotal}${roundsLeft === 0 ? ' — final round' : ` — ${roundsLeft} round${roundsLeft === 1 ? '' : 's'} left`}`
+            : `Round ${curRound}`;
           await sendConfiguredEmail({
             db, tenantId: decoded.tenantId as string,
             module: 'recruitment', eventKey: 'recruitment.interview.final_feedback',
@@ -968,7 +1003,8 @@ export async function PATCH(req: NextRequest) {
             vars: {
               Decision: decisionLabel[finalDecision] || String(finalDecision),
               Job_Title: cand.jobTitle || 'the position',
-              Round: cand.round ? ` (Round ${cand.round})` : '',
+              Round: roundInfo,
+              Rounds_Left: roundsLeft === null ? 'N/A' : String(roundsLeft),
               Feedback_Text: String(finalFeedback),
               Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal/interviews`,
             },

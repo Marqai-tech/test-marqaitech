@@ -84,7 +84,7 @@ interface JobApplication {
   notes?: string | null;
   resume?: string | null;
   coverLetter?: string | null;
-  jobPosting?: { id: string; title: string };
+  jobPosting?: { id: string; title: string; departmentId?: string; department?: { id: string; name: string } | null };
   jobPostingId: string;
 }
 
@@ -830,10 +830,12 @@ function ResumeFilterView({ applications, jobPostings, departments, loading, sea
 /* routes to the existing PATCH /api/recruitment/[id] endpoint    */
 /* (which fires email notifications + in-app notifications).      */
 /* ═══════════════════════════════════════════════════════════════ */
-function KanbanPipelineView({ applications, onMove, isAdmin }: {
+function KanbanPipelineView({ applications, onMove, isAdmin, onSchedule }: {
   applications: JobApplication[];
   onMove: (appId: string, overrideStatus?: string) => Promise<void>;
   isAdmin: boolean;
+  /** Opens the Schedule Interview modal in the parent — the department is auto-selected from the candidate's job there. */
+  onSchedule: (app: JobApplication) => void;
 }) {
   const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
@@ -983,8 +985,9 @@ function KanbanPipelineView({ applications, onMove, isAdmin }: {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setScheduleAppId(app.id);
-                                    setScheduleAppDept(app.departmentId || app.jobPosting?.departmentId || '');
+                                    // Delegated to the parent: auto-selects the job's department
+                                    // and loads the department dropdown + panel list.
+                                    onSchedule(app);
                                   }}
                                   onDragStart={(e) => e.preventDefault()}
                                   className="text-[9px] font-semibold text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"
@@ -1507,7 +1510,17 @@ export default function RecruitmentPage() {
         const allApps: JobApplication[] = [];
         (data.jobPostings || []).forEach((j: JobPosting) => {
           if (j.applications) {
-            j.applications.forEach(a => allApps.push({ ...a, jobPosting: { id: j.id, title: j.title } }));
+            // Carry the job's department onto every flattened application — the
+            // Schedule Interview modal auto-selects the department from it.
+            allApps.push(...j.applications.map(a => ({
+              ...a,
+              jobPosting: {
+                id: j.id,
+                title: j.title,
+                departmentId: (j as unknown as { departmentId?: string }).departmentId,
+                department: (j as unknown as { department?: { id: string; name: string } | null }).department,
+              },
+            })));
           }
         });
         setApplications(allApps);
@@ -2577,6 +2590,13 @@ export default function RecruitmentPage() {
               applications={displayApplications}
               onMove={handleSaveAppStatus}
               isAdmin={isAdmin}
+              onSchedule={(app) => {
+                setScheduleAppId(app.id);
+                // Department auto-selected from the job the candidate applied to.
+                setScheduleAppDept(app.departmentId || app.jobPosting?.departmentId || '');
+                setSelectedPanelIds([]);
+                queueMicrotask(() => fetchModalDepartments());
+              }}
             />
           ) : urlView === 'interviews' ? (
             /* ═══ Interview Sync View (?view=interviews) ═══ */
