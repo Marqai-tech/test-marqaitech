@@ -236,44 +236,33 @@ export async function sendEmail(
   const sender = from || getEmailFromAddress();
   const recipients = Array.isArray(to) ? to.join(', ') : to;
 
-  // Task 167: Smart routing — internal emails via SMTP, external via Resend
-  // This ensures internal emails (marqaitech.com etc) go through the tenant
-  // SMTP server (which works for same-server delivery), while external emails
-  // (gmail.com etc) go through Resend (which has proper SPF/DKIM for delivery
-  // to external domains).
-  const recipientStr = Array.isArray(to) ? to[0] : to;
-  const useSmtp = isInternalEmail(recipientStr);
-  // Track whether the SMTP attempt actually happened and failed, so the
-  // placeholder-Resend branch below can report honestly without referencing
-  // the block-scoped `smtp` variable (which does not exist on the external
-  // recipient path — previously caused `ReferenceError: smtp is not defined`).
+  // Task 142 (restored): SMTP is the PRIMARY provider when configured — it has
+  // real credentials and a verified sending domain and delivers to ANY
+  // recipient. Resend stays as the fallback. Task 167's internal-only routing
+  // broke external delivery: candidate OTP / notification emails to gmail.com
+  // skipped SMTP entirely and died on the Resend sandbox (owner-only delivery),
+  // so verification codes never reached real candidates.
   let smtpFailed = false;
 
-  if (useSmtp) {
-    // ─── SMTP for internal domains ───
-    const smtp = getSmtpTransport();
-    if (smtp) {
-      const smtpFrom = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || sender;
-      try {
-        const info = await smtp.sendMail({
-          from: `${process.env.SMTP_FROM_NAME || '3Boxes HRMS'} <${smtpFrom}>`,
-          to,
-          subject,
-          html,
-        });
-        console.log(`[EmailService] ✉️  SMTP (internal) email sent to ${recipients} — Subject: "${subject}" — messageId: ${info?.messageId || 'n/a'}`);
-        return { success: true, usedFallbackFrom: false, via: 'smtp' };
-      } catch (smtpErr) {
-        const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
-        console.error(`[EmailService] SMTP send failed (host: ${process.env.SMTP_HOST}): ${msg}`);
-        console.warn('[EmailService] Falling back to Resend...');
-        smtpFailed = true;
-        // fall through to Resend
-      }
+  const smtp = getSmtpTransport();
+  if (smtp) {
+    const smtpFrom = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || sender;
+    try {
+      const info = await smtp.sendMail({
+        from: `${process.env.SMTP_FROM_NAME || '3Boxes HRMS'} <${smtpFrom}>`,
+        to,
+        subject,
+        html,
+      });
+      console.log(`[EmailService] ✉️  SMTP email sent to ${recipients} — Subject: "${subject}" — messageId: ${info?.messageId || 'n/a'}`);
+      return { success: true, usedFallbackFrom: false, via: 'smtp' };
+    } catch (smtpErr) {
+      const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
+      console.error(`[EmailService] SMTP send failed (host: ${process.env.SMTP_HOST}): ${msg}`);
+      console.warn('[EmailService] Falling back to Resend...');
+      smtpFailed = true;
+      // fall through to Resend
     }
-  } else {
-    // ─── Resend for external domains (gmail.com, yahoo.com, etc) ───
-    console.log(`[EmailService] → External recipient ${recipients} — using Resend (not SMTP)`);
   }
 
   // ─── 2) Resend (fallback) ───
@@ -302,8 +291,11 @@ export async function sendEmail(
 
   // If the resolved sender is already the sandbox, skip the primary attempt
   // and go straight to sandbox send (no point trying and failing first).
+  // NOTE: primaryTo (without RESEND_CC_EMAIL) — the sandbox can only deliver
+  // to the Resend account owner, and one non-owner CC recipient makes Resend
+  // reject the ENTIRE send.
   if (sender === RESEND_SANDBOX_FROM) {
-    return await sendWithSandbox(client, { to, subject, html }, true);
+    return await sendWithSandbox(client, { to: primaryTo, subject, html }, true);
   }
 
   try {
@@ -332,7 +324,7 @@ export async function sendEmail(
         console.warn(
           `[EmailService] Retrying with sandbox sender ${RESEND_SANDBOX_FROM}...`,
         );
-        return await sendWithSandbox(client, { to, subject, html }, false);
+        return await sendWithSandbox(client, { to: primaryTo, subject, html }, false);
       }
 
       const errorMsg =
@@ -362,7 +354,7 @@ export async function sendEmail(
       console.warn(
         `[EmailService] Retrying with sandbox sender ${RESEND_SANDBOX_FROM}...`,
       );
-      return await sendWithSandbox(client, { to, subject, html }, false);
+      return await sendWithSandbox(client, { to: primaryTo, subject, html }, false);
     }
 
     const message = err instanceof Error ? err.message : String(err);

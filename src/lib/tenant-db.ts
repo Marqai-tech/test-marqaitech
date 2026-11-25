@@ -447,7 +447,12 @@ export function disconnectTenantDb(tenantSlug: string) {
  */
 export async function getTenantSlugFromRequest(request: Request): Promise<string> {
   const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
-  if (isTestPlatformHost(reqHost)) return ''
+  // Test platform hosts resolve to the isolated test tenant — same rule as
+  // getDb() above. Returning '' here previously made every email/notification
+  // on the QA host run with an empty tenantId, so tenant-scoped SMTP
+  // (CollaborationSettings) could never load and candidate OTP emails were
+  // silently dropped to the global sandbox sender.
+  if (isTestPlatformHost(reqHost)) return process.env.TEST_TENANT_SLUG || 'test-marqaitech'
 
   // 1. Header from middleware
   const headerSlug = request.headers.get('x-tenant-slug')

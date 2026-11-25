@@ -136,7 +136,12 @@ export async function sendConfiguredEmail(params: ConfiguredEmailParams): Promis
         res.error = `${res.error || 'email failed'}; fallback failed: ${fbErr?.message || fbErr}`;
       }
     }
-    return { sent: true, subject };
+    // Honest result: report what actually happened. Returning sent:true while
+    // every provider failed made the UI show "Verification code sent" for an
+    // email that never left the building (candidate register OTP bug).
+    return res.success
+      ? { sent: true, subject }
+      : { sent: false, subject, error: res.error };
   } catch (e: any) {
     return { sent: false, error: e?.message || String(e) };
   }
