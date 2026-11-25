@@ -97,7 +97,24 @@ export async function sendTenantEmail(
     console.warn(`[NotificationCenter] Tenant SMTP circuit open for tenant ${tenantId} — skipping to fallback (will retry after ${SMTP_CIRCUIT_OPEN_MS / 60000} min)`);
   }
 
-  // 2) Environment SMTP fallback (breaker-aware)
+  // 2) Global Resend sender (breaker-aware — e.g. Resend sandbox mode only
+  // delivers to the account owner, so repeated failures must not slow
+  // every dispatch down). Resend runs BEFORE the env SMTP relay: the env
+  // relay (SMTP_HOST) has historically accepted messages without actually
+  // delivering them to external recipients, so it must stay the LAST resort.
+  if (isCircuitOpen(globalSenderBreaker)) {
+    console.warn('[NotificationCenter] Global sender circuit open — trying env SMTP fallback');
+  } else {
+    const res = await sendGlobalEmail(params);
+    if (res.success) {
+      recordSuccess(globalSenderBreaker);
+      return res;
+    }
+    recordFailure(globalSenderBreaker);
+    console.warn(`[NotificationCenter] Global sender failed (${(res as any).error || 'unknown'}) — trying env SMTP fallback`);
+  }
+
+  // 3) Environment SMTP fallback (breaker-aware) — LAST resort
   const envSettings = {
     emailIntegrationEnabled: true,
     emailProvider: 'smtp',
@@ -119,23 +136,17 @@ export async function sendTenantEmail(
         }
         recordFailure(envSmtpBreaker);
         console.warn(`[NotificationCenter] Local SMTP fallback failed (${(res as any).error})`);
+        return { success: false, error: `env SMTP: ${(res as any).error || 'failed'}` };
       } catch (e) {
         recordFailure(envSmtpBreaker);
         console.warn(`[NotificationCenter] Local SMTP fallback error: ${(e as Error).message}`);
+        return { success: false, error: `env SMTP error: ${(e as Error).message}` };
       }
     }
+    return { success: false, error: 'env SMTP circuit open after repeated failures' };
   }
 
-  // 3) Global Resend sender (breaker-aware — e.g. Resend sandbox mode only
-  // delivers to the account owner, so repeated failures must not slow
-  // every dispatch down)
-  if (isCircuitOpen(globalSenderBreaker)) {
-    return { success: false, error: 'Global email sender temporarily disabled after repeated failures (auto-retries in a few minutes)' };
-  }
-  const res = await sendGlobalEmail(params);
-  if (res.success) recordSuccess(globalSenderBreaker);
-  else recordFailure(globalSenderBreaker);
-  return res;
+  return { success: false, error: 'no email provider delivered (tenant SMTP, global sender and env SMTP all unavailable)' };
 }
 
 // Re-export for callers that already know they want the global sender

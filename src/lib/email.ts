@@ -236,14 +236,73 @@ export async function sendEmail(
   const sender = from || getEmailFromAddress();
   const recipients = Array.isArray(to) ? to.join(', ') : to;
 
-  // Task 142 (restored): SMTP is the PRIMARY provider when configured — it has
-  // real credentials and a verified sending domain and delivers to ANY
-  // recipient. Resend stays as the fallback. Task 167's internal-only routing
-  // broke external delivery: candidate OTP / notification emails to gmail.com
-  // skipped SMTP entirely and died on the Resend sandbox (owner-only delivery),
-  // so verification codes never reached real candidates.
+  // Provider order (candidate OTP incident 2026-11-25):
+  //   1) Resend — the only provider PROVEN to deliver to real external
+  //      mailboxes (BGV / welcome emails arrive via Resend; the env SMTP relay
+  //      accepts messages but does NOT deliver them to external recipients).
+  //   2) env SMTP — last resort (mainly for internal same-server delivery).
+  // Callers get an honest failure when both real providers fail, so the UI can
+  // surface a real error instead of "code sent" for an email that never left.
+  let resendError: string | undefined;
   let smtpFailed = false;
 
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!isPlaceholderResendKey(resendKey)) {
+    const client = getResendClient();
+    if (client) {
+      // If the resolved sender is already the sandbox, skip the primary attempt
+      // and go straight to sandbox send (no point trying and failing first).
+      // NOTE: primaryTo (without RESEND_CC_EMAIL) — the sandbox can only deliver
+      // to the Resend account owner, and one non-owner CC recipient makes Resend
+      // reject the ENTIRE send.
+      if (sender === RESEND_SANDBOX_FROM) {
+        return await sendWithSandbox(client, { to: primaryTo, subject, html }, true);
+      }
+
+      try {
+        const result = await client.emails.send({
+          from: sender,
+          to,
+          subject,
+          html,
+        });
+
+        // Resend SDK v2+ returns { data, error } — check for API-level errors
+        if (result.error) {
+          logResendError(`Primary send failed from "${sender}"`, result.error);
+
+          // If this is a domain/sender verification error, retry with sandbox
+          if (isDomainVerificationError(result.error)) {
+            console.warn(`[EmailService] ⚠️  Domain verification failed for "${sender}".`);
+            console.warn(`[EmailService] ⚠️  ADMIN ACTION REQUIRED: Verify your domain at https://resend.com/domains`);
+            console.warn(`[EmailService] ⚠️  Then set RESEND_FROM_EMAIL=noreply@your-verified-domain.com`);
+            console.warn(`[EmailService] Retrying with sandbox sender ${RESEND_SANDBOX_FROM}...`);
+            return await sendWithSandbox(client, { to: primaryTo, subject, html }, false);
+          }
+
+          resendError = (result.error as Record<string, unknown>)?.message?.toString() || 'Resend send failed';
+        } else {
+          console.log(`[EmailService] ✉️  Email sent to ${recipients} — Subject: "${subject}" — From: "${sender}"`);
+          return { success: true, usedFallbackFrom: false };
+        }
+      } catch (err) {
+        logResendError(`Exception during primary send from "${sender}"`, err);
+
+        // If this looks like a domain verification error, retry with sandbox
+        if (isDomainVerificationError(err)) {
+          console.warn(`[EmailService] ⚠️  Domain verification exception for "${sender}".`);
+          console.warn(`[EmailService] ⚠️  ADMIN ACTION REQUIRED: Verify your domain at https://resend.com/domains`);
+          console.warn(`[EmailService] ⚠️  Then set RESEND_FROM_EMAIL=noreply@your-verified-domain.com`);
+          console.warn(`[EmailService] Retrying with sandbox sender ${RESEND_SANDBOX_FROM}...`);
+          return await sendWithSandbox(client, { to: primaryTo, subject, html }, false);
+        }
+
+        resendError = err instanceof Error ? err.message : String(err);
+      }
+    }
+  }
+
+  // ─── 2) env SMTP — last resort ───
   const smtp = getSmtpTransport();
   if (smtp) {
     const smtpFrom = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || sender;
@@ -259,107 +318,23 @@ export async function sendEmail(
     } catch (smtpErr) {
       const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
       console.error(`[EmailService] SMTP send failed (host: ${process.env.SMTP_HOST}): ${msg}`);
-      console.warn('[EmailService] Falling back to Resend...');
       smtpFailed = true;
-      // fall through to Resend
     }
   }
 
-  // ─── 2) Resend (fallback) ───
-  const resendKey = process.env.RESEND_API_KEY;
-  if (isPlaceholderResendKey(resendKey)) {
-    if (smtpFailed) {
-      // SMTP was configured but failed AND Resend is a placeholder — report failure honestly.
-      return { success: false, error: 'SMTP send failed and no working Resend key is configured', usedFallbackFrom: false };
-    }
-    // Dev mode: no provider at all — log the email so the flow doesn't break.
-    console.log(`[EmailService DEV] To: ${recipients} | Subject: ${subject}`);
-    console.log(`[EmailService DEV] From: ${sender}`);
-    return { success: true, usedFallbackFrom: false };
+  if (resendError || smtpFailed) {
+    // Both real providers failed — report honestly so callers surface the error
+    // instead of pretending the email was sent.
+    const parts: string[] = [];
+    if (resendError) parts.push(`Resend: ${resendError}`);
+    if (smtpFailed) parts.push('SMTP: send failed');
+    return { success: false, error: parts.join('; '), usedFallbackFrom: false };
   }
 
-  const client = getResendClient();
-
-  if (!client) {
-    // Dev mode: no API key — just log the email details so the flow doesn't break
-    console.log(`[EmailService DEV] To: ${recipients} | Subject: ${subject}`);
-    console.log(`[EmailService DEV] From: ${sender}`);
-    // In dev mode, we consider it "sent" so the UI flow doesn't break.
-    // Not a fallback scenario — there's no API key at all.
-    return { success: true, usedFallbackFrom: false };
-  }
-
-  // If the resolved sender is already the sandbox, skip the primary attempt
-  // and go straight to sandbox send (no point trying and failing first).
-  // NOTE: primaryTo (without RESEND_CC_EMAIL) — the sandbox can only deliver
-  // to the Resend account owner, and one non-owner CC recipient makes Resend
-  // reject the ENTIRE send.
-  if (sender === RESEND_SANDBOX_FROM) {
-    return await sendWithSandbox(client, { to: primaryTo, subject, html }, true);
-  }
-
-  try {
-    const result = await client.emails.send({
-      from: sender,
-      to,
-      subject,
-      html,
-    });
-
-    // Resend SDK v2+ returns { data, error } — check for API-level errors
-    if (result.error) {
-      logResendError(`Primary send failed from "${sender}"`, result.error);
-
-      // If this is a domain/sender verification error, retry with sandbox
-      if (isDomainVerificationError(result.error)) {
-        console.warn(
-          `[EmailService] ⚠️  Domain verification failed for "${sender}".`,
-        );
-        console.warn(
-          `[EmailService] ⚠️  ADMIN ACTION REQUIRED: Verify your domain at https://resend.com/domains`,
-        );
-        console.warn(
-          `[EmailService] ⚠️  Then set RESEND_FROM_EMAIL=noreply@your-verified-domain.com`,
-        );
-        console.warn(
-          `[EmailService] Retrying with sandbox sender ${RESEND_SANDBOX_FROM}...`,
-        );
-        return await sendWithSandbox(client, { to: primaryTo, subject, html }, false);
-      }
-
-      const errorMsg =
-        (result.error as Record<string, unknown>)?.message?.toString() || 'Resend send failed';
-      return { success: false, error: errorMsg, usedFallbackFrom: false };
-    }
-
-    const recipients = Array.isArray(to) ? to.join(', ') : to;
-    console.log(
-      `[EmailService] ✉️  Email sent to ${recipients} — Subject: "${subject}" — From: "${sender}"`,
-    );
-    return { success: true, usedFallbackFrom: false };
-  } catch (err) {
-    logResendError(`Exception during primary send from "${sender}"`, err);
-
-    // If this looks like a domain verification error, retry with sandbox
-    if (isDomainVerificationError(err)) {
-      console.warn(
-        `[EmailService] ⚠️  Domain verification exception for "${sender}".`,
-      );
-      console.warn(
-        `[EmailService] ⚠️  ADMIN ACTION REQUIRED: Verify your domain at https://resend.com/domains`,
-      );
-      console.warn(
-        `[EmailService] ⚠️  Then set RESEND_FROM_EMAIL=noreply@your-verified-domain.com`,
-      );
-      console.warn(
-        `[EmailService] Retrying with sandbox sender ${RESEND_SANDBOX_FROM}...`,
-      );
-      return await sendWithSandbox(client, { to: primaryTo, subject, html }, false);
-    }
-
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, error: message, usedFallbackFrom: false };
-  }
+  // Dev mode: no provider configured at all — log the email so local flows don't break.
+  console.log(`[EmailService DEV] To: ${recipients} | Subject: ${subject}`);
+  console.log(`[EmailService DEV] From: ${sender}`);
+  return { success: true, usedFallbackFrom: false };
 }
 
 /**

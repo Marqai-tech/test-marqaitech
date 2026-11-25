@@ -96,8 +96,34 @@ export async function sendConfiguredEmail(params: ConfiguredEmailParams): Promis
       ? [...(Array.isArray(params.to) ? params.to : [params.to]), ...params.cc]
       : params.to;
 
-    const { sendEmail } = await import('@/lib/email');
-    const res = await sendEmail({ to: to as any, subject, html });
+    // Provider order: per-tenant SMTP (CollaborationSettings — the relay that is
+    // actually configured with real credentials and PROVEN to deliver to real
+    // mailboxes, e.g. candidate OTP sign-in and employee invites) FIRST, then the
+    // global sender (env SMTP / Resend) as fallback. The previous global-first
+    // order let a misconfigured env SMTP relay "accept" the message without ever
+    // delivering it, so OTP emails vanished while every provider reported success.
+    let res: { success: boolean; error?: string } = { success: false, error: 'not attempted' };
+    try {
+      const { sendTenantEmail } = await import('@/lib/notification-channels');
+      const fb = await sendTenantEmail(db, tenantId, { to: to as any, subject, html });
+      if (fb?.success) {
+        res = { success: true };
+      } else {
+        res = { success: false, error: `tenant SMTP: ${fb?.error || 'failed'}` };
+      }
+    } catch (fbErr: any) {
+      res = { success: false, error: `tenant SMTP error: ${fbErr?.message || fbErr}` };
+    }
+
+    if (!res.success) {
+      const { sendEmail } = await import('@/lib/email');
+      const g = await sendEmail({ to: to as any, subject, html });
+      if (g.success) {
+        res = { success: true };
+      } else {
+        res = { success: false, error: `${res.error || 'tenant SMTP failed'}; global: ${g.error || 'failed'}` };
+      }
+    }
 
     // Best-effort delivery log (Notification Center delivery history)
     try {
@@ -121,21 +147,6 @@ export async function sendConfiguredEmail(params: ConfiguredEmailParams): Promis
       });
     } catch { /* delivery log best-effort */ }
 
-    if (!res.success) {
-      // Fallback: tenant SMTP via notification-channels (matches legacy behavior)
-      try {
-        const { sendTenantEmail } = await import('@/lib/notification-channels');
-        const fb = await sendTenantEmail(db, tenantId, { to: to as any, subject, html });
-        if (fb?.success) {
-          res.success = true;
-          res.error = undefined;
-        } else {
-          res.error = `${res.error || 'email failed'}; fallback: ${fb?.error || 'failed'}`;
-        }
-      } catch (fbErr: any) {
-        res.error = `${res.error || 'email failed'}; fallback failed: ${fbErr?.message || fbErr}`;
-      }
-    }
     // Honest result: report what actually happened. Returning sent:true while
     // every provider failed made the UI show "Verification code sent" for an
     // email that never left the building (candidate register OTP bug).
