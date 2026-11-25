@@ -62,7 +62,13 @@ export function isTestPlatformHost(host: string): boolean {
     h === 'test-marqaitech-marshshaik-5449s-projects.vercel.app' ||
     h === 'test-marqaitech-git-main-marshshaik-5449s-projects.vercel.app' ||
     h === '3boxes-hrms.vercel.app' ||
-    h === '3boxes-hrms-beta.vercel.app'
+    h === '3boxes-hrms-beta.vercel.app' ||
+    // New Vercel account (team: hrms / hrms-a6b1) — added 2026-11-25.
+    // Stable production alias, plus any deployment/preview URL of the
+    // 3boxes-hrms-* projects. Test-platform rules apply exactly like the
+    // old account hosts above; 3boxeshrms.com is never matched by this.
+    h === '3boxes-hrms-inky.vercel.app' ||
+    (h.startsWith('3boxes-hrms-') && h.endsWith('.vercel.app'))
   );
 }
 
