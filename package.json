@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "prisma generate && node scripts/ensure-prisma-runtime.mjs",
     "dev": "next dev",
     "build": "prisma generate && node scripts/ensure-prisma-runtime.mjs && (command -v python3 >/dev/null 2>&1 && python3 scripts/gen-missing-tables.py || echo '[build] Skipping gen-missing-tables.py') && node scripts/schema-sync.js && next build --webpack",
     "schema:sync": "python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js",
