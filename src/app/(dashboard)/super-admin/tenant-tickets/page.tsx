@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -68,13 +68,13 @@ export default function TenantTicketsPage() {
       const filtered = raw.filter((t: any) => {
         // Exclude if tenant slug is hidden
         if (t.tenant?.slug && isTenantHiddenClient(t.tenant.slug)) return false;
-        // Exclude if tenant name matches placeholder
-        if ((t.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)) return false;
+        // Exclude if tenant name matches placeholder (LIVE-ONLY check)
+        if (isPlaceholderNamedTenant(t.tenant?.name)) return false;
         // Exclude orphan tickets with no tenant info (likely dummy/seed data)
         if (!t.tenant && (!t.tenantName || t.tenantName === 'Unknown')) {
           // Also check requesterName for hidden tenant names
           const requesterName = String(t.requesterName || '');
-          if (requesterName.includes(PLATFORM_PLACEHOLDER_NAME)) return false;
+          if (isPlaceholderNamedTenant(requesterName)) return false;
           // Exclude obvious dummy subjects
           const subject = String(t.subject || '').toLowerCase();
           if (subject.includes('test ticket') || subject.includes('dummy') || subject.includes('sample')) return false;

@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -75,7 +75,7 @@ export default function TenantConfigurationPage() {
       if (tenantsRes.ok) {
         const data = await tenantsRes.json();
         tenantList = (data.tenants || []).filter((t: Tenant) =>
-          !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+          !isTenantHiddenClient(t.slug) && !isPlaceholderNamedTenant(t.name)
         );
         setTenants(tenantList);
       }

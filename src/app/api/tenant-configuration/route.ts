@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
-import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getServerHiddenSlugs, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -302,8 +302,10 @@ export async function GET(request: Request) {
         },
       });
       return NextResponse.json({
+        // Placeholder-name hiding is LIVE-ONLY — the test tenant `marq` is
+        // legitimately named "Marq AI Tech Pvt Ltd" and must stay visible.
         configurations: configurations.filter((config) =>
-          !config.tenant.name.includes(PLATFORM_PLACEHOLDER_NAME)
+          !isPlaceholderNamedTenant(config.tenant.name, request)
         ),
       }, { headers: corsHeaders() });
     }

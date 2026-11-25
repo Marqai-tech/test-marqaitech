@@ -68,7 +68,7 @@ async function countDedicatedTenant(slug: string) {
  */
 export async function getTenantDashboardCounts(
   platformDb: PrismaClient,
-  tenantFilter: { slug: { notIn: string[] }; NOT: { name: { contains: string } } },
+  tenantFilter: { slug: { notIn: string[] }; NOT?: { name: { contains: string } } },
   options: { allowRefresh: boolean },
 ): Promise<TenantCountResult> {
   await ensureTable(platformDb);

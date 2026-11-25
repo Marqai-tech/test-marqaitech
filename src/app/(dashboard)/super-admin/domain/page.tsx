@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -80,7 +80,7 @@ export default function DomainPage() {
 
       // ALWAYS filter out hidden tenants (platform placeholder, demo) — never show Marq AI Tech
       const filtered = tenants.filter((t: TenantRecord) =>
-        !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        !isTenantHiddenClient(t.slug) && !isPlaceholderNamedTenant(t.name)
       );
 
       const mapped: Domain[] = filtered.map((t: TenantRecord) => ({

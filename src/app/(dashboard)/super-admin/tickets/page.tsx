@@ -7,7 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -68,7 +68,7 @@ export default function TicketsPage() {
 
       // ALWAYS filter out hidden tenants — never show Marq AI Tech
       const filtered = raw.filter((t: any) =>
-        !isTenantHiddenClient(t.tenant?.slug || '') && !(t.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        !isTenantHiddenClient(t.tenant?.slug || '') && !isPlaceholderNamedTenant(t.tenant?.name)
       );
 
       const mapped: PlatformTicket[] = filtered.map((t: any) => ({

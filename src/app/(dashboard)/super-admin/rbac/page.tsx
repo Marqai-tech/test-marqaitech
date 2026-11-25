@@ -8,7 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 
 // ─── Auth Headers ──────────────────────────────────────────
 const getAuthHeaders = () => {
@@ -161,7 +161,7 @@ export default function SuperAdminRBACPage() {
         // Filter out roles belonging to hidden tenants
         const visibleRoles = (data.roles || []).filter((r: Role) => {
           if (!r.tenant) return true; // Global roles always visible
-          return !isTenantHiddenClient(r.tenant.slug) && !(r.tenant.name || '').includes(PLATFORM_PLACEHOLDER_NAME);
+          return !isTenantHiddenClient(r.tenant.slug) && !isPlaceholderNamedTenant(r.tenant.name);
         });
         setRoles(visibleRoles);
         if (data.needsSeed) {
@@ -215,7 +215,7 @@ export default function SuperAdminRBACPage() {
         // Filter out users belonging to hidden/demo tenants
         userList = userList.filter((u: UserWithRoles) => {
           if (!u.tenant) return true;
-          return !isTenantHiddenClient(u.tenant.slug) && !(u.tenant.name || '').includes(PLATFORM_PLACEHOLDER_NAME);
+          return !isTenantHiddenClient(u.tenant.slug) && !isPlaceholderNamedTenant(u.tenant.name);
         });
         if (userCompanyFilter) {
           userList = userList.filter((u: UserWithRoles) =>
@@ -239,7 +239,7 @@ export default function SuperAdminRBACPage() {
         const all = Array.isArray(data) ? data : data.tenants || [];
         // ALWAYS filter out hidden tenants — never show Marq AI Tech or demo
         const visible = all.filter((t: { slug: string; name?: string }) =>
-          !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+          !isTenantHiddenClient(t.slug) && !isPlaceholderNamedTenant(t.name)
         );
         setTenants(visible);
       }

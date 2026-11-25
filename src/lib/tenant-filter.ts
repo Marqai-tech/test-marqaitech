@@ -86,6 +86,30 @@ export function isLocalDevHost(host: string): boolean {
 export const PLATFORM_PLACEHOLDER_SLUG = '3boxeshrms';
 export const PLATFORM_PLACEHOLDER_NAME = 'Marq AI Tech Pvt Ltd';
 
+// ─── Placeholder-NAME filter (LIVE-only) ─────────────────────────────
+// The name-substring filter exists ONLY to hide the platform PLACEHOLDER
+// tenant ("Marq AI Tech Pvt Ltd", slug '3boxeshrms') on the LIVE site.
+// Real tenants may legitimately carry that exact name — e.g. the test
+// platform's tenant `marq` is named "Marq AI Tech Pvt Ltd". Applying the
+// name filter on test/demo/local hosts wiped that tenant (and every group +
+// company under it) out of the company switcher on 2026-11-25, so the name
+// check must be gated to live hosts — mirroring the client-side pattern
+// `_HARDCODED_HIDDEN_NAME = isClientLiveSite() ? PLATFORM_PLACEHOLDER_NAME : ''`.
+export function getClientPlaceholderNameFilter(): string {
+  return isClientLiveSite() ? PLATFORM_PLACEHOLDER_NAME : '';
+}
+
+export function getPlaceholderNameFilter(request: Request): string {
+  return isServerLiveSite(request) ? PLATFORM_PLACEHOLDER_NAME : '';
+}
+
+/** True ONLY when the name matches the placeholder AND we are on the live site. */
+export function isPlaceholderNamedTenant(name: string | null | undefined, request?: Request): boolean {
+  const placeholder = request ? getPlaceholderNameFilter(request) : getClientPlaceholderNameFilter();
+  if (!placeholder) return false;
+  return (name || '').includes(placeholder);
+}
+
 // ─── Client-side: FOOLPROOF live mode detection ─────────────────────
 // Checks window.location.hostname DIRECTLY — no env vars, no site-mode.ts
 export function isClientLiveSite(): boolean {

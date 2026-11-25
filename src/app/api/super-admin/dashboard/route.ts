@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getServerHiddenSlugs, getPlaceholderNameFilter } from '@/lib/tenant-filter';
 import { getTenantDashboardCounts } from '@/lib/tenant-aggregates';
 
 function corsHeaders() {
@@ -63,12 +63,16 @@ export async function GET(request: Request) {
 
     // ALWAYS exclude hidden tenants (Marq AI Tech Pvt Ltd placeholder + demo)
     // regardless of mode detection — foolproof via tenant-filter.ts.
-    // Also exclude by NAME — catches any stray tenant (e.g., '3boxes-corp')
-    // that was created with the placeholder name but a different slug.
-    const tenantFilter = {
+    // Also exclude by NAME — but LIVE-ONLY: the test platform's tenant `marq`
+    // is legitimately named "Marq AI Tech Pvt Ltd" and must stay visible on
+    // test/demo/local hosts (it used to vanish from the dashboard here).
+    const placeholderName = getPlaceholderNameFilter(request);
+    const tenantFilter: { slug: { notIn: string[] }; NOT?: { name: { contains: string } } } = {
       slug: { notIn: hiddenSlugs },
-      NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
     };
+    if (placeholderName) {
+      tenantFilter.NOT = { name: { contains: placeholderName } };
+    }
 
     const tDb = Date.now();
     let payload: Record<string, unknown>;

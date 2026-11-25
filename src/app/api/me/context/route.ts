@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getHiddenSlugsForRequest, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getHiddenSlugsForRequest, getPlaceholderNameFilter } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -261,10 +261,17 @@ export async function GET(request: Request) {
       // then ALSO check isLiveMode() as SECONDARY. A slug is hidden if
       // EITHER method says so. This prevents Vercel internal routing bugs.
       const allHiddenSlugs = getHiddenSlugsForRequest(request);
-      const liveTenantFilter = {
+      // Name-based placeholder hiding is LIVE-ONLY (3boxeshrms.com). The test
+      // platform's tenant `marq` is legitimately named "Marq AI Tech Pvt Ltd"
+      // — an unconditional name filter here hid it from the super admin's
+      // tenant dropdown entirely (switcher showed zero tenants).
+      const placeholderName = getPlaceholderNameFilter(request);
+      const liveTenantFilter: { slug: { notIn: string[] }; NOT?: { name: { contains: string } } } = {
         slug: { notIn: allHiddenSlugs },
-        NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
       };
+      if (placeholderName) {
+        liveTenantFilter.NOT = { name: { contains: placeholderName } };
+      }
       availableTenants = await safe(
         'tenant.findMany(all)',
         () => getPlatformDb().tenant.findMany({
@@ -562,9 +569,12 @@ export async function GET(request: Request) {
     }
 
     // 2. Filter availableTenants one more time (should already be filtered, but just in case)
-    // Also filter by NAME — catches stray tenants with the placeholder name.
+    // Also filter by NAME — but ONLY on the live site (see tenant-filter.ts:
+    // the test tenant `marq` is named "Marq AI Tech Pvt Ltd" and must NOT be
+    // scrubbed here, otherwise the whole switcher goes empty on test hosts).
+    const placeholderName = getPlaceholderNameFilter(request);
     const finalAvailableTenants = availableTenants.filter(
-      (t) => !hiddenSlugsFinal.includes(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+      (t) => !hiddenSlugsFinal.includes(t.slug) && !(placeholderName && (t.name || '').includes(placeholderName))
     );
 
     // 3. Filter availableCompanyGroups — remove any that belong to hidden tenants

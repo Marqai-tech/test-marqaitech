@@ -7,7 +7,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function getAuthHeaders() {
@@ -61,7 +61,7 @@ export default function TenantUsagePage() {
 
       // ALWAYS filter out hidden tenants (platform placeholder, demo) — never show Marq AI Tech
       const filtered = tenants.filter((t: any) =>
-        !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        !isTenantHiddenClient(t.slug) && !isPlaceholderNamedTenant(t.name)
       );
 
       const mapped: TenantUsage[] = filtered.map((t: any) => ({

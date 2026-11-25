@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 import SrsBanner from '@/components/SrsBanner';
 /* Task 156e — shared SmartHR gradient banner (header-only restyle). */
 import { PageBreadcrumbs } from '@/components/dashboard/smarthr-widgets';
@@ -269,7 +269,7 @@ export default function SuperAdminPage() {
         const all = Array.isArray(data) ? data : data.tenants || [];
         // Defense-in-depth: filter out hidden tenants on the client side too
         setTenants(all.filter((t: Tenant) =>
-          !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+          !isTenantHiddenClient(t.slug) && !isPlaceholderNamedTenant(t.name)
         ));
       }
     } catch { toast.error('Failed to load tenants'); }
@@ -789,7 +789,7 @@ export default function SuperAdminPage() {
         // Defense-in-depth: filter out groups belonging to hidden tenants + deduplicate by name+tenantId
         const seenGroupKeys = new Set<string>();
         setGroups(allGroups.filter((g: CompanyGroupRow) => {
-          if (isTenantHiddenClient(g.tenantSlug || '') || (g.tenantName || '').includes(PLATFORM_PLACEHOLDER_NAME)) return false;
+          if (isTenantHiddenClient(g.tenantSlug || '') || isPlaceholderNamedTenant(g.tenantName)) return false;
           // Deduplicate by name+tenantId (different IDs but same name = duplicate)
           const groupKey = `${g.tenantId || g.tenantSlug}:${g.name}`;
           if (seenGroupKeys.has(groupKey)) return false;

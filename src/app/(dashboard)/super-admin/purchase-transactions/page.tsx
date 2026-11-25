@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isPlaceholderNamedTenant } from '@/lib/tenant-filter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function getAuthHeaders() {
@@ -54,7 +54,7 @@ export default function PurchaseTransactionsPage() {
 
       // ALWAYS filter out hidden tenants — never show Marq AI Tech
       const filtered = subs.filter((s: any) =>
-        !isTenantHiddenClient(s.tenant?.slug || '') && !(s.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        !isTenantHiddenClient(s.tenant?.slug || '') && !isPlaceholderNamedTenant(s.tenant?.name)
       );
 
       const mapped: Transaction[] = filtered.map((sub: any) => ({

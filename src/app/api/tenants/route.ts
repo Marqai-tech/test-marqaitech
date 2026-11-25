@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
-import { getHiddenSlugsForRequest, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getHiddenSlugsForRequest, getPlaceholderNameFilter } from '@/lib/tenant-filter';
 
 /**
  * Best-effort audit write that follows the ACTING USER's home database.
@@ -83,10 +83,15 @@ export async function GET(request: Request) {
     // then ALSO check isLiveMode() as SECONDARY. Union both.
     const hiddenSlugs = getHiddenSlugsForRequest(request);
     where.slug = { notIn: hiddenSlugs };
-    // Also exclude tenants whose NAME matches the placeholder name
+    // Also exclude tenants whose NAME matches the placeholder name — LIVE-ONLY.
     // (catches stray tenants like '3boxes-corp' created by older seed scripts)
-    // Use NOT at top level instead of not: { contains: ... } which Prisma doesn't support
-    where.NOT = { name: { contains: PLATFORM_PLACEHOLDER_NAME } };
+    // The test platform's tenant `marq` is legitimately named "Marq AI Tech
+    // Pvt Ltd" and must remain visible on test/demo/local hosts.
+    const placeholderName = getPlaceholderNameFilter(request);
+    if (placeholderName) {
+      // Use NOT at top level instead of not: { contains: ... } which Prisma doesn't support
+      where.NOT = { name: { contains: placeholderName } };
+    }
     if (status) where.status = status;
     if (search) {
       where.OR = [
