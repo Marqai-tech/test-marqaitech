@@ -94,6 +94,25 @@ export async function GET(request: Request) {
     // approve/return buttons from this (works for any tier count, not just
     // the legacy 2-tier statuses). Exact enforcement stays in the PATCH
     // handler of [id]/route.ts; this annotation is display-only.
+    // ─── Task 167 follow-up: annotate positionTitle ───
+    // positionTitle is a runtime-added column (ALTER TABLE … ADD COLUMN IF NOT
+    // EXISTS) that is NOT part of the Prisma schema, so findMany() never
+    // returns it. The Requisitions page and the Create Jobs "From Requisition"
+    // conversion both need the typed position name — annotate it back onto
+    // each row with one raw query.
+    try {
+      const reqIds = (requisitions as any[]).map((r) => r.id).filter(Boolean);
+      if (reqIds.length > 0) {
+        const ptRows = await db.$queryRawUnsafe(
+          `SELECT "id", "positionTitle" FROM "Requisition" WHERE "id" IN (${reqIds.map((_, i) => `$${i + 1}`).join(',')})`,
+          ...reqIds,
+        ) as any[];
+        const ptMap = new Map<string, string | null>(ptRows.map((row: any) => [row.id, row.positionTitle ?? null]));
+        for (const r of requisitions as any[]) {
+          if (ptMap.has(r.id)) r.positionTitle = ptMap.get(r.id) ?? null;
+        }
+      }
+    } catch { /* very old tenant without the column — leave undefined */ }
     const STATUS_TO_TIER: Record<string, number> = { pending: 0, hr_approved: 1, tier_2_approved: 2, tier_3_approved: 3, tier_4_approved: 4, tier_5_approved: 5, tier_6_approved: 6, tier_7_approved: 7, tier_8_approved: 8, tier_9_approved: 9 };
     const LEGACY_TIERS = [
       { tier: 1, approverType: 'hr_admin', label: 'HR Approval' },
