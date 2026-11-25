@@ -44,6 +44,18 @@ export interface WorkflowConfig {
   // Leave Type Configuration" tab. They are now part of the single
   // workflow config so leave has ONE source of truth for both policy
   // and approval chain.
+  // ─── Post-approval employee/approver actions (Hold · Propose dates · Cancel) ───
+  // After APPROVAL the employee may raise a cancellation request that flows to
+  // the approver for sign-off (balance restored on approval).
+  allowCancelAfterApproval?: boolean;
+  // The approver (manager/HR/admin) can HOLD a leave — pending (pause the
+  // approval) or approved (even on its last working day) — with a mandatory
+  // reason. Hold reserves the balance and pauses attendance for the range.
+  allowApproverHold?: boolean;
+  // With a hold, the approver can PROPOSE different dates; the employee can
+  // ACCEPT them or COUNTER-PROPOSE other dates for the approver to apply.
+  allowDateProposal?: boolean;
+
   sandwichRuleEnabled?: boolean;        // leave sandwiched between holidays/weekends counts as leave
   proRataEnabled?: boolean;             // pro-rata leave for mid-year joiners
   probationRestriction?: boolean;       // restrict leave during probation
@@ -64,6 +76,10 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
   requireAllTiers: true,
   autoApproveShortLeave: false,
   shortLeaveMaxDays: 1,
+  // Post-approval action defaults (all enabled — the flows ship on)
+  allowCancelAfterApproval: true,
+  allowApproverHold: true,
+  allowDateProposal: true,
   // Unified policy defaults (mirror legacy LeavePolicyRule defaults)
   sandwichRuleEnabled: true,
   proRataEnabled: false,

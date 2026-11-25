@@ -30,6 +30,10 @@ interface WorkflowConfig {
   requireAllTiers: boolean;
   autoApproveShortLeave?: boolean;
   shortLeaveMaxDays?: number;
+  // Post-approval employee/approver actions
+  allowCancelAfterApproval?: boolean; // employee can request cancellation of an APPROVED leave
+  allowApproverHold?: boolean;        // approver can hold a pending/approved leave (with reason)
+  allowDateProposal?: boolean;        // approver proposes dates; employee accepts or counter-proposes
   // Unified policy fields (absorbed from legacy LeavePolicyRule)
   sandwichRuleEnabled?: boolean;
   proRataEnabled?: boolean;
@@ -64,6 +68,10 @@ export default function LeaveApprovalWorkflowConfig() {
     requireAllTiers: true,
     autoApproveShortLeave: false,
     shortLeaveMaxDays: 1,
+    // Post-approval action defaults (mirror server-side DEFAULT_WORKFLOW_CONFIG)
+    allowCancelAfterApproval: true,
+    allowApproverHold: true,
+    allowDateProposal: true,
     // Unified policy defaults (mirror legacy LeavePolicyRule defaults)
     sandwichRuleEnabled: true,
     proRataEnabled: false,
@@ -612,6 +620,52 @@ export default function LeaveApprovalWorkflowConfig() {
                 <p className="text-[11px] text-slate-500 mt-0.5">Leave between holidays/weekends counts as leave.</p>
               </div>
             </label>
+          </div>
+
+          {/* Post-approval actions: employee cancel · approver hold · date proposal */}
+          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/50 md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Post-Approval Actions (Hold · Dates · Cancel)</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.allowCancelAfterApproval ?? true}
+                  onChange={(e) => setConfig({ ...config, allowCancelAfterApproval: e.target.checked })}
+                  className="w-4 h-4 mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                />
+                <div>
+                  <span className="text-sm text-thb-text-primary">Employee can cancel after approval</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Employee raises a cancellation request on an approved leave; the approver signs off and the balance is restored.</p>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.allowApproverHold ?? true}
+                  onChange={(e) => setConfig({ ...config, allowApproverHold: e.target.checked })}
+                  className="w-4 h-4 mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                />
+                <div>
+                  <span className="text-sm text-thb-text-primary">Approver can hold a leave</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Manager/HR can put a pending or approved leave on hold (even on its last day) with a mandatory reason.</p>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.allowDateProposal ?? true}
+                  onChange={(e) => setConfig({ ...config, allowDateProposal: e.target.checked })}
+                  className="w-4 h-4 mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                />
+                <div>
+                  <span className="text-sm text-thb-text-primary">Approver can propose new dates</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">With a hold, the approver proposes dates; the employee accepts them or suggests different ones.</p>
+                </div>
+              </label>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2.5">
+              Every hold, proposal, acceptance, counter-proposal and cancellation decision notifies the employee and everyone in the approval chain.
+            </p>
           </div>
 
           {/* Pro-rata */}

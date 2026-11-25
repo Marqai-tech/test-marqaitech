@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, Suspense, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense, Fragment, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiCalendar, FiPlus, FiCheck, FiX, FiClock, FiGrid, FiUserCheck, FiUserPlus,
   FiChevronRight, FiChevronLeft, FiDownload, FiUsers, FiSettings, FiBarChart2,
   FiFileText, FiRefreshCw, FiAlertCircle, FiLayers, FiActivity, FiBriefcase,
-  FiInfo, FiUpload, FiInbox, FiLoader, FiChevronDown,
+  FiInfo, FiUpload, FiInbox, FiLoader, FiChevronDown, FiPauseCircle, FiPlay,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -19,12 +19,18 @@ import { filterLeaveTypesForEmployee } from '@/lib/leave-type-resolver-client';
 interface LeaveRequest {
   id: string; startDate: string; endDate: string; reason?: string | null;
   status: string; halfDay: boolean; comments?: string | null; halfDaySlot?: string | null;
-  employee?: { id: string; firstName: string; lastName: string; employeeId: string; avatar?: string | null; department?: { name: string } | null };
+  employee?: { id: string; firstName: string; lastName: string; employeeId: string; avatar?: string | null; department?: { name: string } | null; userId?: string | null };
   leaveType?: { id: string; name: string; code: string };
   employeeId: string; leaveTypeId: string;
   currentApproverId?: string | null; workflowStage?: string | null;
   appliedByHR?: boolean;
   createdAt?: string | null;
+  // Hold · Propose-dates flows (server annotates these from the runtime columns)
+  proposedHoldDates?: {
+    startDate?: string; endDate?: string; proposedBy?: string | null; prevStatus?: string;
+    note?: string | null; counterTo?: { startDate?: string; endDate?: string } | null;
+  } | null;
+  holdComments?: string | null;
 }
 interface LeaveBalance { id: string; total: number; used: number; remaining: number; year: number; leaveType: { id: string; name: string; code: string }; }
 interface LeaveType { id: string; name: string; code: string; defaultDays: number; isPaid: boolean; }
@@ -101,6 +107,8 @@ function getStatusPill(status: string) {
     approved: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Approved' },
     rejected: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', dot: 'bg-red-500', label: 'Rejected' },
     cancelled: { bg: 'bg-slate-100 border-slate-200', text: 'text-slate-600', dot: 'bg-slate-400', label: 'Cancelled' },
+    on_hold: { bg: 'bg-violet-50 border-violet-200', text: 'text-violet-700', dot: 'bg-violet-500', label: 'On Hold' },
+    cancel_requested: { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500', label: 'Cancel Requested' },
   };
   return map[s] || { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', dot: 'bg-slate-400', label: status };
 }
@@ -583,13 +591,17 @@ function LeaveStatusTable({
 }: {
   requests: LeaveRequest[]; loading: boolean; holidays: Holiday[]; onApply: (code?: string) => void; onCancelled: () => void;
 }) {
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'cancelled'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'cancelled' | 'on_hold' | 'cancel_requested'>('all');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [suggestFor, setSuggestFor] = useState<LeaveRequest | null>(null);
+  const [cancelReqFor, setCancelReqFor] = useState<LeaveRequest | null>(null);
 
   const counts = useMemo(() => {
-    const c = { all: requests.length, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+    const c: Record<string, number> = { all: requests.length, pending: 0, approved: 0, rejected: 0, cancelled: 0, on_hold: 0, cancel_requested: 0 };
     for (const r of requests) {
-      const s = (r.status || '').toLowerCase() as keyof typeof c;
+      const s = (r.status || '').toLowerCase();
       if (s in c && s !== 'all') c[s]++;
     }
     return c;
@@ -614,9 +626,43 @@ function LeaveStatusTable({
     }
   };
 
+  // ── Hold · propose-dates · cancel-after-approval employee actions ──
+  const handleWithdraw = async (id: string) => {
+    if (!confirm('Withdraw this request? The approver will be notified.')) return;
+    try {
+      setWithdrawingId(id);
+      const res = await fetch(`/api/leave/${id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status: 'withdrawn' }) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to withdraw'); }
+      toast.success('Request withdrawn');
+      onCancelled();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to withdraw');
+    } finally {
+      setWithdrawingId(null);
+    }
+  };
+
+  const acceptProposedDates = async (id: string) => {
+    if (!confirm('Accept the proposed dates? The leave will move to the new date range.')) return;
+    try {
+      setAcceptingId(id);
+      const res = await fetch(`/api/leave/${id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status: 'accept_proposed_dates' }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Failed to accept dates');
+      toast.success(d.message || 'New dates accepted');
+      onCancelled();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to accept dates');
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
   const pills: Array<{ key: typeof filterStatus; label: string }> = [
     { key: 'all', label: 'All' }, { key: 'pending', label: 'Pending' },
-    { key: 'approved', label: 'Approved' }, { key: 'rejected', label: 'Rejected' }, { key: 'cancelled', label: 'Cancelled' },
+    { key: 'approved', label: 'Approved' }, { key: 'on_hold', label: 'On Hold' },
+    { key: 'cancel_requested', label: 'Cancel Req.' },
+    { key: 'rejected', label: 'Rejected' }, { key: 'cancelled', label: 'Cancelled' },
   ];
 
   const th = 'px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap';
@@ -686,8 +732,12 @@ function LeaveStatusTable({
               const sub = appliedShort(lr.createdAt || undefined);
               const isBackDated = new Date(lr.startDate) < new Date(Date.now() - 30 * 86_400_000);
               const isPending = lr.status === 'pending';
+              const isOnHold = lr.status === 'on_hold';
+              const proposed = lr.proposedHoldDates;
+              const proposedBy = proposed?.proposedBy || (proposed?.startDate ? 'approver' : null);
               return (
-                <tr key={lr.id} className="hover:bg-slate-50/60">
+                <Fragment key={lr.id}>
+                <tr className="hover:bg-slate-50/60">
                   <td className="px-3 py-3 whitespace-nowrap">
                     <p className="text-[13px] font-mono font-bold text-slate-800">{ticketCode(lr.id, lr.createdAt)}</p>
                     {sub && <p className="text-[11px] text-slate-400 mt-0.5">{sub}</p>}
@@ -706,6 +756,7 @@ function LeaveStatusTable({
                   <td className="px-3 py-3 text-sm text-slate-700 text-right tabular-nums whitespace-nowrap">{fmtNum(d)}</td>
                   <td className="px-3 py-3 text-sm text-slate-700 truncate max-w-[200px]" title={reason}>
                     {reason}
+                    {(lr.status === 'rejected' || isOnHold) && lr.holdComments && <p className="text-[11px] text-violet-600 mt-0.5 truncate">Hold: “{lr.holdComments}”</p>}
                     {lr.status === 'rejected' && lr.comments && <p className="text-[11px] text-red-600 mt-0.5 truncate">&ldquo;{lr.comments}&rdquo;</p>}
                   </td>
                   <td className="px-3 py-3">
@@ -719,12 +770,415 @@ function LeaveStatusTable({
                         {cancellingId === lr.id ? 'Cancelling…' : 'Cancel'}
                       </button>
                     ) : null}
+                    {lr.status === 'approved' && (
+                      <button onClick={() => setCancelReqFor(lr)} title="Ask the approver to cancel this approved leave" className="text-xs font-semibold text-orange-600 hover:text-orange-700">
+                        Request cancel
+                      </button>
+                    )}
+                    {isOnHold && (
+                      <button onClick={() => handleWithdraw(lr.id)} disabled={withdrawingId === lr.id} className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50">
+                        {withdrawingId === lr.id ? 'Withdrawing…' : 'Withdraw'}
+                      </button>
+                    )}
+                    {lr.status === 'cancel_requested' && (
+                      <span className="text-xs font-semibold text-orange-600" title="The approver will approve or decline this cancellation">Awaiting sign-off</span>
+                    )}
+                  </td>
+                </tr>
+                {isOnHold && (
+                  <tr className="bg-violet-50/40">
+                    <td colSpan={7} className="px-3 pb-3 -mt-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+                        <span className="inline-flex items-center gap-1.5 font-semibold text-violet-800">
+                          <FiPauseCircle className="w-3.5 h-3.5" /> On hold
+                          {lr.holdComments ? <span className="font-normal text-violet-700">— “{lr.holdComments}”</span> : null}
+                        </span>
+                        {proposed?.startDate && proposed?.endDate && proposedBy === 'approver' && (
+                          <span className="text-violet-700">Approver proposed <b className="font-semibold">{fmtRange(proposed.startDate, proposed.endDate)}</b></span>
+                        )}
+                        {proposed?.startDate && proposed?.endDate && proposedBy === 'employee' && (
+                          <span className="text-violet-700">You suggested <b className="font-semibold">{fmtRange(proposed.startDate, proposed.endDate)}</b> — waiting for the approver</span>
+                        )}
+                        <span className="flex-1" />
+                        {proposed?.startDate && proposed?.endDate && proposedBy === 'approver' && (
+                          <>
+                            <button onClick={() => acceptProposedDates(lr.id)} disabled={acceptingId === lr.id} className="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50">
+                              {acceptingId === lr.id ? 'Accepting…' : 'Accept new dates'}
+                            </button>
+                            <button onClick={() => setSuggestFor(lr)} className="px-2.5 py-1 rounded-md border border-violet-300 text-violet-700 font-semibold hover:bg-violet-100">
+                              Suggest different dates
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Employee hold-response dialogs */}
+      {suggestFor && <SuggestDatesModal req={suggestFor} onClose={() => setSuggestFor(null)} onDone={onCancelled} />}
+      {cancelReqFor && <CancelRequestModal req={cancelReqFor} onClose={() => setCancelReqFor(null)} onDone={onCancelled} />}
+    </div>
+  );
+}
+
+/* ── Suggest Dates Modal (employee counter-proposal on a held leave) ── */
+function SuggestDatesModal({ req, onClose, onDone }: { req: LeaveRequest; onClose: () => void; onDone: () => void }) {
+  const [startDate, setStartDate] = useState(req.proposedHoldDates?.startDate?.split('T')[0] || req.startDate?.split('T')[0] || '');
+  const [endDate, setEndDate] = useState(req.proposedHoldDates?.endDate?.split('T')[0] || req.endDate?.split('T')[0] || '');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!startDate || !endDate) { toast.error('Pick both dates'); return; }
+    if (new Date(endDate) < new Date(startDate)) { toast.error('End date cannot be before the start date'); return; }
+    try {
+      setBusy(true);
+      const res = await fetch(`/api/leave/${req.id}`, {
+        method: 'PATCH', headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'counter_propose_dates', proposedDates: { startDate, endDate }, comments: note }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Failed to send suggestion');
+      toast.success(d.message || 'Suggested dates sent to the approver');
+      onDone(); onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send suggestion');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-extrabold text-slate-900">Suggest different dates</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><FiX className="w-5 h-5" /></button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          For your {req.leaveType?.name || 'leave'} ({fmtRange(req.startDate, req.endDate)}) — currently on hold{req.holdComments ? `: “${req.holdComments}”` : ''}.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">From <span className="text-red-500">*</span></label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">To <span className="text-red-500">*</span></label>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+          </div>
+        </div>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">Note to the approver</label>
+        <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Why these dates work better…" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button onClick={submit} disabled={busy} className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 disabled:opacity-50">
+            {busy ? 'Sending…' : 'Send suggestion'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Request Cancellation Modal (employee, on an APPROVED leave) ── */
+function CancelRequestModal({ req, onClose, onDone }: { req: LeaveRequest; onClose: () => void; onDone: () => void }) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (reason.trim().length < 3) { toast.error('Please give a short reason'); return; }
+    try {
+      setBusy(true);
+      const res = await fetch(`/api/leave/${req.id}`, {
+        method: 'PATCH', headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'cancel_requested', comments: reason.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Failed to submit cancellation request');
+      toast.success(d.message || 'Cancellation request submitted');
+      onDone(); onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit request');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-extrabold text-slate-900">Request cancellation of approved leave</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><FiX className="w-5 h-5" /></button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          {req.leaveType?.name || 'Leave'} · {fmtRange(req.startDate, req.endDate)} — the leave stays approved until the approver signs off. Balance is restored when the cancellation is approved.
+        </p>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">Reason <span className="text-red-500">*</span></label>
+        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Why do you need to cancel this approved leave?" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Keep leave</button>
+          <button onClick={submit} disabled={busy} className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-bold hover:bg-orange-700 disabled:opacity-50">
+            {busy ? 'Submitting…' : 'Submit cancellation request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Team Actions Table (Hold · Propose dates · Release · Cancellation sign-off) ──
+   Visible to managers/HR/admins in the Team tab. Every action notifies the
+   employee + everyone in the approval chain (server-side dispatch). ── */
+function TeamActionsTable({ leaveRequests, onCancelled }: {
+  leaveRequests: LeaveRequest[]; onCancelled: () => void;
+}) {
+  const [holdFor, setHoldFor] = useState<LeaveRequest | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const actionable = useMemo(() => leaveRequests
+    .filter(r => ['pending', 'on_hold', 'approved', 'cancel_requested'].includes(r.status))
+    .slice().sort((a, b) => new Date(b.createdAt || b.startDate).getTime() - new Date(a.createdAt || a.startDate).getTime()),
+    [leaveRequests]);
+
+  const act = async (lr: LeaveRequest, status: string, body: Record<string, unknown> = {}, successMsg?: string) => {
+    try {
+      setBusyId(lr.id);
+      const res = await fetch(`/api/leave/${lr.id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status, ...body }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Action failed');
+      toast.success(d.message || successMsg || 'Done');
+      onCancelled();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const holdInfo = (lr: LeaveRequest) => {
+    const p = lr.proposedHoldDates;
+    const by = p?.proposedBy || (p?.startDate ? 'approver' : null);
+    if (lr.status === 'on_hold' && p?.startDate && p?.endDate) {
+      return by === 'employee' ? `Suggested ${fmtRange(p.startDate, p.endDate)}` : `Proposed ${fmtRange(p.startDate, p.endDate)}`;
+    }
+    if (lr.status === 'on_hold') return lr.holdComments ? `Reason: ${lr.holdComments}` : 'On hold';
+    if (lr.status === 'cancel_requested') return lr.comments ? `Reason: ${lr.comments}` : 'Wants to cancel';
+    return '';
+  };
+
+  const btn = 'px-2.5 py-1 rounded-md text-[11px] font-bold inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed';
+  const th = 'px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap';
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-[15px] font-bold text-slate-900">Team actions</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Hold · propose dates · release · cancellation sign-off</p>
+        </div>
+        <span className="text-[11px] font-semibold text-slate-400">{actionable.length} actionable</span>
+      </div>
+      <div className="overflow-x-auto max-h-96 overflow-y-auto">
+        <table className="w-full text-sm min-w-[820px]">
+          <thead className="border-b border-slate-100 bg-slate-50/40 sticky top-0 z-10">
+            <tr>
+              <th className={`text-left ${th}`}>Employee</th>
+              <th className={`text-left ${th}`}>Type · Dates</th>
+              <th className={`text-left ${th}`}>Status</th>
+              <th className={`text-left ${th}`}>Hold / Request info</th>
+              <th className={`text-right ${th}`}>Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {actionable.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-10 text-center">
+                <FiCheck className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                <p className="text-slate-500 font-medium text-sm">Nothing needs your action right now</p>
+              </td></tr>
+            ) : actionable.map(lr => {
+              const pill = getStatusPill(lr.status);
+              const info = holdInfo(lr);
+              const p = lr.proposedHoldDates;
+              const by = p?.proposedBy || (p?.startDate ? 'approver' : null);
+              const busy = busyId === lr.id;
+              return (
+                <tr key={lr.id} className="hover:bg-slate-50/60">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <p className="text-[13px] font-semibold text-slate-800">
+                      {lr.employee ? `${lr.employee.firstName} ${lr.employee.lastName}`.trim() : 'Unknown'}
+                    </p>
+                    <p className="text-[11px] text-slate-400">{lr.employee?.employeeId || ''}</p>
+                  </td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <p className="text-xs font-semibold text-slate-700">{lr.leaveType?.name || 'Leave'}</p>
+                    <p className="text-[11px] text-slate-400">{fmtRange(lr.startDate, lr.endDate)}</p>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap ${pill.bg} ${pill.text}`}>
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${pill.dot}`} /> {pill.label}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-slate-600 max-w-[220px] truncate" title={info}>{info || '—'}</td>
+                  <td className="px-3 py-2.5 text-right">
+                    <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+                      {/* PENDING → Hold (optionally with proposed dates) */}
+                      {lr.status === 'pending' && (
+                        <button onClick={() => setHoldFor(lr)} className={`${btn} border border-violet-200 text-violet-700 hover:bg-violet-50`}>
+                          <FiPauseCircle className="w-3.5 h-3.5" /> Hold
+                        </button>
+                      )}
+                      {/* ON_HOLD → Release · Apply/Decline employee suggestion · Propose dates */}
+                      {lr.status === 'on_hold' && (
+                        <>
+                          <button onClick={() => act(lr, 'release_hold', { comments: 'Hold released' }, 'Hold released')} disabled={busy} className={`${btn} bg-emerald-600 text-white hover:bg-emerald-700`}>
+                            <FiPlay className="w-3.5 h-3.5" /> Release
+                          </button>
+                          {by === 'employee' && p?.startDate && p?.endDate && (
+                            <>
+                              <button onClick={() => act(lr, 'apply_counter_dates', { comments: 'Employee-suggested dates applied' }, 'Suggested dates applied')} disabled={busy} className={`${btn} bg-teal-600 text-white hover:bg-teal-700`}>
+                                <FiCheck className="w-3.5 h-3.5" /> Apply
+                              </button>
+                              <button onClick={() => act(lr, 'decline_counter_dates', { comments: 'Suggested dates declined' }, 'Suggestion declined — leave still on hold')} disabled={busy} className={`${btn} border border-slate-200 text-slate-600 hover:bg-slate-50`}>
+                                <FiX className="w-3.5 h-3.5" /> Decline
+                              </button>
+                            </>
+                          )}
+                          {by !== 'employee' && (
+                            <button onClick={() => setHoldFor(lr)} className={`${btn} border border-violet-200 text-violet-700 hover:bg-violet-50`}>
+                              <FiCalendar className="w-3.5 h-3.5" /> Propose dates
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {/* APPROVED → Hold (even on the last day) · Cancel */}
+                      {lr.status === 'approved' && (
+                        <>
+                          <button onClick={() => setHoldFor(lr)} className={`${btn} border border-violet-200 text-violet-700 hover:bg-violet-50`}>
+                            <FiPauseCircle className="w-3.5 h-3.5" /> Hold
+                          </button>
+                          <button onClick={() => {
+                            if (!confirm(`Cancel ${lr.employee?.firstName || 'the'}'s approved leave? The balance will be restored.`)) return;
+                            act(lr, 'cancelled', { comments: 'Cancelled by approver/HR' }, 'Leave cancelled — balance restored');
+                          }} disabled={busy} className={`${btn} border border-red-200 text-red-600 hover:bg-red-50`}>
+                            <FiX className="w-3.5 h-3.5" /> Cancel
+                          </button>
+                        </>
+                      )}
+                      {/* CANCEL_REQUESTED → Approve cancellation · Keep approved */}
+                      {lr.status === 'cancel_requested' && (
+                        <>
+                          <button onClick={() => {
+                            if (!confirm(`Approve cancellation of ${lr.employee?.firstName || 'the'}'s approved leave? Balance will be restored.`)) return;
+                            act(lr, 'cancelled', { comments: 'Cancellation approved by approver' }, 'Cancellation approved — balance restored');
+                          }} disabled={busy} className={`${btn} bg-orange-600 text-white hover:bg-orange-700`}>
+                            <FiCheck className="w-3.5 h-3.5" /> Approve cancellation
+                          </button>
+                          <button onClick={() => act(lr, 'decline_cancel_request', { comments: 'Leave stays approved' }, 'Cancellation declined — leave stays approved')} disabled={busy} className={`${btn} border border-slate-200 text-slate-600 hover:bg-slate-50`}>
+                            <FiX className="w-3.5 h-3.5" /> Keep approved
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Hold / Propose-dates dialog */}
+      {holdFor && (
+        <HoldDialog
+          req={holdFor}
+          intent={holdFor.status === 'on_hold' ? 'propose' : 'hold'}
+          onClose={() => setHoldFor(null)}
+          onDone={() => { setHoldFor(null); onCancelled(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Hold Dialog (approver: hold with mandatory reason + optional proposed dates) ── */
+function HoldDialog({ req, intent, onClose, onDone }: {
+  req: LeaveRequest; intent: 'hold' | 'propose'; onClose: () => void; onDone: () => void;
+}) {
+  const [reason, setReason] = useState(req.status === 'on_hold' ? (req.holdComments || '') : '');
+  const [useDates, setUseDates] = useState(intent === 'propose');
+  const [startDate, setStartDate] = useState(req.proposedHoldDates?.startDate?.split('T')[0] || '');
+  const [endDate, setEndDate] = useState(req.proposedHoldDates?.endDate?.split('T')[0] || '');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (reason.trim().length < 3) { toast.error('A hold reason is required'); return; }
+    if (useDates && (!startDate || !endDate)) { toast.error('Pick both proposed dates'); return; }
+    if (useDates && new Date(endDate) < new Date(startDate)) { toast.error('End date cannot be before start date'); return; }
+    try {
+      setBusy(true);
+      const res = await fetch(`/api/leave/${req.id}`, {
+        method: 'PATCH', headers: getAuthHeaders(),
+        body: JSON.stringify({
+          status: 'on_hold',
+          comments: reason.trim(),
+          ...(useDates ? { proposedHoldDates: { startDate, endDate } } : {}),
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Failed to hold the leave');
+      toast.success(d.message || 'Leave put on hold — the employee and everyone in the approval flow has been notified');
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to hold the leave');
+    } finally { setBusy(false); }
+  };
+
+  const empName = req.employee ? `${req.employee.firstName} ${req.employee.lastName}`.trim() : 'this employee';
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-extrabold text-slate-900">
+            {intent === 'propose' ? 'Propose new dates' : 'Put leave on hold'}
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><FiX className="w-5 h-5" /></button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          {empName} · {req.leaveType?.name || 'Leave'} · {fmtRange(req.startDate, req.endDate)}
+          {req.status === 'approved' ? ' (approved — holding pauses it, even on its last day)' : ''}
+        </p>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">Reason <span className="text-red-500">*</span></label>
+        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="Why is this leave being held?" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 mb-3" />
+        <label className="flex items-center gap-2 cursor-pointer mb-3">
+          <input type="checkbox" checked={useDates} onChange={e => setUseDates(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+          <span className="text-sm font-semibold text-slate-700">Propose new dates to the employee</span>
+        </label>
+        {useDates && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">New from <span className="text-red-500">*</span></label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">New to <span className="text-red-500">*</span></label>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2">The employee can accept these dates or suggest different ones. Balance and attendance are re-computed automatically on acceptance.</p>
+          </>
+        )}
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button onClick={submit} disabled={busy} className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+            {busy ? 'Working…' : intent === 'propose' ? 'Propose & hold' : 'Hold leave'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -930,6 +1384,8 @@ function ManagerView({ loading, leaveRequests, leaveTypes, holidays, teamCalenda
       </div>
 
       <ApproveLeavesTable pendingApprovals={pendingApprovals} holidays={holidays} onCancelled={onCancelled} />
+
+      <TeamActionsTable leaveRequests={leaveRequests} onCancelled={onCancelled} />
 
       <TeamCalendarGrid teamCalendar={teamCalendar} holidays={holidays} leaveRequests={leaveRequests} />
     </div>

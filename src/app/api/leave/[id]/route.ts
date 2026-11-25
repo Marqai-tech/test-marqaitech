@@ -8,6 +8,7 @@ import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { computeWorkingDays, getHolidaysInRange, getWeekendDays, leaveDaysConsumed } from '@/lib/working-days';
 import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
 import { appendLedgerEntry, ensureLeaveLedgerTable, ensureLeaveModuleSchemaColumns } from '@/lib/leave-ledger';
+import type { PrismaClient } from '@/generated/prisma/client';
 
 function corsHeaders() {
   return {
@@ -21,13 +22,110 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+/* ─── Hold / proposal helpers (proposedHoldDatesJson + holdComments are
+   runtime ALTER TABLE columns, not in schema.prisma) ─── */
+
+async function ensureHoldColumns(db: PrismaClient) {
+  try {
+    await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "proposedHoldDatesJson" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "holdComments" TEXT`);
+  } catch { /* non-fatal */ }
+}
+
+interface HoldInfo {
+  startDate?: string;
+  endDate?: string;
+  proposedBy?: string | null;
+  prevStatus?: string;
+  note?: string | null;
+  heldAt?: string;
+  counterTo?: { startDate?: string; endDate?: string } | null;
+  declinedAt?: string;
+}
+
+async function readHoldJson(db: PrismaClient, id: string): Promise<HoldInfo | null> {
+  await ensureHoldColumns(db);
+  try {
+    const rows: Array<{ proposedHoldDatesJson: string | null; holdComments: string | null }> = await db.$queryRawUnsafe(
+      `SELECT "proposedHoldDatesJson", "holdComments" FROM "LeaveRequest" WHERE id = $1 LIMIT 1`, id
+    );
+    const raw = rows?.[0]?.proposedHoldDatesJson;
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function holdCommentsOf(leave: { comments?: string | null } | null): string | null {
+  return (leave?.comments as string) || null;
+}
+
+/** Employee + current approver + tier approvers + HR/admins of the tenant. */
+async function collectChainRecipients(
+  db: PrismaClient, tenantId: string | null, employeeUserId: string | null,
+  currentApproverId: string | null, leaveRequestId?: string,
+): Promise<string[]> {
+  const ids: string[] = [];
+  const push = (v: string | null | undefined) => {
+    if (v && !ids.includes(v)) ids.push(v);
+  };
+  push(employeeUserId);
+  push(currentApproverId);
+  // Everyone who has (or will) act in the multi-tier approval chain
+  if (leaveRequestId) {
+    try {
+      const steps: Array<{ approverUserId: string | null }> = await db.$queryRawUnsafe(
+        `SELECT DISTINCT "approverUserId" FROM "LeaveApprovalStep" WHERE "leaveRequestId" = $1 AND "approverUserId" IS NOT NULL LIMIT 20`,
+        leaveRequestId,
+      );
+      for (const s of steps) push(s.approverUserId);
+    } catch { /* table/column may not exist */ }
+  }
+  // HR / admins of the tenant
+  try {
+    const hrs = await db.user.findMany({
+      where: { tenantId, role: { in: ['hr_admin', 'admin', 'tenant_admin', 'super_admin'] }, status: 'active' },
+      select: { id: true }, take: 10,
+    });
+    for (const h of hrs) push(h.id);
+  } catch { /* best-effort */ }
+  return ids;
+}
+
+/** Remove no-punch attendance rows created by the leave sync for a range. */
+async function removeLeaveAttendanceRows(
+  db: PrismaClient, employeeId: string, startDate: Date | string, endDate: Date | string, leaveRequestId: string,
+) {
+  try {
+    const rows: Array<{ id: string; checkIn: Date | null; checkOut: Date | null }> = await db.$queryRawUnsafe(
+      `SELECT id, "checkIn", "checkOut" FROM "Attendance"
+       WHERE "employeeId" = $1 AND date >= $2 AND date <= $3
+         AND status IN ('on_leave','half_day') AND notes LIKE $4`,
+      employeeId, new Date(startDate), new Date(endDate), `%${leaveRequestId}%`,
+    );
+    for (const r of rows) {
+      if (r.checkIn || r.checkOut) continue; // never touch real punches
+      await db.$executeRawUnsafe(`DELETE FROM "Attendance" WHERE id = $1`, r.id);
+    }
+  } catch { /* non-fatal */ }
+}
+
 /**
  * PATCH /api/leave/[id]
  *
- * Approves, rejects, or cancels a leave request.
+ * Approve / reject / hold / propose-dates / cancel a leave request.
  *
- * Body:
- *   { "status": "approved" | "rejected" | "cancelled", "comments": "..." }
+ * Statuses & actions:
+ *   approved | rejected | cancelled            — classic decisions
+ *   on_hold                                    — approver holds a pending OR approved leave
+ *                                                (body: { proposedHoldDates?: {startDate,endDate}, comments })
+ *   release_hold                               — approver releases the hold → back to previous state
+ *   accept_proposed_dates                      — EMPLOYEE accepts the approver-proposed dates
+ *   counter_propose_dates                      — EMPLOYEE suggests different dates (body.proposedDates)
+ *   apply_counter_dates                        — approver applies the employee's suggested dates
+ *   decline_counter_dates                      — approver declines the employee's suggested dates
+ *   withdrawn                                  — employee withdraws a pending/on_hold request
+ *   cancel_requested                           — employee requests cancellation of an APPROVED leave
+ *                                                (gated by workflow config allowCancelAfterApproval)
+ *   decline_cancel_request                     — approver declines the cancellation; leave stays approved
  *
  * Workflow behavior:
  *   - If the leave request has a workflowStage (multi-tier workflow is active):
@@ -39,7 +137,7 @@ export async function OPTIONS() {
  *   - If no workflowStage (legacy single-step):
  *     • 'approved' → finalize immediately (deduct balance, notify employee).
  *     • 'rejected' → reject immediately (notify employee).
- *   - 'cancelled' → employee cancels their own pending request (no balance change).
+ *   - 'cancelled' → pending = no balance change · approved/cancel_requested = balance restored.
  */
 export async function PATCH(
   request: Request,
@@ -67,12 +165,32 @@ export async function PATCH(
     // QA Spec Section 7: 'withdrawn' is used when the employee withdraws a
     // pending request (no approval needed). 'cancel_requested' starts the
     // post-approval cancellation flow (needs approver sign-off).
-    const VALID_STATUSES = ['approved', 'rejected', 'cancelled', 'on_hold', 'withdrawn', 'cancel_requested'];
+    //
+    // NEW (2026-12): hold/propose-dates/cancel-after-approval flows.
+    const VALID_STATUSES = [
+      'approved', 'rejected', 'cancelled', 'on_hold', 'withdrawn', 'cancel_requested',
+      'release_hold', 'accept_proposed_dates', 'counter_propose_dates',
+      'apply_counter_dates', 'decline_counter_dates', 'decline_cancel_request',
+    ];
     if (!status || !VALID_STATUSES.includes(status)) {
       return NextResponse.json(
         { error: `Valid status is required: ${VALID_STATUSES.join(', ')}` },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // ─── Workflow configuration flags (Hold · Propose dates · Cancel after approval) ───
+    let cfgFlags = { allowCancelAfterApproval: true, allowApproverHold: true, allowDateProposal: true };
+    if (scope.tenantId) {
+      try {
+        const { loadWorkflowConfig } = await import('@/lib/leave-workflow');
+        const { config: _cfg } = await loadWorkflowConfig(db, scope.tenantId, existingLeave.leaveTypeId);
+        cfgFlags = {
+          allowCancelAfterApproval: _cfg.allowCancelAfterApproval !== false,
+          allowApproverHold: _cfg.allowApproverHold !== false,
+          allowDateProposal: _cfg.allowDateProposal !== false,
+        };
+      } catch { /* defaults stay true */ }
     }
 
     // Get the token + decoded user for workflow authorization checks
@@ -99,11 +217,13 @@ export async function PATCH(
     }
 
     // ─── Company-scoped data visibility for approval/rejection ───
+    const EMPLOYEE_ALLOWED_STATUSES = ['cancelled', 'withdrawn', 'cancel_requested', 'accept_proposed_dates', 'counter_propose_dates'];
     if (scope.scope === 'self') {
-      // Employees can only cancel their own leave requests
-      if (status !== 'cancelled') {
+      // Employees can only act on their own leave requests (cancel / withdraw /
+      // cancel-after-approval / respond to proposed dates)
+      if (!EMPLOYEE_ALLOWED_STATUSES.includes(status)) {
         return NextResponse.json(
-          { error: 'Only admins can approve or reject leave requests' },
+          { error: 'Only admins can approve, reject or hold leave requests' },
           { status: 403, headers: corsHeaders() }
         );
       }
@@ -129,28 +249,59 @@ export async function PATCH(
     }
     // scope === 'all' && no companyId → admin can approve/reject any leave request
 
-    if (existingLeave.status !== 'pending') {
+    // ─── Status-transition matrix ───
+    // Which target statuses are legal from which current status.
+    const TRANSITIONS: Record<string, string[]> = {
+      approved: ['pending'],
+      rejected: ['pending'],
+      cancelled: ['pending', 'approved', 'on_hold', 'cancel_requested'],
+      on_hold: ['pending', 'approved'],
+      withdrawn: ['pending', 'on_hold'],
+      cancel_requested: ['approved'],
+      release_hold: ['on_hold'],
+      accept_proposed_dates: ['on_hold'],
+      counter_propose_dates: ['on_hold'],
+      apply_counter_dates: ['on_hold'],
+      decline_counter_dates: ['on_hold'],
+      decline_cancel_request: ['cancel_requested'],
+    };
+    const fromStatuses = TRANSITIONS[status];
+    if (!fromStatuses || !fromStatuses.includes(existingLeave.status)) {
       return NextResponse.json(
-        { error: 'Only pending leave requests can be approved/rejected' },
+        { error: `Cannot apply "${status}" to a leave that is currently "${existingLeave.status}"` },
         { status: 400, headers: corsHeaders() }
       );
     }
 
-    // ─── QA Spec Section 5: On Hold with proposed dates ────────────────
-    // Approver puts the request on hold. Status = 'on_hold'. The proposed
-    // dates + optional comment are stored. Balance stays reserved (we don't
+    // ─── On Hold (approver action) ──────────────────────────────────────
+    // Approver puts a PENDING or APPROVED leave on hold. Status = 'on_hold'.
+    // The hold payload (prevStatus + optional proposed dates + reason) is
+    // stored in proposedHoldDatesJson. Balance stays reserved (we don't
     // release it — the employee can't over-apply while on hold). Employee +
-    // HR are notified.
+    // everyone in the approval chain are notified. Gated by config
+    // allowApproverHold (hold) and allowDateProposal (proposed dates).
     if (status === 'on_hold') {
+      if (!cfgFlags.allowApproverHold) {
+        return NextResponse.json({ error: 'Holding leaves is disabled by the leave workflow configuration' }, { status: 403, headers: corsHeaders() });
+      }
       const proposedHoldDates = body.proposedHoldDates || null; // { startDate, endDate } or null
-      try {
-        await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "proposedHoldDatesJson" TEXT`);
-        await db.$executeRawUnsafe(`ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "holdComments" TEXT`);
-      } catch { /* non-fatal */ }
-      const holdDatesJson = proposedHoldDates ? JSON.stringify(proposedHoldDates) : null;
+      if (proposedHoldDates && (!proposedHoldDates.startDate || !proposedHoldDates.endDate)) {
+        return NextResponse.json({ error: 'proposedHoldDates must include startDate and endDate' }, { status: 400, headers: corsHeaders() });
+      }
+      if (proposedHoldDates && !cfgFlags.allowDateProposal) {
+        return NextResponse.json({ error: 'Proposing new dates is disabled by the leave workflow configuration' }, { status: 403, headers: corsHeaders() });
+      }
+      await ensureHoldColumns(db);
+      const holdPayload = {
+        ...(proposedHoldDates ? { startDate: proposedHoldDates.startDate, endDate: proposedHoldDates.endDate } : {}),
+        proposedBy: proposedHoldDates ? 'approver' : null,
+        prevStatus: existingLeave.status, // 'pending' | 'approved' — restored on release/accept
+        note: comments || null,
+        heldAt: new Date().toISOString(),
+      };
       await db.$executeRawUnsafe(
         `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = $1, "holdComments" = $2 WHERE "id" = $3`,
-        holdDatesJson, comments || null, id
+        JSON.stringify(holdPayload), comments || null, id
       ).catch(() => null);
 
       const leaveRequest = await db.leaveRequest.update({
@@ -159,59 +310,423 @@ export async function PATCH(
         include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
       }).catch(() => null);
 
-      // Notify the employee about the hold + proposed dates
+      const proposedTxt = proposedHoldDates ? ` Proposed dates: ${String(proposedHoldDates.startDate).split('T')[0]} → ${String(proposedHoldDates.endDate).split('T')[0]}.` : '';
+
+      // Notify employee (in-app) + employee + approval chain + HR (multi-channel)
       if (leaveRequest?.employee?.userId) {
         try {
-          const { createNotification } = await import('@/lib/notifications');
           await createNotification(db, {
             userId: leaveRequest.employee.userId,
             type: 'leave_on_hold',
-            title: `Leave request put on hold`,
-            message: `Your ${leaveRequest.leaveType?.name || 'leave'} request has been put on hold${proposedHoldDates ? ` with proposed dates: ${proposedHoldDates.startDate} → ${proposedHoldDates.endDate}` : ''}.${comments ? ` Comment: ${comments}` : ''}`,
+            title: 'Leave request put on hold',
+            message: `Your ${leaveRequest.leaveType?.name || 'leave'} request has been put on hold.${proposedTxt}${comments ? ` Reason: ${comments}` : ''}`,
             data: { leaveRequestId: id, proposedHoldDates, comments },
           });
         } catch { /* non-fatal */ }
       }
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        const chainIds = await collectChainRecipients(db, scope.tenantId, leaveRequest?.employee?.userId || null, existingLeave.currentApproverId, id);
+        await dispatchLeaveEvent(
+          db, scope.tenantId,
+          proposedHoldDates ? 'leave.dates_proposed' : 'leave.held',
+          leaveRequest, scope.userId, comments, request, chainIds,
+          {
+            Hold_Reason: comments || '—',
+            Proposed_From: proposedHoldDates ? String(proposedHoldDates.startDate).split('T')[0] : '',
+            Proposed_To: proposedHoldDates ? String(proposedHoldDates.endDate).split('T')[0] : '',
+            Proposed_Dates: proposedTxt,
+          },
+        );
+      } catch { /* non-fatal */ }
       return NextResponse.json({ success: true, leaveRequest }, { headers: corsHeaders() });
     }
 
-    // ─── QA Spec Section 7: Withdraw before approval (employee self-service) ───
+    // ─── Release hold (approver action) ─────────────────────────────────
+    // The hold is released: the leave returns to its previous state
+    // (pending → back in the approval queue; approved → re-approved with
+    // attendance re-synced). Employee + chain are notified.
+    if (status === 'release_hold') {
+      const hold = await readHoldJson(db, id);
+      const prevStatus = hold?.prevStatus === 'approved' ? 'approved' : 'pending';
+      await ensureHoldColumns(db);
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = NULL WHERE "id" = $1`, id
+      ).catch(() => null);
+
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: { status: prevStatus, comments: comments || existingLeave.comments },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true, companyId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+
+      // If it returns to APPROVED, re-sync attendance for the (original) range.
+      if (prevStatus === 'approved') {
+        let weekendDow: number[] | undefined;
+        try { weekendDow = await getWeekendDays(db, scope.tenantId, existingLeave.employee.companyId); } catch { /* default */ }
+        await syncAttendanceForLeave(db, {
+          employeeId: existingLeave.employeeId,
+          startDate: existingLeave.startDate,
+          endDate: existingLeave.endDate,
+          halfDay: existingLeave.halfDay,
+          leaveRequestId: id,
+          leaveTypeName: existingLeave.leaveType?.name,
+          weekendDow,
+        });
+      }
+
+      // Notify employee + chain
+      if (leaveRequest?.employee?.userId) {
+        try {
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_hold_released',
+            title: 'Leave hold released',
+            message: `The hold on your ${leaveRequest.leaveType?.name || 'leave'} request has been released. Status: ${prevStatus}.${comments ? ` Comment: ${comments}` : ''}`,
+            data: { leaveRequestId: id, comments, prevStatus },
+          });
+        } catch { /* non-fatal */ }
+      }
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        const chainIds = await collectChainRecipients(db, scope.tenantId, leaveRequest?.employee?.userId || null, existingLeave.currentApproverId, id);
+        await dispatchLeaveEvent(db, scope.tenantId, 'leave.hold_released', leaveRequest, scope.userId, comments, request, chainIds);
+      } catch { /* non-fatal */ }
+      return NextResponse.json({ success: true, leaveRequest, message: `Hold released — leave is ${prevStatus}` }, { headers: corsHeaders() });
+    }
+
+    // ─── Accept proposed dates (employee action) / Apply counter dates (approver action) ───
+    // The held leave moves to the proposed date range. If it was previously
+    // APPROVED, the balance is re-computed (reverse old range, charge new
+    // range) and attendance is re-synced. If it was PENDING, it re-enters
+    // the approval queue with the new dates.
+    if (status === 'accept_proposed_dates' || status === 'apply_counter_dates') {
+      if (!cfgFlags.allowDateProposal) {
+        return NextResponse.json({ error: 'The date proposal flow is disabled by the leave workflow configuration' }, { status: 403, headers: corsHeaders() });
+      }
+      const hold = await readHoldJson(db, id);
+      const proposedBy = hold?.proposedBy || 'approver'; // legacy rows (no proposedBy) are approver proposals
+      const expectedBy = status === 'apply_counter_dates' ? 'employee' : 'approver';
+      if (!hold?.startDate || !hold?.endDate) {
+        return NextResponse.json({ error: 'No proposed dates found on this hold' }, { status: 400, headers: corsHeaders() });
+      }
+      if (proposedBy !== expectedBy) {
+        return NextResponse.json({ error: `These dates were proposed by the ${proposedBy}. Only ${expectedBy === 'employee' ? 'the employee' : 'the approver'} can apply them.` }, { status: 400, headers: corsHeaders() });
+      }
+
+      const prevStatus = hold.prevStatus === 'approved' ? 'approved' : 'pending';
+      const oldStart = existingLeave.startDate;
+      const oldEnd = existingLeave.endDate;
+      const datesChanged = String(oldStart).split('T')[0] !== String(hold.startDate).split('T')[0]
+        || String(oldEnd).split('T')[0] !== String(hold.endDate).split('T')[0];
+
+      // Compute working days for the NEW range (sandwich/holiday-aware)
+      let newDays = existingLeave.halfDay ? 0.5 : null;
+      let weekendDow: number[] | undefined;
+      try { weekendDow = await getWeekendDays(db, scope.tenantId, existingLeave.employee.companyId); } catch { /* default */ }
+      try {
+        const holidays = await getHolidaysInRange(db, new Date(hold.startDate), new Date(hold.endDate));
+        const walk = computeWorkingDays(new Date(hold.startDate), new Date(hold.endDate), weekendDow, new Set(holidays.map(h => h.date)));
+        newDays = leaveDaysConsumed(walk, existingLeave.halfDay);
+      } catch { /* fall back to calendar days below */ }
+      if (newDays == null) {
+        newDays = Math.ceil((new Date(hold.endDate).getTime() - new Date(hold.startDate).getTime()) / 86400000) + 1;
+      }
+
+      await ensureHoldColumns(db);
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = NULL WHERE "id" = $1`, id
+      ).catch(() => null);
+
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: {
+          startDate: new Date(hold.startDate),
+          endDate: new Date(hold.endDate),
+          status: prevStatus,
+          ...(prevStatus === 'approved' ? { chargeableDays: newDays } : {}),
+          comments: comments || existingLeave.comments,
+        },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true, companyId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+
+      if (prevStatus === 'approved' && datesChanged) {
+        // Balance: credit the old range back, charge the new range (double-entry ledger)
+        try {
+          let oldDays = existingLeave.chargeableDays ?? (existingLeave.halfDay
+            ? 0.5
+            : Math.ceil((new Date(oldEnd).getTime() - new Date(oldStart).getTime()) / 86400000) + 1);
+          try {
+            const holidaysOld = await getHolidaysInRange(db, new Date(oldStart), new Date(oldEnd));
+            const walkOld = computeWorkingDays(new Date(oldStart), new Date(oldEnd), weekendDow, new Set(holidaysOld.map(h => h.date)));
+            oldDays = leaveDaysConsumed(walkOld, existingLeave.halfDay);
+          } catch { /* keep fallback oldDays */ }
+          await appendLedgerEntry(db, {
+            employeeId: existingLeave.employeeId, leaveTypeId: existingLeave.leaveTypeId,
+            year: new Date(oldStart).getFullYear(), transactionType: 'reverse', days: Math.abs(oldDays),
+            sourceType: 'leave_request', sourceId: id,
+            reason: `Hold resolved — original range credited back (${oldDays} day(s))`,
+            createdBy: scope.userId, leaveRequestId: id,
+          });
+          await appendLedgerEntry(db, {
+            employeeId: existingLeave.employeeId, leaveTypeId: existingLeave.leaveTypeId,
+            year: new Date(hold.startDate).getFullYear(), transactionType: 'consume', days: Math.abs(newDays),
+            sourceType: 'leave_request', sourceId: id,
+            reason: `Hold resolved — new range charged (${newDays} day(s))`,
+            createdBy: scope.userId, leaveRequestId: id,
+          });
+        } catch (balErr) {
+          console.warn('[leave] Balance re-computation on date change failed (non-fatal):', balErr);
+        }
+        // Attendance: clean the old range, sync the new one
+        await removeLeaveAttendanceRows(db, existingLeave.employeeId, oldStart, oldEnd, id);
+        await syncAttendanceForLeave(db, {
+          employeeId: existingLeave.employeeId,
+          startDate: hold.startDate, endDate: hold.endDate,
+          halfDay: existingLeave.halfDay, leaveRequestId: id,
+          leaveTypeName: existingLeave.leaveType?.name, weekendDow,
+        });
+      }
+
+      // Notify employee + approver chain — everyone in the flow
+      if (leaveRequest?.employee?.userId) {
+        try {
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_dates_accepted',
+            title: 'Leave dates confirmed',
+            message: `Your ${leaveRequest.leaveType?.name || 'leave'} has been moved to ${String(hold.startDate).split('T')[0]} → ${String(hold.endDate).split('T')[0]}. Status: ${prevStatus}.`,
+            data: { leaveRequestId: id, startDate: hold.startDate, endDate: hold.endDate, prevStatus },
+          });
+        } catch { /* non-fatal */ }
+      }
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        const chainIds = await collectChainRecipients(db, scope.tenantId, leaveRequest?.employee?.userId || null, existingLeave.currentApproverId, id);
+        await dispatchLeaveEvent(db, scope.tenantId, 'leave.dates_accepted', leaveRequest, scope.userId, comments, request, chainIds, {
+          Proposed_From: String(hold.startDate).split('T')[0],
+          Proposed_To: String(hold.endDate).split('T')[0],
+        });
+      } catch { /* non-fatal */ }
+      return NextResponse.json({
+        success: true, leaveRequest,
+        message: `Dates updated — leave is ${prevStatus}${status === 'accept_proposed_dates' ? ' (accepted by employee)' : ' (applied by approver)'}`,
+      }, { headers: corsHeaders() });
+    }
+
+    // ─── Counter-propose dates (employee action) ────────────────────────
+    // The employee suggests different dates while the leave is on hold.
+    // The suggestion is stored (proposedBy: 'employee') and the approver
+    // chain is notified to apply or decline it.
+    if (status === 'counter_propose_dates') {
+      if (!cfgFlags.allowDateProposal) {
+        return NextResponse.json({ error: 'The date proposal flow is disabled by the leave workflow configuration' }, { status: 403, headers: corsHeaders() });
+      }
+      const proposedDates = body.proposedDates || null; // { startDate, endDate }
+      if (!proposedDates?.startDate || !proposedDates?.endDate) {
+        return NextResponse.json({ error: 'proposedDates { startDate, endDate } are required' }, { status: 400, headers: corsHeaders() });
+      }
+      const hold = await readHoldJson(db, id);
+      const payload = {
+        startDate: proposedDates.startDate,
+        endDate: proposedDates.endDate,
+        proposedBy: 'employee',
+        prevStatus: hold?.prevStatus || 'pending',
+        note: comments || null,
+        counterTo: hold?.startDate ? { startDate: hold.startDate, endDate: hold.endDate } : null,
+        updatedAt: new Date().toISOString(),
+      };
+      await ensureHoldColumns(db);
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = $1, "holdComments" = $2 WHERE "id" = $3`,
+        JSON.stringify(payload), comments || holdCommentsOf(existingLeave) || null, id
+      ).catch(() => null);
+
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: { comments: comments || undefined },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+
+      // Notify the approver chain (action needed) + confirm to the employee
+      const empName3 = `${leaveRequest?.employee?.firstName || ''} ${leaveRequest?.employee?.lastName || ''}`.trim() || 'An employee';
+      const approverIds = await collectChainRecipients(db, scope.tenantId, null, existingLeave.currentApproverId, id);
+      for (const uid of approverIds) {
+        try {
+          await createNotification(db, {
+            userId: uid,
+            type: 'leave_counter_proposed',
+            title: 'Employee suggested different dates',
+            message: `${empName3} suggested ${String(proposedDates.startDate).split('T')[0]} → ${String(proposedDates.endDate).split('T')[0]} for their held ${leaveRequest.leaveType?.name || 'leave'}.${comments ? ` Note: ${comments}` : ''}`,
+            data: { leaveRequestId: id, proposedDates, comments },
+          });
+        } catch { /* non-fatal */ }
+      }
+      if (leaveRequest?.employee?.userId) {
+        try {
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_counter_proposed',
+            title: 'Date suggestion sent',
+            message: `Your suggested dates were sent to the approver for review.`,
+            data: { leaveRequestId: id, proposedDates },
+          });
+        } catch { /* non-fatal */ }
+      }
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        await dispatchLeaveEvent(db, scope.tenantId, 'leave.dates_counter_proposed', leaveRequest, scope.userId, comments, request, approverIds, {
+          Proposed_From: String(proposedDates.startDate).split('T')[0],
+          Proposed_To: String(proposedDates.endDate).split('T')[0],
+        });
+      } catch { /* non-fatal */ }
+      return NextResponse.json({ success: true, leaveRequest, message: 'Suggested dates sent to the approver' }, { headers: corsHeaders() });
+    }
+
+    // ─── Decline counter-proposed dates (approver action) ───────────────
+    // The approver declines the employee's suggestion. The leave STAYS on
+    // hold (the approver can propose other dates or release the hold).
+    if (status === 'decline_counter_dates') {
+      const hold = await readHoldJson(db, id);
+      await ensureHoldColumns(db);
+      // Keep the hold state (prevStatus) but clear the employee's suggestion
+      await db.$executeRawUnsafe(
+        `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = $1 WHERE "id" = $2`,
+        JSON.stringify({ prevStatus: hold?.prevStatus || 'pending', declinedAt: new Date().toISOString() }), id
+      ).catch(() => null);
+
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: { comments: comments || existingLeave.comments },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+
+      if (leaveRequest?.employee?.userId) {
+        try {
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_counter_declined',
+            title: 'Date suggestion declined',
+            message: `The approver declined your suggested dates. Your ${leaveRequest.leaveType?.name || 'leave'} is still on hold.${comments ? ` Comment: ${comments}` : ''}`,
+            data: { leaveRequestId: id, comments },
+          });
+        } catch { /* non-fatal */ }
+        try {
+          const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+          await dispatchLeaveEvent(db, scope.tenantId, 'leave.dates_counter_declined', leaveRequest, scope.userId, comments, request, [leaveRequest.employee.userId]);
+        } catch { /* non-fatal */ }
+      }
+      return NextResponse.json({ success: true, leaveRequest, message: 'Suggested dates declined — leave remains on hold' }, { headers: corsHeaders() });
+    }
+
+    // ─── Withdraw (employee self-service) ───────────────────────────────
     // Employee withdraws a pending/on_hold request. No approval needed.
-    // Balance is released. The current approver is notified.
+    // Balance is released. The approval chain is notified.
     if (status === 'withdrawn') {
       const leaveRequest = await db.leaveRequest.update({
         where: { id },
         data: { status: 'cancelled', cancellationReason: comments, comments, cancelledAt: new Date() },
         include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
       }).catch(() => null);
+
+      // Notify the approval chain that the request was withdrawn
+      const empName4 = `${leaveRequest?.employee?.firstName || ''} ${leaveRequest?.employee?.lastName || ''}`.trim() || 'An employee';
+      const chainIds4 = await collectChainRecipients(db, scope.tenantId, null, existingLeave.currentApproverId, id);
+      for (const uid of chainIds4) {
+        try {
+          await createNotification(db, {
+            userId: uid,
+            type: 'leave_withdrawn',
+            title: 'Leave request withdrawn',
+            message: `${empName4} withdrew their ${leaveRequest.leaveType?.name || 'leave'} request (${String(existingLeave.startDate).split('T')[0]} → ${String(existingLeave.endDate).split('T')[0]}).`,
+            data: { leaveRequestId: id, comments },
+          });
+        } catch { /* non-fatal */ }
+      }
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        await dispatchLeaveEvent(db, scope.tenantId, 'leave.cancelled', leaveRequest, scope.userId, comments, request, chainIds4, {
+          Cancelled_By: 'Employee (withdrawn)',
+        });
+      } catch { /* non-fatal */ }
       return NextResponse.json({ success: true, leaveRequest, message: 'Leave withdrawn — approver notified' }, { headers: corsHeaders() });
     }
 
-    // ─── QA Spec Section 7: Cancel request after approval ─────────────
-    // Employee raises a cancellation request on an approved leave. The
-    // status becomes 'cancel_requested' and goes to the Reporting Manager
-    // (and HR if in the flow) for approval. Until approved, the leave stays
-    // 'approved' with a flag. On approval, status='cancelled' + balance restored.
+    // ─── Cancel request after approval (employee action, gated) ────────
+    // Employee raises a cancellation request on an APPROVED leave. The
+    // status becomes 'cancel_requested' and goes to the approval chain
+    // (current approver + HR) for sign-off. Until approved, the leave stays
+    // 'approved'. On approval, status='cancelled' + balance restored.
+    // Gated by workflow config allowCancelAfterApproval.
     if (status === 'cancel_requested') {
+      if (!cfgFlags.allowCancelAfterApproval) {
+        return NextResponse.json({ error: 'Cancelling an approved leave is disabled by the leave workflow configuration' }, { status: 403, headers: corsHeaders() });
+      }
       const leaveRequest = await db.leaveRequest.update({
         where: { id },
         data: { status: 'cancel_requested', cancellationReason: comments, comments },
         include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
       }).catch(() => null);
-      // Notify the approver
-      if (leaveRequest?.employee?.userId) {
+
+      // FIX (previously notified the employee only): the APPROVER + HR must
+      // act on this request — notify them, and confirm to the employee.
+      const empName5 = `${leaveRequest?.employee?.firstName || ''} ${leaveRequest?.employee?.lastName || ''}`.trim() || 'An employee';
+      const approverIds5 = await collectChainRecipients(db, scope.tenantId, null, existingLeave.currentApproverId, id);
+      for (const uid of approverIds5) {
         try {
-          const { createNotification } = await import('@/lib/notifications');
           await createNotification(db, {
-            userId: leaveRequest.employee.userId,
+            userId: uid,
             type: 'leave_cancel_request',
-            title: `Cancellation request submitted`,
-            message: `Cancellation request for ${leaveRequest.leaveType?.name || 'leave'} has been submitted and is pending approval.`,
+            title: 'Cancellation request — action needed',
+            message: `${empName5} requested cancellation of the APPROVED ${leaveRequest.leaveType?.name || 'leave'} (${String(existingLeave.startDate).split('T')[0]} → ${String(existingLeave.endDate).split('T')[0]}).${comments ? ` Reason: ${comments}` : ''}`,
             data: { leaveRequestId: id, comments },
           });
         } catch { /* non-fatal */ }
       }
+      if (leaveRequest?.employee?.userId) {
+        try {
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_cancel_request',
+            title: 'Cancellation request submitted',
+            message: `Your cancellation request for the ${leaveRequest.leaveType?.name || 'leave'} has been submitted and is pending approval. The leave stays approved until the cancellation is approved.`,
+            data: { leaveRequestId: id, comments },
+          });
+        } catch { /* non-fatal */ }
+      }
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        await dispatchLeaveEvent(db, scope.tenantId, 'leave.cancel_requested', leaveRequest, scope.userId, comments, request, approverIds5);
+      } catch { /* non-fatal */ }
       return NextResponse.json({ success: true, leaveRequest, message: 'Cancellation request submitted — awaiting approval' }, { headers: corsHeaders() });
+    }
+
+    // ─── Decline cancellation request (approver action) ─────────────────
+    // The approver declines the employee's cancellation — the approved
+    // leave stays as originally planned.
+    if (status === 'decline_cancel_request') {
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: { status: 'approved', comments: comments || existingLeave.comments },
+        include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
+      }).catch(() => null);
+
+      if (leaveRequest?.employee?.userId) {
+        try {
+          await createNotification(db, {
+            userId: leaveRequest.employee.userId,
+            type: 'leave_cancel_declined',
+            title: 'Cancellation request declined',
+            message: `Your cancellation request for the ${leaveRequest.leaveType?.name || 'leave'} was declined. The leave remains approved (${String(existingLeave.startDate).split('T')[0]} → ${String(existingLeave.endDate).split('T')[0]}).${comments ? ` Comment: ${comments}` : ''}`,
+            data: { leaveRequestId: id, comments },
+          });
+        } catch { /* non-fatal */ }
+        try {
+          const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+          await dispatchLeaveEvent(db, scope.tenantId, 'leave.cancel_request_declined', leaveRequest, scope.userId, comments, request, [leaveRequest.employee.userId]);
+        } catch { /* non-fatal */ }
+      }
+      return NextResponse.json({ success: true, leaveRequest, message: 'Cancellation declined — leave stays approved' }, { headers: corsHeaders() });
     }
 
     // ─── Handle cancellation (no workflow involved) ───
@@ -223,7 +738,14 @@ export async function PATCH(
         select: { id: true, employeeId: true, leaveTypeId: true, startDate: true, endDate: true, halfDay: true, status: true, chargeableDays: true },
       }).catch(() => null);
 
-      const wasApproved = existingRequest?.status === 'approved';
+      // A leave has its balance DEDUCTED while: 'approved' (deducted at
+      // approval), 'cancel_requested' (still approved until sign-off) and
+      // 'on_hold' when the hold was applied to an APPROVED leave. All three
+      // must restore the balance on cancellation.
+      const holdJson = existingRequest?.status === 'on_hold' ? await readHoldJson(db, id) : null;
+      const wasApproved = existingRequest?.status === 'approved'
+        || existingRequest?.status === 'cancel_requested'
+        || (existingRequest?.status === 'on_hold' && holdJson?.prevStatus === 'approved');
 
       await ensureLeaveModuleSchemaColumns(db);
       const leaveRequest = await db.leaveRequest.update({
@@ -270,6 +792,10 @@ export async function PATCH(
         } catch (reverseErr) {
           console.warn(`[leave] Balance restoration failed for cancelled leave ${id} (non-fatal):`, reverseErr);
         }
+
+        // Remove the on_leave/half_day attendance rows the approval sync
+        // created for the (original) range — real punches are never touched.
+        await removeLeaveAttendanceRows(db, existingRequest.employeeId, existingRequest.startDate, existingRequest.endDate, id);
       }
 
       await safeAuditLog(db, {

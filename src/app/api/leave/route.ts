@@ -347,8 +347,10 @@ export async function GET(request: Request) {
     // BUG_139: fetch appliedByUserId via raw SQL (Prisma doesn't know the column
     // because it's added via ALTER TABLE, not in schema.prisma). Build a map of
     // requestId → appliedByUserId so we can annotate the Prisma results.
+    // Also fetch the hold/proposal runtime columns (Hold · Propose dates flows).
     const requestIds = leaveRequests.map((lr: any) => lr.id);
     let appliedByMap: Record<string, string | null> = {};
+    const holdMap: Record<string, { proposedHoldDates: unknown; holdComments: string | null }> = {};
     if (requestIds.length > 0) {
       try {
         const rows: any[] = await db.$queryRawUnsafe(
@@ -359,16 +361,31 @@ export async function GET(request: Request) {
           appliedByMap[r.id] = r.appliedByUserId || null;
         }
       } catch { /* column may not exist yet — all appliedByHR will be false */ }
+      try {
+        const holdRows: Array<{ id: string; proposedHoldDatesJson: string | null; holdComments: string | null }> = await db.$queryRawUnsafe(
+          `SELECT id, "proposedHoldDatesJson", "holdComments" FROM "LeaveRequest" WHERE id = ANY($1::text[])`,
+          requestIds
+        );
+        for (const r of holdRows) {
+          let parsed: Record<string, unknown> | null = null;
+          try { parsed = r.proposedHoldDatesJson ? JSON.parse(r.proposedHoldDatesJson) : null; } catch { parsed = null; }
+          holdMap[r.id] = { proposedHoldDates: parsed, holdComments: r.holdComments || null };
+        }
+      } catch { /* columns may not exist yet */ }
     }
 
     // Annotate each request with appliedByHR flag (true when the submitter's
     // userId differs from the employee's userId). The UI shows an "Applied by
-    // HR" badge on these rows.
+    // HR" badge on these rows. Also attach hold/proposal info for the
+    // Hold · Propose dates flows (banners + actions on My/Team tabs).
     const leaveRequestsWithFlag = leaveRequests.map((lr: any) => {
       const appliedByUserId = appliedByMap[lr.id] || null;
+      const holdInfo = holdMap[lr.id] || null;
       return {
         ...lr,
         appliedByHR: !!(appliedByUserId && lr.employee?.userId && appliedByUserId !== lr.employee.userId),
+        proposedHoldDates: holdInfo?.proposedHoldDates || null,
+        holdComments: holdInfo?.holdComments || null,
       };
     });
 
