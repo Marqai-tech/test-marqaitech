@@ -48,6 +48,7 @@ interface PipelineCandidate {
   stageLabel: string;
   joiningConfirmed: boolean | null;
   employeeId: string | null;
+  employeeCode?: string | null;
   bgvStatus: string;
   companyEmail?: string | null;
 }
@@ -452,7 +453,7 @@ function EmployeeCreationInner() {
               <optgroup label="Employee record already created">
                 {joinedCandidates.map((c) => (
                   <option key={c.id} value={c.id} disabled>
-                    {c.candidateName}{c.employeeId ? ` — ${c.employeeId}` : ''}
+                    {c.candidateName}{c.employeeCode ? ` — ${c.employeeCode}` : c.employeeId ? ` — ${c.employeeId}` : ''}
                   </option>
                 ))}
               </optgroup>

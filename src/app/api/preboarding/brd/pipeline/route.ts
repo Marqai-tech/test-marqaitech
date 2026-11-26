@@ -78,6 +78,13 @@ export async function GET(req: NextRequest) {
       managerMap = new Map(mgrRows.map((m: any) => [m.id, [m.firstName, m.lastName].filter(Boolean).join(' ')]));
     } catch { /* Employee table may be empty */ }
 
+    // Resolve formal employee codes (MarqNNN) for candidates already converted
+    const empCodeMap = new Map<string, string>();
+    try {
+      const codeRows = await db.$queryRawUnsafe(`SELECT "id","employeeId" FROM "Employee" WHERE "employeeId" IS NOT NULL LIMIT 1000`) as any[];
+      for (const c of codeRows) empCodeMap.set(c.id, c.employeeId);
+    } catch { /* advisory only */ }
+
     const candidates: any[] = [];
     const stageCounts: Record<string, number> = {};
     for (const stage of Object.keys(STAGE_LABELS)) stageCounts[stage] = 0;
@@ -127,6 +134,7 @@ export async function GET(req: NextRequest) {
         onboardingStatus: pb.onboardingStatus || null,
         bgvStatus: pb.backgroundCheckStatus || 'pending',
         employeeId: pb.employeeId || null,
+        employeeCode: pb.employeeId ? (empCodeMap.get(pb.employeeId) || null) : null,
         correctionNote: pb.correctionNote || null,
         portalSubmittedAt: pb.portalSubmittedAt || null,
         joiningConfirmed: Boolean(pb.joiningConfirmed),
