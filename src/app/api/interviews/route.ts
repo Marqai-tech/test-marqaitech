@@ -136,9 +136,16 @@ export async function GET(req: NextRequest) {
       // assigned panel instead of "No panel members assigned".
       if ((!interview.panelMembers || interview.panelMembers.length === 0) && interview.interviewer) {
         try {
-          const ids = String(interview.interviewer).split(',').map((s: string) => s.trim()).filter(Boolean);
-          if (ids.length > 0) {
-            const placeholders = ids.map((_, idx) => `$${idx + 1}`).join(',');
+          const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const segments = String(interview.interviewer).split(',').map((s: string) => s.trim()).filter(Boolean);
+          // Legacy rows store free-text names ("Meera Bansal (HR)", "CEO Panel")
+          // while newer rows store user IDs. Resolve only the ID segments via the
+          // User table; name segments are used as-is so the panel always shows
+          // the assigned interviewer instead of "No panel members assigned".
+          const idSegments = segments.filter((s: string) => UUID_RE.test(s));
+          let resolved: Record<string, any> = {};
+          if (idSegments.length > 0) {
+            const placeholders = idSegments.map((_, idx) => `$${idx + 1}`).join(',');
             const rows = await db.$queryRawUnsafe(
               `SELECT u."id" AS "userId", u."name" AS "memberName", u."email" AS "memberEmail",
                       e."firstName", e."lastName", des."title" AS "designation"
@@ -146,13 +153,16 @@ export async function GET(req: NextRequest) {
                LEFT JOIN "Employee" e ON e."userId" = u."id"
                LEFT JOIN "Designation" des ON des."id" = e."designationId"
                WHERE u."id" IN (${placeholders})`,
-              ...ids,
+              ...idSegments,
             ) as any[];
-            interview.panelMembers = ids.map((id: string) => {
-              const row = rows.find(r => r.userId === id);
+            resolved = Object.fromEntries((rows || []).map((r: any) => [r.userId, r]));
+          }
+          interview.panelMembers = segments.map((seg: string, idx: number) => {
+            if (UUID_RE.test(seg)) {
+              const row = resolved[seg];
               return {
-                id: `fallback-${id}`,
-                userId: id,
+                id: `fallback-${seg}`,
+                userId: seg,
                 name: row?.memberName || `${row?.firstName || ''} ${row?.lastName || ''}`.trim() || row?.memberEmail || 'Interviewer',
                 email: row?.memberEmail || null,
                 designation: row?.designation || '—',
@@ -163,8 +173,25 @@ export async function GET(req: NextRequest) {
                 feedbackRating: null,
                 feedbackRecommendation: null,
               };
-            });
-          }
+            }
+            // Free-text legacy entry — split "Name (Role)" when possible.
+            const paren = seg.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+            const name = (paren ? paren[1] : seg).trim() || seg;
+            const role = paren ? paren[2].trim() : null;
+            return {
+              id: `fallback-name-${idx}`,
+              userId: null,
+              name,
+              email: null,
+              designation: role || '—',
+              confirmationStatus: 'pending',
+              reason: null,
+              respondedAt: null,
+              hasFeedback: false,
+              feedbackRating: null,
+              feedbackRecommendation: null,
+            };
+          });
         } catch {
           // Keep the (empty) panel list — the UI already handles it.
         }

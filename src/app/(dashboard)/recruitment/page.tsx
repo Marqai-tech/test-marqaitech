@@ -1163,7 +1163,11 @@ function ApprovedRequisitionsPanel({ requisitions, loading, onConvert, onRefresh
 /* ── Component ── */
 export default function RecruitmentPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin'].includes(user?.role || '');
+  // HR/admin roles — matches the canonical HR_ROLES list (src/lib/preboarding.ts)
+  // and roleAccess isHRRole(). The previous narrow list hid the Create Job /
+  // Create Job Posting buttons from company_hr_admin, hr_admin and hrhead, so
+  // real HR users could not open the posting wizard at all.
+  const isAdmin = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(user?.role || '');
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 

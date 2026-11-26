@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { findJoiningBlockers } from '@/lib/onboarding-documents';
+import { resolveEmployeeCompanyId } from '@/lib/employee-company';
 
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization' };
 export async function OPTIONS() { return NextResponse.json({}, { headers: CORS }); }
@@ -100,15 +101,18 @@ export async function POST(req: NextRequest) {
         // Create provisional Employee row
         const empId = `emp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
         const jDate = pb.joiningDate ? new Date(pb.joiningDate) : new Date();
+        // Stamp the company — employees without companyId are invisible in the
+        // company-scoped Employee List (the "new joiner not found" bug).
+        const companyId = await resolveEmployeeCompanyId(db, deptId, pb.reportingManagerId);
         await db.$executeRawUnsafe(
           `INSERT INTO "Employee" ("id", "employeeId", "firstName", "lastName", "email", "phone",
-                                    "userId", "departmentId", "designationId", "reportingManagerId",
+                                    "userId", "companyId", "departmentId", "designationId", "reportingManagerId",
                                     "dateOfJoining", "employeeStatus", "employeeType", "status",
                                     "credentialsStatus", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'probation', 'full_time', 'provisional',
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'probation', 'full_time', 'provisional',
                    'invited', NOW(), NOW())`,
           empId, provCode, firstName, lastName, userEmail.toLowerCase(), pb.candidatePhone||null,
-          userId, deptId, desigId, pb.reportingManagerId||null, jDate,
+          userId, companyId, deptId, desigId, pb.reportingManagerId||null, jDate,
         ).catch((e:any) => { throw new Error(`Provisional Employee create failed: ${e.message}`); });
         employeeId = empId;
       }

@@ -103,7 +103,14 @@ function BgvPanel({ bgv, loaded, bgvStatusRaw }: { bgv: BgvData['request']; load
     {!loaded ? <p className="mt-4 text-sm text-slate-400">Loading BGV status…</p>
     : !bgv ? (
       /* Nothing initiated yet — keep the guidance copy, now reflecting live state. */
-      <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800"><strong>{['in_progress','cleared','approved','passed'].includes(bgvStatusRaw) ? 'BGV is handled by HR — updates will appear here.' : 'BGV starts after all required documents are approved.'}</strong><p className="mt-1">HR selects a vendor and initiates verification. Once started, you can track live progress here.</p></div>
+      ['in_progress','cleared','approved','passed'].includes(bgvStatusRaw) ? (
+        <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">
+          <strong className="flex items-center gap-1.5"><FiCheckCircle className="h-3.5 w-3.5"/> Background verification cleared</strong>
+          <p className="mt-1">HR verified your background check and your verification is marked <b>cleared</b>. No further action is needed from you.</p>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800"><strong>BGV starts after all required documents are approved.</strong><p className="mt-1">HR selects a vendor and initiates verification. Once started, you can track live progress here.</p></div>
+      )
     ) : (
       <>
         <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs">

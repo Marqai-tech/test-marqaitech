@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
+import { resolveEmployeeCompanyId } from '@/lib/employee-company';
 import { getAuthInfo } from '@/lib/companyScope';
 import { hashPassword } from '@/lib/auth';
 import { sendConfiguredEmail } from '@/lib/configured-email';
@@ -69,6 +70,10 @@ export async function PATCH(req: NextRequest) {
       let desigId = pb.designationId;
       if (!desigId) { const d = await db.$queryRawUnsafe(`SELECT id FROM "Designation" ORDER BY "createdAt" ASC LIMIT 1`).catch(() => []) as any[]; desigId = d[0]?.id || null; }
 
+      // Stamp the company — employees without companyId are invisible in the
+      // company-scoped Employee List (the "Marq001 not found" bug).
+      const companyId = await resolveEmployeeCompanyId(db, deptId, pb.reportingManagerId);
+
       const firstName = (pb.candidateName||'New').split(' ')[0];
       const lastName = (pb.candidateName||'Employee').split(' ').slice(1).join(' ') || 'Employee';
       const userEmail = (pb.companyEmail || pb.candidateEmail || '').toLowerCase();
@@ -104,6 +109,7 @@ export async function PATCH(req: NextRequest) {
         await db.$executeRawUnsafe(
           `UPDATE "Employee" SET "employeeId" = $1, "status" = 'active', "employeeStatus" = 'probation',
                                   "userId" = COALESCE("userId", $2),
+                                  "companyId" = COALESCE("companyId", $11),
                                   "departmentId" = $3, "designationId" = $4,
                                   "reportingManagerId" = $5,
                                   "dateOfJoining" = $6,
@@ -115,7 +121,7 @@ export async function PATCH(req: NextRequest) {
           empCode, user.id, deptId, desigId, pb.reportingManagerId||null,
           pb.joiningDate ? new Date(pb.joiningDate) : new Date(),
           firstName, lastName, pb.candidatePhone||null,
-          employeeId,
+          employeeId, companyId,
         ).catch((e:any) => { throw new Error(`Employee upgrade failed: ${e.message}`); });
       } else {
         // CREATE a new Employee (fallback for legacy flow without mark-joined)
@@ -123,6 +129,7 @@ export async function PATCH(req: NextRequest) {
           employeeId: empCode, firstName, lastName, email: userEmail,
           phone: pb.candidatePhone || null,
           userId: user.id,
+          companyId,
           departmentId: deptId, designationId: desigId,
           reportingManagerId: pb.reportingManagerId || null,
           dateOfJoining: pb.joiningDate ? new Date(pb.joiningDate) : new Date(),

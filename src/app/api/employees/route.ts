@@ -379,12 +379,23 @@ export async function GET(request: Request) {
           where.status = { notIn: INACTIVE_STATUSES };
         }
         if (search) {
-          where.OR = [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-            { employeeId: { contains: search, mode: 'insensitive' } },
-          ];
+          // Multi-word search (e.g. "Priya Nair" or full "Thummala Manoj"):
+          // a single `contains` on each field can never match a full name, so
+          // the Employee List showed "No employees found" for every View
+          // Employee link that passes the candidate's full name. Tokenize:
+          // every token must match (AND) any of the searchable fields (OR).
+          const tokens = search.trim().split(/\s+/).filter(Boolean).slice(0, 5);
+          if (tokens.length > 0) {
+            const tokenGroups = tokens.map((token) => ({
+              OR: [
+                { firstName: { contains: token, mode: 'insensitive' } },
+                { lastName: { contains: token, mode: 'insensitive' } },
+                { email: { contains: token, mode: 'insensitive' } },
+                { employeeId: { contains: token, mode: 'insensitive' } },
+              ],
+            }));
+            where.AND = [...(Array.isArray(where.AND) ? where.AND : []), ...tokenGroups];
+          }
         }
       }
       // The Employee List explicitly excludes management members for every

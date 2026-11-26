@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { HR_ROLES, parsePortalDetails, notifyCandidate, audit, ensurePreboardingId } from '@/lib/preboarding';
+import { resolveEmployeeCompanyId } from '@/lib/employee-company';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -241,6 +242,11 @@ export async function POST(req: NextRequest) {
     const provCode = `PROV-${preboardingId.replace(/[^a-z0-9]/gi, '').slice(-4)}${String(Date.now()).slice(-4)}`;
     const jDate = doj ? new Date(doj) : new Date();
 
+    // Stamp the company — employees without companyId are invisible in the
+    // company-scoped Employee List (the "new joiner not found" bug). Resolved
+    // outside the transaction so a failure cannot roll back the whole create.
+    const companyId = await resolveEmployeeCompanyId(db, deptId, mgrId);
+
     // FK pre-checks (outside transaction, fail fast with clear errors).
     if (deptId) { const d = await db.$queryRawUnsafe(`SELECT 1 FROM "Department" WHERE id=$1 LIMIT 1`, deptId) as any[]; if (!d.length) throw new Error(`Department ${deptId} does not exist`); }
     if (desigId) { const d = await db.$queryRawUnsafe(`SELECT 1 FROM "Designation" WHERE id=$1 LIMIT 1`, desigId) as any[]; if (!d.length) throw new Error(`Designation ${desigId} does not exist`); }
@@ -251,17 +257,18 @@ export async function POST(req: NextRequest) {
     await db.$transaction(async (tx: Tx) => {
       await tx.$executeRawUnsafe(
         `INSERT INTO "Employee" ("id", "employeeId", "firstName", "lastName", "email", "phone",
-                                  "userId", "departmentId", "designationId", "reportingManagerId",
+                                  "userId", "companyId", "departmentId", "designationId", "reportingManagerId",
                                   "dateOfJoining", "employeeStatus", "employeeType", "workMode",
                                   "status", "credentialsStatus", "preboardingCandidateId",
                                   "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'probation', $12, $13,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $15, $8, $9, $10, $11, 'probation', $12, $13,
                  'provisional', 'invited', $14, NOW(), NOW())`,
         empId, provCode, firstName, lastName, userEmail, pb.candidatePhone || null,
         userIdLinked, deptId, desigId, mgrId, jDate,
         employment.employmentType || pb.employmentType || 'full_time',
         employment.workMode || pb.workMode || 'office',
         candidateId,
+        companyId,
       );
       await tx.$executeRawUnsafe(
         `UPDATE "PreboardingCandidate"

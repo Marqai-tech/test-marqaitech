@@ -182,7 +182,7 @@ export default function CandidateLoginPage() {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 lg:h-screen lg:overflow-hidden">
       <header className="flex h-16 items-center justify-between bg-gradient-to-r from-[#092744] via-[#103454] to-[#0f766e] px-6 text-white shadow-md">
         <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-xs font-black tracking-[-.15em]">•••</span><span className="text-xl font-bold">3Boxes <span className="text-emerald-300">HRMS</span></span><span className="ml-3 border-l border-white/30 pl-4 text-sm text-slate-200">Candidate Portal</span></div>
         <Link href="/careers" className="rounded-lg border border-white/25 px-4 py-2 text-sm font-semibold hover:bg-white/10">Browse Jobs</Link>
@@ -206,8 +206,8 @@ export default function CandidateLoginPage() {
         </Link>
       </div>
 
-      <main className="mx-auto grid h-[calc(100vh-64px)] max-w-7xl grid-cols-[minmax(360px,.9fr)_minmax(440px,1.1fr)] items-center gap-8 px-8 py-3">
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+      <main className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-6 sm:px-8 lg:h-[calc(100vh-64px)] lg:grid-cols-[minmax(360px,.9fr)_minmax(440px,1.1fr)] lg:py-3">
+        <section className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl lg:block">
           <div className="relative h-48 bg-cover bg-center p-8 text-white" style={{ backgroundImage: "linear-gradient(105deg, rgba(8,36,59,.94), rgba(13,49,82,.70)), url('/images/hr-team.png')" }}>
             <FiGrid className="mb-4 h-9 w-9"/><h2 className="text-3xl font-bold">Welcome back</h2><p className="mt-3 max-w-md text-sm leading-6 text-slate-100">Sign in to track applications, respond to interviews, review offers, and complete preboarding.</p>
           </div>

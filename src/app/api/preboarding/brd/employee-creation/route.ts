@@ -26,6 +26,7 @@ import { getDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { HR_ROLES, parsePortalDetails, notifyCandidate, audit, ensurePreboardingId } from '@/lib/preboarding';
 import { sendConfiguredEmail } from '@/lib/configured-email';
+import { resolveEmployeeCompanyId } from '@/lib/employee-company';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -260,22 +261,10 @@ export async function POST(req: NextRequest) {
     if (desigId) { const d = await db.$queryRawUnsafe(`SELECT 1 FROM "Designation" WHERE id=$1 LIMIT 1`, desigId) as any[]; if (!d.length) throw new Error(`Designation ${desigId} does not exist`); }
     if (mgrId) { const d = await db.$queryRawUnsafe(`SELECT 1 FROM "Employee" WHERE id=$1 LIMIT 1`, mgrId) as any[]; if (!d.length) throw new Error(`Reporting manager ${mgrId} does not exist`); }
 
-    // ─── Resolve companyId (department → company) ───
+    // ─── Resolve companyId (department → manager → first active company) ───
     // Without it the employee list (scoped by companyId when HR has a company
     // selected) does not show the freshly created employee.
-    let companyId: string | null = null;
-    if (deptId) {
-      const cRows = await db.$queryRawUnsafe(`SELECT "companyId" FROM "Department" WHERE id=$1 LIMIT 1`, deptId).catch(() => []) as any[];
-      companyId = cRows[0]?.companyId || null;
-    }
-    if (!companyId && mgrId) {
-      const mRows = await db.$queryRawUnsafe(`SELECT "companyId" FROM "Employee" WHERE id=$1 LIMIT 1`, mgrId).catch(() => []) as any[];
-      companyId = mRows[0]?.companyId || null;
-    }
-    if (!companyId) {
-      const anyCompany = await db.$queryRawUnsafe(`SELECT id FROM "Company" ORDER BY "createdAt" ASC LIMIT 1`).catch(() => []) as any[];
-      companyId = anyCompany[0]?.id || null;
-    }
+    const companyId = await resolveEmployeeCompanyId(db, deptId, mgrId);
 
     // Runtime column safety (preboardingCandidateId is a schema-sync column).
     await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`).catch(() => 0);
