@@ -438,7 +438,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const {
+    let {
       title,
       departmentId,
       position,
@@ -454,6 +454,46 @@ export async function POST(request: Request) {
       requisitionId,
       hiringTeam,
     } = body;
+
+    // Requisition auto-map + gate (mirrors /api/jobs): when the form is driven
+    // by a requisition, it must be fully approved before a posting can be
+    // created, and the posting INHERITS the requisition's data — the department
+    // is always the requisition's department (single source of truth), and the
+    // other fields fall back to the requisition when not provided by the caller.
+    // Absent requisitionId → allowed (manual posting).
+    let reqRow: any = null;
+    if (requisitionId) {
+      let reqRows: any[] = [];
+      try {
+        reqRows = await db.$queryRawUnsafe(
+          `SELECT * FROM "Requisition" WHERE "id" = $1 LIMIT 1`,
+          requisitionId,
+        ) as any[];
+      } catch { /* Requisition table might not exist on an old tenant */ }
+      if (!reqRows[0]) {
+        return NextResponse.json(
+          { error: 'Requisition not found' },
+          { status: 404, headers: corsHeaders() }
+        );
+      }
+      reqRow = reqRows[0];
+      if (reqRow.approvalStatus !== 'budget_approved' || reqRow.status !== 'approved') {
+        return NextResponse.json(
+          { error: 'Requisition must be fully approved before creating a job posting' },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      // ── Inheritance: requisition is the source of truth ──
+      if (reqRow.departmentId) departmentId = reqRow.departmentId; // department auto-map
+      if (!title && reqRow.positionTitle) title = reqRow.positionTitle;
+      if (!description && (reqRow.reason || reqRow.positionTitle)) description = reqRow.reason || `Open position: ${reqRow.positionTitle}`;
+      if (!experience && reqRow.experienceRequired) experience = reqRow.experienceRequired;
+      if (!requirements && reqRow.skillsRequired) requirements = reqRow.skillsRequired;
+      if (!salary && reqRow.salaryBudget != null && reqRow.salaryBudget !== '') salary = String(reqRow.salaryBudget);
+      if (!vacancies && reqRow.numberOfOpenings) vacancies = reqRow.numberOfOpenings;
+      if (!type && reqRow.employmentType) type = reqRow.employmentType;
+      if (!interviewPlan && reqRow.interviewPlan) interviewPlan = reqRow.interviewPlan;
+    }
 
     if (!title || !departmentId || !description) {
       return NextResponse.json(
@@ -490,31 +530,6 @@ export async function POST(request: Request) {
         normalizedInterviewPlan = JSON.stringify(parsed.map((r: any, i: number) => ({ sequence: i + 1, name: String(r.name).trim(), type: r.type })));
       } catch {
         return NextResponse.json({ error: 'Interview plan must be valid JSON.' }, { status: 400, headers: corsHeaders() });
-      }
-    }
-
-    // Requisition gate (mirrors /api/jobs): when the form is driven by a
-    // requisition, it must be fully approved before a posting can be created.
-    // Absent requisitionId → allowed (manual posting).
-    if (requisitionId) {
-      let reqRows: any[] = [];
-      try {
-        reqRows = await db.$queryRawUnsafe(
-          `SELECT "approvalStatus", "status" FROM "Requisition" WHERE "id" = $1 LIMIT 1`,
-          requisitionId,
-        ) as any[];
-      } catch { /* Requisition table might not exist on an old tenant */ }
-      if (!reqRows[0]) {
-        return NextResponse.json(
-          { error: 'Requisition not found' },
-          { status: 404, headers: corsHeaders() }
-        );
-      }
-      if (reqRows[0].approvalStatus !== 'budget_approved' || reqRows[0].status !== 'approved') {
-        return NextResponse.json(
-          { error: 'Requisition must be fully approved before creating a job posting' },
-          { status: 400, headers: corsHeaders() }
-        );
       }
     }
 

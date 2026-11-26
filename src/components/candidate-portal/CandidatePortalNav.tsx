@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  FiBell, FiBriefcase, FiCalendar, FiCheckSquare, FiFileText, FiGrid,
-  FiLogOut, FiSearch, FiShield, FiUser, FiUsers,
+  FiBell, FiBriefcase, FiCalendar, FiCheckSquare, FiDroplet, FiFileText, FiGrid,
+  FiLogOut, FiMonitor, FiSearch, FiShield, FiUser, FiUsers,
 } from 'react-icons/fi';
 
 export interface PortalPreboardingInfo {
@@ -39,14 +39,22 @@ export function getPortalHeaders() {
 
 export const fetchPortalHeadersSafe = getPortalHeaders;
 
-export async function fetchPortalState(): Promise<PortalState | null> {
-  try {
-    const response = await fetch('/api/candidate-portal/portal-state', { headers: getPortalHeaders() });
-    if (!response.ok) return null;
-    return await response.json() as PortalState;
-  } catch {
-    return null;
+export async function fetchPortalState(retries = 2): Promise<PortalState | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch('/api/candidate-portal/portal-state', { headers: getPortalHeaders() });
+      if (!response.ok) {
+        // 401/404 = genuinely not logged in / not in pipeline — no retry.
+        if (response.status === 401 || response.status === 404) return null;
+      } else {
+        return await response.json() as PortalState;
+      }
+    } catch {
+      // network hiccup (dev server restart) — retry
+    }
+    if (attempt < retries) await new Promise(r => setTimeout(r, 1500));
   }
+  return null;
 }
 
 export function portalLogout(router: { push: (path: string) => void }) {
@@ -83,6 +91,8 @@ export default function CandidatePortalNav({ state, active }: { state: PortalSta
     { key: 'offers', label: 'Offers', href: '/candidate-portal/offers', icon: FiFileText, show: true },
     { key: 'preboarding', label: 'Preboarding', href: '/candidate-portal/preboarding', icon: FiCheckSquare, show: hasPreboarding },
     { key: 'documents', label: 'Documents & BGV', href: '/candidate-portal/documents', icon: FiShield, show: hasPreboarding },
+    { key: 'leave', label: 'Leave', href: '/candidate-portal/leave', icon: FiDroplet, show: hasPreboarding },
+    { key: 'attendance', label: 'Attendance', href: '/candidate-portal/attendance', icon: FiMonitor, show: hasPreboarding },
     { key: 'onboarding', label: 'Onboarding', href: '/candidate-portal/onboarding', icon: FiUsers, show: onboardingReady },
     { key: 'profile', label: 'My Profile', href: '/candidate-portal/profile', icon: FiUser, show: true },
     { key: 'jobs', label: 'Browse Jobs', href: '/careers', icon: FiSearch, show: true },

@@ -188,13 +188,18 @@ export async function POST(request: Request) {
     const {
       companyId, branchId, departmentId, designationId,
       positionType, replacementEmployeeId, numberOfOpenings, employmentType,
-      skillsRequired, experienceRequired, qualification, salaryBudget,
+      skillsRequired, experienceRequired, qualification, salaryBudget: salaryBudgetRaw,
       projectId, clientId, priority, expectedJoiningDate,
       interviewPlan,
       reason, // Task 164: reason/justification for hiring
       action, // Task 164: 'draft' | 'submit' (default: 'submit')
       positionTitle, // Task 167: raw position name (e.g. "Data Engineer 2")
     } = body;
+    // E2E fix: salaryBudget column is TEXT — clients sending a JS number caused
+    // a Prisma "Invalid value" 500. Coerce numbers to string; empty → null.
+    const salaryBudget = salaryBudgetRaw === undefined || salaryBudgetRaw === null || salaryBudgetRaw === ''
+      ? null
+      : String(salaryBudgetRaw);
 
     if (!departmentId) {
       return NextResponse.json({ error: 'Missing required field: departmentId' }, { status: 400, headers: corsHeaders() });

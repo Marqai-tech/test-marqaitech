@@ -283,6 +283,39 @@ export async function POST(req: NextRequest) {
       const ok = await db.$queryRawUnsafe(`SELECT id FROM "Company" WHERE id=$1 LIMIT 1`, companyId).catch(() => []) as any[];
       if (!ok[0]) companyId = null;
     }
+    // E2E audit fix: when the caller did not pass a company, AUTO-DERIVE it
+    // from the hiring chain (offer → job application → job posting →
+    // department → company). The preboarding record must inherit the
+    // company context so downstream modules (leave types, policies,
+    // employee creation) stay company-scoped.
+    if (!companyId) {
+      try {
+        const derived = await db.$queryRawUnsafe(
+          `SELECT d."companyId" FROM "Department" d
+             WHERE d."id" = (
+               SELECT jp."departmentId" FROM "JobPosting" jp
+                 WHERE jp."id" = (SELECT ja."jobPostingId" FROM "JobApplication" ja
+                                   WHERE ja."id" = (SELECT o."jobApplicationId" FROM "Offer" o WHERE o."id" = $1 LIMIT 1)
+                                   LIMIT 1)
+               LIMIT 1)
+             LIMIT 1`,
+          offerId,
+        ).catch(() => []) as any[];
+        if (derived[0]?.companyId) companyId = derived[0].companyId;
+        else {
+          // Fall back to the requisition's company when the job has no department company
+          const reqDerived = await db.$queryRawUnsafe(
+            `SELECT r."companyId" FROM "Requisition" r
+               WHERE r."jobPostingId" = (SELECT ja."jobPostingId" FROM "JobApplication" ja
+                                          WHERE ja."id" = (SELECT o."jobApplicationId" FROM "Offer" o WHERE o."id" = $1 LIMIT 1)
+                                          LIMIT 1)
+               LIMIT 1`,
+            offerId,
+          ).catch(() => []) as any[];
+          if (reqDerived[0]?.companyId) companyId = reqDerived[0].companyId;
+        }
+      } catch { /* non-fatal — company stays null */ }
+    }
     if (branchId) {
       const ok = await db.$queryRawUnsafe(`SELECT id FROM "Branch" WHERE id=$1 LIMIT 1`, branchId).catch(() => []) as any[];
       if (!ok[0]) branchId = null;

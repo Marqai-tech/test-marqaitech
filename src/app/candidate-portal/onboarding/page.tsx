@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FiCalendar, FiCheck, FiCheckCircle, FiClock, FiLock, FiMapPin, FiUsers } from 'react-icons/fi';
 import CandidatePortalNav, { fetchPortalState, getPortalHeaders, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
@@ -40,7 +41,7 @@ export default function CandidateOnboardingPage(){
         ['Company email',!!data.companyEmail,data.companyEmail||'Available after joining'],
         ['Employee ID',!!data.employeeId&&!data.employeeId.startsWith('PROV-'),data.employeeId||'Assigned after final activation'],
       ].map(([label,done,note])=><div key={String(label)} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2.5"><span className={`flex h-6 w-6 items-center justify-center rounded-full ${done?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'}`}>{done?<FiCheck/>:<FiClock/>}</span><div><p className="text-sm font-semibold">{String(label)}</p><p className="text-[10px] text-slate-500">{String(note)}</p></div><span className={`ml-auto rounded-full px-2 py-1 text-[10px] font-bold ${done?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'}`}>{done?'Complete':'Pending'}</span></div>)}</div></div>
-      <div className="grid grid-cols-2 gap-3"><AccessCard title="Attendance" active={joined} text={joined?'Attendance access is active.':'Available after joining.'}/><AccessCard title="Leave" active={joined} text={joined?'Leave balances and requests are active.':'Available after joining.'}/></div></div>
+      <div className="grid grid-cols-2 gap-3"><Link href="/candidate-portal/attendance" className="contents"><AccessCard title="Attendance" active text={joined?'Attendance access is active.':'Access enabled — records start from joining.'}/></Link><Link href="/candidate-portal/leave" className="contents"><AccessCard title="Leave" active text={joined?'Leave balances and requests are active.':'Access enabled — balances activate from joining.'}/></Link></div></div>
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="mb-4 flex items-center gap-2 font-bold"><FiUsers className="text-emerald-700"/> Access Timeline</h2><div className="space-y-3">{[
         ['Candidate Portal',true,'Recruitment access'],
         ['Preboarding Complete',!!state?.preboarding?.submittedAt,'Profile and documents submitted'],

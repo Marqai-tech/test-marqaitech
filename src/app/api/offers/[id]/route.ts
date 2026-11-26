@@ -120,6 +120,37 @@ export async function PATCH(
 
       // ─── Sequential tier approval, driven by the recruitment workflow config ───
       if (status === 'approved') {
+        // E2E audit fix: when the tenant configured an offer approval chain in
+        // the Offer Workflow settings (OfferWorkflowConfig with levels), that
+        // chain is the source of truth — PATCH 'approved' must NOT bypass the
+        // pending OfferApproval tiers (e.g. HR alone approving a Finance/CEO
+        // chain). The Approvals queue (/api/offers/approvals) signs levels.
+        const owfRows = await db.$queryRawUnsafe(
+          `SELECT "approvalRequired", "levels" FROM "OfferWorkflowConfig" WHERE "tenantId" = $1 LIMIT 1`,
+          decoded.tenantId,
+        ).catch(() => [] as any[]);
+        let owfLevels: any[] = [];
+        try {
+          const rawLv = owfRows[0]?.levels;
+          owfLevels = rawLv ? (typeof rawLv === 'string' ? JSON.parse(rawLv) : rawLv) : [];
+        } catch { owfLevels = []; }
+        const chainConfigured = owfRows[0]?.approvalRequired !== false && Array.isArray(owfLevels) && owfLevels.length > 0;
+        if (chainConfigured) {
+          const apprRows = await db.$queryRawUnsafe(
+            `SELECT "level", "status" FROM "OfferApproval" WHERE "offerId" = $1 ORDER BY "level" ASC`,
+            id,
+          ).catch(() => [] as any[]);
+          const pending = apprRows.filter(a => String(a.status) === 'pending');
+          if (pending.length > 0) {
+            return NextResponse.json(
+              { error: `Approval blocked: this offer has an approval chain configured (${owfLevels.length} levels) with ${pending.length} level(s) still pending. Record approvals in the Offers → Approvals queue; they sign each level (HR → Finance → CEO) before the offer can be sent.` },
+              { status: 403, headers: corsHeaders() }
+            );
+          }
+          // All configured levels signed (or resubmitted without rows) → allow approved
+          updateData.status = 'approved';
+          if (!updateData.approvedBy) { updateData.approvedBy = decoded.userId as string; updateData.approvedAt = new Date(); }
+        } else {
         const wf = await resolveRecruitmentConfig(db, decoded.tenantId as string, null).catch(() => null);
         const tiers: ApprovalTier[] = wf?.offerApproval?.enabled ? (wf.offerApproval.tiers || []) : [];
 
@@ -180,6 +211,7 @@ export async function PATCH(
           updateData.status = 'approved';
           updateData.approvedBy = decoded.userId as string;
           updateData.approvedAt = new Date();
+        }
         }
       } else {
         updateData.status = status;

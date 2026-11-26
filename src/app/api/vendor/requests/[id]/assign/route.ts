@@ -43,9 +43,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!vendorUserId) return NextResponse.json({ error: 'vendorUserId required' }, { status: 400, headers: CORS });
 
     // Target employee: active vendor_employee of the SAME vendor.
+    // Deadlock fix (E2E): a vendor company whose ONLY user is the vendor_admin
+    // could never work a case (assign required a separate vendor_employee).
+    // Allow the admin to assign the case to THEMSELVES as investigator.
     const empRows = await db.$queryRawUnsafe(
-      `SELECT * FROM "VendorUser" WHERE "id"=$1 AND "vendorCompanyId"=$2 AND "role"='vendor_employee' AND "status"='active' LIMIT 1`,
-      vendorUserId, admin.vendorCompanyId,
+      `SELECT * FROM "VendorUser" WHERE "id"=$1 AND "vendorCompanyId"=$2 AND "status"='active'
+         AND ("role"='vendor_employee' OR ("role"='vendor_admin' AND "id"=$3)) LIMIT 1`,
+      vendorUserId, admin.vendorCompanyId, admin.id,
     ).catch(() => []) as any[];
     if (empRows.length === 0) {
       return NextResponse.json({ error: 'Employee not found, not an active employee of your company, or already disabled' }, { status: 403, headers: CORS });

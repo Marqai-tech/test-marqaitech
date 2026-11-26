@@ -68,11 +68,35 @@ export async function POST(req: NextRequest) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
     const body = await req.json();
-    const {
+    let {
       title, description, requirements, departmentId, location,
       type, experience, salary, closingDate, vacancies, status,
       requisitionId, interviewPlan, // Task 165: link to approved requisition
     } = body;
+
+    // Task 165 + E2E audit: when requisitionId is provided the requisition is
+    // the source of truth — the posting must be created in the requisition's
+    // department (auto-map) and inherit its data where the caller omitted it.
+    if (requisitionId) {
+      let reqRows0: any[] = [];
+      try {
+        reqRows0 = await db.$queryRawUnsafe(
+          `SELECT * FROM "Requisition" WHERE "id" = $1 LIMIT 1`,
+          requisitionId,
+        ) as any[];
+      } catch { /* table might not exist */ }
+      if (reqRows0[0]) {
+        const r0 = reqRows0[0];
+        if (r0.departmentId) departmentId = r0.departmentId; // department auto-map
+        if (!title && r0.positionTitle) title = r0.positionTitle;
+        if (!description && (r0.reason || r0.positionTitle)) description = r0.reason || `Open position: ${r0.positionTitle}`;
+        if (!experience && r0.experienceRequired) experience = r0.experienceRequired;
+        if (!requirements && r0.skillsRequired) requirements = r0.skillsRequired;
+        if (!salary && r0.salaryBudget != null && r0.salaryBudget !== '') salary = String(r0.salaryBudget);
+        if (!vacancies && r0.numberOfOpenings) vacancies = r0.numberOfOpenings;
+        if (!type && r0.employmentType) type = r0.employmentType;
+      }
+    }
 
     if (!title || !description || !departmentId) {
       return NextResponse.json(
