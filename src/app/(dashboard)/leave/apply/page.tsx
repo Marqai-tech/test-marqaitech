@@ -398,7 +398,41 @@ function ApplyLeaveContent() {
 
     const lt = leaveTypes.find(t => t.id === leaveTypeId);
     const bal = leaveBalances.find(b => b.leaveType.id === leaveTypeId);
-    const entitled = rule?.entitledDaysPerYear || bal?.total || lt?.defaultDays || 0;
+    let entitled = rule?.entitledDaysPerYear || bal?.total || lt?.defaultDays || 0;
+
+    // BUG FIX: Apply pro-rata calculation based on the policy's creditMode.
+    // If creditMode is 'Pro-rata monthly' and the employee joined mid-year,
+    // reduce the entitlement proportionally. If 'Advance (on joining)',
+    // full entitlement applies from the join date.
+    if (policy?.creditMode === 'Pro-rata monthly' && employee?.dateOfJoining && entitled > 0) {
+      const joinDate = new Date(employee.dateOfJoining);
+      const now = new Date();
+      const joinYear = joinDate.getFullYear();
+      const currentYear = now.getFullYear();
+      if (joinYear === currentYear) {
+        // Employee joined this year — pro-rate from join month to end of year
+        const joinMonth = joinDate.getMonth(); // 0-indexed
+        const monthsElapsed = 12 - joinMonth; // months from join month to Dec inclusive
+        const rawProrated = (entitled * monthsElapsed) / 12;
+        // Apply rounding based on policy.roundOff
+        const roundOff = policy.roundOff || 'Nearest 0.5';
+        if (roundOff === 'Nearest 0.5') {
+          entitled = Math.round(rawProrated * 2) / 2;
+        } else if (roundOff === 'Lower (0.5)') {
+          entitled = Math.floor(rawProrated * 2) / 2;
+        } else if (roundOff === 'Higher (0.5)') {
+          entitled = Math.ceil(rawProrated * 2) / 2;
+        } else if (roundOff === 'Nearest whole day') {
+          entitled = Math.round(rawProrated);
+        } else if (roundOff === 'No rounding') {
+          entitled = Math.round(rawProrated * 100) / 100;
+        } else {
+          entitled = Math.round(rawProrated * 2) / 2; // default nearest 0.5
+        }
+      }
+      // If joinYear < currentYear, full entitlement applies (no pro-rata)
+    }
+    // For 'Advance (on joining)', full entitlement applies — no change needed
 
     // Helper: compute chargeable days from a single leave record
     // BUG FIX: Use getDaysBetween (excludes weekends+holidays) instead of
@@ -451,7 +485,7 @@ function ApplyLeaveContent() {
     const remaining = Math.max(0, entitled - taken);
     const isLop = (lt?.code || '').toLowerCase().includes('lop') || (lt?.name || '').toLowerCase().includes('loss of pay');
     return { entitled, taken, remaining, isLop, rule, monthTaken };
-  }, [mappings, rules, policies, leaveTypes, leaveBalances, ownLeaves, holidays]);
+  }, [mappings, rules, policies, leaveTypes, leaveBalances, ownLeaves, holidays, employee]);
 
   // Selected type values (uses the reusable helper)
   const selectedTypeInfo = computeRemaining(form.leaveTypeId);
@@ -746,11 +780,37 @@ function ApplyLeaveContent() {
   const passedCount = checks.filter(c => c.state === 'ok' || c.state === 'warn').length;
   const hasError = checks.some(c => c.state === 'err');
   const hasIdle = checks.some(c => c.state === 'idle');
-  const canSubmit = !hasIdle && !hasError && !!form.leaveTypeId && !!form.startDate && !!form.endDate && form.reason.trim().length >= 3;
+  // BUG FIX: Enforce Application Form Settings — mandatory fields must be
+  // filled before the employee can submit. The settings come from the
+  // Approval Workflows → Application Form Settings tab (tenant-wide).
+  const fs = formSettings || {};
+  const mandatoryCheck = (key: string): boolean => {
+    const mandatoryKey = key.replace('show', 'mandatory');
+    // If the field is hidden, it's not mandatory
+    if (fs[key] === false) return false;
+    // If mandatory flag is explicitly false, don't require
+    if (fs[mandatoryKey] === false) return false;
+    // Default: mandatory fields are required
+    return fs[mandatoryKey] === true;
+  };
+  const missingMandatory: string[] = [];
+  if (mandatoryCheck('showReason') && form.reason.trim().length < 3) missingMandatory.push('Leave reason');
+  if (mandatoryCheck('showContactNumber') && !form.contactNumber?.trim()) missingMandatory.push('Contact number');
+  if (mandatoryCheck('showContactAddress') && !form.contactAddress?.trim()) missingMandatory.push('Contact address');
+  if (mandatoryCheck('showHandover') && !form.handoverTo?.trim()) missingMandatory.push('Handover to');
+  if (mandatoryCheck('showRelocation') && !form.relocationNotes?.trim()) missingMandatory.push('Relocation details');
+
+  const canSubmit = !hasIdle && !hasError && !!form.leaveTypeId && !!form.startDate && !!form.endDate
+    && (fs.showReason === false || form.reason.trim().length >= 3)
+    && missingMandatory.length === 0;
 
   /* ── Submit handler ── */
   const handleSubmit = async () => {
     setTriedSubmit(true);
+    if (missingMandatory.length > 0) {
+      toast.error(`Please fill mandatory fields: ${missingMandatory.join(', ')}`);
+      return;
+    }
     if (!canSubmit) {
       toast.error('Please fix the errors before submitting.');
       return;
