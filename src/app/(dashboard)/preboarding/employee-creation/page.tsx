@@ -107,6 +107,7 @@ interface EcData {
   validations: EcValidation[];
   employeeExists: boolean;
   linkedEmployeeId?: string | null;
+  linkedEmployeeCode?: string | null;
   joiningConfirmed: boolean;
 }
 
@@ -590,7 +591,7 @@ function EmployeeCreationInner() {
               <FiAlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <p className="text-sm text-amber-800">
                 Employee record already exists
-                {data.linkedEmployeeId ? <> — linked employee ID <span className="font-semibold">{data.linkedEmployeeId}</span></> : ''}.
+                {data.linkedEmployeeCode ? <> — formal employee ID <span className="font-semibold">{data.linkedEmployeeCode}</span></> : data.linkedEmployeeId ? <> — linked employee ID <span className="font-semibold">{data.linkedEmployeeId}</span></> : ''}.
                 {' '}Creation is disabled to prevent duplication (BRD 6.3 rule 6).
               </p>
             </div>

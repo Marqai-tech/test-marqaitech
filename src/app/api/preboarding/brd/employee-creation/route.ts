@@ -84,6 +84,15 @@ export async function GET(req: NextRequest) {
       { rule: 'Reporting Manager must be an eligible employee', ok: Boolean(pb.reportingManagerId), detail: pb.reportingManagerId ? 'Assigned' : 'Not assigned' },
     ];
 
+    // Resolve the formal employee code (MarqNNN) when a record already exists
+    let linkedCode: string | null = null;
+    if (pb.employeeId) {
+      try {
+        const codeRows = await db.$queryRawUnsafe(`SELECT "employeeId" FROM "Employee" WHERE "id"=$1 LIMIT 1`, pb.employeeId) as any[];
+        linkedCode = codeRows[0]?.employeeId || null;
+      } catch { /* advisory only */ }
+    }
+
     return NextResponse.json({
       sectionA: {
         preboardingId,
@@ -134,6 +143,7 @@ export async function GET(req: NextRequest) {
       validations,
       employeeExists: Boolean(pb.employeeId),
       linkedEmployeeId: pb.employeeId || null,
+      linkedEmployeeCode: linkedCode,
       joiningConfirmed: Boolean(pb.joiningConfirmed),
     }, { headers: CORS });
   } catch (error) {
