@@ -39,6 +39,13 @@ interface WorkflowConfig {
   notifyEmployeeEachStep: boolean;
   autoApproveOnTimeout: boolean; // auto-approve if SLA exceeded
   timeoutAutoApproveHours: number; // hours before auto-approve kicks in
+  // ─── Interconnected workflow toggles (QA spec Sections 5 & 7) ───
+  // These map to the existing backend flags in lib/leave-workflow.ts:
+  //   allowCancelAfterApproval → employee can raise cancellation on approved leaves
+  //   allowApproverHold + allowDateProposal → HR/Admin can hold + propose new dates
+  allowCancelAfterApproval: boolean;
+  allowApproverHold: boolean;
+  allowDateProposal: boolean;
 }
 
 interface LeaveType { id: string; name: string; code: string; }
@@ -75,6 +82,9 @@ const DEFAULT_WORKFLOW: WorkflowConfig = {
   notifyEmployeeEachStep: true,
   autoApproveOnTimeout: false,
   timeoutAutoApproveHours: 48,
+  allowCancelAfterApproval: true, // employees CAN cancel after approval
+  allowApproverHold: true,        // HR/Admin CAN hold leave
+  allowDateProposal: true,        // HR/Admin CAN propose new dates
 };
 
 export default function ApprovalWorkflowsPage() {
@@ -178,6 +188,9 @@ export default function ApprovalWorkflowsPage() {
             notifyEmployeeEachStep: parsedConfig.notifyEmployeeEachStep ?? true,
             autoApproveOnTimeout: parsedConfig.autoApproveOnTimeout ?? false,
             timeoutAutoApproveHours: parsedConfig.timeoutAutoApproveHours ?? 48,
+            allowCancelAfterApproval: parsedConfig.allowCancelAfterApproval ?? true,
+            allowApproverHold: parsedConfig.allowApproverHold ?? true,
+            allowDateProposal: parsedConfig.allowDateProposal ?? true,
           };
         });
         if (configs.length === 0) {
@@ -294,6 +307,9 @@ export default function ApprovalWorkflowsPage() {
           notifyEmployeeEachStep: editConfig.notifyEmployeeEachStep,
           autoApproveOnTimeout: editConfig.autoApproveOnTimeout,
           timeoutAutoApproveHours: editConfig.timeoutAutoApproveHours,
+          allowCancelAfterApproval: editConfig.allowCancelAfterApproval,
+          allowApproverHold: editConfig.allowApproverHold,
+          allowDateProposal: editConfig.allowDateProposal,
           leaveTypeIds: editConfig.leaveTypeIds || [],
         }),
         companyId: effectiveCompanyId() || undefined,
@@ -656,15 +672,34 @@ export default function ApprovalWorkflowsPage() {
                     { key: 'skipDuplicateApprovers', label: 'Skip duplicate approvers', desc: 'If the same person appears in multiple tiers, approve only once' },
                     { key: 'rejectRequiresReason', label: 'Reject requires reason', desc: 'Approvers must enter a reason when rejecting' },
                     { key: 'notifyEmployeeEachStep', label: 'Notify employee at each step', desc: 'Send notification to the employee after each tier action' },
-                  ].map(opt => (
+                    { key: 'allowCancelAfterApproval', label: 'Employee can cancel leave after approval', desc: 'When checked, employees can raise a cancellation request on already-approved leaves (goes to Reporting Manager for approval). When unchecked, employees can only withdraw pending requests — not cancel approved ones.' },
+                    { key: '__hrHold', label: 'HR/Admin can hold leave & propose new dates', desc: 'When checked, HR Admin / Admin / Tenant Admin can put a pending leave on hold and propose alternative dates. The employee is notified and can accept the proposed dates or withdraw. Unchecking this disables both hold and date proposal.' },
+                  ].map(opt => {
+                    // The __hrHold checkbox is a combined toggle that sets
+                    // both allowApproverHold and allowDateProposal together.
+                    const isHrHoldCombined = opt.key === '__hrHold';
+                    const checked = isHrHoldCombined
+                      ? (editConfig.allowApproverHold !== false && editConfig.allowDateProposal !== false)
+                      : (editConfig as any)[opt.key];
+                    const handleChange = (e: any) => {
+                      if (isHrHoldCombined) {
+                        const val = e.target.checked;
+                        updateField('allowApproverHold', val);
+                        updateField('allowDateProposal', val);
+                      } else {
+                        updateField(opt.key as any, e.target.checked);
+                      }
+                    };
+                    return (
                     <label key={opt.key} className="flex items-start gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
-                      <input type="checkbox" checked={(editConfig as any)[opt.key]} onChange={e => updateField(opt.key as any, e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-blue-600 mt-0.5" />
+                      <input type="checkbox" checked={checked} onChange={handleChange} className="w-4 h-4 rounded border-slate-300 text-blue-600 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-slate-700">{opt.label}</p>
                         <p className="text-xs text-slate-500">{opt.desc}</p>
                       </div>
                     </label>
-                  ))}
+                    );
+                  })}
                   {editConfig.autoApproveShortLeave && (
                     <div className="px-3 py-2 ml-7">
                       <label className="text-xs font-medium text-slate-600">Max days for auto-approval: </label>
