@@ -224,6 +224,15 @@ export async function POST(req: NextRequest) {
         resolvedCompanyId = scope.ownCompanyId;
       }
     }
+    // BUG FIX: Final fallback — use the first active company in the tenant.
+    // This prevents the "Company ID is required" error for admin/hr_admin
+    // roles who don't have a company selected in the switcher.
+    if (!resolvedCompanyId) {
+      try {
+        const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } });
+        if (fc) resolvedCompanyId = fc.id;
+      } catch {}
+    }
 
     if (!resolvedCompanyId) {
       return NextResponse.json({ error: 'Company ID is required. Please select a company from the switcher.' }, { status: 400, headers: corsHeaders() });
