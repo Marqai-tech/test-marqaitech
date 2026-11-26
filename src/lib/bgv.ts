@@ -19,7 +19,7 @@ import crypto from 'crypto';
 
 /* ─────────────────────────── enums & constants ─────────────────────────── */
 
-export const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+export const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
 
 export const BGV_CASE_STATUSES = [
   'awaiting_assignment',
@@ -76,6 +76,9 @@ export function labelForStatus(status?: string | null): string {
  * Defined in ./bgv-check-forms (client-safe, shared with UI components) and
  * re-exported here so every API route keeps a single import source.
  */
+import {
+  structuredFieldsFor,
+} from './bgv-check-forms';
 export {
   VERIFICATION_METHODS,
   evidenceRequirementsFor,

@@ -434,7 +434,6 @@ function ApplyLeaveContent() {
     // is 'Monthly' with creditDays=N, or monthlyLimit=true with monthlyMaxDays=N,
     // the employee can only use N days in the current month.
     const now = new Date();
-    const cy = now.getFullYear();
     const cm = now.getMonth(); // 0-indexed
     const monthTaken = ownLeaves
       .filter((l: any) => {

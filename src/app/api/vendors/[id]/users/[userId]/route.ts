@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const isHR = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin'].includes(auth.role);
+    const isHR = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin','hrhead'].includes(auth.role);
     if (!isHR && auth.role !== 'vendor_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
     }
@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           subject: 'Your new activation link',
           html: `<p>Hello ${target.name},</p><p>A new activation link was generated for your 3Boxes vendor account. Any earlier link is now invalid.</p><p><a href="${link}">Activate your account</a> — single use, expires in ${INVITE_TTL_DAYS} days.</p>`,
         });
-        return NextResponse.json({ message: 'A new invitation was queued.', email: target.email }, { headers: CORS });
+        return NextResponse.json({ message: 'A new invitation was queued.', email: target.email, setPasswordUrl: link }, { headers: CORS });
       }
       case 'cancel_invite': {
         if (target.status !== 'pending') {

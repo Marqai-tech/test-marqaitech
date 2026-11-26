@@ -116,8 +116,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const checkType = checkRows[0].checkType;
 
     // evidenceType must be a valid proof slot for this check type.
-    const req = evidenceRequirementsFor(checkType).find((r) => r.key === evidenceType);
-    if (!req) {
+    // NOTE: this variable MUST NOT be named `req` — it would shadow the
+    // NextRequest `req` parameter inside this same try-block (TDZ) and crash
+    // every evidence upload with "Cannot access 'req' before initialization".
+    const evidenceSlot = evidenceRequirementsFor(checkType).find((r) => r.key === evidenceType);
+    if (!evidenceSlot) {
       const valid = evidenceRequirementsFor(checkType).map((r) => r.key).join(', ');
       return NextResponse.json(
         { error: `evidenceType must be one of: ${valid}` },
@@ -138,7 +141,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }).catch(() => null);
 
     return NextResponse.json({
-      message: `${req.label} uploaded.`,
+      message: `${evidenceSlot.label} uploaded.`,
       evidence: { id: evId, fileName, mimeType, fileSize: approxBytes, evidenceType, uploadedAt: new Date().toISOString() },
     }, { status: 201, headers: CORS });
   } catch (error) {

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   FiPlus, FiX, FiShield, FiUsers, FiEdit2, FiMail, FiPhone, FiGlobe,
   FiLoader, FiRefreshCw, FiKey, FiSend, FiUserPlus, FiPower, FiCheckCircle,
-  FiXCircle, FiClock, FiChevronDown, FiTruck, FiClipboard, FiMapPin,
+  FiXCircle, FiClock, FiChevronDown, FiTruck, FiClipboard, FiMapPin, FiCopy,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -117,6 +117,10 @@ export default function VendorManagementVendorsPage() {
   // invite user form state (per vendor)
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'vendor_employee' });
   const [inviting, setInviting] = useState(false);
+  // Last activation link returned by the invite API. Shown as a copyable box:
+  // when the activation email cannot be delivered (DNS/SMTP problems) HR can
+  // hand this single-use link to the vendor user manually.
+  const [lastInviteLink, setLastInviteLink] = useState<{ email: string; link: string } | null>(null);
   const [userActionLoading, setUserActionLoading] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<VendorUser | null>(null);
   const [resetPassword, setResetPassword] = useState('Welcome@123');
@@ -225,6 +229,10 @@ export default function VendorManagementVendorsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       toast.success(`Vendor ${inviteForm.role === 'vendor_admin' ? 'admin' : 'employee'} invited. They must activate from the emailed link and create their own password.`, { duration: 7000 });
+      if (data.setPasswordUrl) {
+        setLastInviteLink({ email: data.email || inviteForm.email.trim(), link: data.setPasswordUrl });
+        try { await navigator.clipboard.writeText(data.setPasswordUrl); toast.success('Activation link copied to clipboard too.', { duration: 4000 }); } catch { /* clipboard unavailable — the box below still shows it */ }
+      }
       setInviteForm({ email: '', name: '', role: 'vendor_employee' });
       await reloadUsers(vendorId);
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed'); }
@@ -243,7 +251,8 @@ export default function VendorManagementVendorsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       if (action === 'resend_invite' && data.setPasswordUrl) {
-        toast.success(`Invite link regenerated: ${data.setPasswordUrl}`, { duration: 8000 });
+        setLastInviteLink({ email: user.email, link: data.setPasswordUrl });
+        toast.success(`Invite link regenerated. If the email does not arrive (DNS issue), copy it from the box below.`, { duration: 8000 });
       } else {
         toast.success(data.message || 'Done');
       }
@@ -410,6 +419,17 @@ export default function VendorManagementVendorsPage() {
                         </div>
                       </div>
                       <p className="text-xs text-thb-text-muted mt-2">An activation email is queued. The user creates a password from the single-use link, then signs in at <span className="font-medium">/login → Vendor</span>.</p>
+                      {lastInviteLink && (
+                        <div className="mt-3 border border-amber-300 bg-amber-50 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5"><FiKey className="w-3.5 h-3.5" /> Activation link for {lastInviteLink.email} — email not arriving? Share this link manually (chat / WhatsApp):</p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <input readOnly value={lastInviteLink.link} onFocus={(e) => e.currentTarget.select()} className="flex-1 text-xs font-mono bg-white border border-amber-300 rounded-md px-2 py-1.5 text-amber-900" />
+                            <button onClick={() => { navigator.clipboard?.writeText(lastInviteLink.link).then(() => toast.success('Link copied')).catch(() => toast.error('Copy failed — select the text and copy manually')); }} className="px-2.5 py-1.5 text-xs font-medium bg-amber-600 text-white rounded-md hover:bg-amber-700 inline-flex items-center gap-1 shrink-0"><FiCopy className="w-3.5 h-3.5" /> Copy</button>
+                            <button onClick={() => setLastInviteLink(null)} className="p-1.5 text-amber-600 hover:text-amber-800 shrink-0" title="Dismiss"><FiX className="w-3.5 h-3.5" /></button>
+                          </div>
+                          <p className="text-[11px] text-amber-700 mt-1.5">Single-use · expires in 7 days. Anyone opening it sets the account password themselves.</p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Users table */}

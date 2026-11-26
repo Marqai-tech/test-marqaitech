@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin','hrhead'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
 
     const { id: vendorCompanyId } = await params;
@@ -85,7 +85,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
       await db.auditLog.create({ data: { userId: auth.userId, action: 'VENDOR_ADMIN_INVITE_RESENT', module: 'bgv', details: `Re-invited ${email} as admin for vendor ${vendorCompanyId}` } }).catch(() => null);
       const notif = await latestNotificationState(db, email, 'invite_admin_resent');
-      return NextResponse.json({ message: 'Invitation re-sent to the admin.', vendorUserId: eu.id, email, invitation: notif }, { headers: CORS });
+      // setPasswordUrl: when email delivery fails (e.g. DNS/SMTP misconfig),
+      // HR can still copy this single-use activation link and hand it over
+      // manually (chat / WhatsApp) instead of being blocked.
+      return NextResponse.json({ message: 'Invitation re-sent to the admin.', vendorUserId: eu.id, email, invitation: notif, setPasswordUrl: link }, { headers: CORS });
     }
 
     // New pending admin.
@@ -110,7 +113,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     await db.auditLog.create({ data: { userId: auth.userId, action: 'VENDOR_ADMIN_INVITED', module: 'bgv', details: `Invited ${email} as admin for vendor ${vendorCompanyId}` } }).catch(() => null);
     const notif = await latestNotificationState(db, email, 'invite_admin');
-    return NextResponse.json({ message: 'Vendor admin invited — activation email queued.', vendorUserId: vuId, email, invitation: notif }, { status: 201, headers: CORS });
+    // setPasswordUrl: hand over manually when the activation email cannot be
+    // delivered (DNS/SMTP problems) — see invite-employee route.
+    return NextResponse.json({ message: 'Vendor admin invited — activation email queued.', vendorUserId: vuId, email, invitation: notif, setPasswordUrl: link }, { status: 201, headers: CORS });
   } catch (error) {
     console.error('Invite vendor admin error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });

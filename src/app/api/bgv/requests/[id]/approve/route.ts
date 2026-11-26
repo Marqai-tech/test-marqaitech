@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin','hrhead'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden — HR/Admin only' }, { status: 403, headers: CORS });
 
     const { id: requestId } = await params;

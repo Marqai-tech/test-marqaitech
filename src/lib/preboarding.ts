@@ -10,7 +10,7 @@
  */
 import type { PrismaClient } from '@/generated/prisma';
 
-export const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+export const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
 
 export interface PBCandidateRow {
   id: string;

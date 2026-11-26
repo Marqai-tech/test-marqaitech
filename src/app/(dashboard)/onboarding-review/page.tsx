@@ -112,7 +112,12 @@ export default function OnboardingReviewPage() {
     try {
       const res = await fetch('/api/vendors', { headers: getAuthHeaders() });
       const data = await res.json();
-      setVendors((data.vendors || []).filter((v: VendorOption) => !v.status || v.status === 'active'));
+      const active = (data.vendors || []).filter((v: VendorOption) => !v.status || v.status === 'active');
+      setVendors(active);
+      // Only one active vendor exists? Select it automatically — an untouched
+      // "Select vendor…" dropdown otherwise leaves the submit button disabled
+      // with no explanation (HR dead-end reported 2026-11).
+      if (active.length === 1) setSelectedVendorId(active[0].id);
     } catch { setVendors([]); } finally { setVendorsLoading(false); }
   };
 
@@ -398,11 +403,20 @@ export default function OnboardingReviewPage() {
                 </div>
               </div>
             </div>
-            <div className="p-4 border-t flex justify-end gap-2">
-              <button onClick={() => setBgvModalOpen(false)} disabled={bgvSubmitting} className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent">Cancel</button>
-              <button onClick={handleInitiateVendorBGV} disabled={bgvSubmitting || !selectedVendorId || selectedChecks.length === 0} className="px-4 py-1.5 text-sm bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2">
-                {bgvSubmitting ? <><FiLoader className="h-4 w-4 animate-spin" /> Sending…</> : <><FiShield className="h-4 w-4" /> Send to Vendor</>}
-              </button>
+            <div className="p-4 border-t flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                {!selectedVendorId
+                  ? 'Select a vendor company above to enable "Send to Vendor".'
+                  : selectedChecks.length === 0
+                    ? 'Tick at least one verification check to enable "Send to Vendor".'
+                    : 'The case goes to the vendor admin\'s unassigned queue.'}
+              </p>
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => setBgvModalOpen(false)} disabled={bgvSubmitting} className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent">Cancel</button>
+                <button onClick={handleInitiateVendorBGV} disabled={bgvSubmitting || !selectedVendorId || selectedChecks.length === 0} title={!selectedVendorId ? 'Select a vendor company first' : ''} className="px-4 py-1.5 text-sm bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  {bgvSubmitting ? <><FiLoader className="h-4 w-4 animate-spin" /> Sending…</> : <><FiShield className="h-4 w-4" /> Send to Vendor</>}
+                </button>
+              </div>
             </div>
           </div>
         </div>

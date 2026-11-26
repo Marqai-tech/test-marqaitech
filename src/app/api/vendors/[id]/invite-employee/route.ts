@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const isHR = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin'].includes(auth.role);
+    const isHR = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin','hrhead'].includes(auth.role);
     if (!isHR && auth.role !== 'vendor_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
     }
@@ -102,7 +102,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         html: inviteHtml(vendor.name, name, link, INVITE_TTL_DAYS, baseUrl, true),
       });
       await db.auditLog.create({ data: { userId: auth.userId, action: 'VENDOR_EMPLOYEE_INVITE_RESENT', module: 'vendor', details: `Re-invited ${email} to ${vendor.name}` } }).catch(() => null);
-      return NextResponse.json({ message: 'Invitation re-sent — a new activation link was queued.', vendorUserId: eu.id, email }, { headers: CORS });
+      // setPasswordUrl: when email delivery fails (DNS/SMTP misconfig), HR can
+      // still copy this single-use activation link and hand it over manually.
+      return NextResponse.json({ message: 'Invitation re-sent — a new activation link was queued.', vendorUserId: eu.id, email, setPasswordUrl: link }, { headers: CORS });
     }
 
     const vuId = `vu-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
@@ -125,7 +127,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     await db.auditLog.create({ data: { userId: auth.userId, action: 'VENDOR_EMPLOYEE_INVITED', module: 'vendor', details: `Invited ${email} as vendor_employee under ${vendor.name}` } }).catch(() => null);
-    return NextResponse.json({ message: 'Invitation sent — the employee must activate via the emailed link.', vendorUserId: vuId, email }, { status: 201, headers: CORS });
+    // setPasswordUrl: hand over manually when the activation email cannot be
+    // delivered (e.g. DNS config problems) — the invite still works exactly
+    // the same, the link just reaches the employee out-of-band.
+    return NextResponse.json({ message: 'Invitation sent — the employee must activate via the emailed link.', vendorUserId: vuId, email, setPasswordUrl: link }, { status: 201, headers: CORS });
   } catch (error) {
     console.error('Invite vendor employee error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });

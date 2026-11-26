@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin','hrhead'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
     const vendors = await db.$queryRawUnsafe(`SELECT * FROM "VendorCompany" ORDER BY "createdAt" DESC`).catch(() => []) as any[];
     return NextResponse.json({ vendors }, { headers: CORS });
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin'].includes(auth.role);
+    const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin','hrhead'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: CORS });
     const body = await req.json();
     const { name, email, phone, website, address, supportedChecks } = body || {};

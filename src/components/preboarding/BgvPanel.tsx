@@ -199,13 +199,27 @@ export default function BgvPanel({
   // Pre-select all approved documents (mock 07) — derived, not an effect.
   const selectedDocIds = selDocs ?? approvedDocs.map((d) => d.id);
 
+  // Only one active vendor exists? Treat it as the default selection — an
+  // untouched "Select vendor…" dropdown otherwise leaves the Initiate BGV
+  // button disabled with no explanation (HR dead-end reported 2026-11).
+  // Derived (not an effect) so there is no render cascade.
+  const effectiveVendorId = vendorId || (!vendorsLoading && vendors.length === 1 ? vendors[0].id : '');
+
   const unmet: string[] = [];
   if (approvedDocs.length === 0) unmet.push('No approved documents yet — approve the required documents first.');
   if (selChecks.length === 0 && !confirmOpen) unmet.push(''); // shown inline
   const allApprovedGate = approvedDocs.length > 0 && approvedDocs.length === documents.filter((d) => d.status !== 'pending').length;
 
+  // Exact reason the Initiate BGV button is disabled — shown under the button
+  // so HR never sees a silently grayed-out action again.
+  const initiateDisabledReasons: string[] = [];
+  if (!effectiveVendorId) initiateDisabledReasons.push('select the vendor company above');
+  if (selChecks.length === 0) initiateDisabledReasons.push('tick at least one verification check');
+  if (selectedDocIds.length === 0) initiateDisabledReasons.push('share at least one approved document');
+  const canInitiate = initiateDisabledReasons.length === 0;
+
   const initiate = async () => {
-    if (!vendorId) { toast.error('Select the vendor company'); return; }
+    if (!effectiveVendorId) { toast.error('Select the vendor company'); return; }
     if (selChecks.length === 0) { toast.error('Select at least one verification check'); return; }
     if (selectedDocIds.length === 0) { toast.error('Select at least one approved document to share'); return; }
     setInitiating(true);
@@ -214,7 +228,7 @@ export default function BgvPanel({
         method: 'POST', headers: getAuthHeaders(),
         body: JSON.stringify({
           preboardingCandidateId: candidateId,
-          vendorCompanyId: vendorId,
+          vendorCompanyId: effectiveVendorId,
           checks: selChecks.map((t) => ({ type: t, label: STANDARD_CHECKS.find((s) => s.type === t)?.label || t })),
           documents: selectedDocIds,
           dueDate: dueDate || undefined,
@@ -630,7 +644,7 @@ export default function BgvPanel({
                   ) : vendors.length === 0 ? (
                     <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2.5">No active vendors. Add one under Vendor Management first.</p>
                   ) : (
-                    <select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                    <select value={effectiveVendorId} onChange={(e) => setVendorId(e.target.value)} className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
                       <option value="">Select vendor…</option>
                       {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                     </select>
@@ -683,10 +697,16 @@ export default function BgvPanel({
                   <FiInfo className="mt-0.5 shrink-0" />
                   <span>The request goes to the selected vendor company&apos;s <b>admin</b> unassigned queue — they assign one of their active employees. HR never picks the investigator.</span>
                 </div>
+                {!canInitiate && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                    To enable Initiate BGV: {initiateDisabledReasons.join(' and ')}.
+                  </p>
+                )}
                 <button
                   onClick={() => setConfirmOpen(true)}
-                  disabled={!vendorId || selChecks.length === 0 || selectedDocIds.length === 0}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-40">
+                  disabled={!canInitiate}
+                  title={canInitiate ? 'Open confirmation — the case goes to the vendor admin' : `Cannot initiate yet: ${initiateDisabledReasons.join(', ')}`}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
                   <FiShield /> Initiate BGV
                 </button>
               </div>
