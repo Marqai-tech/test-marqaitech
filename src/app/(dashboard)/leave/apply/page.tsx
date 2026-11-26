@@ -144,6 +144,10 @@ function ApplyLeaveContent() {
   const [rules, setRules] = useState<any[]>([]);
   const [mappings, setMappings] = useState<any[]>([]);
   const [policies, setPolicies] = useState<any[]>([]);
+  // Tenant-wide Application Form Settings (from /api/leave/form-settings)
+  // Controls which fields are shown/mandatory on this form. Configured once
+  // by HR on the Approval Workflows page → Application Form Settings tab.
+  const [formSettings, setFormSettings] = useState<any>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -162,7 +166,7 @@ function ApplyLeaveContent() {
         setLoading(true);
         const headers = getAuthHeaders();
         const sq = scopeQuery();
-        const [ltRes, empRes, balRes, holRes, ownRes, ruleRes, mapRes, polRes] = await Promise.all([
+        const [ltRes, empRes, balRes, holRes, ownRes, ruleRes, mapRes, polRes, fsRes] = await Promise.all([
           fetch(`/api/leave-types?limit=100`, { headers }),
           fetch(`/api/employees?limit=1&own=1&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
           fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers }).catch(() => null),
@@ -171,10 +175,13 @@ function ApplyLeaveContent() {
           fetch(`/api/leave-policy-rules?limit=100`, { headers }).catch(() => null),
           fetch(`/api/leave-type-policy-mappings?includeInactive=1`, { headers }).catch(() => null),
           fetch(`/api/policies?category=leave&limit=100`, { headers }).catch(() => null),
+          fetch(`/api/leave/form-settings`, { headers }).catch(() => null),
         ]);
         if (ruleRes?.ok) { const rd = await ruleRes.json(); setRules(rd.data || []); }
         if (mapRes?.ok) { const md = await mapRes.json(); setMappings(md.data || []); }
         if (polRes?.ok) { const pd = await polRes.json(); setPolicies(pd.policies || pd.data || []); }
+        // Load tenant-wide form settings (which fields are shown/mandatory)
+        if (fsRes?.ok) { const fsd = await fsRes.json(); setFormSettings(fsd.settings); }
         const ltData = await ltRes.json();
         let activeTypes = (ltData.data || []).filter((t: any) => t.status === 'active' || t.status === undefined);
         setLeaveTypes(activeTypes);
@@ -1110,14 +1117,15 @@ function ApplyLeaveContent() {
               </label>
             </div>
 
-            {/* ─── Additional application form fields (Section 4) ─── */}
-            {/* Contact number, contact address, handover person, notify CC.
-                These are always shown — the rule-level enable/disable config
-                (Section 4) will be enforced when the rule has the fields. */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* ─── Additional application form fields ─── */}
+            {/* Shown/hidden based on tenant-wide form settings from
+                /api/leave/form-settings (configured on the Approval
+                Workflows page → Application Form Settings tab). */}
+            {formSettings?.showContactNumber !== false && (
               <div>
-                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
                   Contact number during leave
+                  {formSettings?.mandatoryContactNumber === true && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="tel"
@@ -1127,9 +1135,12 @@ function ApplyLeaveContent() {
                   className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
+            )}
+            {formSettings?.showHandover !== false && (
               <div>
-                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
                   Handover to / backup person
+                  {formSettings?.mandatoryHandover === true && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
@@ -1139,31 +1150,36 @@ function ApplyLeaveContent() {
                   className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                Contact address during leave
-              </label>
-              <input
-                type="text"
-                value={form.contactAddress}
-                onChange={e => set('contactAddress', e.target.value)}
-                placeholder="e.g. 123 MG Road, Pune, Maharashtra 411001"
-                className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-              />
-            </div>
-            <div>
-              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                Notify (CC) other people <span className="text-[10.5px] font-bold text-slate-400 tracking-wider">optional</span>
-              </label>
-              <input
-                type="text"
-                value={form.notifyCc}
-                onChange={e => set('notifyCc', e.target.value)}
-                placeholder="e.g. hr@company.com, manager@company.com"
-                className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-              />
-            </div>
+            )}
+            {formSettings?.showContactAddress !== false && (
+              <div>
+                <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Contact address during leave
+                  {formSettings?.mandatoryContactAddress === true && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="text"
+                  value={form.contactAddress}
+                  onChange={e => set('contactAddress', e.target.value)}
+                  placeholder="e.g. 123 MG Road, Pune, Maharashtra 411001"
+                  className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                />
+              </div>
+            )}
+            {formSettings?.showNotifyCc !== false && (
+              <div>
+                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Notify (CC) other people <span className="text-[10.5px] font-bold text-slate-400 tracking-wider">optional</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.notifyCc}
+                  onChange={e => set('notifyCc', e.target.value)}
+                  placeholder="e.g. hr@company.com, manager@company.com"
+                  className="w-full h-[38px] px-3 rounded-[9px] border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                />
+              </div>
+            )}
 
             {/* Approver chain preview (existing component) */}
             <div className="pt-1">

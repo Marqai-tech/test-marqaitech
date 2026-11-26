@@ -97,6 +97,53 @@ export default function ApprovalWorkflowsPage() {
   const [testResult, setTestResult] = useState<'all_approve' | 'one_rejects'>('all_approve');
   const [testRun, setTestRun] = useState(false);
 
+  // ─── Tab state: "Approval Workflow" (existing) vs "Application Form Settings" (new) ───
+  const [activeTab, setActiveTab] = useState<'workflow' | 'form-settings'>('workflow');
+
+  // ─── Application Form Settings state ───
+  // Tenant-wide config: which fields appear on the Apply Leave form and
+  // which are mandatory. Configured ONCE here — not per leave type.
+  const [formSettings, setFormSettings] = useState<any>(null);
+  const [formSettingsLoading, setFormSettingsLoading] = useState(false);
+  const [formSettingsSaving, setFormSettingsSaving] = useState(false);
+
+  const fetchFormSettings = useCallback(async () => {
+    setFormSettingsLoading(true);
+    try {
+      const res = await fetch('/api/leave/form-settings', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const d = await res.json();
+        setFormSettings(d.settings);
+      }
+    } catch { toast.error('Failed to load form settings'); }
+    finally { setFormSettingsLoading(false); }
+  }, []);
+
+  // Load form settings when the tab is first opened
+  useEffect(() => {
+    if (activeTab === 'form-settings' && !formSettings && !formSettingsLoading) {
+      fetchFormSettings();
+    }
+  }, [activeTab, formSettings, formSettingsLoading, fetchFormSettings]);
+
+  const saveFormSettings = async () => {
+    setFormSettingsSaving(true);
+    try {
+      const res = await fetch('/api/leave/form-settings', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ settings: formSettings }),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed to save'); }
+      toast.success('Form settings saved');
+    } catch (e: any) { toast.error(e.message || 'Failed to save'); }
+    finally { setFormSettingsSaving(false); }
+  };
+
+  const updateFormSetting = (key: string, value: boolean) => {
+    setFormSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
+
   const sq = scopeQuery();
   const sep = sq ? `&${sq}` : '';
   const qsep = sq ? `?${sq}` : '';
@@ -289,11 +336,151 @@ export default function ApprovalWorkflowsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Leave Approval Workflows</h1>
           <p className="text-sm text-slate-500 mt-1">Configure multi-tier approval chains, SLAs, and workflow options for leave requests.</p>
         </div>
-        <button onClick={fetchWorkflows} className="h-9 px-3 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        <button onClick={activeTab === 'form-settings' ? fetchFormSettings : fetchWorkflows} className="h-9 px-3 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+          <FiRefreshCw className={`w-4 h-4 ${(loading || formSettingsLoading) ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
 
+      {/* ─── Child tabs ─── */}
+      <div className="flex gap-1 border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('workflow')}
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${activeTab === 'workflow' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <FiSettings className="w-4 h-4 inline mr-1.5" /> Approval Workflow
+        </button>
+        <button
+          onClick={() => setActiveTab('form-settings')}
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${activeTab === 'form-settings' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <FiCheck className="w-4 h-4 inline mr-1.5" /> Application Form Settings
+        </button>
+      </div>
+
+      {/* ═══ Application Form Settings tab ═══ */}
+      {activeTab === 'form-settings' && (
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900">Application Form Settings</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Control which fields appear on the Apply Leave form for all employees. Configure once here — not per leave type.
+              Each field has an <strong>Enabled</strong> toggle (show/hide on the form) and a <strong>Mandatory</strong> toggle (block submission if empty).
+            </p>
+          </div>
+
+          {formSettingsLoading ? (
+            <div className="flex items-center justify-center py-16"><FiRefreshCw className="w-8 h-8 animate-spin text-slate-300" /></div>
+          ) : formSettings ? (
+            <div className="p-5">
+              {/* ─── Settings table ─── */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-[1fr_120px_120px] gap-x-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Field on Apply Leave form</span>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide text-center">Enabled</span>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide text-center">Mandatory</span>
+                </div>
+
+                {/* Field rows */}
+                {(() => {
+                  const FIELDS: Array<{ key: string; label: string; hint?: string; canMandatory: boolean }> = [
+                    { key: 'showReason', label: 'Leave reason', hint: 'The text field where the employee explains why they need leave', canMandatory: true },
+                    { key: 'showDaySelection', label: 'Day selection checkboxes', hint: 'Per-date Full day / First half / Second half checkboxes', canMandatory: false },
+                    { key: 'showShift', label: 'Shift display', hint: 'Shows the employee\'s shift timings next to each date', canMandatory: false },
+                    { key: 'showAttachment', label: 'Attachment / document upload', hint: 'Medical certificate, transfer letter, etc.', canMandatory: true },
+                    { key: 'showContactNumber', label: 'Contact number during leave', hint: 'Phone number where the employee can be reached', canMandatory: true },
+                    { key: 'showContactAddress', label: 'Contact address during leave', hint: 'Where the employee will be staying during leave', canMandatory: true },
+                    { key: 'showHandover', label: 'Handover to / backup person', hint: 'Who covers the employee\'s work while they\'re away', canMandatory: true },
+                    { key: 'showTeamOnLeave', label: 'Team members on leave', hint: 'Shows overlapping leave from team members', canMandatory: false },
+                    { key: 'showRelocation', label: 'Relocation fields', hint: 'Type, family, distance — only for Relocation Leave', canMandatory: true },
+                    { key: 'showNotifyCc', label: 'Notify (CC) other people', hint: 'Additional people to notify about this leave', canMandatory: false },
+                  ];
+                  return FIELDS.map((field, i) => {
+                    const enabledKey = field.key;
+                    const mandatoryKey = field.key.replace('show', 'mandatory');
+                    const isEnabled = formSettings[enabledKey] !== false;
+                    const isMandatory = formSettings[mandatoryKey] === true;
+                    return (
+                      <div key={field.key} className={`grid grid-cols-[1fr_120px_120px] gap-x-3 px-4 py-3 border-b border-slate-100 last:border-b-0 items-center ${i % 2 === 1 ? 'bg-slate-50/30' : ''}`}>
+                        {/* Field name + hint */}
+                        <div>
+                          <p className="text-[13px] font-semibold text-slate-800">{field.label}</p>
+                          {field.hint && <p className="text-[11px] text-slate-400 mt-0.5">{field.hint}</p>}
+                        </div>
+                        {/* Enabled toggle */}
+                        <div className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => updateFormSetting(enabledKey, !isEnabled)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                        </div>
+                        {/* Mandatory toggle */}
+                        <div className="flex justify-center">
+                          {field.canMandatory ? (
+                            <button
+                              type="button"
+                              disabled={!isEnabled}
+                              onClick={() => updateFormSetting(mandatoryKey, !isMandatory)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${!isEnabled ? 'bg-slate-200 cursor-not-allowed opacity-50' : isMandatory ? 'bg-red-500' : 'bg-slate-300'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isMandatory ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-300">—</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Live preview */}
+              <div className="mt-4 p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+                <p className="text-[12px] font-bold text-emerald-700 mb-1">Preview of Apply Leave form:</p>
+                <p className="text-[12px] text-emerald-600">
+                  {[
+                    formSettings.showReason !== false && (formSettings.mandatoryReason ? 'Reason (mandatory)' : 'Reason (optional)'),
+                    formSettings.showDaySelection !== false && 'Day selection checkboxes',
+                    formSettings.showShift === true && 'Shift display',
+                    formSettings.showAttachment !== false && (formSettings.mandatoryAttachment ? 'Attachment (mandatory)' : 'Attachment (optional)'),
+                    formSettings.showContactNumber !== false && (formSettings.mandatoryContactNumber ? 'Contact number (mandatory)' : 'Contact number (optional)'),
+                    formSettings.showContactAddress !== false && (formSettings.mandatoryContactAddress ? 'Contact address (mandatory)' : 'Contact address (optional)'),
+                    formSettings.showHandover !== false && (formSettings.mandatoryHandover ? 'Handover (mandatory)' : 'Handover (optional)'),
+                    formSettings.showTeamOnLeave !== false && 'Team on leave',
+                    formSettings.showRelocation === true && (formSettings.mandatoryRelocation ? 'Relocation fields (mandatory)' : 'Relocation fields (optional)'),
+                    formSettings.showNotifyCc !== false && 'Notify CC',
+                  ].filter(Boolean).join(' · ') || 'No fields enabled — the form will be empty.'}
+                </p>
+              </div>
+
+              {/* Save button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={saveFormSettings}
+                  disabled={formSettingsSaving}
+                  className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {formSettingsSaving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSave className="w-4 h-4" />}
+                  {formSettingsSaving ? 'Saving…' : 'Save Form Settings'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-slate-400">
+              <FiSettings className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+              <p>Click "Refresh" to load form settings.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ Approval Workflow tab (existing UI) ═══ */}
+      {activeTab === 'workflow' && (
+        <>
       {loading ? (
         <div className="flex items-center justify-center py-20"><FiRefreshCw className="w-8 h-8 animate-spin text-slate-300" /></div>
       ) : (
@@ -580,6 +767,8 @@ export default function ApprovalWorkflowsPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
