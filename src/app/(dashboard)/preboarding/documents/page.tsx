@@ -87,6 +87,7 @@ interface PipelineCandidate {
   department: string | null;
   stageLabel: string;
   bgvStatus: string;
+  employeeId: string | null;
   portalSubmittedAt: string | null;
   joiningDate: string | null;
   documentStatus: string;
@@ -147,9 +148,11 @@ const BGV_META: Record<string, { label: string; chip: string }> = {
   pending: { label: 'Not initiated', chip: 'bg-slate-100 text-slate-600' },
   not_initiated: { label: 'Not initiated', chip: 'bg-slate-100 text-slate-600' },
   in_progress: { label: 'In progress', chip: 'bg-violet-100 text-violet-700' },
+  cleared: { label: 'Cleared', chip: 'bg-emerald-100 text-emerald-700' },
   completed: { label: 'Cleared', chip: 'bg-emerald-100 text-emerald-700' },
   approved_by_hr: { label: 'Cleared', chip: 'bg-emerald-100 text-emerald-700' },
-  rejected_by_hr: { label: ' flagged', chip: 'bg-red-100 text-red-700' },
+  failed: { label: 'Failed', chip: 'bg-red-100 text-red-700' },
+  rejected_by_hr: { label: 'Flagged', chip: 'bg-red-100 text-red-700' },
 };
 
 function bgvMeta(status?: string | null) {
@@ -488,6 +491,7 @@ function CandidateWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const router = useRouter();
 
   /* action form: reject | resubmit */
   const [formMode, setFormMode] = useState<'reject' | 'resubmit' | null>(null);
@@ -545,8 +549,32 @@ function CandidateWorkspace({
   const summary = useMemo(() => summarize(docs), [docs]);
   const selected = useMemo(() => docs.find((d) => d.id === selectedId) || null, [docs, selectedId]);
   const allApproved = summary.total > 0 && summary.approved === summary.total;
-  const bgv = bgvMeta(candidate.bgvStatus);
-  const bgvActive = !['pending', 'not_initiated'].includes(String(candidate.bgvStatus || 'pending').toLowerCase());
+
+  /* ── LIVE BGV status for the header ──
+   * The candidate snapshot comes from the Level-1 list and can be stale after
+   * HR initiates/approves a case here (HR complaint: "Initiate BGV button shows
+   * again even after approving"). The case list is the source of truth, so the
+   * header derives the status from it on mount and after every case change. */
+  const [bgvCaseStatuses, setBgvCaseStatuses] = useState<{ id: string; status: string }[]>([]);
+  const loadBgvCases = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/bgv/requests?preboardingCandidateId=${encodeURIComponent(candidate.id)}`, { headers: getAuthHeaders() });
+      const d = await res.json().catch(() => ({}));
+      setBgvCaseStatuses(res.ok && Array.isArray(d.requests) ? d.requests.map((r: { id: string; status: string }) => ({ id: r.id, status: r.status })) : []);
+    } catch { setBgvCaseStatuses([]); }
+  }, [candidate.id]);
+  useEffect(() => {
+    queueMicrotask(() => void loadBgvCases());
+  }, [loadBgvCases]);
+  const liveBgvStatus = useMemo(() => {
+    if (bgvCaseStatuses.some((c) => c.status === 'approved_by_hr')) return 'cleared';
+    if (bgvCaseStatuses.some((c) => c.status === 'rejected_by_hr')) return 'failed';
+    if (bgvCaseStatuses.some((c) => !['approved_by_hr', 'rejected_by_hr', 'cancelled'].includes(c.status))) return 'in_progress';
+    return String(candidate.bgvStatus || 'pending').toLowerCase();
+  }, [bgvCaseStatuses, candidate.bgvStatus]);
+
+  const bgv = bgvMeta(liveBgvStatus);
+  const bgvActive = !['pending', 'not_initiated'].includes(liveBgvStatus);
 
   /* selection handler — resets the action form so it never leaks across docs */
   const selectDoc = useCallback((id: string | null) => {
@@ -630,7 +658,21 @@ function CandidateWorkspace({
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
             {bgvActive ? (
-              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${bgv.chip}`}>BGV: {bgv.label}</span>
+              <div className="flex flex-col items-start sm:items-end gap-1.5">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${bgv.chip}`}>BGV: {bgv.label}</span>
+                {liveBgvStatus === 'cleared' && !candidate.employeeId && (
+                  <button
+                    onClick={() => router.push(`/preboarding/employee-creation?candidateId=${encodeURIComponent(candidate.id)}`)}
+                    className="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-emerald-600 border border-emerald-600 text-white hover:bg-emerald-700"
+                    title="BGV cleared — create the employee record (company email, login details, Employee ID)"
+                  >
+                    <FiCheckCircle className="w-4 h-4" /> Create Employee Record
+                  </button>
+                )}
+                {liveBgvStatus === 'cleared' && Boolean(candidate.employeeId) && (
+                  <span className="text-[11px] font-medium text-emerald-700">Employee record created</span>
+                )}
+              </div>
             ) : (
               <div className="text-right">
                 <button
@@ -985,8 +1027,8 @@ function CandidateWorkspace({
         candidateName={candidate.candidateName || 'Unknown candidate'}
         candidateEmail={candidate.candidateEmail || ''}
         documents={docs.map((d) => ({ id: d.id, documentLabel: d.documentLabel || null, documentType: d.documentType || null, status: d.status }))}
-        bgvStatus={candidate.bgvStatus}
-        onCaseChanged={loadActivity}
+        bgvStatus={liveBgvStatus}
+        onCaseChanged={() => { loadActivity(); void loadBgvCases(); }}
       />
     </div>
   );

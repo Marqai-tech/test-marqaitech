@@ -48,6 +48,8 @@ interface PipelineCandidate {
   stageLabel: string;
   joiningConfirmed: boolean | null;
   employeeId: string | null;
+  bgvStatus: string;
+  companyEmail?: string | null;
 }
 
 interface EcValidation {
@@ -117,6 +119,7 @@ interface EcDraft {
   workLocation: string;
   workMode: string;
   confirmationDueDate: string;
+  companyEmail: string;
 }
 
 interface CreateSuccess {
@@ -145,6 +148,7 @@ const EMPTY_FORM: EcDraft = {
   workLocation: '',
   workMode: 'office',
   confirmationDueDate: '',
+  companyEmail: '',
 };
 
 /* ── Helpers ── */
@@ -182,6 +186,7 @@ function initForm(d: EcData): EcDraft {
     workLocation: d.sectionB.workLocation || '',
     workMode: d.sectionB.workMode || 'office',
     confirmationDueDate: d.sectionB.confirmationDueDate ? String(d.sectionB.confirmationDueDate).slice(0, 10) : '',
+    companyEmail: d.sectionD.companyEmail || '',
   };
 }
 
@@ -233,8 +238,19 @@ function EmployeeCreationInner() {
     })();
   }, [candidateIdParam]);
 
-  const preferredCandidates = useMemo(
-    () => candidates.filter((c) => c.stage === 'ready_to_join' || c.joiningConfirmed),
+  /* Buckets for the picker — Employee creation requires BGV cleared (server
+   * gate), so cleared-but-unconverted candidates lead the list and everything
+   * else is shown as pending with its reason (HR feedback 2026-11). */
+  const readyCandidates = useMemo(
+    () => candidates.filter((c) => String(c.bgvStatus || '').toLowerCase() === 'cleared' && !c.employeeId),
+    [candidates],
+  );
+  const pendingCandidates = useMemo(
+    () => candidates.filter((c) => !c.employeeId && String(c.bgvStatus || '').toLowerCase() !== 'cleared' && !['did_not_join', 'cancelled'].includes(c.stage)),
+    [candidates],
+  );
+  const joinedCandidates = useMemo(
+    () => candidates.filter((c) => Boolean(c.employeeId)),
     [candidates],
   );
 
@@ -297,6 +313,7 @@ function EmployeeCreationInner() {
     dateOfJoining: form.dateOfJoining || undefined,
     employmentType: form.employmentType || undefined,
     workMode: form.workMode || undefined,
+    companyEmail: form.companyEmail.trim() || undefined,
   });
 
   const runValidate = async (silent = false): Promise<{ canCreate: boolean; errors: string[] }> => {
@@ -412,20 +429,29 @@ function EmployeeCreationInner() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full"
           >
             <option value="">— Select a candidate —</option>
-            {preferredCandidates.length > 0 && (
-              <optgroup label="Ready to Join / Awaiting Confirmation">
-                {preferredCandidates.map((c) => (
+            {readyCandidates.length > 0 && (
+              <optgroup label="BGV Cleared — ready for Employee Creation">
+                {readyCandidates.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.candidateName}{c.preboardingId ? ` (${c.preboardingId})` : ''}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
                   </option>
                 ))}
               </optgroup>
             )}
-            {candidates.length > 0 && (
-              <optgroup label="All Preboarding Candidates">
-                {candidates.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.candidateName}{c.preboardingId ? ` (${c.preboardingId})` : ''}{c.jobTitle ? ` — ${c.jobTitle}` : ''} [{c.stageLabel}]
+            {pendingCandidates.length > 0 && (
+              <optgroup label="Pending — BGV / document approvals not complete">
+                {pendingCandidates.map((c) => (
+                  <option key={c.id} value={c.id} disabled>
+                    {c.candidateName}{c.preboardingId ? ` (${c.preboardingId})` : ''} — BGV: {String(c.bgvStatus || 'not initiated').replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {joinedCandidates.length > 0 && (
+              <optgroup label="Employee record already created">
+                {joinedCandidates.map((c) => (
+                  <option key={c.id} value={c.id} disabled>
+                    {c.candidateName}{c.employeeId ? ` — ${c.employeeId}` : ''}
                   </option>
                 ))}
               </optgroup>
@@ -433,6 +459,11 @@ function EmployeeCreationInner() {
           </select>
           {candidates.length === 0 && (
             <p className="mt-3 text-sm text-slate-500">No preboarding candidates found. Candidates appear here after offer acceptance.</p>
+          )}
+          {candidates.length > 0 && readyCandidates.length === 0 && (
+            <p className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              No candidates are ready yet. Employee creation unlocks after HR approves the candidate&apos;s BGV — pending candidates are listed above with their BGV status.
+            </p>
           )}
         </div>
       </div>
@@ -519,7 +550,7 @@ function EmployeeCreationInner() {
                   <p className="text-sm text-slate-600 mt-1">{success.message}</p>
                   <div className="mt-4 grid sm:grid-cols-3 gap-3">
                     <div className="bg-emerald-50 rounded-lg px-3 py-2.5">
-                      <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">Provisional Employee ID</p>
+                      <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">Employee ID (formal)</p>
                       <p className="text-sm font-bold text-emerald-800 mt-0.5">{success.provisionalEmployeeId}</p>
                     </div>
                     <div className="bg-slate-50 rounded-lg px-3 py-2.5">
@@ -532,7 +563,7 @@ function EmployeeCreationInner() {
                     </div>
                   </div>
                   <p className="text-xs text-slate-400 mt-3">
-                    Formal Employee ID (MarqNNN) is issued after BGV clearance. Assigned policies, templates and training are handled by the Onboarding module from here.
+                    Login credentials were emailed to the candidate. Assigned policies, templates and training are handled by the Onboarding module from here.
                   </p>
                   <div className="flex flex-wrap gap-2 mt-4">
                     <button
@@ -742,7 +773,7 @@ function EmployeeCreationInner() {
               <div>
                 <p className="block text-sm font-medium text-slate-700 mb-1">Employee ID</p>
                 <p className="text-xs text-slate-400 italic pt-2">
-                  Auto-generated on creation (PROV-XXXXXXXX provisional → MarqNNN after BGV)
+                  Auto-generated on creation — formal sequential code (Marq001, Marq002, …)
                 </p>
               </div>
             </div>
@@ -775,15 +806,33 @@ function EmployeeCreationInner() {
             </p>
           </div>
 
-          {/* ── Section D: Access & Permissions (read-only) ── */}
+          {/* ── Section D: Access & Permissions (company email editable — HR assigns the login) ── */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6">
             <h3 className="font-semibold text-slate-900 flex items-center gap-3 mb-4">
               {secIcon(<FiKey className="h-4 w-4 text-slate-600" />, 'bg-slate-100')}
-              <span>Section D — Access &amp; Permissions <span className="text-xs font-normal text-slate-400">(read-only)</span></span>
+              <span>Section D — Access &amp; Login Details</span>
             </h3>
             <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
-              {renderReadOnly('Company Email', data.sectionD.companyEmail)}
-              {renderReadOnly('Login Activation', data.sectionD.loginActivation)}
+              <div>
+                <label htmlFor="ec-cemail" className="block text-sm font-medium text-slate-700 mb-1">
+                  Company Email <span className="text-slate-400 font-normal">(this becomes the employee&apos;s login)</span>
+                </label>
+                <input
+                  id="ec-cemail"
+                  type="email"
+                  value={form.companyEmail}
+                  onChange={(e) => setForm({ ...form, companyEmail: e.target.value })}
+                  placeholder={`e.g. ${String(data.sectionA.fullName || 'name').split(/\s+/)[0]?.toLowerCase() || 'user'}.lastname@marqaitech.com`}
+                  className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full"
+                />
+                <p className="text-xs text-slate-400 mt-1">Leave empty to use the personal email ({data.sectionA.personalEmail || '—'}) as the login.</p>
+              </div>
+              <div>
+                <p className="block text-sm font-medium text-slate-700 mb-1">Login Activation</p>
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                  <FiKey className="h-3.5 w-3.5" /> Active on creation — temporary password emailed
+                </span>
+              </div>
             </div>
           </div>
 

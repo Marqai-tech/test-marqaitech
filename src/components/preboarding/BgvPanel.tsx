@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, Fragment, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
   FiShield, FiRefreshCw, FiLoader, FiAlertCircle, FiCheckCircle, FiXCircle,
@@ -147,9 +148,17 @@ export default function BgvPanel({
 
   const approvedDocs = useMemo(() => documents.filter((d) => d.status === 'approved'), [documents]);
   const activeCase = cases.find((c) => !['approved_by_hr', 'rejected_by_hr', 'cancelled'].includes(c.status));
-  // A terminal BGV outcome (cleared/failed) from an earlier cycle blocks a new
-  // case — the server enforces this; show a notice instead of the form.
-  const bgvSettled = ['cleared', 'failed'].includes(String(bgvStatus || '').toLowerCase());
+  // A terminal BGV outcome (cleared/failed) blocks a new case — the server
+  // enforces this; show a notice instead of the form. Derived from BOTH the
+  // candidate-level status AND the visible case list: after HR approves, the
+  // pipeline snapshot may still carry the older value, and without the case
+  // check the initiation form re-appeared (HR complaint: "Initiate BGV button
+  // comes again even after approving").
+  const caseApproved = cases.some((c) => c.status === 'approved_by_hr');
+  const caseRejected = cases.some((c) => c.status === 'rejected_by_hr');
+  const statusLower = String(bgvStatus || '').toLowerCase();
+  const bgvSettled = caseApproved || caseRejected || ['cleared', 'failed'].includes(statusLower);
+  const settledFailed = caseRejected || statusLower === 'failed';
   const latestTerminalCase = cases.length > 0 ? cases[0] : null;
   const latestSubmitted = detail?.reports?.length ? detail.reports[detail.reports.length - 1] : null;
 
@@ -305,6 +314,7 @@ export default function BgvPanel({
   };
 
   /* ─────────────── render ─────────────── */
+  const router = useRouter();
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" data-testid="bgv-panel">
       <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/60">
@@ -611,12 +621,23 @@ export default function BgvPanel({
             </div>
           )
         ) : bgvSettled ? (
-          /* ── BGV already settled in an earlier cycle — server rejects re-initiation ── */
-          <div className={`border rounded-lg px-3.5 py-3 text-sm flex items-start gap-2 ${String(bgvStatus).toLowerCase() === 'failed' ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
-            {String(bgvStatus).toLowerCase() === 'failed' ? <FiXCircle className="mt-0.5 shrink-0" /> : <FiCheckCircle className="mt-0.5 shrink-0" />}
-            <div>
-              <p className="font-medium">Background verification is already {String(bgvStatus).toLowerCase() === 'failed' ? 'marked failed' : 'cleared'} for this candidate.</p>
-              <p className="text-xs mt-0.5 opacity-80">A new BGV case can only be opened after HR explicitly resets the candidate&apos;s BGV status in the candidate record. {latestTerminalCase ? `Most recent case: ${latestTerminalCase.caseNumber || latestTerminalCase.id}.` : ''}</p>
+          /* ── BGV already settled — server rejects re-initiation ── */
+          <div className={`border rounded-lg px-3.5 py-3 text-sm flex items-start gap-2 ${settledFailed ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+            {settledFailed ? <FiXCircle className="mt-0.5 shrink-0" /> : <FiCheckCircle className="mt-0.5 shrink-0" />}
+            <div className="min-w-0">
+              <p className="font-medium">Background verification is already {settledFailed ? 'marked failed' : 'approved'} for this candidate.</p>
+              {!settledFailed && (
+                <p className="text-xs mt-0.5 opacity-80">BGV is cleared — the final step is creating the employee record (company email, login details, Employee ID).</p>
+              )}
+              <p className="text-xs mt-0.5 opacity-80">{settledFailed ? 'A new BGV case can only be opened after HR explicitly resets the candidate\'s BGV status in the candidate record. ' : ''}{latestTerminalCase ? `Most recent case: ${latestTerminalCase.caseNumber || latestTerminalCase.id}.` : ''}</p>
+              {!settledFailed && (
+                <button
+                  onClick={() => router.push(`/preboarding/employee-creation?candidateId=${encodeURIComponent(candidateId)}`)}
+                  className="mt-2 inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+                >
+                  <FiCheckCircle className="w-3.5 h-3.5" /> Create Employee Record →
+                </button>
+              )}
             </div>
           </div>
         ) : (

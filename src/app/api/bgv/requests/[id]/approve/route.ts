@@ -13,6 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const auth = await getAuthInfo(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
+    const actorId: string = auth.userId;
     const isAdmin = ['super_admin','tenant_admin','ceo','admin','hr_admin','company_hr_admin','hrhead'].includes(auth.role);
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden — HR/Admin only' }, { status: 403, headers: CORS });
 
@@ -48,13 +49,68 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     } catch { /* notification must never fail the API */ }
 
-    // If there's a linked PreboardingCandidate, trigger activation
+    // If there's a linked PreboardingCandidate, sync its BGV outcome and
+    // route HR to the explicit Employee Creation step (BRD Section 6).
+    //
+    // 2026-11 rework (HR feedback: "BGV approved but nothing visible, Initiate
+    // BGV still shows"): approval now ALWAYS sets backgroundCheckStatus='cleared'
+    // — the old code skipped the sync when the joiner was already active, which
+    // left stale 'in_progress' values and re-showed the initiation form.
+    //
+    // Employee creation is NEVER silent anymore:
+    //   • provisional Employee exists  → upgraded in place (formal MarqNNN +
+    //     activation email) — same as before.
+    //   • no Employee yet              → candidate is parked at
+    //     onboardingStatus='bgv_cleared' and HR creates the record explicitly in
+    //     /preboarding/employee-creation (company email, login details, employee ID).
     if (bgvReq.preboardingCandidateId) {
       const pbRows = await db.$queryRawUnsafe(`SELECT * FROM "PreboardingCandidate" WHERE "id"=$1 LIMIT 1`, bgvReq.preboardingCandidateId).catch(() => []) as any[];
       if (pbRows.length > 0) {
         const pb = pbRows[0];
-        if (pb.onboardingStatus !== 'active_employee') {
-          // ─── Generate sequential MarqNNN employee code ───
+
+        // Always sync the candidate-level BGV outcome first (fixes the stale
+        // 'in_progress' that re-showed the Initiate BGV form after approval).
+        if (pb.backgroundCheckStatus !== 'cleared') {
+          await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "backgroundCheckStatus"='cleared',"updatedAt"=NOW() WHERE "id"=$1`, pb.id).catch(() => 0);
+        }
+
+        if (pb.onboardingStatus === 'active_employee') {
+          await db.auditLog.create({ data: { userId: actorId, action: 'BGV_APPROVED', module: 'bgv', details: `Approved BGV request ${requestId} — employee already active for ${pb.candidateName} (status synced to cleared)` } }).catch(() => null);
+          return NextResponse.json({
+            message: `BGV approved — employee record already active${pb.employeeId ? ` (${pb.employeeId})` : ''}. No further action needed.`,
+            status: 'approved_by_hr', nextStep: 'none',
+          }, { headers: CORS });
+        }
+
+        {
+          // ─── Determine if there's a provisional Employee to upgrade (created
+          // via Employee Creation / Mark Joined). When none exists we PARK the
+          // candidate at bgv_cleared — approval must never silently mint an
+          // employee record; HR does that explicitly in Employee Creation. ───
+          const personalEmail = String(pb.candidateEmail || '').toLowerCase();
+          const companyEmailLower = String(pb.companyEmail || '').toLowerCase();
+          const existingEmpRows = await db.$queryRawUnsafe(
+            `SELECT id, "employeeId" FROM "Employee"
+              WHERE "id" = $1
+                 OR ($2 <> '' AND "email" = $2)
+                 OR ($3 <> '' AND "email" = $3)
+              LIMIT 1`,
+            pb.employeeId || '__none__', companyEmailLower, personalEmail,
+          ).catch(() => []) as any[];
+
+          if (existingEmpRows.length === 0) {
+            // ─── No Employee record yet → DO NOT auto-create (2026-11 HR feedback).
+            // Park the candidate at bgv_cleared and point HR at Employee Creation,
+            // where company email / login details / employee ID are assigned openly.
+            await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "onboardingStatus"='bgv_cleared',"backgroundCheckStatus"='cleared',"updatedAt"=NOW() WHERE "id"=$1`, pb.id).catch(() => 0);
+            await db.auditLog.create({ data: { userId: actorId, action: 'BGV_APPROVED', module: 'bgv', details: `Approved BGV request ${requestId} — ${pb.candidateName} cleared, awaiting Employee Creation` } }).catch(() => null);
+            return NextResponse.json({
+              message: `BGV approved for ${pb.candidateName}. Next step: create the employee record in Employee Creation — assign the company email, login details and Employee ID there.`,
+              status: 'approved_by_hr', nextStep: 'employee_creation',
+            }, { headers: CORS });
+          }
+
+          // ─── Upgrade the provisional employee in place: formal MarqNNN + active ───
           let empCode = 'Marq001';
           try {
             const existingCodes = await db.$queryRawUnsafe(
@@ -93,21 +149,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             return NextResponse.json({ error: 'Unable to resolve or create the candidate user account for activation' }, { status: 500, headers: CORS });
           }
 
-          // ─── Determine if there's already a provisional Employee to upgrade ───
-          const existingEmpRows = await db.$queryRawUnsafe(
-            `SELECT id, "employeeId" FROM "Employee" WHERE "id" = $1 OR "email" = $2 LIMIT 1`,
-            pb.employeeId || '__none__', userEmail,
-          ).catch(() => []) as any[];
-
-          let employeeId: string;
-          let isUpgrade = false;
-
-          if (existingEmpRows.length > 0) {
-            // UPDATE existing provisional Employee — assign Marq code + activate
-            const existingEmp = existingEmpRows[0];
-            employeeId = existingEmp.id;
-            isUpgrade = true;
-            await db.$executeRawUnsafe(
+          const existingEmp = existingEmpRows[0];
+          const employeeId: string = existingEmp.id;
+          const isUpgrade = true;
+          await db.$executeRawUnsafe(
               `UPDATE "Employee" SET "employeeId" = $1, "status" = 'active', "employeeStatus" = 'probation',
                                       "userId" = COALESCE("userId", $2),
                                       "departmentId" = $3, "designationId" = $4,
@@ -123,20 +168,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               firstName, lastName, pb.candidatePhone||null,
               employeeId,
             ).catch((e:any) => { throw new Error(`Employee upgrade failed: ${e.message}`); });
-          } else {
-            // CREATE a new Employee (fallback for legacy flow without mark-joined)
-            const empData: Record<string, unknown> = {
-              employeeId: empCode, firstName, lastName, email: userEmail,
-              phone: pb.candidatePhone || null, userId: user.id,
-              departmentId: deptId, designationId: desigId,
-              reportingManagerId: pb.reportingManagerId || null,
-              dateOfJoining: pb.joiningDate ? new Date(pb.joiningDate) : new Date(),
-              employeeStatus: 'probation', employeeType: 'full_time',
-              status: 'active', credentialsStatus: 'active',
-            };
-            const employee = await db.employee.create({ data: empData as any }).catch((e:any) => { throw new Error(`Employee create: ${e.message}`); });
-            employeeId = employee.id;
-          }
 
           await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "onboardingStatus"='active_employee',"status"='joined',"employeeId"=$1,"activatedAt"=NOW(),"backgroundCheckStatus"='cleared',"updatedAt"=NOW() WHERE "id"=$2`, employeeId, pb.id).catch(() => 0);
 
@@ -152,7 +183,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 Employee_Id: empCode,
                 Company_Email: pb.companyEmail || pb.candidateEmail,
                 Temporary_Password: temporaryPassword,
-                Login_Url: 'https://3boxes-hrms-beta.vercel.app/login',
+                Login_Url: 'https://3boxes-hrms-inky.vercel.app/login',
               },
               entityType: 'preboarding_candidate', entityId: pb.id, entityLink: '/preboarding',
               status: 'welcome',
@@ -161,13 +192,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
           if (user && auth.tenantId) { try { await db.notification.create({ data: { userId: user.id, tenantId: auth.tenantId, title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: false } }).catch(() => null); } catch {} }
 
-          await db.auditLog.create({ data: { userId: auth.userId, action: 'BGV_APPROVED_EMPLOYEE_ACTIVATED', module: 'bgv', details: `BGV approved for ${pb.candidateName}. Employee ID: ${empCode} (upgrade=${isUpgrade})` } }).catch(() => null);
-          return NextResponse.json({ message: `BGV Approved! Employee ID: ${empCode}. Activation email sent.`, employeeCode: empCode, status: 'approved_by_hr', isUpgrade }, { headers: CORS });
+          await db.auditLog.create({ data: { userId: actorId, action: 'BGV_APPROVED_EMPLOYEE_ACTIVATED', module: 'bgv', details: `BGV approved for ${pb.candidateName}. Employee ID: ${empCode} (upgrade=${isUpgrade})` } }).catch(() => null);
+          return NextResponse.json({ message: `BGV Approved! Provisional employee upgraded — formal Employee ID: ${empCode}. Activation email sent.`, employeeCode: empCode, status: 'approved_by_hr', isUpgrade, nextStep: 'none' }, { headers: CORS });
         }
       }
     }
 
-    await db.auditLog.create({ data: { userId: auth.userId, action: 'BGV_APPROVED', module: 'bgv', details: `Approved BGV request ${requestId}` } }).catch(() => null);
+    await db.auditLog.create({ data: { userId: actorId, action: 'BGV_APPROVED', module: 'bgv', details: `Approved BGV request ${requestId}` } }).catch(() => null);
     return NextResponse.json({ message: 'BGV approved.', status: 'approved_by_hr' }, { headers: CORS });
   } catch (error) {
     console.error('BGV approve error:', error);

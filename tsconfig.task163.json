@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/app/api/bgv/requests/[id]/approve/route.ts",
+    "src/app/api/preboarding/brd/employee-creation/route.ts",
+    "src/components/preboarding/BgvPanel.tsx",
+    "src/app/(dashboard)/preboarding/documents/page.tsx",
+    "src/app/(dashboard)/preboarding/employee-creation/page.tsx"
+  ]
+}

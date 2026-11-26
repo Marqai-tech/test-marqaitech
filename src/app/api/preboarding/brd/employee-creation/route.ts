@@ -187,20 +187,62 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── action === 'create' ───
+    // 2026-11: since the GET gate requires BGV cleared, creation now issues the
+    // FORMAL employee code (MarqNNN) directly, provisions the login (User +
+    // temporary password) and activates the employee — HR sees exactly what was
+    // assigned: company email, login details and Employee ID.
     const nameParts = String(pb.candidateName || '').trim().split(/\s+/);
     const firstName = employment.firstName || nameParts[0] || pb.candidateName;
     const lastName = employment.lastName || nameParts.slice(1).join(' ') || nameParts[0];
 
-    // Find the User created at convert time (companyEmail) — reuse for login identity
-    let userId: string | null = null;
-    const userEmail = pb.companyEmail || pb.candidateEmail;
+    // HR-assigned company email (Section D) — falls back to the stored
+    // companyEmail, then the personal email so the login always works.
+    const requestedCompanyEmail = String(employment.companyEmail || '').trim().toLowerCase();
+    if (requestedCompanyEmail && requestedCompanyEmail !== String(pb.companyEmail || '').toLowerCase()) {
+      await db.$executeRawUnsafe(`UPDATE "PreboardingCandidate" SET "companyEmail"=$1,"updatedAt"=NOW() WHERE "id"=$2`, requestedCompanyEmail, candidateId).catch(() => 0);
+      pb.companyEmail = requestedCompanyEmail;
+    }
+    const userEmail = (pb.companyEmail || pb.candidateEmail || '').toLowerCase();
+
+    // ─── Sequential formal employee code (MarqNNN) ───
+    let empCode = 'Marq001';
     try {
-      const u = await db.$queryRawUnsafe(`SELECT id FROM "User" WHERE "email" = $1 LIMIT 1`, userEmail.toLowerCase()) as any[];
-      userId = u[0]?.id || null;
-    } catch {}
+      const existingCodes = await db.$queryRawUnsafe(
+        `SELECT "employeeId" FROM "Employee"
+         WHERE "employeeId" ~ '^Marq[0-9]+$'
+         ORDER BY CAST(SUBSTRING("employeeId" FROM 'Marq([0-9]+)') AS INTEGER) DESC
+         LIMIT 1`,
+      ) as any[];
+      if (existingCodes.length > 0 && existingCodes[0]?.employeeId) {
+        const match = existingCodes[0].employeeId.match(/^Marq(\d+)$/i);
+        if (match) { const next = parseInt(match[1], 10) + 1; empCode = `Marq${next < 1000 ? String(next).padStart(3, '0') : String(next)}`; }
+      }
+    } catch { /* keep default */ }
+
+    // ─── Provision the login: create or upgrade the User row ───
+    const temporaryPassword = `Marq!${Math.random().toString(36).slice(2, 10)}A1!`;
+    const { hashPassword } = await import('@/lib/auth');
+    const hashedPassword = await hashPassword(temporaryPassword);
+    const userRow = await db.$queryRawUnsafe(`SELECT "id" FROM "User" WHERE "email"=$1 LIMIT 1`, userEmail).catch(() => []) as any[];
+    let userId: string;
+    if (userRow.length > 0) {
+      userId = userRow[0].id;
+      await db.$executeRawUnsafe(
+        `UPDATE "User" SET "password"=$1, "role"='employee', "status"='active', "updatedAt"=NOW() WHERE "id"=$2`,
+        hashedPassword, userId,
+      ).catch(() => 0);
+    } else {
+      const newUserId = `usr-ec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "User" ("id","email","password","name","role","status","tenantId","createdAt","updatedAt")
+         VALUES ($1,$2,$3,$4,'employee','active',$5,NOW(),NOW())`,
+        newUserId, userEmail, hashedPassword, pb.candidateName || firstName,
+        String((decoded as any).tenantId || '') || null,
+      ).catch((e: any) => { throw new Error(`User create failed: ${e.message}`); });
+      userId = newUserId;
+    }
 
     const empId = `emp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const provCode = `PROV-${preboardingId.replace(/[^a-z0-9]/gi, '').slice(-4)}${String(Date.now()).slice(-4)}`;
     const jDate = doj ? new Date(doj) : new Date();
 
     // Validate FK references exist before insert (additive-safe)
@@ -214,45 +256,49 @@ export async function POST(req: NextRequest) {
                                 "dateOfJoining", "employeeStatus", "employeeType", "workMode",
                                 "status", "credentialsStatus", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'probation', $12, $13,
-               'provisional', 'invited', NOW(), NOW())`,
-      empId, provCode, firstName, lastName, userEmail.toLowerCase(), pb.candidatePhone || null,
+               'active', 'active', NOW(), NOW())`,
+      empId, empCode, firstName, lastName, userEmail, pb.candidatePhone || null,
       userId, deptId, desigId, mgrId, jDate,
       employment.employmentType || pb.employmentType || 'full_time',
       employment.workMode || pb.workMode || 'office',
     );
 
     await db.$executeRawUnsafe(
-      `UPDATE "PreboardingCandidate" SET "employeeId"=$1, "onboardingStatus"='provisional_employee', "status"='joined', "preboardingStage"='joined', "updatedAt"=NOW() WHERE "id"=$2`,
+      `UPDATE "PreboardingCandidate" SET "employeeId"=$1, "onboardingStatus"='active_employee', "status"='joined', "preboardingStage"='joined', "activatedAt"=NOW(), "updatedAt"=NOW() WHERE "id"=$2`,
       empId, candidateId,
     );
     if (pb.jobApplicationId) {
       await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='hired', "updatedAt"=NOW() WHERE "id"=$1 AND "status"='bgv_passed'`, pb.jobApplicationId).catch(() => null);
     }
 
-    await notifyCandidate(db, pb.candidateEmail, `Your employee record has been created (provisional ID: ${provCode}). System access details will be shared shortly. Formal Employee ID is issued after BGV clearance.`);
+    await notifyCandidate(db, pb.candidateEmail, `Your employee record has been created. Employee ID: ${empCode}. Your login has been activated — check your email for the credentials.`);
     await audit(db, (decoded as any).userId, 'CREATE_EMPLOYEE_FROM_PREBOARDING', 'preboarding',
-      `${preboardingId} ${pb.candidateName}: employee created (provisional ${provCode}) — dept ${deptId}, designation ${desigId}, manager ${mgrId}, DOJ ${jDate.toISOString().slice(0, 10)}`);
+      `${preboardingId} ${pb.candidateName}: employee created (formal ${empCode}) — dept ${deptId}, designation ${desigId}, manager ${mgrId}, DOJ ${jDate.toISOString().slice(0, 10)}, login ${userEmail}`);
+
+    // Activation email with the login credentials (template-driven).
     await sendConfiguredEmail({
       db, tenantId: String((decoded as any).tenantId || ''),
-      module: 'onboarding', eventKey: 'onboarding.preboarding.employee_created',
+      module: 'onboarding', eventKey: 'onboarding.employee.account_activated',
       to: pb.candidateEmail,
-      toName: pb.candidateName || undefined,
+      toName: firstName || undefined,
       vars: {
-        Candidate_Name: pb.candidateName || 'Candidate',
-        Employee_Id: provCode,
-        Position: 'your position',
-        Joining_Date: jDate ? jDate.toISOString().slice(0, 10) : 'TBD',
-        Login_Email: userEmail.toLowerCase(),
-        Temporary_Password: 'Welcome@123',
-        Portal_Url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/candidate-portal`,
+        Employee_Name: firstName || 'there',
+        Employee_Id: empCode,
+        Company_Email: userEmail,
+        Temporary_Password: temporaryPassword,
+        Login_Url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://3boxes-hrms-inky.vercel.app'}/login`,
       },
-      entityType: 'preboarding', entityId: preboardingId, entityLink: '/preboarding',
+      entityType: 'preboarding_candidate', entityId: candidateId, entityLink: '/preboarding',
       status: 'welcome',
     }).catch(() => null);
 
+    try {
+      await db.notification.create({ data: { userId, tenantId: String((decoded as any).tenantId || ''), title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: false } }).catch(() => null);
+    } catch {}
+
     return NextResponse.json({
-      message: 'Employee created successfully (provisional). Formal Employee ID (MarqNNN) is issued at BGV approval.',
-      employeeRowId: empId, provisionalEmployeeId: provCode, preboardingId,
+      message: `Employee created successfully. Employee ID: ${empCode}. Login activated for ${userEmail} — credentials emailed.`,
+      employeeRowId: empId, provisionalEmployeeId: empCode, employeeCode: empCode, loginEmail: userEmail, preboardingId,
     }, { status: 201, headers: CORS });
   } catch (error) {
     console.error('[preboarding/brd/employee-creation] POST failed:', error);
