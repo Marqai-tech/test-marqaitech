@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEdit2, FiTrash2,
   FiArrowLeft, FiRotateCcw, FiClock, FiSearch, FiBriefcase, FiCalendar,
@@ -146,6 +147,7 @@ function composeSalaryRange(min: string, max: string): string {
 const INPUT_CLS = 'h-[30px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[11px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
 const BADGE = 'inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold';
 export default function RequisitionsPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
   // C-30: company context store — single source of truth for which
   // company the user is operating in (their own company for non-admins,
@@ -480,23 +482,12 @@ export default function RequisitionsPage() {
   const handleCreateJobPosting = async (r: Requisition) => {
     if (!isHr) { toast.error('Only HR can create job postings'); return; }
     if (r.approvalStatus !== 'budget_approved') { toast.error('Requisition must be fully approved'); return; }
-    const params = new URLSearchParams({
-      requisitionId: r.id,
-      title: r.designation?.title || 'Position',
-      // Departments come from company master data only: pass the real
-      // department ID (name kept as fallback for legacy links), never a
-      // free-typed string for the Create Jobs screen to store verbatim.
-      departmentId: r.department?.id || '',
-      departmentName: r.department?.name || '',
-      vacancies: String(r.numberOfOpenings || 1),
-      type: r.employmentType || 'full-time',
-      experience: r.experienceRequired || '',
-      salary: r.salaryBudget || '',
-      skills: r.skillsRequired || '',
-      qualification: r.qualification || '',
-      closingDate: r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toISOString().split('T')[0] : '',
-    });
-    window.location.href = `/job-portal?${params.toString()}`;
+    // Route to the NEW simplified create-job wizard in Recruitment. The wizard
+    // reads ?fromRequisition=<id>, loads the requisition and auto-fills the
+    // form (title, department, openings, type, experience, salary, skills).
+    // (Previously this jumped to the retired /job-portal create screen.)
+    router.push(`/recruitment?fromRequisition=${encodeURIComponent(r.id)}`);
+    toast.success('Opening the job form — details auto-filled from the requisition');
   };
 
   // Legacy compact action buttons (kept for the hidden table/mobile views below)

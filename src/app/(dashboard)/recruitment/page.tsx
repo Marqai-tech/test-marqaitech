@@ -1239,10 +1239,34 @@ export default function RecruitmentPage() {
   // source. (The old picker read `panelMembers`, which is only populated by the
   // Schedule Interview modal, so inside the job form the dropdown was empty.)
   const [jobTeamMembers, setJobTeamMembers] = useState<Array<{ id: string; name: string; department: string }>>([]);
-  const [screeningQuestions, setScreeningQuestions] = useState<Array<{ id: string; text: string; kind: 'knock-out' | 'standard' }>>([
-    { id: 'experience', text: 'How many years of relevant experience do you have?', kind: 'knock-out' },
-    { id: 'location', text: 'Are you comfortable with the stated work location?', kind: 'standard' },
-  ]);
+  // ─── Simplified job form (Description & Requirements step) ───
+  // Skills are kept as editable chips; on save they are written as the first
+  // "Key Skills:" line of the requirements field (single column, no schema
+  // change) and parsed back out when the posting is opened for editing.
+  const [jobSkills, setJobSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
+  // Full-screen candidate-view preview opened from step 4 ("Apply Now (Preview)").
+  const [showJobPreview, setShowJobPreview] = useState(false);
+
+  const parseSkillsFromRequirements = (requirements: string): { skills: string[]; rest: string } => {
+    const lines = String(requirements || '').split('\n');
+    const first = (lines[0] || '').trim();
+    if (/^key skills\s*:/i.test(first)) {
+      const skills = first.replace(/^key skills\s*:/i, '').split(',').map(s => s.trim()).filter(Boolean);
+      return { skills, rest: lines.slice(1).join('\n').replace(/^\n+/, '') };
+    }
+    return { skills: [], rest: String(requirements || '') };
+  };
+  const buildRequirementsWithSkills = (skills: string[], requirements: string): string => {
+    const { rest } = parseSkillsFromRequirements(requirements);
+    return skills.length > 0 ? `Key Skills: ${skills.join(', ')}\n${rest}`.trim() : rest;
+  };
+  const addSkill = () => {
+    const value = skillInput.trim();
+    if (!value) return;
+    setJobSkills(list => (list.some(s => s.toLowerCase() === value.toLowerCase()) ? list : [...list, value]));
+    setSkillInput('');
+  };
 
   // Load the department's employees for the Hiring Team picker whenever the
   // job form is open AND a department is chosen. Clearing on close / empty
@@ -1273,57 +1297,8 @@ export default function RecruitmentPage() {
     return () => { cancelled = true; };
   }, [showJobForm, jobForm.departmentId]);
 
-  useEffect(() => {
-    const editor = descriptionInputRef.current;
-    if (jobFormStep === 2 && showJobForm && editor && editor.innerText !== jobForm.description) {
-      editor.innerText = jobForm.description;
-    }
-  }, [jobForm.description, jobFormStep, showJobForm]);
-
-  useEffect(() => {
-    const editor = descriptionInputRef.current;
-    if (!editor || jobFormStep !== 2 || !showJobForm) return;
-    const syncToolbarState = () => {
-      if (!editor.contains(document.activeElement) && !editor.contains(document.getSelection()?.anchorNode)) {
-        setActiveDescriptionFormat(null);
-        return;
-      }
-      const block = String(document.queryCommandValue('formatBlock') || '').toLowerCase().replace(/[<>]/g, '');
-      const active = block === 'h1' ? 'h1' : block === 'h2' ? 'h2' : document.queryCommandState('insertUnorderedList') ? 'bullet' : document.queryCommandState('insertOrderedList') ? 'number' : document.queryCommandState('bold') ? 'bold' : document.queryCommandState('italic') ? 'italic' : document.queryCommandState('underline') ? 'underline' : null;
-      setActiveDescriptionFormat(active);
-    };
-    document.addEventListener('selectionchange', syncToolbarState);
-    editor.addEventListener('keyup', syncToolbarState);
-    editor.addEventListener('mouseup', syncToolbarState);
-    return () => { document.removeEventListener('selectionchange', syncToolbarState); editor.removeEventListener('keyup', syncToolbarState); editor.removeEventListener('mouseup', syncToolbarState); };
-  }, [jobFormStep, showJobForm]);
   const [submittingJob, setSubmittingJob] = useState(false);
-  const descriptionInputRef = useRef<HTMLDivElement>(null);
-  const descriptionSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [activeDescriptionFormat, setActiveDescriptionFormat] = useState<string | null>(null);
   const [resettingCandidate, setResettingCandidate] = useState(false);
-
-  const applyDescriptionFormat = (format: 'bold' | 'italic' | 'underline' | 'h1' | 'h2' | 'bullet' | 'number' | 'link') => {
-    const input = descriptionInputRef.current;
-    if (!input) return;
-    input.focus();
-    if (format === 'bold') document.execCommand('bold');
-    else if (format === 'italic') document.execCommand('italic');
-    else if (format === 'underline') document.execCommand('underline');
-    else if (format === 'h1') { const normal = activeDescriptionFormat === 'h1'; document.execCommand('formatBlock', false, normal ? 'div' : 'h1'); document.execCommand('fontSize', false, normal ? '3' : '7'); }
-    else if (format === 'h2') { const normal = activeDescriptionFormat === 'h2'; document.execCommand('formatBlock', false, normal ? 'div' : 'h2'); document.execCommand('fontSize', false, normal ? '3' : '5'); }
-    else if (format === 'bullet') document.execCommand('insertUnorderedList');
-    else if (format === 'number') document.execCommand('insertOrderedList');
-    else if (format === 'link') {
-      const url = window.prompt('Enter the link URL');
-      if (url) document.execCommand('createLink', false, url);
-    }
-    const active = ['bold', 'italic', 'underline'].includes(format) ? document.queryCommandState(format) : format === 'bullet' ? document.queryCommandState('insertUnorderedList') : format === 'number' ? document.queryCommandState('insertOrderedList') : true;
-    setActiveDescriptionFormat(active ? format : null);
-    setJobForm(p => ({ ...p, description: input.innerText }));
-  };
-
-  const editorToolbarClass = (format: string) => `rounded px-2 py-1 transition-colors ${activeDescriptionFormat === format ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-200' : 'text-slate-600 hover:bg-emerald-100'}`;
 
   const handleResetTestCandidate = async () => {
     const email = window.prompt('Enter the test candidate email whose recruitment, offer, preboarding, employee and user data must be deleted:')?.trim().toLowerCase();
@@ -1717,6 +1692,53 @@ export default function RecruitmentPage() {
     queueMicrotask(() => { fetchApprovedRequisitions(); });
   }, [fetchApprovedRequisitions, showJobForm]);
 
+  // Deep-link from the Requisitions screen: /recruitment?fromRequisition=<id>
+  // opens the NEW create-job wizard pre-filled from the approved requisition
+  // (replaces the old /job-portal redirect). Runs once per requisition id.
+  const fromRequisitionParam = searchParams?.get('fromRequisition') || '';
+  useEffect(() => {
+    if (!fromRequisitionParam) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/requisitions/${encodeURIComponent(fromRequisitionParam)}`, { headers: getAuthHeaders() });
+        if (!res.ok) { toast.error('Requisition not found — open it from Requisitions again'); return; }
+        const data = await res.json();
+        const r = data?.requisition;
+        if (!r || cancelled) return;
+        if ((r.approvalStatus || '') !== 'budget_approved' || (r.status || '') !== 'approved') {
+          toast.error('Requisition must be fully approved before creating a job posting');
+          return;
+        }
+        if (r.jobPostingId) { toast.error('A job posting was already created from this requisition'); return; }
+        setActiveTab('jobs');
+        handleCreateJobFromRequisition({
+          id: r.id,
+          requisitionId: r.requisitionId,
+          departmentId: r.departmentId || undefined,
+          positionTitle: r.designation?.title || null,
+          department: r.department ? { id: r.department.id, name: r.department.name, code: r.department.code ?? null } : null,
+          designation: r.designation ? { id: r.designation.id, title: r.designation.title } : null,
+          numberOfOpenings: r.numberOfOpenings ?? 1,
+          employmentType: r.employmentType || 'full-time',
+          priority: r.priority || 'medium',
+          skillsRequired: r.skillsRequired ?? null,
+          experienceRequired: r.experienceRequired ?? null,
+          qualification: r.qualification ?? null,
+          salaryBudget: r.salaryBudget ?? null,
+          expectedJoiningDate: r.expectedJoiningDate ?? null,
+          interviewPlan: r.interviewPlan ?? null,
+          status: r.status,
+          jobPostingId: r.jobPostingId ?? null,
+        });
+      } catch {
+        toast.error('Failed to load requisition details');
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromRequisitionParam]);
+
   /* Open Job Form - Add */
   const handleOpenAddJobForm = () => {
     setEditingJobId(null);
@@ -1725,6 +1747,8 @@ export default function RecruitmentPage() {
     setJobFormStep(1);
     setHiringTeam([]);
     setHiringTeamEnabled(true);
+    setJobSkills([]);
+    setSkillInput('');
     setShowJobForm(true);
     setShowAppForm(false);
     setDeleteConfirmId(null);
@@ -1734,6 +1758,11 @@ export default function RecruitmentPage() {
   /* Open Job Form - Edit */
   const handleOpenEditJobForm = (job: JobPosting) => {
     setEditingJobId(job.id);
+    // "Key Skills:" chips were stored as the first requirements line — parse
+    // them back into the chip editor and keep the remainder as requirements.
+    const parsedSkills = parseSkillsFromRequirements(job.requirements || '');
+    setJobSkills(parsedSkills.skills);
+    setSkillInput('');
     setJobForm({
       title: job.title,
       departmentId: job.department?.id || '',
@@ -1744,7 +1773,7 @@ export default function RecruitmentPage() {
       experience: job.experience || '',
       salary: job.salary || '',
       description: job.description,
-      requirements: job.requirements || '',
+      requirements: parsedSkills.rest,
       vacancies: String(job.vacancies),
       closingDate: job.closingDate ? job.closingDate.split('T')[0] : '',
       status: job.status || 'open',
@@ -1782,8 +1811,11 @@ export default function RecruitmentPage() {
       ? (/^\d+(\.\d+)?$/.test(String(req.experienceRequired).trim()) ? `${String(req.experienceRequired).trim()} years` : String(req.experienceRequired))
       : '';
     const requirementParts: string[] = [];
-    if (req.skillsRequired) requirementParts.push(`Skills: ${req.skillsRequired}`);
     if (req.qualification) requirementParts.push(`Qualification: ${req.qualification}`);
+    const requisitionSkills = String(req.skillsRequired || '')
+      .split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    setJobSkills(requisitionSkills);
+    setSkillInput('');
     setJobForm({
       ...initialJobForm,
       title: role || `${req.department?.name || 'New'} Opening (${req.requisitionId})`,
@@ -1812,6 +1844,9 @@ export default function RecruitmentPage() {
     setJobRequisitionId(null);
     setJobForm(initialJobForm);
     setJobFormStep(1);
+    setJobSkills([]);
+    setSkillInput('');
+    setShowJobPreview(false);
   };
 
   const goToNextJobStep = () => {
@@ -1846,7 +1881,10 @@ export default function RecruitmentPage() {
     }
     try {
       setSubmittingJob(true);
-      const payload = { ...jobForm, status: statusOverride || jobForm.status, vacancies: parseInt(jobForm.vacancies) || 1, hiringTeam: hiringTeamEnabled ? JSON.stringify(hiringTeam) : '[]', requisitionId: jobRequisitionId || undefined };
+      // Skills chips are persisted as the leading "Key Skills:" line of the
+      // requirements field so the candidate portal shows them without any
+      // schema change.
+      const payload = { ...jobForm, requirements: buildRequirementsWithSkills(jobSkills, jobForm.requirements), status: statusOverride || jobForm.status, vacancies: parseInt(jobForm.vacancies) || 1, hiringTeam: hiringTeamEnabled ? JSON.stringify(hiringTeam) : '[]', requisitionId: jobRequisitionId || undefined };
 
       if (editingJobId) {
         const res = await fetch(`/api/recruitment/${editingJobId}`, {
@@ -2238,16 +2276,12 @@ export default function RecruitmentPage() {
               )}
               {jobFormStep === 2 && (
               <section className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
-                <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-emerald-50 px-3 py-2"><div className="flex items-center gap-2"><FiFileText className="h-4 w-4 text-emerald-700" /><div><h3 className="font-bold text-slate-900">Description & Requirements</h3><p className="text-[11px] text-slate-500">Write once — this content is reused on the candidate job portal.</p></div></div><span className="text-[11px] font-semibold text-emerald-700">Autosaved</span></div>
-                <div className="mb-3 flex flex-wrap items-center gap-2"><select defaultValue="" onChange={e => { const role = e.target.value; const templates: Record<string, { description: string; requirements: string }> = { engineering: { description: `About the role\nBuild and improve reliable products as a ${jobForm.title || 'Software Engineer'}.\n\nWhat you'll do\n• Design, develop, test, and maintain software\n• Collaborate with product and engineering teams\n• Review code and improve system quality`, requirements: 'Strong programming fundamentals\nExperience with software development and testing\nAbility to work with technical teams' }, business: { description: `About the role\nHelp teams make better decisions as a ${jobForm.title || 'Business Analyst'}.\n\nWhat you'll do\n• Gather and document business requirements\n• Analyse processes and prepare insights\n• Partner with stakeholders on solutions`, requirements: 'Requirements analysis and documentation\nStrong analytical and communication skills\nExperience with business process improvement' }, sales: { description: `About the role\nGrow customer relationships and revenue as a ${jobForm.title || 'Sales Professional'}.\n\nWhat you'll do\n• Identify and qualify opportunities\n• Present solutions to customers\n• Manage the sales pipeline and follow-ups`, requirements: 'Customer-focused communication\nPipeline and relationship management\nConsistent target ownership' }, marketing: { description: `About the role\nBuild awareness and demand for our products as a ${jobForm.title || 'Marketing Professional'}.\n\nWhat you'll do\n• Plan and execute campaigns\n• Create engaging content\n• Track performance and improve conversions`, requirements: 'Campaign planning and content creation\nDigital marketing fundamentals\nAnalytics and communication skills' }, hr: { description: `About the role\nSupport employees and people processes as an ${jobForm.title || 'HR Professional'}.\n\nWhat you'll do\n• Coordinate employee lifecycle activities\n• Support recruitment and onboarding\n• Maintain accurate and confidential records`, requirements: 'Knowledge of HR processes\nStrong interpersonal and organisational skills\nConfidentiality and attention to detail' } }; const selected = templates[role] || templates.engineering; setJobForm(p => ({ ...p, description: selected.description, requirements: selected.requirements })); }} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"><option value="">Template: Select role template</option><option value="engineering">Engineering role</option><option value="business">Business Analyst role</option><option value="sales">Sales role</option><option value="marketing">Marketing role</option><option value="hr">HR role</option></select><button type="button" onClick={() => setJobForm(p => ({ ...p, description: `AI-generated role profile for ${p.title || 'this position'} in ${departments.find(d => d.id === p.departmentId)?.name || 'the selected department'}.\n\nAbout the role\nJoin our ${p.workMode || 'hybrid'} team in ${p.location || 'our workplace'} and deliver measurable results.\n\nWhat you'll do\n• Own responsibilities for the ${p.position || p.title || 'role'}\n• Collaborate with stakeholders and improve outcomes\n• Document, measure, and continuously improve your work\n\nWhat we're looking for\n• ${p.experience || 'Relevant'} experience\n• Strong communication, ownership, and problem-solving skills`, requirements: `Experience: ${p.experience || 'Relevant professional experience'}\nRole skills: ${p.position || p.title || 'Role-specific skills'}\nWork mode: ${p.workMode || 'hybrid'}\nStrong collaboration and ownership skills.` }))} className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">Generate with AI</button><button type="button" onClick={() => { const previous = displayJobs.find(job => job.id !== editingJobId && job.description?.trim()); if (!previous) { toast.error('No previous job posting with description found'); return; } setJobForm(p => ({ ...p, description: previous.description, requirements: previous.requirements || p.requirements, experience: p.experience || previous.experience || '', salary: p.salary || previous.salary || '' })); toast.success(`Copied content from ${previous.title}`); }} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">Copy from last job</button><label className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">Upload PDF<input type="file" accept=".pdf" className="hidden" onChange={e => { if (e.target.files?.[0]) setJobForm(p => ({ ...p, description: `Imported from ${e.target.files[0].name}\n\nAdd the extracted role description here.` })); }} /></label></div>
-                <div className="mb-2 flex flex-wrap items-center gap-1 rounded-t-lg border border-b-0 border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"><button type="button" title="Bold" onMouseDown={e => e.preventDefault()} onClick={() => applyDescriptionFormat('bold')} className={`${editorToolbarClass('bold')} font-bold`}>B</button><button type="button" title="Italic" onMouseDown={e => e.preventDefault()} onClick={() => applyDescriptionFormat('italic')} className={`${editorToolbarClass('italic')} italic`}>I</button><button type="button" title="Underline" onMouseDown={e => e.preventDefault()} onClick={() => applyDescriptionFormat('underline')} className={`${editorToolbarClass('underline')} underline`}>U</button><button type="button" title="Heading 1" onMouseDown={e => e.preventDefault()} onClick={() => applyDescriptionFormat('h1')} className={`${editorToolbarClass('h1')} font-bold`}>H1</button><button type="button" title="Heading 2" onMouseDown={e => e.preventDefault()} onClick={() => applyDescriptionFormat('h2')} className={`${editorToolbarClass('h2')} font-bold`}>H2</button><span className="ml-auto text-[11px] font-semibold text-emerald-700">✓ Autosaved</span></div>
+                <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2"><FiFileText className="h-4 w-4 text-emerald-700" /><div><h3 className="font-bold text-slate-900">Description &amp; Requirements</h3><p className="text-[11px] text-slate-500">Write once — this content is reused on the candidate job portal.</p></div></div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Description <span className="text-red-500 font-bold">*</span></label>
-                <div ref={descriptionInputRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Job Description" onInput={e => { const value = e.currentTarget.innerText; if (descriptionSyncTimer.current) clearTimeout(descriptionSyncTimer.current); descriptionSyncTimer.current = setTimeout(() => setJobForm(p => ({ ...p, description: value })), 250); }} className="min-h-[190px] w-full rounded-b-lg border border-thb-border px-3 py-2.5 text-sm leading-6 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 [&_h1]:my-2 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-2 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:leading-tight" data-placeholder="About the role... What you'll do... What we're looking for..."></div>
-                <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500"><span>{jobForm.description.trim().split(/\s+/).filter(Boolean).length} words · estimated reading time {Math.max(1, Math.ceil(jobForm.description.trim().split(/\s+/).filter(Boolean).length / 200))} min</span><span className="font-semibold text-emerald-700">Readability: Good ✓</span></div>
-                <div className="mt-5"><h4 className="font-bold text-slate-900">Skills & Requirements</h4><div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{jobForm.position || 'Role skills'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{jobForm.experience || 'Experience'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">+ Add skill</span></div></div>
+                <textarea rows={8} value={jobForm.description} placeholder="Describe the role: about the role, what the person will do, and what you are looking for…" onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full rounded-lg border border-thb-border px-3 py-2.5 text-sm leading-6 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-y" aria-label="Job Description" />
+                <div className="mt-5"><h4 className="font-bold text-slate-900">Skills &amp; Requirements</h4><p className="text-[11px] text-slate-500">Add the key skills for this role — type a skill and press Enter.</p><div className="mt-2 flex flex-wrap items-center gap-2">{jobSkills.map(skill => <span key={skill} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{skill}<button type="button" onClick={() => setJobSkills(list => list.filter(item => item !== skill))} className="text-emerald-500 hover:text-red-600" aria-label={`Remove skill ${skill}`}>×</button></span>)}<input value={skillInput} onChange={e => setSkillInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }} onBlur={addSkill} placeholder="+ Add skill" className="w-40 rounded-full border border-dashed border-emerald-300 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 placeholder-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" aria-label="Add a skill" /></div></div>
                 <label className="mt-5 block text-xs font-medium text-thb-text-secondary mb-1">Requirements <span className="text-red-500 font-bold">*</span></label>
                 <textarea rows={5} value={jobForm.requirements} placeholder="List qualifications, required skills, and experience criteria..." onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full rounded-lg border border-thb-border px-3 py-2.5 text-sm leading-6 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-y" />
-                <div className="mt-5"><div className="flex items-center justify-between"><h4 className="font-bold text-slate-900">Screening Questions</h4><button type="button" onClick={() => setScreeningQuestions(q => [...q, { id: `question-${Date.now()}`, text: '', kind: 'standard' }])} className="text-xs font-bold text-emerald-700">+ Add question</button></div><div className="mt-2 space-y-2">{screeningQuestions.map((question, index) => <div key={question.id} className="rounded-lg border border-slate-200 p-2"><div className="flex items-center gap-2"><input value={question.text} placeholder={`Screening question ${index + 1}`} onChange={e => setScreeningQuestions(q => q.map(item => item.id === question.id ? { ...item, text: e.target.value } : item))} className="min-w-0 flex-1 rounded-md border border-slate-200 px-2 py-2 text-xs" /><select value={question.kind} onChange={e => setScreeningQuestions(q => q.map(item => item.id === question.id ? { ...item, kind: e.target.value as 'knock-out' | 'standard' } : item))} className="rounded-md border border-slate-200 px-2 py-2 text-xs"><option value="standard">Standard</option><option value="knock-out">Knock-out</option></select><button type="button" onClick={() => setScreeningQuestions(q => q.filter(item => item.id !== question.id))} className="px-2 text-xs font-bold text-red-600" aria-label="Delete screening question">×</button></div></div>)}</div></div>
               </section>
               )}
               {jobFormStep === 3 && (
@@ -2268,7 +2302,7 @@ export default function RecruitmentPage() {
               <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><FiEye className="h-4 w-4 text-emerald-700" /><h3 className="font-bold text-slate-900">Candidate Preview</h3></div><span className="text-[11px] text-slate-500">Desktop preview</span></div>
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="bg-gradient-to-r from-emerald-900 to-emerald-600 px-5 py-5 text-lg font-bold text-white">3Boxes Careers</div>
-                <div className="space-y-4 p-5"><div><h3 className="text-2xl font-extrabold text-slate-950">{jobForm.title || 'Job title'}</h3><p className="mt-1 text-sm text-slate-500">{departments.find(d => d.id === jobForm.departmentId)?.name || 'Department'} · {jobForm.location || 'Location'} · <span className="capitalize">{jobForm.type}</span></p></div><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.experience || 'Experience'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.salary || 'Salary not specified'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.vacancies || 1} opening(s)</span></div><div><h4 className="font-bold text-slate-900">About the Role</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.description || 'Add a role summary to preview the candidate-facing description.'}</p></div><div><h4 className="font-bold text-slate-900">Requirements</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.requirements || 'Add role requirements to preview them here.'}</p></div><div><h4 className="font-bold text-slate-900">Interview Process</h4><div className="mt-2 flex flex-wrap gap-2">{parseInterviewPlan(jobForm.interviewPlan).map((round, index) => <span key={`${round.name}-${index}`} className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div></div><button type="button" disabled className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white opacity-70">Apply Now (Preview)</button></div>
+                <div className="space-y-4 p-5"><div><h3 className="text-2xl font-extrabold text-slate-950">{jobForm.title || 'Job title'}</h3><p className="mt-1 text-sm text-slate-500">{departments.find(d => d.id === jobForm.departmentId)?.name || 'Department'} · {jobForm.location || 'Location'} · <span className="capitalize">{jobForm.type}</span></p></div><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.experience || 'Experience'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.salary || 'Salary not specified'}</span><span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.vacancies || 1} opening(s)</span></div><div><h4 className="font-bold text-slate-900">About the Role</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.description || 'Add a role summary to preview the candidate-facing description.'}</p></div><div><h4 className="font-bold text-slate-900">Requirements</h4><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.requirements || 'Add role requirements to preview them here.'}</p></div><div><h4 className="font-bold text-slate-900">Interview Process</h4><div className="mt-2 flex flex-wrap gap-2">{parseInterviewPlan(jobForm.interviewPlan).map((round, index) => <span key={`${round.name}-${index}`} className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div></div><button type="button" onClick={() => setShowJobPreview(true)} className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">Apply Now (Preview)</button></div>
               </div>
             </aside> : <aside className="h-fit space-y-3 xl:sticky xl:top-20"><div className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="font-bold text-slate-900">Step {jobFormStep} of 5</h3><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${jobFormStep * 20}%` }} /></div><p className="mt-2 text-xs text-slate-500">Your entries remain available while moving between steps.</p></div><div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-xs leading-5 text-emerald-800">Required fields are validated before you can continue. You can return to a completed step using the progress bar.</div></aside>}
           </div>
@@ -2277,6 +2311,54 @@ export default function RecruitmentPage() {
             {jobFormStep > 1 && <button type="button" onClick={() => setJobFormStep((step) => Math.max(1, step - 1))} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>}
             <button type="button" onClick={() => handleSaveJob('on_hold')} disabled={submittingJob} className="rounded-lg border border-emerald-300 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">Save as Draft</button>
             {jobFormStep < 5 ? <button type="button" onClick={goToNextJobStep} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-500/25 hover:bg-emerald-700">Continue</button> : <button type="button" onClick={() => handleSaveJob()} disabled={submittingJob} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-500/25 hover:bg-emerald-700 disabled:opacity-50">{submittingJob ? 'Publishing...' : editingJobId ? 'Update & Publish' : 'Publish Job'}</button>}
+          </div>
+        </div>
+      )}
+
+      {/* Candidate-view preview modal — "Apply Now (Preview)" on step 4 */}
+      {showJobPreview && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setShowJobPreview(false)}>
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Candidate job preview">
+            <div className="bg-gradient-to-r from-emerald-900 to-emerald-600 px-6 py-6 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100">3Boxes Careers — candidate view</p>
+                  <h3 className="mt-1 text-2xl font-extrabold">{jobForm.title || 'Job title'}</h3>
+                  <p className="mt-1 text-sm text-emerald-50">{departments.find(d => d.id === jobForm.departmentId)?.name || 'Department'} · {jobForm.location || 'Location'} · <span className="capitalize">{jobForm.type || 'full-time'}</span>{jobForm.workMode ? ` · ${jobForm.workMode}` : ''}</p>
+                </div>
+                <button onClick={() => setShowJobPreview(false)} className="rounded-lg p-2 text-white/80 hover:bg-white/10" aria-label="Close preview"><FiX className="h-5 w-5" /></button>
+              </div>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.experience || 'Experience'}</span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.salary || 'Salary not specified'}</span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{jobForm.vacancies || 1} opening(s)</span>
+                {jobForm.closingDate && <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">Apply by {jobForm.closingDate}</span>}
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900">About the Role</h4>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.description || 'Add a role summary to preview the candidate-facing description.'}</p>
+              </div>
+              {jobSkills.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-slate-900">Key Skills</h4>
+                  <div className="mt-2 flex flex-wrap gap-2">{jobSkills.map(skill => <span key={skill} className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">{skill}</span>)}</div>
+                </div>
+              )}
+              <div>
+                <h4 className="font-bold text-slate-900">Requirements</h4>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{jobForm.requirements || 'Add role requirements to preview them here.'}</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900">Interview Process</h4>
+                <div className="mt-2 flex flex-wrap gap-2">{parseInterviewPlan(jobForm.interviewPlan).map((round, index) => <span key={`${round.name}-${index}`} className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4 text-center">
+                <button type="button" disabled className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white opacity-60">Apply Now</button>
+                <p className="mt-2 text-[11px] text-slate-500">This is exactly how candidates will see the job. Apply opens after the posting is published.</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

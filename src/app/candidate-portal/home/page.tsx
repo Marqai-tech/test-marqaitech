@@ -40,10 +40,10 @@ export default function CandidateHomePage() {
   const interview = data.interviews.upcoming[0];
   const preboarding = state?.preboarding;
 
-  return <div className="h-screen overflow-hidden bg-[#f4f7fb]">
+  return <div className="min-h-screen bg-[#f4f7fb]">
     <CandidatePortalNav state={state} active="home" />
-    <main className="h-[calc(100vh-64px)] overflow-hidden p-4 lg:p-5">
-      <div className="grid h-full grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+    <main className="p-4 lg:p-5">
+      <div className="grid gap-3">
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Metric icon={<FiBriefcase />} label="Applications" value={data.stats.total} href="/candidate-portal/dashboard" />
           <Metric icon={<FiCalendar />} label="Interviews" value={data.stats.interviewing} href="/candidate-portal/interviews" />
@@ -52,6 +52,26 @@ export default function CandidateHomePage() {
         </section>
 
         {!preboarding && (state?.awaitingHR?.length || 0) > 0 && <section className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"><div><p className="text-sm font-bold text-amber-900">Offer accepted — awaiting HR initiation</p><p className="text-xs text-amber-700">Preboarding, complete profile and documents will activate automatically after HR starts the process.</p></div><FiClock className="h-6 w-6 text-amber-600" /></section>}
+
+        {/* Full employee access granted — the candidate is now an employee and
+            must use the HRMS Employee Portal login, not the candidate portal. */}
+        {['provisional_employee', 'active_employee'].includes(String(preboarding?.onboardingStatus || '').toLowerCase()) && (
+          <section className="rounded-2xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"><FiCheck className="h-6 w-6" /></span>
+                <div>
+                  <p className="text-base font-bold text-emerald-900">You now have full employee access</p>
+                  <p className="mt-0.5 text-sm text-emerald-800">
+                    Your employee record is created{preboarding?.employeeCode ? <> — Employee ID <b>{preboarding.employeeCode}</b></> : ''}{preboarding?.companyEmail ? <> and your login email is <b>{preboarding.companyEmail}</b></> : ''}. Please log in from the <b>HRMS Employee Portal</b> — the candidate portal is no longer used for your day-to-day HRMS.
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-700">Use the company email and the temporary password sent to you (change it on first login).</p>
+                </div>
+              </div>
+              <a href="/login" className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700">Go to Employee Login</a>
+            </div>
+          </section>
+        )}
 
         <section className="grid min-h-0 gap-3 lg:grid-cols-[1.25fr_.75fr]">
           <div className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

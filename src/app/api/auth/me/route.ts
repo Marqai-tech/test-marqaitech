@@ -280,6 +280,20 @@ export async function GET(request: Request) {
         },
       });
 
+      // ─── First-login profile backfill ───
+      // Employees converted from candidates may have been created before the
+      // employee-creation route started copying the candidate profile. When
+      // this employee links to a PreboardingCandidate and the profile is still
+      // mostly empty, populate the personal / address / bank fields from the
+      // candidate's submitted portal details once, at login time.
+      if (employee && !(employee as any).dateOfBirth) {
+        try {
+          await backfillEmployeeProfileFromCandidate(dataDb, employee.id);
+        } catch (e) {
+          console.warn('[Auth/Me] profile backfill skipped:', e instanceof Error ? e.message : e);
+        }
+      }
+
       if (employee) {
         // Fetch company info with logo for the employee's company
         let companyData = null;
@@ -611,4 +625,79 @@ export async function PATCH(request: Request) {
       { status: 500, headers: corsHeaders() }
     );
   }
+}
+
+/**
+ * One-time profile backfill for employees converted from preboarding
+ * candidates before the profile-copy logic existed. Populates only EMPTY
+ * columns, so it never overwrites data the employee/HR already entered.
+ */
+async function backfillEmployeeProfileFromCandidate(db: any, employeeRowId: string) {
+  const empRows = await db.$queryRawUnsafe(
+    `SELECT * FROM "Employee" WHERE "id"=$1 LIMIT 1`,
+    employeeRowId,
+  ).catch(() => []) as any[];
+  const emp = empRows[0];
+  if (!emp) return;
+
+  // Find the linked preboarding record (direct link, else by personal email).
+  let pb: any = null;
+  const linkRows = emp.preboardingCandidateId
+    ? await db.$queryRawUnsafe(`SELECT * FROM "PreboardingCandidate" WHERE "id"=$1 LIMIT 1`, emp.preboardingCandidateId).catch(() => []) as any[]
+    : [];
+  pb = linkRows[0] || null;
+  if (!pb && emp.personalEmail) {
+    const pbRows = await db.$queryRawUnsafe(
+      `SELECT * FROM "PreboardingCandidate" WHERE LOWER("candidateEmail")=$1 AND "employeeId" IS NOT NULL ORDER BY "createdAt" DESC LIMIT 1`,
+      String(emp.personalEmail).toLowerCase(),
+    ).catch(() => []) as any[];
+    pb = pbRows[0] || null;
+  }
+  if (!pb) return;
+
+  const details = typeof pb.portalDetails === 'string'
+    ? (() => { try { return JSON.parse(pb.portalDetails || '{}'); } catch { return {}; } })()
+    : (pb.portalDetails || {});
+  const personal = details.personal || {};
+  const address = details.address || {};
+  const family = details.family || {};
+  const bank = details.bank || {};
+  const v = (x: unknown) => (x === null || x === undefined || String(x).trim() === '' ? null : String(x).trim());
+
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  const add = (col: string, value: unknown) => { params.push(value); sets.push(`"${col}"=$${params.length}`); };
+
+  if (!emp.dateOfBirth && v(personal.dateOfBirth)) add('dateOfBirth', new Date(personal.dateOfBirth as string));
+  if (!emp.gender && v(personal.gender)) add('gender', v(personal.gender));
+  if (!emp.maritalStatus && v(personal.maritalStatus)) add('maritalStatus', v(personal.maritalStatus));
+  if (!emp.nationality && v(personal.nationality)) add('nationality', v(personal.nationality));
+  if (!emp.address && (v(address.permanentAddressLine1) || v(address.currentAddressLine1))) {
+    add('address', [v(address.permanentAddressLine1), v(address.permanentAddressLine2)].filter(Boolean).join(', ') || v(address.currentAddressLine1));
+  }
+  if (!emp.city && v(address.permanentCity)) add('city', v(address.permanentCity));
+  if (!emp.state && v(address.permanentState)) add('state', v(address.permanentState));
+  if (!emp.zipCode && v(address.permanentPincode)) add('zipCode', v(address.permanentPincode));
+  if (!emp.country && v(address.permanentCountry)) add('country', v(address.permanentCountry));
+  if (!emp.emergencyContactName && v(family.emergencyContactName)) add('emergencyContactName', v(family.emergencyContactName));
+  if (!emp.emergencyContactPhone && v(family.emergencyContactMobile)) add('emergencyContactPhone', v(family.emergencyContactMobile));
+  if (!emp.bankName && v(bank.bankName)) add('bankName', v(bank.bankName));
+  if (!emp.bankAccountNo && v(bank.accountNumber)) add('bankAccountNo', v(bank.accountNumber));
+  if (!emp.bankIfscCode && v(bank.ifscCode)) add('bankIfscCode', v(bank.ifscCode));
+  if (!emp.panNumber && v(bank.panNumber)) add('panNumber', v(bank.panNumber));
+  if (!emp.companyId && pb.departmentId) {
+    try {
+      const d = await db.$queryRawUnsafe(`SELECT "companyId" FROM "Department" WHERE "id"=$1 LIMIT 1`, pb.departmentId) as any[];
+      if (d[0]?.companyId) add('companyId', d[0].companyId);
+    } catch { /* ignore */ }
+  }
+  if (!emp.preboardingCandidateId) add('preboardingCandidateId', pb.id);
+  if (sets.length === 0) return;
+
+  params.push(employeeRowId);
+  await db.$executeRawUnsafe(
+    `UPDATE "Employee" SET ${sets.join(', ')}, "updatedAt"=NOW() WHERE "id"=$${params.length}`,
+    ...params,
+  );
+  console.log(`[Auth/Me] backfilled ${sets.length} profile fields from candidate for employee ${employeeRowId}`);
 }

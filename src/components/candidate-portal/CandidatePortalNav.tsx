@@ -19,6 +19,10 @@ export interface PortalPreboardingInfo {
   bgvStatus?: string | null;
   submittedAt: string | null;
   correctionPending: boolean;
+  /** Set once the candidate has been converted to an employee. */
+  employeeCode?: string | null;
+  /** The company email used to log in to the HRMS employee portal. */
+  companyEmail?: string | null;
 }
 
 export interface PortalState {
@@ -87,7 +91,9 @@ export default function CandidatePortalNav({ state, active }: { state: PortalSta
   return <>
     <style jsx global>{`
       @media (min-width: 1024px) {
-        body.candidate-portal-shell { padding-left: 232px; overflow: hidden; }
+        /* overflow-x only — vertical scrolling must stay enabled so tall pages
+           (dashboard, documents, profile, onboarding…) are fully reachable. */
+        body.candidate-portal-shell { padding-left: 232px; overflow-x: hidden; }
         body.candidate-portal-shell > div { min-height: 100vh; }
       }
     `}</style>

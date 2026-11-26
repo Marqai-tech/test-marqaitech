@@ -665,7 +665,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [listStats, setListStats] = useState({ total: 0, active: 0, inactive: 0, newJoiners: 0 });
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  // Deep-link support: /employees?search=<name> (used by Joining Formalities
+  // "View Employee" so a brand-new joiner is immediately visible).
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [filterDept, setFilterDept] = useState('');
   const [filterDesignation, setFilterDesignation] = useState('');
   const [filterStatus, setFilterStatus] = useState('');

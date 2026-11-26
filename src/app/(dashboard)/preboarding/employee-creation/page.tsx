@@ -27,6 +27,7 @@ import {
   FiArrowLeft,
   FiGrid,
   FiUserCheck,
+  FiUsers,
 } from 'react-icons/fi';
 
 /* ── Auth helper ── */
@@ -129,6 +130,11 @@ interface CreateSuccess {
   employeeRowId: string;
   provisionalEmployeeId: string;
   preboardingId: string | null;
+  loginEmail?: string | null;
+  personalEmail?: string | null;
+  temporaryPassword?: string | null;
+  loginUrl?: string | null;
+  emailSent?: boolean;
 }
 
 interface ValidateResult {
@@ -376,6 +382,11 @@ function EmployeeCreationInner() {
           employeeRowId: json.employeeRowId,
           provisionalEmployeeId: json.provisionalEmployeeId,
           preboardingId: json.preboardingId,
+          loginEmail: json.loginEmail ?? null,
+          personalEmail: json.personalEmail ?? null,
+          temporaryPassword: json.temporaryPassword ?? null,
+          loginUrl: json.loginUrl ?? null,
+          emailSent: Boolean(json.emailSent),
         });
         toast.success('Employee created — candidate converted.');
         await load(activeId);
@@ -564,10 +575,57 @@ function EmployeeCreationInner() {
                       <p className="text-sm text-slate-700 mt-0.5">{success.preboardingId || '—'}</p>
                     </div>
                   </div>
+                  {/* ── Login details: what HR / the new employee uses to sign in ── */}
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <h3 className="font-bold text-emerald-900 flex items-center gap-2"><FiLock className="h-4 w-4" /> Login Details — share with the employee</h3>
+                      <span className={`text-xs font-semibold rounded-full px-2.5 py-1 ${success.emailSent ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {success.emailSent ? '✓ Emailed to the candidate' : '⚠ Email not delivered — share manually'}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                      <div className="bg-white rounded-lg px-3 py-2.5 border border-emerald-100">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Company Email (Login ID)</p>
+                        <p className="text-sm font-bold text-slate-800 mt-0.5 break-all">{success.loginEmail || success.provisionalEmployeeId}</p>
+                      </div>
+                      <div className="bg-white rounded-lg px-3 py-2.5 border border-emerald-100">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Employee ID</p>
+                        <p className="text-sm font-bold text-slate-800 mt-0.5">{success.provisionalEmployeeId}</p>
+                      </div>
+                      {success.temporaryPassword && (
+                        <div className="bg-white rounded-lg px-3 py-2.5 border border-emerald-100">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Temporary Password</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <code className="text-sm font-bold text-slate-800">{success.temporaryPassword}</code>
+                            <button
+                              onClick={() => { navigator.clipboard?.writeText(success.temporaryPassword!); toast.success('Temporary password copied'); }}
+                              className="text-[11px] font-semibold text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.5 hover:bg-emerald-50"
+                            >Copy</button>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1">The employee must change this on first login.</p>
+                        </div>
+                      )}
+                      {success.loginUrl && (
+                        <div className="bg-white rounded-lg px-3 py-2.5 border border-emerald-100">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">HRMS Login URL</p>
+                          <a href={success.loginUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-emerald-700 mt-0.5 break-all hover:underline">{success.loginUrl}</a>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-emerald-800/80 mt-3">
+                      With these details the employee logs in from the <b>HRMS Employee Portal</b> (not the candidate portal). Their profile was auto-filled from the candidate records — they complete anything remaining inside the portal.
+                    </p>
+                  </div>
                   <p className="text-xs text-slate-400 mt-3">
-                    Login credentials were emailed to the candidate. Assigned policies, templates and training are handled by the Onboarding module from here.
+                    Assigned policies, templates and training are handled by the Onboarding module from here.
                   </p>
                   <div className="flex flex-wrap gap-2 mt-4">
+                    <button
+                      onClick={() => router.push('/employees')}
+                      className="bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
+                    >
+                      <FiUsers className="h-4 w-4" /> View in Employee List
+                    </button>
                     <button
                       onClick={() => router.push('/preboarding')}
                       className="border border-slate-300 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"

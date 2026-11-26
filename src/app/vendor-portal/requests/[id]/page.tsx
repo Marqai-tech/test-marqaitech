@@ -90,9 +90,11 @@ export default function VendorRequestDetailPage() {
   const [formDefs, setFormDefs] = useState<Record<string, FormDef>>({});
   const [methods, setMethods] = useState<string[]>([]);
 
-  const fetchDetail = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  /* background=true refreshes server data WITHOUT flipping the full-screen
+     loading spinner — flipping it remounts the Checks form and wiped every
+     unsaved field the vendor employee had typed (data-loss bug). */
+  const fetchDetail = useCallback(async (background = false) => {
+    if (!background) { setLoading(true); setError(null); }
     try {
       const res = await fetch('/api/vendor/requests', { headers: getAuthHeaders() });
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `Failed (${res.status})`); }
@@ -103,8 +105,10 @@ export default function VendorRequestDetailPage() {
       const req = (d.requests || []).find((r: any) => r.id === requestId);
       if (!req) throw new Error('Case not found or not assigned to you');
       setData(req);
-    } catch (e: any) { setError(e instanceof Error ? e.message : 'Failed'); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      if (!background) setError(e instanceof Error ? e.message : 'Failed');
+    }
+    finally { if (!background) setLoading(false); }
   }, [requestId]);
 
   useEffect(() => { queueMicrotask(() => void fetchDetail()); }, [fetchDetail]);
@@ -180,19 +184,23 @@ export default function VendorRequestDetailPage() {
           ))}
         </div>
 
-        {tab === 'documents' && <SharedDocsTab data={data} />}
-        {tab === 'checks' && <ChecksTab data={data} canWork={canWork} reworkCheckIds={reworkCheckIds} formDefs={formDefs} methods={methods} onSaved={fetchDetail} />}
-        {tab === 'report' && (
+        {/* All tabs stay mounted and are hidden with CSS — unmounting the
+            Checks/Report tab used to destroy unsaved form state. */}
+        <div className={tab === 'documents' ? '' : 'hidden'}><SharedDocsTab data={data} /></div>
+        <div className={tab === 'checks' ? '' : 'hidden'}>
+          <ChecksTab data={data} canWork={canWork} reworkCheckIds={reworkCheckIds} formDefs={formDefs} methods={methods} onSaved={() => fetchDetail(true)} />
+        </div>
+        <div className={tab === 'report' ? '' : 'hidden'}>
           <ReportTab
             data={data}
             canWork={canSubmitReport}
             canSubmitReport={canSubmitReport}
             allCompleted={allCompleted}
             reworkBlocks={reworkBlocks}
-            onSubmitted={fetchDetail}
+            onSubmitted={() => fetchDetail(true)}
           />
-        )}
-        {tab === 'history' && <HistoryTab data={data} />}
+        </div>
+        <div className={tab === 'history' ? '' : 'hidden'}><HistoryTab data={data} /></div>
       </div>
     </div>
   );
@@ -273,7 +281,21 @@ function ChecksTab({ data, canWork, reworkCheckIds, formDefs, methods, onSaved }
   const [uploading, setUploading] = useState<string | null>(null); // `${checkId}:${slotKey}`
   const [removing, setRemoving] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, CheckFormState>>({});
+  const [autoSaveState, setAutoSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+  // ─── Data-loss protection ───
+  // Every keystroke marks the check dirty and (debounced) auto-saves a draft
+  // to the server, so switching tabs, refreshing or a dropped session never
+  // wipes typed data. Refs keep the latest state reachable from the timer.
+  const dataRef = useRef(data);
+  const formRef = useRef(form);
+  const canWorkRef = useRef(canWork);
+  const dirtyRef = useRef<Set<string>>(new Set());
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { formRef.current = form; }, [form]);
+  useEffect(() => { canWorkRef.current = canWork; }, [canWork]);
+  useEffect(() => () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); }, []);
 
   const defFor = (checkType: string): FormDef => formDefs[checkType] || formDefs._default || { evidence: [], fields: [] };
 
@@ -288,14 +310,59 @@ function ChecksTab({ data, canWork, reworkCheckIds, formDefs, methods, onSaved }
     method: c.verificationMethod || '',
     structured: parseStructured(c),
   };
+  const markDirty = (id: string) => {
+    dirtyRef.current.add(id);
+    setAutoSaveState('idle');
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => { void autoSaveDraft(); }, 1200);
+  };
   const setField = (id: string, patch: Partial<CheckFormState>) => {
     setForm((prev) => ({ ...prev, [id]: { ...getForm(data.checks.find((x) => x.id === id)!), ...patch } }));
+    markDirty(id);
   };
   const setStructured = (id: string, key: string, value: string) => {
     setForm((prev) => {
       const cur = getForm(data.checks.find((x) => x.id === id)!);
       return { ...prev, [id]: { ...cur, structured: { ...cur.structured, [key]: value } } };
     });
+    markDirty(id);
+  };
+
+  /* Silent draft save for dirty checks (debounced). Never flips a check to
+     completed and never fires toasts — it just guarantees nothing typed is
+     lost. Returns the list of saved check ids. */
+  const autoSaveDraft = async (): Promise<string[]> => {
+    const ids = Array.from(dirtyRef.current);
+    dirtyRef.current = new Set();
+    if (ids.length === 0 || !canWorkRef.current) return [];
+    setAutoSaveState('saving');
+    const saved: string[] = [];
+    for (const id of ids) {
+      const c = dataRef.current.checks.find((x) => x.id === id);
+      const f = formRef.current[id];
+      if (!c || !f) continue;
+      try {
+        await fetch(`/api/vendor/requests/${dataRef.current.id}/checks/${c.id}`, {
+          method: 'PATCH', headers: getAuthHeaders(),
+          body: JSON.stringify({
+            status: c.status === 'pending' ? 'in_progress' : c.status,
+            result: f.result || null,
+            findings: f.findings,
+            verificationDate: f.date || null,
+            verificationMethod: f.method || null,
+            structuredData: f.structured,
+          }),
+        });
+        saved.push(id);
+      } catch { dirtyRef.current.add(id); }
+    }
+    if (saved.length > 0) {
+      setAutoSaveState('saved');
+      setTimeout(() => setAutoSaveState(s => (s === 'saved' ? 'idle' : s)), 2500);
+    } else {
+      setAutoSaveState('idle');
+    }
+    return saved;
   };
 
   // Client-side mirror of the server completion gate (lib/bgv.ts).
@@ -334,6 +401,7 @@ function ChecksTab({ data, canWork, reworkCheckIds, formDefs, methods, onSaved }
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || 'Save failed');
+      dirtyRef.current.delete(c.id);
       toast.success(complete ? 'Check completed.' : 'Draft saved — safe to leave this page.');
       onSaved();
     } catch (e: any) {
@@ -344,6 +412,10 @@ function ChecksTab({ data, canWork, reworkCheckIds, formDefs, methods, onSaved }
   const uploadEvidence = async (c: Check, slotKey: string, file: File) => {
     setUploading(`${c.id}:${slotKey}`);
     try {
+      /* Save the currently typed fields for THIS check before uploading —
+         previously the upload only sent the file and the following refresh
+         discarded any unsaved structured fields / findings on other checks. */
+      try { await autoSaveDraft(); } catch { /* keep uploading anyway */ }
       const dataBase64 = await fileToBase64(file);
       const res = await fetch(`/api/vendor/requests/${data.id}/checks/${c.id}/evidence`, {
         method: 'POST', headers: getAuthHeaders(),
@@ -388,6 +460,11 @@ function ChecksTab({ data, canWork, reworkCheckIds, formDefs, methods, onSaved }
         <span>
           Complete the verification form for every check: fill the <b>structured details</b>, pick the <b>result</b> and <b>how you verified</b>, and upload the <b>labeled proof documents</b> (degree certificates, PCC, relieving letters…). HR sees exactly what you record here — required proofs must be attached before a check can be marked completed, except for <b>Unable to Verify</b> where the written findings explain what you tried.
         </span>
+        {autoSaveState !== 'idle' && (
+          <span className={`ml-auto shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap ${autoSaveState === 'saving' ? 'text-blue-700' : 'text-emerald-700'}`}>
+            {autoSaveState === 'saving' ? <><FiLoader className="animate-spin" /> Saving draft…</> : <><FiCheckCircle /> All changes saved</>}
+          </span>
+        )}
       </div>
       {data.checks.map((c) => {
         const f = getForm(c);

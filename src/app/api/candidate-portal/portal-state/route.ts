@@ -67,7 +67,26 @@ export async function GET(request: Request) {
         bgvStatus: pb.backgroundCheckStatus || 'pending',
         submittedAt: pb.portalSubmittedAt || null,
         correctionPending: !!(pb.correctionNote && pb.correctionNote.trim()),
+        employeeCode: null as string | null,
+        companyEmail: null as string | null,
       };
+      // When the candidate has been converted to an employee, surface the
+      // formal employee code + the login (company) email so the portal can
+      // show the "full access — log in from the Employee Portal" banner.
+      if (['provisional_employee', 'active_employee'].includes(String(pb.onboardingStatus || ''))) {
+        const linkedId = pb.employeeId || null;
+        if (linkedId) {
+          const empRows = await db.$queryRawUnsafe(
+            `SELECT "employeeId", "email" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+            linkedId,
+          ).catch(() => []) as any[];
+          if (empRows.length > 0) {
+            preboarding.employeeCode = empRows[0].employeeId || null;
+            preboarding.companyEmail = empRows[0].email || null;
+          }
+        }
+        if (!preboarding.companyEmail && pb.companyEmail) preboarding.companyEmail = pb.companyEmail;
+      }
     }
 
     // Applications with an ACCEPTED offer still awaiting HR preboarding

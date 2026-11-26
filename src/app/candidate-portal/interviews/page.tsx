@@ -11,6 +11,25 @@ export default function CandidateInterviewsPage() {
   const [responding, setResponding] = useState<string | null>(null);
   const [portalState, setPortalState] = useState<PortalState | null>(null);
 
+  // Dynamic round label — maps every interview type; falls back to a readable
+  // form of the raw type so no round is ever mislabeled as "Panel Interview".
+  const typeLabel = (t: string) => {
+    const map: Record<string, string> = {
+      ai: 'AI Interview', technical: 'Technical Interview', hr: 'HR Interview',
+      managerial: 'Managerial Interview', cultural: 'Cultural Interview',
+      final: 'Final Interview', offline_panel: 'Panel Interview',
+      portfolio: 'Portfolio Review',
+    };
+    return map[t] || `${String(t || 'Interview').replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())} Interview`;
+  };
+  // "Round 2 of 3" when the job's interview plan size is known, else "Round 2".
+  const roundLabel = (iv: any) => {
+    const r = Number(iv.round) || null;
+    const total = Number(iv.planTotal) || null;
+    if (!r) return typeLabel(iv.type);
+    return `${typeLabel(iv.type)} · Round ${r}${total ? ` of ${total}` : ''}`;
+  };
+
   const getAuthHeaders = () => {
     // CRITICAL FIX #3: Candidate login stores tb_candidate_token, not candidate_token.
     // Check all possible token keys so the candidate's session works.
@@ -110,7 +129,7 @@ export default function CandidateInterviewsPage() {
                      interview.candidateStatus === 'withdrawn' ? 'Withdrawn' : 'Pending Confirmation'}
                   </span>
                   <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                    {interview.type === 'ai' ? 'AI Interview' : interview.type === 'technical' ? 'Technical' : interview.type === 'hr' ? 'HR' : 'Panel'} Interview
+                    {roundLabel(interview)}
                   </span>
                 </div>
 

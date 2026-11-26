@@ -9,6 +9,19 @@
     "src/app/api/preboarding/brd/employee-creation/route.ts",
     "src/components/preboarding/BgvPanel.tsx",
     "src/app/(dashboard)/preboarding/documents/page.tsx",
-    "src/app/(dashboard)/preboarding/employee-creation/page.tsx"
+    "src/app/(dashboard)/preboarding/employee-creation/page.tsx",
+    "src/app/api/candidate-portal/bgv/route.ts",
+    "src/app/api/candidate-portal/portal-state/route.ts",
+    "src/app/api/auth/me/route.ts",
+    "src/app/api/interviews/route.ts",
+    "src/app/(dashboard)/recruitment/page.tsx",
+    "src/app/(dashboard)/requisitions/page.tsx",
+    "src/app/(dashboard)/preboarding/joining-formalities/page.tsx",
+    "src/app/(dashboard)/employees/page.tsx",
+    "src/app/candidate-portal/documents/page.tsx",
+    "src/app/candidate-portal/interviews/page.tsx",
+    "src/app/candidate-portal/home/page.tsx",
+    "src/app/vendor-portal/requests/[id]/page.tsx",
+    "src/components/candidate-portal/CandidatePortalNav.tsx"
   ]
 }

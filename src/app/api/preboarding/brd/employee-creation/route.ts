@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
       },
       sectionD: {
         companyEmail: pb.companyEmail || null,
-        loginActivation: 'On employee creation — password Welcome@123 (change on first login)',
+        loginActivation: 'On employee creation the system generates the Employee ID (MarqNNN), activates the company email login and emails the temporary password to the candidate.',
       },
       sectionE: {
         documents: docs.map((d: any) => ({ type: d.documentType, label: d.documentLabel, status: d.status })),
@@ -260,55 +260,166 @@ export async function POST(req: NextRequest) {
     if (desigId) { const d = await db.$queryRawUnsafe(`SELECT 1 FROM "Designation" WHERE id=$1 LIMIT 1`, desigId) as any[]; if (!d.length) throw new Error(`Designation ${desigId} does not exist`); }
     if (mgrId) { const d = await db.$queryRawUnsafe(`SELECT 1 FROM "Employee" WHERE id=$1 LIMIT 1`, mgrId) as any[]; if (!d.length) throw new Error(`Reporting manager ${mgrId} does not exist`); }
 
+    // ─── Resolve companyId (department → company) ───
+    // Without it the employee list (scoped by companyId when HR has a company
+    // selected) does not show the freshly created employee.
+    let companyId: string | null = null;
+    if (deptId) {
+      const cRows = await db.$queryRawUnsafe(`SELECT "companyId" FROM "Department" WHERE id=$1 LIMIT 1`, deptId).catch(() => []) as any[];
+      companyId = cRows[0]?.companyId || null;
+    }
+    if (!companyId && mgrId) {
+      const mRows = await db.$queryRawUnsafe(`SELECT "companyId" FROM "Employee" WHERE id=$1 LIMIT 1`, mgrId).catch(() => []) as any[];
+      companyId = mRows[0]?.companyId || null;
+    }
+    if (!companyId) {
+      const anyCompany = await db.$queryRawUnsafe(`SELECT id FROM "Company" ORDER BY "createdAt" ASC LIMIT 1`).catch(() => []) as any[];
+      companyId = anyCompany[0]?.id || null;
+    }
+
+    // Runtime column safety (preboardingCandidateId is a schema-sync column).
+    await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`).catch(() => 0);
+
+    // ─── Auto-populate the employee profile from the candidate's submitted
+    //     portal details + recruitment profile. The new hire's HRMS profile is
+    //     filled on day one; they only complete what is still missing. ───
+    const personal = details.personal || {};
+    const address = details.address || {};
+    const family = details.family || {};
+    const bank = details.bank || {};
+    const permanentAddress = [address.permanentAddressLine1, address.permanentAddressLine2].filter(Boolean).join(', ') || null;
+    const nullIfEmpty = (v: unknown) => (v === null || v === undefined || String(v).trim() === '' ? null : v);
+
     await db.$executeRawUnsafe(
       `INSERT INTO "Employee" ("id", "employeeId", "firstName", "lastName", "email", "phone",
-                                "userId", "departmentId", "designationId", "reportingManagerId",
+                                "userId", "companyId", "departmentId", "designationId", "reportingManagerId",
                                 "dateOfJoining", "employeeStatus", "employeeType", "workMode",
-                                "status", "credentialsStatus", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'probation', $12, $13,
-               'active', 'active', NOW(), NOW())`,
-      empId, empCode, firstName, lastName, userEmail, pb.candidatePhone || null,
-      userId, deptId, desigId, mgrId, jDate,
+                                "status", "credentialsStatus",
+                                "personalEmail", "dateOfBirth", "gender", "maritalStatus", "nationality",
+                                "address", "city", "state", "zipCode", "country",
+                                "emergencyContactName", "emergencyContactPhone",
+                                "bankName", "bankAccountNo", "bankIfscCode", "panNumber",
+                                "preboardingCandidateId",
+                                "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6,
+               $7, $8, $9, $10, $11,
+               $12, 'probation', $13, $14,
+               'active', 'active',
+               $15, $16, $17, $18, $19,
+               $20, $21, $22, $23, $24,
+               $25, $26,
+               $27, $28, $29, $30,
+               $31,
+               NOW(), NOW())`,
+      empId, empCode, personal.firstName || firstName, personal.lastName || lastName, userEmail, pb.candidatePhone || personal.mobileNumber || null,
+      userId, companyId, deptId, desigId, mgrId,
+      jDate,
       employment.employmentType || pb.employmentType || 'full_time',
       employment.workMode || pb.workMode || 'office',
+      pb.candidateEmail,
+      nullIfEmpty(personal.dateOfBirth) ? new Date(personal.dateOfBirth) : null,
+      nullIfEmpty(personal.gender),
+      nullIfEmpty(personal.maritalStatus),
+      nullIfEmpty(personal.nationality),
+      permanentAddress,
+      nullIfEmpty(address.permanentCity),
+      nullIfEmpty(address.permanentState),
+      nullIfEmpty(address.permanentPincode),
+      nullIfEmpty(address.permanentCountry),
+      nullIfEmpty(family.emergencyContactName),
+      nullIfEmpty(family.emergencyContactMobile),
+      nullIfEmpty(bank.bankName),
+      nullIfEmpty(bank.accountNumber),
+      nullIfEmpty(bank.ifscCode),
+      nullIfEmpty(bank.panNumber),
+      candidateId,
     );
+
+    // ─── Mirror the recruitment profile into employee sub-records ───
+    // Skills / qualification come from the recruitment Candidate row (via the
+    // job application) so the employee's HRMS profile matches what HR hired.
+    try {
+      const candRows = pb.jobApplicationId
+        ? await db.$queryRawUnsafe(
+            `SELECT c."skills", c."highestQualification", c."university", c."graduationYear"
+             FROM "JobApplication" ja JOIN "Candidate" c ON c."id" = ja."candidateId"
+             WHERE ja."id"=$1 LIMIT 1`, pb.jobApplicationId).catch(() => []) as any[]
+        : [];
+      const cand = candRows[0];
+      if (cand) {
+        let skills: string[] = [];
+        if (cand.skills) {
+          const raw = String(cand.skills).trim();
+          if (raw.startsWith('[')) { try { const arr = JSON.parse(raw); if (Array.isArray(arr)) skills = arr.map((s: any) => String(s).trim()).filter(Boolean); } catch { /* fall through */ } }
+          if (skills.length === 0) skills = raw.split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+        for (const skill of skills.slice(0, 30)) {
+          await db.$executeRawUnsafe(
+            `INSERT INTO "EmployeeSkill" ("id","employeeId","skill","level","createdAt","updatedAt")
+             VALUES ($1,$2,$3,'intermediate',NOW(),NOW())`,
+            `esk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, empId, skill,
+          ).catch(() => 0);
+        }
+        if (cand.highestQualification) {
+          await db.$executeRawUnsafe(
+            `INSERT INTO "Qualification" ("id","employeeId","degree","institution","year","createdAt","updatedAt")
+             VALUES ($1,$2,$3,$4,$5,NOW(),NOW())`,
+            `qua-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, empId,
+            String(cand.highestQualification), cand.university || null, Number(cand.graduationYear) || new Date().getFullYear(),
+          ).catch(() => 0);
+        }
+      }
+    } catch { /* profile mirroring is best-effort */ }
 
     await db.$executeRawUnsafe(
       `UPDATE "PreboardingCandidate" SET "employeeId"=$1, "onboardingStatus"='active_employee', "status"='joined', "preboardingStage"='joined', "activatedAt"=NOW(), "updatedAt"=NOW() WHERE "id"=$2`,
       empId, candidateId,
     );
     if (pb.jobApplicationId) {
-      await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='hired', "updatedAt"=NOW() WHERE "id"=$1 AND "status"='bgv_passed'`, pb.jobApplicationId).catch(() => null);
+      await db.$executeRawUnsafe(`UPDATE "JobApplication" SET "status"='hired', "updatedAt"=NOW() WHERE "id"=$1 AND "status" IN ('bgv_passed','bgv_cleared')`, pb.jobApplicationId).catch(() => null);
     }
 
     await notifyCandidate(db, pb.candidateEmail, `Your employee record has been created. Employee ID: ${empCode}. Your login has been activated — check your email for the credentials.`);
     await audit(db, (decoded as any).userId, 'CREATE_EMPLOYEE_FROM_PREBOARDING', 'preboarding',
       `${preboardingId} ${pb.candidateName}: employee created (formal ${empCode}) — dept ${deptId}, designation ${desigId}, manager ${mgrId}, DOJ ${jDate.toISOString().slice(0, 10)}, login ${userEmail}`);
 
-    // Activation email with the login credentials (template-driven).
-    await sendConfiguredEmail({
-      db, tenantId: String((decoded as any).tenantId || ''),
-      module: 'onboarding', eventKey: 'onboarding.employee.account_activated',
-      to: pb.candidateEmail,
-      toName: firstName || undefined,
-      vars: {
-        Employee_Name: firstName || 'there',
-        Employee_Id: empCode,
-        Company_Email: userEmail,
-        Temporary_Password: temporaryPassword,
-        Login_Url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://3boxes-hrms-inky.vercel.app'}/login`,
-      },
-      entityType: 'preboarding_candidate', entityId: candidateId, entityLink: '/preboarding',
-      status: 'welcome',
-    }).catch(() => null);
+    // ─── Activation email with login credentials ───
+    // Sent to the company email (login identity) and the personal email as a
+    // fallback copy. Delivery failures are surfaced to HR in the response and
+    // the UI instead of being silently swallowed.
+    const loginUrlBase = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://3boxes-hrms-inky.vercel.app';
+    const loginUrl = `${loginUrlBase}/login`;
+    const emailVars = {
+      Employee_Name: firstName || 'there',
+      Employee_Id: empCode,
+      Company_Email: userEmail,
+      Temporary_Password: temporaryPassword,
+      Login_Url: loginUrl,
+    };
+    const emailTargets = Array.from(new Set([userEmail, String(pb.candidateEmail || '').toLowerCase()].filter(Boolean)));
+    let emailSent = false;
+    for (const target of emailTargets) {
+      const result = await sendConfiguredEmail({
+        db, tenantId: String((decoded as any).tenantId || ''),
+        module: 'onboarding', eventKey: 'onboarding.employee.account_activated',
+        to: target,
+        toName: firstName || undefined,
+        vars: emailVars,
+        entityType: 'preboarding_candidate', entityId: candidateId, entityLink: '/preboarding',
+        status: 'welcome',
+      }).catch(() => null);
+      if (result && (result as any).sent === true) emailSent = true;
+    }
 
     try {
-      await db.notification.create({ data: { userId, tenantId: String((decoded as any).tenantId || ''), title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: false } }).catch(() => null);
+      await db.notification.create({ data: { userId, tenantId: String((decoded as any).tenantId || ''), title: 'Welcome!', message: `Account active. Employee ID: ${empCode}`, type: 'success', category: 'onboarding', isRead: false, isEmailSent: emailSent } }).catch(() => null);
     } catch {}
 
     return NextResponse.json({
-      message: `Employee created successfully. Employee ID: ${empCode}. Login activated for ${userEmail} — credentials emailed.`,
-      employeeRowId: empId, provisionalEmployeeId: empCode, employeeCode: empCode, loginEmail: userEmail, preboardingId,
+      message: `Employee created successfully. Employee ID: ${empCode}. Login activated for ${userEmail}.${emailSent ? ' Login details emailed.' : ' Warning: the credentials email could not be delivered — share the details below manually.'}`,
+      employeeRowId: empId, provisionalEmployeeId: empCode, employeeCode: empCode,
+      loginEmail: userEmail, personalEmail: pb.candidateEmail || null,
+      temporaryPassword, loginUrl, emailSent, preboardingId,
     }, { status: 201, headers: CORS });
   } catch (error) {
     console.error('[preboarding/brd/employee-creation] POST failed:', error);

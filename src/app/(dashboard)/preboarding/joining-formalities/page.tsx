@@ -360,7 +360,8 @@ export default function JoiningFormalitiesPage() {
                       <td className="py-2.5 px-4">
                         {section === 'joined' || row.employeeId ? (
                           <button
-                            onClick={() => router.push('/employees')}
+                            onClick={() => router.push(`/employees?search=${encodeURIComponent(row.candidateName || row.candidateEmail || '')}`)}
+                            title="Open the Employee List filtered to this new joiner"
                             className="border border-slate-300 text-slate-700 hover:bg-slate-50 px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
                           >
                             <FiUserCheck className="h-3.5 w-3.5" /> View Employee

@@ -130,6 +130,45 @@ export async function GET(req: NextRequest) {
       } catch {
         interview.panelMembers = [];
       }
+      // Fallback: some interviews (legacy rows or schedules created before the
+      // panel-table feature) only carry the comma-separated `interviewer`
+      // string. Resolve those IDs so the scheduled-interviews screen shows the
+      // assigned panel instead of "No panel members assigned".
+      if ((!interview.panelMembers || interview.panelMembers.length === 0) && interview.interviewer) {
+        try {
+          const ids = String(interview.interviewer).split(',').map((s: string) => s.trim()).filter(Boolean);
+          if (ids.length > 0) {
+            const placeholders = ids.map((_, idx) => `$${idx + 1}`).join(',');
+            const rows = await db.$queryRawUnsafe(
+              `SELECT u."id" AS "userId", u."name" AS "memberName", u."email" AS "memberEmail",
+                      e."firstName", e."lastName", des."title" AS "designation"
+               FROM "User" u
+               LEFT JOIN "Employee" e ON e."userId" = u."id"
+               LEFT JOIN "Designation" des ON des."id" = e."designationId"
+               WHERE u."id" IN (${placeholders})`,
+              ...ids,
+            ) as any[];
+            interview.panelMembers = ids.map((id: string) => {
+              const row = rows.find(r => r.userId === id);
+              return {
+                id: `fallback-${id}`,
+                userId: id,
+                name: row?.memberName || `${row?.firstName || ''} ${row?.lastName || ''}`.trim() || row?.memberEmail || 'Interviewer',
+                email: row?.memberEmail || null,
+                designation: row?.designation || '—',
+                confirmationStatus: 'pending',
+                reason: null,
+                respondedAt: null,
+                hasFeedback: false,
+                feedbackRating: null,
+                feedbackRecommendation: null,
+              };
+            });
+          }
+        } catch {
+          // Keep the (empty) panel list — the UI already handles it.
+        }
+      }
     }
 
     return NextResponse.json({ data: interviews }, { headers: corsHeaders() });

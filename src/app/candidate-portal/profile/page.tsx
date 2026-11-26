@@ -24,10 +24,10 @@ export default function CandidateProfilePage() {
   const full = !!state?.preboarding;
   const p = details?.portalDetails || {};
   const profile = state?.profile;
-  return <div className="h-screen overflow-hidden bg-[#f4f7fb]">
+  return <div className="min-h-screen bg-[#f4f7fb]">
     <CandidatePortalNav state={state} active="profile" />
-    <main className="h-[calc(100vh-64px)] overflow-hidden p-4 lg:p-5">
-      <div className="grid h-full grid-rows-[auto_minmax(0,1fr)] gap-3">
+    <main className="p-4 lg:p-5">
+      <div className="grid gap-3">
         <section className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-800">{(profile?.name || 'C').split(' ').map(v => v[0]).slice(0,2).join('')}</span><div><h1 className="text-xl font-bold text-slate-900">{profile?.name || 'Candidate Profile'}</h1><p className="text-sm text-slate-500">{profile?.email}</p></div></div>
           <div className="text-right"><span className={`rounded-full px-3 py-1 text-xs font-bold ${full ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>{full ? 'Complete profile activated' : 'Basic profile'}</span><p className="mt-1 text-[11px] text-slate-500">{full ? 'Preboarding is active' : 'Full profile unlocks after HR initiates preboarding'}</p></div>
