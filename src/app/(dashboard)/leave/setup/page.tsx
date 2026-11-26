@@ -226,7 +226,7 @@ function FormFooter({ onCancel, onSave, isEdit, errCount, saveLabel }: { onCance
 }
 
 /* ═══ Types ═══ */
-interface LType { id: string; name: string; code: string; description?: string; category?: string; smallestUnit?: string; displayOrder?: number; calendarColor?: string; status: string; isPaid?: boolean; }
+interface LType { id: string; name: string; code: string; description?: string; category?: string; smallestUnit?: string; displayOrder?: number; calendarColor?: string; status: string; isPaid?: boolean; defaultDays?: number; }
 interface LRule { id: string; name: string; description?: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
 interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; empStatus?: string; branchIds?: string; departmentIds?: string; designationIds?: string; gradeIds?: string; leaveTypeIds?: string; creditMode?: string; creditDay?: string; roundOff?: string; yearStart?: string; approvalFlow?: string; }
 interface LMapping { id: string; policyId: string; typeId: string; ruleId: string; effectiveFrom: string; status: string; }
@@ -383,15 +383,16 @@ function TypesList({ types, rules, loading, onCreate, onEdit }: { types: LType[]
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead><tr>{['#', 'Leave type', 'Category', 'Smallest unit', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 4 ? 'text-center' : ''}`}>{h}</th>)}</tr></thead>
+          <thead><tr>{['#', 'Leave type', 'Category', 'Entitled', 'Smallest unit', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 5 ? 'text-center' : ''}`}>{h}</th>)}</tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-             rows.length === 0 ? <tr><td colSpan={6} className="text-center py-10 text-slate-500">No leave types found.</td></tr> :
+            {loading ? <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+             rows.length === 0 ? <tr><td colSpan={7} className="text-center py-10 text-slate-500">No leave types found.</td></tr> :
              rows.map((r, i) => (
               <tr key={r.id} className={`border-b border-slate-50 cursor-pointer transition-colors ${sel === r.id ? 'bg-blue-50' : 'hover:bg-slate-50'} ${r.status !== 'active' ? 'opacity-60' : ''}`} onClick={() => setSel(r.id)}>
                 <td className="px-3.5 py-3 text-slate-400 font-bold text-[12px]">{i + 1}</td>
                 <td className="px-3.5 py-3"><div className="flex items-center gap-2.5"><CodeChip code={r.code} color={r.calendarColor} /><div><div className="font-bold text-[13px]">{r.name}</div><div className="text-[11.5px] text-slate-500 max-w-xs truncate">{r.description || ''}</div></div></div></td>
                 <td className="px-3.5 py-3"><CatPill c={(r.category || 'paid').charAt(0).toUpperCase() + (r.category || 'paid').slice(1)} /></td>
+                <td className="px-3.5 py-3 text-[13px] font-bold text-slate-700">{(r as any).defaultDays ? `${(r as any).defaultDays} d/yr` : '—'}</td>
                 <td className="px-3.5 py-3 text-[13px] text-slate-500 capitalize">{(r.smallestUnit || 'full_day').replace('_', ' ')}</td>
                 <td className="px-3.5 py-3 text-center"><StatusPill s={r.status === 'active' ? 'Active' : 'Inactive'} /></td>
                 <td className="px-3.5 py-3 text-right">
@@ -416,7 +417,7 @@ function TypesList({ types, rules, loading, onCreate, onEdit }: { types: LType[]
           head={<><CodeChip code={t.code} color={t.calendarColor} /><div><h3 className="text-lg font-extrabold">{t.name}</h3><div className="text-[12px] text-slate-500">Code {t.code}</div></div></>}
           foot={<><button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => onEdit(t.id)}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit leave type</button></>}>
           <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Basic details</h4>
-            <KV items={[['Leave name', t.name], ['Short code', t.code], ['Category', t.category || 'paid'], ['Smallest unit', (t.smallestUnit || 'full_day').replace('_', ' ')], ['Status', t.status], ['Description', t.description || '—', true]]} />
+            <KV items={[['Leave name', t.name], ['Short code', t.code], ['Category', t.category || 'paid'], ['Entitled days/year', (t as any).defaultDays ? `${(t as any).defaultDays} days` : '— (no fixed balance)'], ['Smallest unit', (t.smallestUnit || 'full_day').replace('_', ' ')], ['Status', t.status], ['Description', t.description || '—', true]]} />
           </div>
           <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Rules defined for this type ({rulesFor.length})</h4>
             {rulesFor.length ? <div className="flex flex-col gap-1.5">{rulesFor.map(r => <div key={r.id} className="flex items-center gap-2.5 px-3 py-2 border border-slate-100 rounded-lg text-[12.5px]"><b>{r.name}</b><span className="flex-1" /><span className="text-slate-500">{r.entitledDaysPerYear || r.entitledDays || '—'} days/yr</span><StatusPill s={r.status === 'active' ? 'Active' : 'Inactive'} /></div>)}</div>
@@ -437,6 +438,8 @@ function TypeForm({ editId, types, onCancel, onSaved, scopeQuery: sq }: { editId
     name: orig?.name || '', code: orig?.code || '', category: (orig?.category || 'paid').charAt(0).toUpperCase() + (orig?.category || 'paid').slice(1),
     unit: orig?.smallestUnit === 'half_day' ? 'Half day' : orig?.smallestUnit === 'hourly' ? 'Hourly' : 'Full day',
     description: orig?.description || '', color: orig?.calendarColor || '#2563EB', order: orig?.displayOrder || (types.length + 1), active: orig?.status !== 'inactive',
+    // BUG FIX: Moved entitled days from the Rule form to the Leave Type form
+    entitledDays: String((orig as any)?.defaultDays || ''),
   });
   const [tried, setTried] = useState(false);
   const set = (k: string, v: any) => setF(s => ({ ...s, [k]: v }));
@@ -455,6 +458,8 @@ function TypeForm({ editId, types, onCancel, onSaved, scopeQuery: sq }: { editId
         category: f.category.toLowerCase(), smallestUnit: f.unit.toLowerCase().replace(' ', '_'),
         calendarColor: f.color, displayOrder: Number(f.order) || 0,
         isPaid: f.category === 'Paid', status: f.active ? 'active' : 'inactive',
+        // BUG FIX: Save entitled days as defaultDays on the LeaveType
+        defaultDays: Number(f.entitledDays) || 0,
       };
       const sep = sq ? `&${sq}` : '';
       const url = editId ? `/api/leave-types/${editId}?${sep}` : `/api/leave-types?${sq || ''}`;
@@ -479,6 +484,7 @@ function TypeForm({ editId, types, onCancel, onSaved, scopeQuery: sq }: { editId
               <Field label="Short code" req err={show('code')} hint="2–5 letters, unique"><Input value={f.code} onChange={v => set('code', v.toUpperCase().slice(0, 5))} placeholder="CL" bad={show('code')} /></Field>
               <Field label="Category" hint="Paid · Unpaid · Statutory · Special"><Select value={f.category} onChange={v => set('category', v)} options={['Paid', 'Unpaid', 'Statutory', 'Special']} /></Field>
               <Field label="Smallest unit employees can apply" hint="Half day allows 0.5 day requests"><Seg value={f.unit} onChange={v => set('unit', v)} options={['Full day', 'Half day', 'Hourly']} /></Field>
+              <Field label="Entitled days per year" hint="Annual quota for this leave type (0 = no fixed balance, e.g. LOP)"><input type="number" min="0" max="366" className="w-full h-10 border border-slate-200 rounded-lg px-3 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" value={f.entitledDays} onChange={e => set('entitledDays', e.target.value)} placeholder="e.g. 12" /></Field>
               <Field label="Description (Optional)" full><textarea className="w-full h-20 border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-vertical" value={f.description} onChange={e => set('description', e.target.value)} placeholder="When can this leave be used?" /></Field>
             </div>
           </FSec>
