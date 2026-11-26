@@ -16,8 +16,18 @@
  *     download, skills, experience, education, screening answers, recruiter
  *     notes, tags, activity timeline, per-application status actions
  *
- * Status flow (forward-only): applied → screening → shortlisted. Rejected is
- * terminal and always asks for confirmation. Backward moves are not offered.
+ * Status flow (forward-only): applied → screening → shortlisted → interview →
+ * offered. The interview-stage and offer-stage moves happen HERE (Move to
+ * Interview / Move to Offer buttons); the follow-up actions live in their own
+ * tabs and every transition surfaces a guidance toast + banner saying where to
+ * go next:
+ *   shortlisted → interview : schedule the slot in Scheduled Interviews →
+ *                             Schedule Interview tab.
+ *   interview    → offered  : create + release the offer in the Offer
+ *                             Management tab (offer must pass the job's
+ *                             interview-plan completion gate server-side).
+ * Rejected is terminal and always asks for confirmation. Backward moves are
+ * not offered.
  *
  * Data: everything dynamic from the existing APIs.
  *   - GET  /api/recruitment/candidate-search  (aggregated candidates; now also
@@ -104,12 +114,30 @@ const LABEL_CLS = 'text-[11px] font-semibold text-slate-500';
 const STATUS_META: Record<string, { label: string; badge: string; next?: string; nextLabel?: string }> = {
   applied: { label: 'Applied', badge: 'bg-blue-50 text-blue-700 border-blue-200', next: 'screening', nextLabel: 'Move to Screening' },
   screening: { label: 'Screening', badge: 'bg-amber-50 text-amber-700 border-amber-200', next: 'shortlisted', nextLabel: 'Shortlist' },
-  shortlisted: { label: 'Shortlisted', badge: 'bg-green-50 text-green-700 border-green-200' },
+  shortlisted: { label: 'Shortlisted', badge: 'bg-green-50 text-green-700 border-green-200', next: 'interview', nextLabel: 'Move to Interview' },
   rejected: { label: 'Rejected', badge: 'bg-red-50 text-red-700 border-red-200' },
-  interview: { label: 'In Interviews', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
-  interview_completed: { label: 'Interview Done', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+  interview: { label: 'In Interviews', badge: 'bg-purple-50 text-purple-700 border-purple-200', next: 'offered', nextLabel: 'Move to Offer' },
+  interview_completed: { label: 'Interview Done', badge: 'bg-purple-50 text-purple-700 border-purple-200', next: 'offered', nextLabel: 'Move to Offer' },
   offered: { label: 'Offered', badge: 'bg-teal-50 text-teal-700 border-teal-200' },
   hired: { label: 'Hired', badge: 'bg-green-100 text-green-800 border-green-300' },
+};
+
+/* Stage guidance — where the FOLLOW-UP action for the current stage lives.
+   Shown in the profile banner (and referenced by transition toasts) so HR
+   always knows which tab handles the next step. */
+const STAGE_GUIDANCE: Record<string, { headline: string; hint: string }> = {
+  shortlisted: {
+    headline: 'Candidate shortlisted — next step: Interview stage.',
+    hint: 'Click “Move to Interview” to advance the stage, then book the slot from Scheduled Interviews → Schedule Interview tab.',
+  },
+  interview: {
+    headline: 'Candidate is in the Interview stage.',
+    hint: 'Schedule interview rounds from Scheduled Interviews → Schedule Interview tab. Once the rounds are done, click “Move to Offer” here.',
+  },
+  offered: {
+    headline: 'Candidate is at the Offer stage.',
+    hint: 'Create and release the offer from the Offer Management tab (create offer → approval → send).',
+  },
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -267,15 +295,17 @@ export function FindCandidates() {
   }, [entries, filters.q, filters.source, filters.status, filters.sort]);
 
   const kpis = useMemo(() => {
-    let applied = 0, screening = 0, shortlisted = 0;
+    let applied = 0, screening = 0, shortlisted = 0, interview = 0, offered = 0;
     for (const e of entries) {
       for (const a of e.applications || []) {
         if (a.status === 'applied') applied += 1;
         else if (a.status === 'screening') screening += 1;
         else if (a.status === 'shortlisted') shortlisted += 1;
+        else if (a.status === 'interview' || a.status === 'interview_completed') interview += 1;
+        else if (a.status === 'offered') offered += 1;
       }
     }
-    return { total: entries.length, applied, screening, shortlisted };
+    return { total: entries.length, applied, screening, shortlisted, interview, offered };
   }, [entries]);
 
   const profileEntry = useMemo(
@@ -307,8 +337,14 @@ export function FindCandidates() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
-      if (next === 'shortlisted') {
-        toast.success('Candidate shortlisted. Continue interview scheduling from Scheduled Interviews.');
+      // Guidance toast — every stage move tells HR exactly which tab owns the
+      // follow-up action (schedule the interview / release the offer).
+      if (next === 'interview') {
+        toast.success(`${candidateName} moved to the Interview stage. Now schedule the interview from Scheduled Interviews → Schedule Interview tab.`, { duration: 7000 });
+      } else if (next === 'offered') {
+        toast.success(`${candidateName} moved to Offered. Now create and release the offer from the Offer Management tab.`, { duration: 7000 });
+      } else if (next === 'shortlisted') {
+        toast.success(`Candidate shortlisted. Click “Move to Interview” to advance the stage, then schedule from Scheduled Interviews.`, { duration: 7000 });
       } else {
         toast.success(`${candidateName} moved to ${statusLabel(next)}`);
       }
@@ -466,12 +502,17 @@ export function FindCandidates() {
   const forwardBtn = (app: AppRow, name: string, compact?: boolean) => {
     const meta = STATUS_META[app.status || ''];
     if (!meta?.next) return null;
+    const hint = meta.next === 'interview'
+      ? 'Advance to the Interview stage — then schedule the slot from Scheduled Interviews → Schedule Interview tab'
+      : meta.next === 'offered'
+        ? 'Advance to the Offer stage — then create and release the offer from the Offer Management tab'
+        : meta.nextLabel;
     return (
       <button
         onClick={() => transitionStatus(app, meta.next as string, name)}
         disabled={transitioningApp === app.id}
         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[10.5px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700 disabled:opacity-60"
-        title={meta.nextLabel}
+        title={hint}
       >
         {transitioningApp === app.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
         {compact ? meta.nextLabel : meta.nextLabel}
@@ -562,9 +603,19 @@ export function FindCandidates() {
           </div>
           {/* actions */}
           <div className="flex items-center justify-start gap-1 lg:justify-end">
-            {(app?.status === 'shortlisted') && (
-              <span title="Next step happens in Scheduled Interviews" className="mr-1 hidden text-[10px] font-semibold text-green-600 xl:inline">
-                Interview stage →
+            {app?.status === 'shortlisted' && (
+              <span title="After moving to Interview, schedule the slot from Scheduled Interviews → Schedule Interview tab" className="mr-1 hidden text-[10px] font-semibold text-green-600 xl:inline">
+                Then schedule → Scheduled Interviews
+              </span>
+            )}
+            {app?.status === 'interview' && (
+              <span title="After the rounds are done, move to Offer — the offer itself is released from the Offer Management tab" className="mr-1 hidden text-[10px] font-semibold text-purple-600 xl:inline">
+                Then offer → Offer Management
+              </span>
+            )}
+            {app?.status === 'offered' && (
+              <span title="Create and release the offer from the Offer Management tab" className="mr-1 hidden text-[10px] font-semibold text-teal-600 xl:inline">
+                Release offer → Offer Management
               </span>
             )}
             {app && forwardBtn(app, e.candidateName, true)}
@@ -658,9 +709,13 @@ export function FindCandidates() {
     const primary = e.applications?.[0] || null;
     const parsedNotes = parseApplicationNotes(primary?.notes);
     const parsed = e.parsedResume;
-    // Post-shortlist guidance — every shortlisted candidate's profile carries
-    // the routing message (dismissable for the session).
-    const showBanner = primary?.status === 'shortlisted' && bannerDismissedFor !== e.candidateEmail;
+    // Stage guidance — the profile header banner routes HR to the tab that
+    // owns the follow-up action for the CURRENT stage (shortlisted / interview
+    // / offered). Dismissal is per candidate + per stage, so advancing the
+    // stage brings up the next guidance.
+    const guidance = primary ? STAGE_GUIDANCE[primary.status || ''] : undefined;
+    const bannerKey = `${e.candidateEmail}|${primary?.status || ''}`;
+    const showBanner = !!guidance && bannerDismissedFor !== bannerKey;
     const timeline = [
       ...(e.applications || []).map(a => ({ icon: 'job', title: `Applied to ${a.jobTitle || a.position || 'a position'}`, at: a.appliedDate, sub: `Source: ${sourceLabel(a.source)}` })),
       ...parsedNotes.recruiterNotes.map(n => ({ icon: 'note', title: 'Recruiter note added', at: n.at, sub: n.text })),
@@ -710,15 +765,15 @@ export function FindCandidates() {
               </div>
             )}
           </div>
-          {showBanner && (
+          {showBanner && guidance && (
             <div className="mt-3 flex items-start justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
                 <p className="text-[12px] font-semibold text-green-800">
-                  Candidate shortlisted. Continue interview scheduling from Scheduled Interviews.
+                  {guidance.headline} <span className="font-normal text-green-700">{guidance.hint}</span>
                 </p>
               </div>
-              <button onClick={() => setBannerDismissedFor(e.candidateEmail)} title="Dismiss" className="text-green-500 transition hover:text-green-700">
+              <button onClick={() => setBannerDismissedFor(bannerKey)} title="Dismiss" className="text-green-500 transition hover:text-green-700">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1013,6 +1068,8 @@ export function FindCandidates() {
     { key: 'applied', label: 'New Applications', value: kpis.applied, icon: UserPlus, tone: 'text-blue-600', ring: 'bg-blue-50 text-blue-600' },
     { key: 'screening', label: 'In Screening', value: kpis.screening, icon: UserCheck, tone: 'text-amber-600', ring: 'bg-amber-50 text-amber-600' },
     { key: 'shortlisted', label: 'Shortlisted', value: kpis.shortlisted, icon: CheckCircle2, tone: 'text-green-600', ring: 'bg-green-50 text-green-600' },
+    { key: 'interview', label: 'In Interview', value: kpis.interview, icon: Calendar, tone: 'text-purple-600', ring: 'bg-purple-50 text-purple-600' },
+    { key: 'offered', label: 'Offered', value: kpis.offered, icon: Star, tone: 'text-teal-600', ring: 'bg-teal-50 text-teal-600' },
   ];
 
   return (
@@ -1050,7 +1107,7 @@ export function FindCandidates() {
           </div>
 
           {/* summary cards */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
             {kpiCards.map(k => (
               <button
                 key={k.key}
@@ -1125,6 +1182,8 @@ export function FindCandidates() {
               <option value="applied">Applied</option>
               <option value="screening">Screening</option>
               <option value="shortlisted">Shortlisted</option>
+              <option value="interview">In Interviews</option>
+              <option value="offered">Offered</option>
               <option value="rejected">Rejected</option>
             </select>
             <select

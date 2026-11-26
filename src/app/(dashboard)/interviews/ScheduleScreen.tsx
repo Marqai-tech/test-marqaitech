@@ -233,6 +233,13 @@ export default function ScheduleScreen({
     if (!form.date) { toast.error('Date is required'); return; }
     if (pastDate) { toast.error('Interview date cannot be in the past'); return; }
     if (!selectedAppDept) { toast.error('This candidate\'s job has no department — panel availability cannot be checked'); return; }
+    // Stage guard (mirrors the API's APPLICATION_NOT_INTERVIEW_READY rule):
+    // interviews can only be booked for candidates already in the Interview
+    // stage. Tell HR exactly where to make the move instead of a late 409.
+    if (selectedApp && selectedApp.status !== 'interview') {
+      toast.error(`This candidate is in ${(selectedApp.status || 'an ineligible').replace(/_/g, ' ')} status — move them to Interview first: Recruitment → Find Candidates → "Move to Interview".`, { duration: 7000 });
+      return;
+    }
     if (selectedPanelIds.length === 0) { toast.error('Select at least one panel member'); return; }
     if (unavailableSelected.length > 0) {
       const names = unavailableSelected.map(uid => panelMembers.find(p => p.userId === uid)?.name).join(', ');
@@ -367,13 +374,31 @@ export default function ScheduleScreen({
                           onClick={() => handleSelectApplicant(a.id)}
                           className="w-full text-left px-3.5 py-2.5 hover:bg-green-50 border-b border-slate-100 last:border-0"
                         >
-                          <p className="text-[12.5px] font-bold text-slate-800">{a.candidateName}</p>
-                          <p className="text-[10.5px] text-slate-400">{a.candidateEmail} · {a.jobPosting?.title || '—'}</p>
+                          <p className="text-[12.5px] font-bold text-slate-800 flex items-center gap-2">
+                            <span className="truncate">{a.candidateName}</span>
+                            {a.status && (
+                              <span className={`shrink-0 rounded-full border px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide ${a.status === 'interview' ? 'border-purple-200 bg-purple-50 text-purple-700' : a.status === 'shortlisted' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                                {a.status.replace(/_/g, ' ')}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[10.5px] text-slate-400">{a.candidateEmail} · {a.jobPosting?.title || '—'}{a.status && a.status !== 'interview' ? ' — move to Interview from Find Candidates to schedule' : ''}</p>
                         </button>
                       ))}
                     {applicants.length === 0 && <p className="px-3.5 py-4 text-[12px] text-slate-400">Loading candidates…</p>}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* STAGE WARNING — interviews can only be booked from the Interview stage */}
+            {selectedApp && selectedApp.status !== 'interview' && (
+              <div className="mt-3 flex items-start gap-2 rounded-[10px] border border-amber-300 bg-amber-50 px-3.5 py-2.5">
+                <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-extrabold text-white">!</span>
+                <p className="text-[11.5px] font-semibold text-amber-800">
+                  This candidate is in <b>{(selectedApp.status || 'an ineligible').replace(/_/g, ' ')}</b> status — interviews can only be scheduled after moving them to the Interview stage.
+                  Go to <b>Recruitment → Find Candidates</b> and use <b>“Move to Interview”</b>, then come back here to book the slot.
+                </p>
               </div>
             )}
 

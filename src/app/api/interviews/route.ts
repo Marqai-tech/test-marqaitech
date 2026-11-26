@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
       const applicationStatus = String(appRows[0]?.status || '').toLowerCase();
       if (applicationStatus !== 'interview') {
         return NextResponse.json({
-          error: `This candidate is in ${appRows[0]?.status || 'an ineligible'} status. Move the candidate to Interview before scheduling.`,
+          error: `This candidate is in ${appRows[0]?.status || 'an ineligible'} status. Move the candidate to Interview before scheduling — go to Recruitment → Find Candidates and use "Move to Interview", then come back here to book the slot.`,
           code: 'APPLICATION_NOT_INTERVIEW_READY',
           applicationStatus: applicationStatus || null,
         }, { status: 409, headers: corsHeaders() });

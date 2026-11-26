@@ -325,10 +325,18 @@ export async function PATCH(
         );
       }
 
-      // Offer, acceptance, preboarding, BGV and hiring stages are controlled
-      // by their domain actions; they must not be set from the generic stage
-      // dropdown.
-      const actionDrivenStatuses = ['offered', 'offer_accepted', 'offer_declined', 'offer_expired', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired'];
+      // Acceptance, preboarding, BGV and hiring stages are controlled by
+      // their domain actions; they must not be set from the generic stage
+      // transition (Find Candidates "Move to Offer" etc.).
+      //
+      // 'offered' IS reachable from here, but only from the Interview stage
+      // (interview / interview_completed) — that is the Find Candidates
+      // "Move to Offer" flow. After the move, HR creates + releases the
+      // actual offer from the Offer Management tab (the offers API requires
+      // the application to be in 'offered' status). Everything below Offer
+      // (accepted / declined / expired / preboarding / BGV / hired) remains
+      // strictly action-driven.
+      const actionDrivenStatuses = ['offer_accepted', 'offer_declined', 'offer_expired', 'preboarding', 'bgv_in_progress', 'bgv_passed', 'hired'];
       if (status !== undefined && actionDrivenStatuses.includes(status) && status !== application.status) {
         return NextResponse.json(
           { error: `${status} is controlled by its workflow action. Use Offer Management, Preboarding, or BGV actions instead.` },
@@ -337,14 +345,19 @@ export async function PATCH(
       }
 
       // Phase 7 fix: Prevent invalid status transitions
-      // Cannot jump directly to 'offered' or 'hired' without going through 'interview'
-      if (status === 'offered' && !['interview', 'offered', 'hired'].includes(application.status)) {
+      // 'offered' can only be reached from the Interview stage.
+      if (status === 'offered' && !['interview', 'interview_completed', 'offered', 'hired'].includes(application.status)) {
         return NextResponse.json(
-          { error: 'Cannot move to Offered without completing the Interview stage first. Current status: ' + application.status },
+          {
+            error: `Cannot move to Offered without completing the Interview stage first (current status: ${application.status}). Move the candidate to Interview first, then complete the interview rounds.`,
+            code: 'OFFER_REQUIRES_INTERVIEW_STAGE',
+          },
           { status: 400, headers: corsHeaders() }
         );
       }
-      if (status === 'offered' && application.status === 'interview') {
+      // Offer gate: when the job defines an interview plan, every configured
+      // round must be completed before the candidate can advance to Offer.
+      if (status === 'offered' && ['interview', 'interview_completed'].includes(application.status)) {
         try {
           const planRows = await db.$queryRawUnsafe(
             `SELECT jp."interviewPlan" FROM "JobPosting" jp WHERE jp."id" = $1 LIMIT 1`,
@@ -362,7 +375,7 @@ export async function PATCH(
             const missing = Array.from({ length: requiredRounds }, (_, i) => i + 1).filter((round) => !completedRounds.has(round));
             if (missing.length > 0) {
               return NextResponse.json({
-                error: `Cannot move to Offered. Complete all configured interview rounds first. Missing rounds: ${missing.join(', ')}.`,
+                error: `Cannot move to Offered. Complete all configured interview rounds first (from the Interviews page: mark each round completed). Missing rounds: ${missing.join(', ')}.`,
                 code: 'INTERVIEW_PLAN_INCOMPLETE',
                 missingRounds: missing,
               }, { status: 409, headers: corsHeaders() });
