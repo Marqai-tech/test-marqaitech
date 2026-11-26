@@ -148,6 +148,8 @@ function ApplyLeaveContent() {
   // Controls which fields are shown/mandatory on this form. Configured once
   // by HR on the Approval Workflows page → Application Form Settings tab.
   const [formSettings, setFormSettings] = useState<any>(null);
+  // BUG FIX: Employee shift info for display on the apply form (night shifts etc.)
+  const [employeeShift, setEmployeeShift] = useState<any>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -315,6 +317,15 @@ function ApplyLeaveContent() {
           const normalized = normalizeLeaveBalances(balData.balances || [], { gender: myEmp?.gender || balData?.gender, probation });
           setLeaveBalances(normalized);
         }
+        // BUG FIX: Fetch employee's shift info for display on the apply form
+        // (especially important for manufacturing companies with night shifts)
+        try {
+          const shiftRes = await fetch(`/api/leave/my-shift`, { headers }).catch(() => null);
+          if (shiftRes?.ok) {
+            const shiftData = await shiftRes.json();
+            setEmployeeShift(shiftData.shift || null);
+          }
+        } catch { /* non-fatal */ }
         if (holRes?.ok) {
           const holData = await holRes.json();
           setHolidays(holData.data || []);
@@ -390,20 +401,32 @@ function ApplyLeaveContent() {
     const entitled = rule?.entitledDaysPerYear || bal?.total || lt?.defaultDays || 0;
 
     // Helper: compute chargeable days from a single leave record
+    // BUG FIX: Use getDaysBetween (excludes weekends+holidays) instead of
+    // raw calendar days for null chargeableDays fallback
+    const localHolidaySet = new Set(holidays.map((h: any) => new Date(h.date).toISOString().split('T')[0]));
     const daysOf = (l: any): number => {
       if (l.chargeableDays != null) return l.chargeableDays;
-      if (l.days != null) return l.days;
       if (l.halfDay) return 0.5;
       const s = new Date(l.startDate); const e = new Date(l.endDate);
       if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
-        return Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        return getDaysBetween(l.startDate, l.endDate, localHolidaySet);
       }
       return 0;
     };
 
-    // Year-total taken (approved + pending)
+    // BUG FIX: Filter by current year — entitled is per-year, so taken must
+    // also be per-year. Previously summed ALL years' leaves against this
+    // year's quota, inflating the taken count.
+    const cy = new Date().getFullYear();
+    const yStart = new Date(cy, 0, 1);
+    const yEnd = new Date(cy, 11, 31, 23, 59, 59);
+
+    // Year-total taken (approved + pending, current year only)
     const taken = ownLeaves
-      .filter((l: any) => l.leaveTypeId === leaveTypeId && (l.status === 'approved' || l.status === 'pending'))
+      .filter((l: any) => l.leaveTypeId === leaveTypeId
+        && (l.status === 'approved' || l.status === 'pending')
+        && new Date(l.startDate) <= yEnd
+        && new Date(l.endDate) >= yStart)
       .reduce((sum: number, l: any) => sum + daysOf(l), 0);
 
     // ─── Monthly taken: days already consumed in the CURRENT calendar month ───
@@ -429,7 +452,7 @@ function ApplyLeaveContent() {
     const remaining = Math.max(0, entitled - taken);
     const isLop = (lt?.code || '').toLowerCase().includes('lop') || (lt?.name || '').toLowerCase().includes('loss of pay');
     return { entitled, taken, remaining, isLop, rule, monthTaken };
-  }, [mappings, rules, policies, leaveTypes, leaveBalances, ownLeaves]);
+  }, [mappings, rules, policies, leaveTypes, leaveBalances, ownLeaves, holidays]);
 
   // Selected type values (uses the reusable helper)
   const selectedTypeInfo = computeRemaining(form.leaveTypeId);
@@ -454,6 +477,17 @@ function ApplyLeaveContent() {
       })
       .catch(() => setTeamConflicts([]));
   }, [form.startDate, form.endDate, employee?.id, user?.id, scopeQuery]);
+
+  // BUG FIX: Refetch shift info when the start date changes (rotating rosters
+  // may assign different shifts on different days)
+  useEffect(() => {
+    if (!form.startDate) return;
+    const h = getAuthHeaders();
+    fetch(`/api/leave/my-shift?date=${form.startDate}`, { headers: h })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d?.shift ? setEmployeeShift(d.shift) : null)
+      .catch(() => {});
+  }, [form.startDate]);
 
   /* ── Per-date selection helpers (Section 2) ── */
   // Generate the list of dates in the selected range. Each date is a
@@ -960,6 +994,24 @@ function ApplyLeaveContent() {
                 />
               </div>
             </div>
+
+            {/* BUG FIX: Show employee's shift for the selected date(s) */}
+            {employeeShift && (
+              <div className="flex items-center gap-2.5 p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                <FiClock className="w-4 h-4 text-violet-600 flex-shrink-0" />
+                <div className="text-xs text-violet-800">
+                  <span className="font-semibold">Your shift{form.startDate ? ` on ${form.startDate}` : ''}:</span>{' '}
+                  <span className="font-bold">{employeeShift.name}</span>{' '}
+                  ({employeeShift.display})
+                  {employeeShift.crossMidnight && (
+                    <span className="ml-1 text-amber-600 font-medium">— night shift (crosses midnight)</span>
+                  )}
+                  {employeeShift.breakMinutes > 0 && (
+                    <span className="ml-1 text-slate-500">· break {employeeShift.breakMinutes}min</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* ─── Per-date day selection table (Section 2) ─── */}
             {/* Replaces the old Full day / First half / Second half segmented

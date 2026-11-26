@@ -758,15 +758,15 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
   );
   const wfCheck = (k: string, label: string) => <div className="flex items-center gap-2.5 py-1.5"><span className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer ${(f as any)[k] ? 'bg-blue-500 border-blue-500' : 'border-slate-300'}`} onClick={() => set(k, !(f as any)[k])}>{(f as any)[k] && <FiCheck className="w-2.5 h-2.5 text-white" />}</span><span className="text-[12.5px] font-semibold text-slate-700">{label}</span></div>;
 
-  // Fetch branches, departments, designations when company changes
+  // Fetch branches, departments, designations — pass sq directly as query string
+  // (same pattern as TypeForm/RuleForm). The APIs resolve company scope server-side.
   useEffect(() => {
-    const cid = sq ? sq.split('=')[1] : '';
-    if (!cid) return;
     const h = getAuthHeaders();
+    const qs = sq ? `?${sq}` : '';
     Promise.all([
-      fetch(`/api/branches?companyId=${cid}`, { headers: h }).catch(() => null),
-      fetch(`/api/departments?companyId=${cid}`, { headers: h }).catch(() => null),
-      fetch(`/api/designations?companyId=${cid}`, { headers: h }).catch(() => null),
+      fetch(`/api/branches${qs}`, { headers: h }).catch(() => null),
+      fetch(`/api/departments${qs}`, { headers: h }).catch(() => null),
+      fetch(`/api/designations${qs}`, { headers: h }).catch(() => null),
     ]).then(async ([b, d, dg]) => {
       if (b?.ok) { const data = await b.json(); setBranches(data.data || data.branches || []); }
       if (d?.ok) { const data = await d.json(); setDepartments(data.data || data.departments || []); }
@@ -805,8 +805,7 @@ function PolicyForm({ editId, policies, types, onCancel, onSaved, sq }: { editId
       };
       if (pdfFile) { body.fileUrl = pdfFile.dataUrl; body.fileName = pdfFile.name; body.fileMimeType = 'application/pdf'; body.fileSize = pdfFile.dataUrl.length; }
       if (editId) { body.id = editId; }
-      const companyId = sq ? sq.split('=')[1] : '';
-      const url = '/api/policies' + (companyId ? `?companyId=${companyId}` : '');
+      const url = '/api/policies' + (sq ? `?${sq}` : '');
       const method = editId ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
