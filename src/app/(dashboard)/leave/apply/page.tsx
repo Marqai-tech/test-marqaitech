@@ -798,7 +798,7 @@ function ApplyLeaveContent() {
   if (mandatoryCheck('showContactNumber') && !form.contactNumber?.trim()) missingMandatory.push('Contact number');
   if (mandatoryCheck('showContactAddress') && !form.contactAddress?.trim()) missingMandatory.push('Contact address');
   if (mandatoryCheck('showHandover') && !form.handoverTo?.trim()) missingMandatory.push('Handover to');
-  if (mandatoryCheck('showRelocation') && !form.relocationNotes?.trim()) missingMandatory.push('Relocation details');
+  if (mandatoryCheck('showRelocation') && !form.relocationType) missingMandatory.push('Relocation type');
 
   const canSubmit = !hasIdle && !hasError && !!form.leaveTypeId && !!form.startDate && !!form.endDate
     && (fs.showReason === false || form.reason.trim().length >= 3)
@@ -1054,8 +1054,8 @@ function ApplyLeaveContent() {
               </div>
             </div>
 
-            {/* BUG FIX: Show employee's shift for the selected date(s) */}
-            {employeeShift && (
+            {/* BUG FIX: Show employee's shift for the selected date(s) — gated on showShift setting */}
+            {fs.showShift !== false && employeeShift && (
               <div className="flex items-center gap-2.5 p-3 bg-violet-50 border border-violet-200 rounded-lg">
                 <FiClock className="w-4 h-4 text-violet-600 flex-shrink-0" />
                 <div className="text-xs text-violet-800">
@@ -1077,7 +1077,7 @@ function ApplyLeaveContent() {
                 control. Each date in the range gets its own row with 3
                 checkboxes. Full day is exclusive with halves. Both halves
                 ticked = auto-switch to Full day. */}
-            {dateRange.length > 0 && (
+            {fs.showDaySelection !== false && dateRange.length > 0 && (
               <div>
                 <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
                   Day selection <span className="text-red-500">*</span>
@@ -1135,7 +1135,7 @@ function ApplyLeaveContent() {
             )}
 
             {/* ─── Relocation Leave fields (Section 9) ─── */}
-            {relocationEntitlement && (
+            {fs.showRelocation !== false && relocationEntitlement && (
               <div className="p-3 rounded-lg bg-violet-50 border border-violet-200 space-y-3">
                 <p className="text-[12.5px] font-bold text-violet-800">Relocation Leave Details</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -1188,10 +1188,11 @@ function ApplyLeaveContent() {
               </div>
             )}
 
-            {/* Reason */}
+            {/* Reason — gated on showReason */}
+            {fs.showReason !== false && (
             <div>
               <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                Reason <span className="text-red-500">*</span>
+                Reason {mandatoryCheck('showReason') && <span className="text-red-500">*</span>}
                 <span className="ml-auto text-[10.5px] font-bold text-slate-400">({form.reason.length}/250)</span>
               </label>
               <textarea
@@ -1203,8 +1204,10 @@ function ApplyLeaveContent() {
                 className="w-full px-3 py-2.5 rounded-[9px] border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 leading-relaxed"
               />
             </div>
+            )}
 
-            {/* Attachment — drag-drop style */}
+            {/* Attachment — gated on showAttachment */}
+            {fs.showAttachment !== false && (
             <div>
               <label className="flex items-baseline gap-1 text-[12.5px] font-semibold text-slate-700 mb-1.5">
                 Attachment
@@ -1227,6 +1230,7 @@ function ApplyLeaveContent() {
                 )}
               </label>
             </div>
+            )}
 
             {/* ─── Additional application form fields ─── */}
             {/* Shown/hidden based on tenant-wide form settings from
@@ -1376,8 +1380,8 @@ function ApplyLeaveContent() {
               />
             )}
 
-            {/* ── Team conflict section ── */}
-            <TeamConflictPanel conflicts={teamConflicts} />
+            {/* ── Team conflict section — gated on showTeamOnLeave ── */}
+            {fs.showTeamOnLeave !== false && <TeamConflictPanel conflicts={teamConflicts} />}
           </div>
         </div>
 
