@@ -227,7 +227,7 @@ function FormFooter({ onCancel, onSave, isEdit, errCount, saveLabel }: { onCance
 
 /* ═══ Types ═══ */
 interface LType { id: string; name: string; code: string; description?: string; category?: string; smallestUnit?: string; displayOrder?: number; calendarColor?: string; status: string; isPaid?: boolean; defaultDays?: number; }
-interface LRule { id: string; name: string; description?: string; leaveTypeId?: string; typeId?: string; status: string; entitledDaysPerYear?: number; entitledDays?: number; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
+interface LRule { id: string; name: string; description?: string; leaveTypeId?: string; typeId?: string; status: string; minDaysPerRequest?: number; minDays?: number; maxDaysPerRequest?: number; maxDays?: number; advanceNoticeDays?: number; noticeDays?: number; halfDayAllowed?: boolean; halfDay?: boolean; carryForwardToNextYear?: boolean; carryForward?: boolean; gender?: string; genderApplicability?: string; employmentType?: string; employeeStatus?: string; policyId?: string; branchId?: string | null; departmentId?: string | null; branch?: { name: string } | null; department?: { name: string } | null; }
 interface LPolicy { id: string; title: string; name?: string; code?: string; version?: string; status: string; description?: string; category?: string; effectiveDate?: string; expiryDate?: string; empStatus?: string; branchIds?: string; departmentIds?: string; designationIds?: string; gradeIds?: string; leaveTypeIds?: string; creditMode?: string; creditDay?: string; roundOff?: string; yearStart?: string; approvalFlow?: string; }
 interface LMapping { id: string; policyId: string; typeId: string; ruleId: string; effectiveFrom: string; status: string; }
 
@@ -420,7 +420,7 @@ function TypesList({ types, rules, loading, onCreate, onEdit }: { types: LType[]
             <KV items={[['Leave name', t.name], ['Short code', t.code], ['Category', t.category || 'paid'], ['Entitled days/year', (t as any).defaultDays ? `${(t as any).defaultDays} days` : '— (no fixed balance)'], ['Smallest unit', (t.smallestUnit || 'full_day').replace('_', ' ')], ['Status', t.status], ['Description', t.description || '—', true]]} />
           </div>
           <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Rules defined for this type ({rulesFor.length})</h4>
-            {rulesFor.length ? <div className="flex flex-col gap-1.5">{rulesFor.map(r => <div key={r.id} className="flex items-center gap-2.5 px-3 py-2 border border-slate-100 rounded-lg text-[12.5px]"><b>{r.name}</b><span className="flex-1" /><span className="text-slate-500">{r.entitledDaysPerYear || r.entitledDays || '—'} days/yr</span><StatusPill s={r.status === 'active' ? 'Active' : 'Inactive'} /></div>)}</div>
+            {rulesFor.length ? <div className="flex flex-col gap-1.5">{rulesFor.map(r => <div key={r.id} className="flex items-center gap-2.5 px-3 py-2 border border-slate-100 rounded-lg text-[12.5px]"><b>{r.name}</b><span className="flex-1" /><StatusPill s={r.status === 'active' ? 'Active' : 'Inactive'} /></div>)}</div>
               : <div className="flex gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3 text-[12.5px] text-amber-800"><FiInfo className="w-4 h-4 flex-shrink-0 mt-0.5" />No rule yet — create one in Step 3 before mapping this type.</div>}
           </div>
         </Drawer>
@@ -639,14 +639,13 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           {/* BUG_223 FIX: added Document + Encash columns */}
-          <thead><tr>{['Rule', 'Days/yr', 'Per req', 'Notice', 'Half day', 'Document', 'Carry fwd', 'Encash', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 7 ? 'text-center' : i === 9 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
+          <thead><tr>{['Rule', 'Per req', 'Notice', 'Half day', 'Document', 'Carry fwd', 'Encash', 'Status', 'Action'].map((h, i) => <th key={h} className={`text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-400 px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 ${i >= 1 && i <= 6 ? 'text-center' : i === 8 ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={10} className="text-center py-8 text-slate-400">Loading…</td></tr> :
-             rows.length === 0 ? <tr><td colSpan={10} className="text-center py-10 text-slate-500">No rules found.</td></tr> :
+            {loading ? <tr><td colSpan={9} className="text-center py-8 text-slate-400">Loading…</td></tr> :
+             rows.length === 0 ? <tr><td colSpan={9} className="text-center py-10 text-slate-500">No rules found.</td></tr> :
              rows.map(x => {
                const ty = types.find(t => t.id === (x.leaveTypeId || x.typeId));
                // BUG_224 FIX: derive actual values from the rule's fields
-               const daysYr = x.entitledDaysPerYear ?? x.entitledDays ?? 0;
                const minReq = x.minDaysPerRequest ?? x.minDays ?? 0.5;
                const maxReq = x.maxDaysPerRequest ?? x.maxDays ?? 0;
                const perReqStr = maxReq > 0 ? `${minReq}–${maxReq}d` : `${minReq}d`;
@@ -672,7 +671,6 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
                   {/* BUG_222 FIX: show colour-coded leave type code chip before rule name + applicable population below */}
                   <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{ty && <CodeChip code={ty.code} color={ty.calendarColor} />}<div><div className="font-bold text-[13px]">{x.name}</div><div className="text-[11.5px] text-slate-500">{applicableStr}</div></div></div></td>
                   {/* BUG_224 FIX: show actual values */}
-                  <td className="px-3.5 py-3 text-center font-bold text-[13px]">{daysYr > 0 ? daysYr : '—'}</td>
                   <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{perReqStr}</td>
                   <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{notice}d</td>
                   <td className="px-3.5 py-3 text-center"><span className={`inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full border ${halfDay ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{halfDay ? 'Yes' : 'No'}</span></td>
@@ -690,7 +688,7 @@ function RulesList({ rules, types, loading, onCreate, onEdit }: { rules: LRule[]
         </table>
       </div>
       {r && t && <Drawer onClose={() => setSel(null)} head={<><CodeChip code={t.code} color={t.calendarColor} /><div><h3 className="text-lg font-extrabold">{r.name}</h3><div className="text-[12px] text-slate-500">Rule for {t.name}</div></div></>} foot={<button className="h-9 px-3 rounded-lg border border-slate-200 text-[12px] font-bold" onClick={() => onEdit(r.id)}><FiEdit2 className="w-3.5 h-3.5 inline mr-1" />Edit rule</button>}>
-        <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Entitlement & credit</h4><KV items={[['Entitled days/year', r.entitledDaysPerYear || r.entitledDays || '—'], ['Min days/request', r.minDaysPerRequest || r.minDays || 0.5], ['Max days/request', r.maxDaysPerRequest || r.maxDays || '—'], ['Advance notice', (r.advanceNoticeDays || r.noticeDays || 0) + ' days'], ['Half day', (r.halfDayAllowed || r.halfDay) ? 'Yes' : 'No'], ['Gender', r.gender || 'Both'], ['Status', r.status]]} /></div>
+        <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Limits & notice</h4><KV items={[['Min days/request', r.minDaysPerRequest || r.minDays || 0.5], ['Max days/request', r.maxDaysPerRequest || r.maxDays || '—'], ['Advance notice', (r.advanceNoticeDays || r.noticeDays || 0) + ' days'], ['Half day', (r.halfDayAllowed || r.halfDay) ? 'Yes' : 'No'], ['Gender', r.gender || 'Both'], ['Status', r.status]]} /></div>
         <div className="mb-5"><h4 className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">Carry forward & encashment</h4><KV items={[['Carry forward', (r.carryForwardToNextYear || r.carryForward) ? 'Yes' : 'No'], ['Status', r.status]]} /></div>
       </Drawer>}
     </div>
@@ -941,11 +939,9 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
     leaveTypeId: orig?.leaveTypeId || orig?.typeId || '',
     policyId: orig?.policyId || '',
     status: orig?.status || 'draft',
-    // Section 2: Entitlement & credit — bind from orig
-    entitled: true, entitledDaysPerYear: String(orig?.entitledDaysPerYear || ''),
-    creditFrequency: orig?.creditFrequency || 'Monthly', creditDays: String(orig?.creditDays || ''),
+    // Pro-rata & next-year carry — kept as state but no longer shown in a dedicated section
     prorata: orig?.prorata ?? true, applyNextYear: orig?.applyNextYear ?? false,
-    // Section 3: Applying rules — bind from orig
+    // Section 2: Applying rules — bind from orig
     advanceNoticeDays: String(orig?.advanceNoticeDays || 0),
     minDaysPerRequest: String(orig?.minDaysPerRequest || 0.5),
     maxDaysPerRequest: String(orig?.maxDaysPerRequest || ''),
@@ -953,18 +949,18 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
     monthlyLimit: orig?.monthlyLimit ?? false, monthlyMaxDays: String(orig?.monthlyMaxDays || ''), monthlyMaxTimes: String(orig?.monthlyMaxTimes || ''),
     backDate: orig?.backDate ?? false, backDateWithin: String(orig?.backDateWithin || ''),
     docRequired: orig?.docRequired ?? false, docAfterDays: String(orig?.docAfterDays || ''), docWithin: String(orig?.docWithin || ''),
-    // Section 4: Day counting — bind from orig
+    // Section 3: Day counting — bind from orig
     excludeHoliday: orig?.excludeHoliday ?? true, excludeWeeklyOff: orig?.excludeWeeklyOff ?? true,
-    // Section 5: Eligibility — bind from orig
+    // Section 4: Eligibility — bind from orig
     gender: orig?.gender || 'both', marital: orig?.maritalStatus || 'both',
     empStatus: (() => { try { const a = typeof (orig as any)?.empStatusJson === 'string' ? JSON.parse((orig as any)?.empStatusJson) : (orig as any)?.empStatusJson; return Array.isArray(a) ? a : ['Confirmed']; } catch { return ['Confirmed']; } })(),
     workingReq: orig?.workingReq ?? false, workingDays: String(orig?.workingDays || ''),
     esi: orig?.esi ?? false, esiSalary: String(orig?.esiSalary || ''),
-    // Section 6: Carry forward & encash — bind from orig
+    // Section 5: Carry forward & encash — bind from orig
     carryForward: orig?.carryForwardToNextYear ?? false, cfMode: orig?.cfMode || 'Limited', cfDays: String(orig?.cfDays || ''),
     maxAccum: String(orig?.maxAccum || ''), expiryDays: String(orig?.expiryDays || ''),
     encash: orig?.leaveEncashmentApplicable ?? false, encashLimit: String(orig?.encashLimit || ''),
-    // Section 7: Application form settings (QA Spec Section 4) — default all visible + optional
+    // Section 6: Application form settings (QA Spec Section 4) — default all visible + optional
     showReason: (orig as any)?.showReason !== false,
     mandatoryReason: (orig as any)?.mandatoryReason === true,
     showDaySelection: (orig as any)?.showDaySelection !== false,
@@ -989,7 +985,6 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
   const errs: Record<string, string> = {};
   if (!f.policyId) errs.policyId = 'Select a policy';
   if (!f.name.trim()) errs.name = 'Enter a rule name';
-  if (f.entitled && !f.entitledDaysPerYear) errs.entitledDaysPerYear = 'Enter days per year';
   if (!f.maxDaysPerRequest) errs.maxDaysPerRequest = 'Enter maximum days';
   if (!f.empStatus.length) errs.empStatus = 'Select at least one status';
   const show = (k: string) => tried && errs[k];
@@ -1001,8 +996,7 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
 
   // Live summary
   const summary: React.ReactNode[] = [];
-  if (f.entitled && f.entitledDaysPerYear) summary.push(<li key="s1">Entitled to <b>{f.entitledDaysPerYear} days</b> per year{f.creditFrequency === 'Monthly' ? <>, credited <b>{(Number(f.entitledDaysPerYear) / 12).toFixed(1)} day(s) every month</b></> : f.creditFrequency === 'Yearly' ? <>, credited <b>at the start of the year</b></> : <>, granted <b>on request</b></>}{f.prorata ? ' (pro-rata for mid-year joiners)' : ''}.</li>);
-  else summary.push(<li key="s1">No fixed yearly entitlement.</li>);
+  summary.push(<li key="s1">Leave rules configured.</li>);
   summary.push(<li key="s2">Apply at least <b>{f.advanceNoticeDays || 0} day(s)</b> in advance; <b>{f.minDaysPerRequest || '?'}&ndash;{f.maxDaysPerRequest || '?'} days</b> per request{f.maxStretch ? <>, max <b>{f.maxStretch}</b> at a stretch</> : ''}. Half day: <b>{f.halfDayAllowed ? 'Yes' : 'No'}</b>.</li>);
   if (f.monthlyLimit) summary.push(<li key="s3">Monthly cap: <b>{f.monthlyMaxDays || '?'} days</b> or <b>{f.monthlyMaxTimes || '?'} times</b>.</li>);
   if (f.docRequired) summary.push(<li key="s4">Document needed if leave exceeds <b>{f.docAfterDays || 0} day(s)</b>, submit within <b>{f.docWithin || '?'} days</b>.</li>);
@@ -1021,13 +1015,12 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
     try {
       const body = {
         name: f.name, description: f.description, leaveTypeId: f.leaveTypeId || null, policyId: f.policyId || null, status: f.status,
-        gender: f.gender, entitledDaysPerYear: Number(f.entitledDaysPerYear) || 0,
+        gender: f.gender,
         minDaysPerRequest: Number(f.minDaysPerRequest) || 0.5, maxDaysPerRequest: Number(f.maxDaysPerRequest) || 0,
         advanceNoticeDays: Number(f.advanceNoticeDays) || 0, halfDayAllowed: f.halfDayAllowed,
         carryForwardToNextYear: f.carryForward, leaveEncashmentApplicable: f.encash,
         employmentType: 'all',
         // New spec fields
-        creditFrequency: f.creditFrequency, creditDays: Number(f.creditDays) || (f.creditFrequency === 'Monthly' ? Number(f.entitledDaysPerYear) / 12 : Number(f.entitledDaysPerYear)),
         prorata: f.prorata, applyNextYear: f.applyNextYear,
         maxStretch: Number(f.maxStretch) || 0,
         monthlyLimit: f.monthlyLimit, monthlyMaxDays: Number(f.monthlyMaxDays) || 0, monthlyMaxTimes: Number(f.monthlyMaxTimes) || 0,
@@ -1072,7 +1065,7 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_300px] gap-5 items-start">
         {/* Left nav */}
         <nav className="hidden lg:block sticky top-4 bg-white border border-slate-100 rounded-2xl shadow-sm p-2">
-          {[{id:'ru-basic',l:'Rule details'},{id:'ru-ent',l:'Entitlement & credit'},{id:'ru-apply',l:'Applying rules'},{id:'ru-count',l:'Day counting'},{id:'ru-elig',l:'Eligibility'},{id:'ru-cf',l:'Carry forward & encash'},{id:'ru-form',l:'Form settings'}].map((it,i) => (
+          {[{id:'ru-basic',l:'Rule details'},{id:'ru-apply',l:'Applying rules'},{id:'ru-count',l:'Day counting'},{id:'ru-elig',l:'Eligibility'},{id:'ru-cf',l:'Carry forward & encash'},{id:'ru-form',l:'Form settings'}].map((it,i) => (
             <a key={it.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50" onClick={() => document.getElementById(it.id)?.scrollIntoView({behavior:'smooth',block:'start'})}>
               <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10.5px] font-extrabold text-slate-500">{i+1}</span>{it.l}
             </a>
@@ -1091,25 +1084,8 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
             </div>
           )}
 
-          {/* Section 2: Entitlement & credit */}
-          {sec(2, 'Entitlement & credit', 'How many days the employee gets and when they are added.', 'ru-ent',
-            <div>
-              <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3 border-b border-dashed border-slate-100">
-                <div><b className="block text-[13px] font-bold">Entitled days required?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">No = leave without a fixed balance (e.g. LOP, Comp Off)</span></div>
-                {yn('entitled')}
-              </div>
-              {f.entitled && <div className="grid grid-cols-3 gap-x-6 py-3">
-                {fld('Entitled days per year', true, undefined, show('entitledDaysPerYear'), false, <input type="number" className={inp + (show('entitledDaysPerYear')?' border-red-300 bg-red-50':'')} value={f.entitledDaysPerYear} onChange={e => { set('entitledDaysPerYear', e.target.value); if (f.creditFrequency === 'Monthly') set('creditDays', String((Number(e.target.value) / 12).toFixed(1))); }} placeholder="12"/>)}
-                {fld('Credit frequency', undefined, undefined, undefined, false, <select className={inp} value={f.creditFrequency} onChange={e => { set('creditFrequency', e.target.value); if (e.target.value === 'Monthly' && f.entitledDaysPerYear) set('creditDays', String((Number(f.entitledDaysPerYear) / 12).toFixed(1))); if (e.target.value === 'Yearly' && f.entitledDaysPerYear) set('creditDays', f.entitledDaysPerYear); }}><option>Monthly</option><option>Quarterly</option><option>Yearly</option><option>On request</option></select>)}
-                {fld('Credit days', undefined, f.creditFrequency === 'Monthly' ? 'Auto = yearly \u00F7 12' : '', undefined, false, <input type="number" className={inp} value={f.creditDays} onChange={e => set('creditDays', e.target.value)} placeholder="1"/>)}
-              </div>}
-              <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3 border-b border-dashed border-slate-100"><div><b className="block text-[13px] font-bold">Pro-rata applicable?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">Mid-year joiners get days in proportion</span></div>{yn('prorata')}</div>
-              <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3"><div><b className="block text-[13px] font-bold">Can employees apply for next year's leave?</b></div>{yn('applyNextYear')}</div>
-            </div>
-          )}
-
-          {/* Section 3: Applying rules */}
-          {sec(3, 'Applying rules', 'Limits checked when an employee submits a request.', 'ru-apply',
+          {/* Section 2: Applying rules */}
+          {sec(2, 'Applying rules', 'Limits checked when an employee submits a request.', 'ru-apply',
             <div>
               <div className="grid grid-cols-3 gap-x-6 pb-3">
                 {fld('Apply how many days before?', '0 = same day allowed', undefined, undefined, false, <input type="number" className={inp} value={f.advanceNoticeDays} onChange={e => set('advanceNoticeDays', e.target.value)} placeholder="0"/>)}
@@ -1133,16 +1109,16 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
             </div>
           )}
 
-          {/* Section 4: Day counting */}
-          {sec(4, 'Day counting', 'Whether non-working days inside a leave are deducted.', 'ru-count',
+          {/* Section 3: Day counting */}
+          {sec(3, 'Day counting', 'Whether non-working days inside a leave are deducted.', 'ru-count',
             <div>
               <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3 border-b border-dashed border-slate-100"><div><b className="block text-[13px] font-bold">Exclude holidays?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">Yes = public holidays within the leave are not deducted</span></div>{yn('excludeHoliday')}</div>
               <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3"><div><b className="block text-[13px] font-bold">Exclude weekly offs?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">Yes = Saturdays/Sundays within the leave are not deducted</span></div>{yn('excludeWeeklyOff')}</div>
             </div>
           )}
 
-          {/* Section 5: Eligibility */}
-          {sec(5, 'Eligibility', 'Who can use this leave under this rule.', 'ru-elig',
+          {/* Section 4: Eligibility */}
+          {sec(4, 'Eligibility', 'Who can use this leave under this rule.', 'ru-elig',
             <div>
               <div className="grid grid-cols-2 gap-x-6 pb-3">
                 {fld('Gender', undefined, undefined, undefined, false, seg('gender', ['Both', 'Male', 'Female', 'Others']))}
@@ -1156,8 +1132,8 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
             </div>
           )}
 
-          {/* Section 6: Carry forward & encashment */}
-          {sec(6, 'Carry forward & encashment', 'What happens to unused balance at year end.', 'ru-cf',
+          {/* Section 5: Carry forward & encashment */}
+          {sec(5, 'Carry forward & encashment', 'What happens to unused balance at year end.', 'ru-cf',
             <div>
               <div className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3 border-b border-dashed border-slate-100"><div><b className="block text-[13px] font-bold">Carry forward to next year?</b><span className="block text-[11.5px] text-slate-500 mt-0.5">No = unused balance lapses</span></div>{yn('carryForward')}</div>
               {f.carryForward && <div className="grid grid-cols-2 gap-x-6 py-3 bg-slate-50 rounded-xl p-3.5 border border-slate-100">
@@ -1173,8 +1149,8 @@ function RuleForm({ editId, rules, types, policies, onCancel, onSaved, sq }: { e
             </div>
           )}
 
-          {/* Section 7: Application form settings (QA Spec Section 4) */}
-          {sec(7, 'Application form settings', 'Control which fields appear on the Apply Leave form for this rule.', 'ru-form',
+          {/* Section 6: Application form settings (QA Spec Section 4) */}
+          {sec(6, 'Application form settings', 'Control which fields appear on the Apply Leave form for this rule.', 'ru-form',
             <div className="space-y-0">
               <p className="text-[11.5px] text-slate-500 mb-3">Each field has an <b>Enabled</b> toggle (show/hide on the form) and a <b>Mandatory</b> toggle (block submission if empty). Disabled fields are not shown to the employee.</p>
               {/* Field toggle row helper */}
@@ -1308,7 +1284,7 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
   function ruleSummary(rule?: LRule): string {
     if (!rule) return 'No rule linked.';
     const parts: string[] = [];
-    const days = rule.entitledDaysPerYear || rule.entitledDays || 0;
+    const days = types.find(t => t.id === (rule as any)?.leaveTypeId)?.defaultDays || 0;
     if (days > 0) parts.push(`Entitled to ${days} days per year`);
     else parts.push('Unlimited days (e.g. LOP)');
     if (rule.halfDayAllowed || rule.halfDay) parts.push('Half-day allowed');
@@ -1386,8 +1362,8 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
                   <td className="px-3.5 py-3 font-bold text-[13px]">{m.policy?.title || m.mapping?.policyName || '—'}</td>
                   <td className="px-3.5 py-3"><div className="flex items-center gap-2.5">{m.type && <CodeChip code={m.type.code} color={m.type.calendarColor} />}<span className="text-[13px]">{m.type?.name || m.mapping?.leaveTypeName || '—'}</span></div></td>
                   <td className="px-3.5 py-3 text-[13px] text-slate-600">{m.rule?.name || m.mapping?.policyRuleName || '—'}</td>
-                  {/* BUG 250 FIX: Show days/year from the rule even when the rule object is found but entitledDaysPerYear is 0 — use 0 not '—'. Only show '—' when there's genuinely no rule. */}
-                  <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule ? (m.rule.entitledDaysPerYear || m.rule.entitledDays || 0) : '—'}</td>
+                  
+                  <td className="px-3.5 py-3 text-center font-bold text-[13px]">{m.rule ? (types.find(t => t.id === (m.rule as any)?.leaveTypeId)?.defaultDays || 0) : '—'}</td>
                   {/* BUG 249 FIX: Show effective from from the mapping's own effectiveFrom field (stored on LeaveTypePolicyMapping), not just from the policy. */}
                   <td className="px-3.5 py-3 text-center text-[12px] text-slate-500">{m.mapping?.effectiveFrom ? fmtDate(m.mapping.effectiveFrom) : (m.policy?.effectiveDate ? fmtDate(m.policy.effectiveDate) : '—')}</td>
                   <td className="px-3.5 py-3"><StatusPill s={(m.mapping?.status || 'active') === 'active' ? 'Active' : 'Inactive'} /></td>
@@ -1429,7 +1405,7 @@ function MappingOverview({ types, policies, rules, mappings, loading, onCreate, 
               ['Policy', selected.policy?.title || '—'],
               ['Leave type', selected.type?.name || '—'],
               ['Rule applied', selected.rule?.name || '—'],
-              ['Days/year', String(selected.rule?.entitledDaysPerYear || selected.rule?.entitledDays || '—')],
+              ['Days/year', String(types.find(t => t.id === (selected.rule as any)?.leaveTypeId)?.defaultDays || '—')],
               ['Effective from', selected.policy?.effectiveDate ? fmtDate(selected.policy.effectiveDate) : (selected.mapping?.effectiveFrom ? fmtDate(selected.mapping.effectiveFrom) : '—')],
               ['Status', (selected.mapping?.status || 'active')],
             ]} />
@@ -1705,7 +1681,7 @@ function MappingForm({ editPolicyId, types, policies, rules, mappings, onCancel,
                   {rows.map(row => {
                     const ltRules = rules.filter(r => (r.leaveTypeId || r.typeId) === row.leaveTypeId && r.status === 'active');
                     const selectedRule = rules.find(r => r.id === row.ruleId);
-                    const daysYr = selectedRule?.entitledDaysPerYear || selectedRule?.entitledDays || 0;
+                    const daysYr = types.find(t => t.id === (selectedRule as any)?.leaveTypeId)?.defaultDays || 0;
                     const hasRuleError = validationErrors[`rule_${row.leaveTypeId}`];
                     const mismatch = row.included && statusMismatch(selectedRule);
                     return (

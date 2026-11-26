@@ -21,9 +21,8 @@ import { resolveLeavePolicy, validateLeaveAgainstPolicy } from '@/lib/leave-poli
 /**
  * Ensure a LeaveBalance row exists for the given employee + leave type + year.
  * If it doesn't exist, create one with the entitled days resolved from:
- *   1. LeavePolicyRule.entitledDaysPerYear (runtime column) for this leave type
- *   2. LeaveType.defaultDays (fallback)
- *   3. 0 (final fallback)
+ *   1. LeaveType.defaultDays
+ *   2. 0 (fallback)
  *
  * BUG FIX (2026-11-23): Previously, when a leave was approved and no
  * LeaveBalance row existed (common for new employees or after fresh setup),
@@ -44,30 +43,15 @@ async function ensureLeaveBalanceRow(
   ).catch(() => []);
   if (existing.length > 0) return; // Row exists — nothing to do
 
-  // Resolve entitled days from LeavePolicyRule (runtime column)
+  // Resolve entitled days from LeaveType.defaultDays
   let entitledDays = 0;
   try {
-    const ruleRows: any[] = await db.$queryRawUnsafe(
-      `SELECT "entitledDaysPerYear" FROM "LeavePolicyRule"
-       WHERE "leaveTypeId" = $1 AND status = 'active'
-       ORDER BY "entitledDaysPerYear" DESC NULLS LAST LIMIT 1`,
+    const ltRows: any[] = await db.$queryRawUnsafe(
+      `SELECT "defaultDays" FROM "LeaveType" WHERE id = $1 LIMIT 1`,
       leaveTypeId,
     );
-    if (ruleRows.length > 0 && Number(ruleRows[0].entitledDaysPerYear) > 0) {
-      entitledDays = Number(ruleRows[0].entitledDaysPerYear);
-    }
-  } catch { /* entitledDaysPerYear column might not exist yet */ }
-
-  // Fallback to LeaveType.defaultDays
-  if (entitledDays === 0) {
-    try {
-      const ltRows: any[] = await db.$queryRawUnsafe(
-        `SELECT "defaultDays" FROM "LeaveType" WHERE id = $1 LIMIT 1`,
-        leaveTypeId,
-      );
-      if (ltRows.length > 0) entitledDays = Number(ltRows[0].defaultDays) || 0;
-    } catch {}
-  }
+    if (ltRows.length > 0) entitledDays = Number(ltRows[0].defaultDays) || 0;
+  } catch {}
 
   // Create the balance row (upsert-style — safe if another concurrent request
   // created it in the meantime)
@@ -92,8 +76,8 @@ async function ensureLeaveBalanceRow(
  * BUG FIX: the caller now passes the validated working-day count
  * (`days`) so weekends/holidays are never deducted from the balance.
  * BUG FIX (2026-11-23): if no LeaveBalance row exists, create one first
- * (with entitled days from the leave policy rule) so the deduction succeeds
- * and the balance reflects the approved leave.
+ * (with entitled days from the leave type's defaultDays) so the deduction
+ * succeeds and the balance reflects the approved leave.
  */
 async function deductLeaveBalance(
   db: any,
@@ -890,9 +874,8 @@ export async function POST(request: Request) {
     // prevents bypassing the client-side check. LOP / unpaid types are exempt.
     //
     // Logic mirrors the apply page's "Monthly credit limit" system check:
-    //   1. Fetch the rule for this leave type (entitledDaysPerYear + the
-    //      runtime creditFrequency / creditDays / monthlyLimit / monthlyMaxDays
-    //      columns).
+    //   1. Fetch the rule for this leave type (the runtime creditFrequency /
+    //      creditDays / monthlyLimit / monthlyMaxDays columns).
     //   2. Determine the effective monthly limit (tighter of creditDays vs
     //      monthlyMaxDays if both are set).
     //   3. Sum the chargeable days of all approved + pending leave requests

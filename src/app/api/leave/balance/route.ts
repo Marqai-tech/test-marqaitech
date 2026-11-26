@@ -241,25 +241,8 @@ export async function GET(request: Request) {
         },
         orderBy: { name: 'asc' },
       });
-      // Override defaultDays with rule's entitledDaysPerYear where available
-      const ltIdsForRules = leaveTypes.map(lt => lt.id);
-      const ruleMapSynthetic = new Map<string, number>();
-      if (ltIdsForRules.length > 0) {
-        try {
-          const ph = ltIdsForRules.map((_, i) => `$${i + 1}`).join(',');
-          const rr: any[] = await db.$queryRawUnsafe(
-            `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
-             WHERE "leaveTypeId" IN (${ph}) AND status = 'active'`, ...ltIdsForRules
-          );
-          for (const r of rr) {
-            const e = Number(r.entitledDaysPerYear || 0);
-            if (!ruleMapSynthetic.has(r.leaveTypeId) || ruleMapSynthetic.get(r.leaveTypeId)! < e)
-              ruleMapSynthetic.set(r.leaveTypeId, e);
-          }
-        } catch {}
-      }
       result = leaveTypes.map((lt) => {
-        const entitled = ruleMapSynthetic.get(lt.id) || lt.defaultDays || 0;
+        const entitled = lt.defaultDays || 0;
         return {
           id: `synthetic-${lt.id}`,
           leaveTypeId: lt.id,
@@ -338,27 +321,6 @@ export async function GET(request: Request) {
           // Filter to only leave types assigned via policies
           activeLeaveTypes = activeLeaveTypes.filter((lt: any) => policyLtIds.has(lt.id));
           result = result.filter((b: any) => policyLtIds.has(b.leaveTypeId)) as typeof result;
-          // Override defaultDays with rule's entitledDaysPerYear where available
-          try {
-            const ltIdArr = Array.from(policyLtIds);
-            const placeholders = ltIdArr.map((_, i) => `$${i + 1}`).join(',');
-            const ruleRows: any[] = await db.$queryRawUnsafe(
-              `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
-               WHERE "leaveTypeId" IN (${placeholders}) AND status = 'active'`,
-              ...ltIdArr
-            );
-            const ruleMap = new Map<string, number>();
-            for (const r of ruleRows) {
-              const entitled = Number(r.entitledDaysPerYear || 0);
-              if (!ruleMap.has(r.leaveTypeId) || ruleMap.get(r.leaveTypeId)! < entitled) {
-                ruleMap.set(r.leaveTypeId, entitled);
-              }
-            }
-            activeLeaveTypes = activeLeaveTypes.map((lt: any) => ({
-              ...lt,
-              defaultDays: ruleMap.get(lt.id) || lt.defaultDays || 0,
-            }));
-          } catch {}
         }
       } else {
         // Mappings exist → use direct SQL query (same as leave-types API) for robust filtering
@@ -392,25 +354,6 @@ export async function GET(request: Request) {
               const empEmpType = (targetEmployee?.employeeType || '').toLowerCase().replace('_', '-');
               const empBranchId = targetEmployee?.branchId || null;
               const empDeptId = targetEmployee?.departmentId || null;
-
-              // Also fetch rule's entitledDaysPerYear for each mapped leave type
-              let ruleRows: any[] = [];
-              try {
-                ruleRows = await db.$queryRawUnsafe(
-                  `SELECT r."leaveTypeId", r."entitledDaysPerYear", r.name as "ruleName"
-                   FROM "LeavePolicyRule" r
-                   JOIN "LeaveTypePolicyMapping" m ON m."policyRuleId" = r.id
-                   WHERE r.status = 'active' AND m.status = 'active'`
-                );
-              } catch {}
-              const ruleMap = new Map<string, number>();
-              for (const r of ruleRows) {
-                const ltId = r.leaveTypeId;
-                const entitled = Number(r.entitledDaysPerYear || 0);
-                if (!ruleMap.has(ltId) || ruleMap.get(ltId)! < entitled) {
-                  ruleMap.set(ltId, entitled);
-                }
-              }
 
               const visibleTypes = activeLeaveTypes.filter((lt: any) => {
                 const ltMappings = mappingsByLt.get(lt.id) || [];
@@ -447,10 +390,6 @@ export async function GET(request: Request) {
                   }
                   return true;
                 });
-              }).map((lt: any) => {
-                // Override defaultDays with the rule's entitledDaysPerYear
-                const ruleQuota = ruleMap.get(lt.id) || lt.defaultDays || 0;
-                return { ...lt, defaultDays: ruleQuota };
               });
 
               activeLeaveTypes = visibleTypes;
@@ -505,25 +444,6 @@ export async function GET(request: Request) {
              ORDER BY "displayOrder" ASC NULLS LAST, name ASC`,
             ...ltIdArr
           );
-          // Override defaultDays with rule's entitledDaysPerYear
-          try {
-            const ruleRows: any[] = await db.$queryRawUnsafe(
-              `SELECT "leaveTypeId", "entitledDaysPerYear" FROM "LeavePolicyRule"
-               WHERE "leaveTypeId" IN (${placeholders}) AND status = 'active'`,
-              ...ltIdArr
-            );
-            const ruleMap = new Map<string, number>();
-            for (const r of ruleRows) {
-              const entitled = Number(r.entitledDaysPerYear || 0);
-              if (!ruleMap.has(r.leaveTypeId) || ruleMap.get(r.leaveTypeId)! < entitled) {
-                ruleMap.set(r.leaveTypeId, entitled);
-              }
-            }
-            policyTypes.forEach((lt: any) => {
-              const ruleQuota = ruleMap.get(lt.id);
-              if (ruleQuota !== undefined && ruleQuota > 0) lt.defaultDays = ruleQuota;
-            });
-          } catch {}
           console.warn(`[leave/balance] Policy-based fallback: showing ${policyTypes.length} type(s) from employee's assigned policies (mapping enforcement returned 0)`);
           activeLeaveTypes = policyTypes as typeof activeLeaveTypes;
         }

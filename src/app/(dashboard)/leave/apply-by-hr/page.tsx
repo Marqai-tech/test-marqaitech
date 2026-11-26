@@ -286,14 +286,12 @@ export default function ApplyLeaveByHRPage() {
         }
 
         // Override with live taken/pending values computed from leave requests.
-        // Also resolve entitled days from rules if the balance total is 0.
         const result = Array.from(uniqueBalances.values()).map(b => {
           const ltId = b.leaveType?.id || '';
           const liveTaken = takenByType.get(ltId) || 0;
           const livePending = pendingByType.get(ltId) || 0;
-          // Resolve entitled from rule if total is 0
-          const rule = localRules.find((r: any) => r.leaveTypeId === ltId && r.status === 'active');
-          const effectiveTotal = rule?.entitledDaysPerYear || b.total || 0;
+          // Entitlement now comes from the leave type's defaultDays (already in b.total)
+          const effectiveTotal = b.total || 0;
           return {
             ...b,
             total: effectiveTotal,

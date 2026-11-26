@@ -372,7 +372,7 @@ function ApplyLeaveContent() {
   // ─── Compute leave type info from rule + policy + mapping tables ───
   // Chain: LeaveType → LeaveTypePolicyMapping (leaveTypeId → policyRuleId) → LeavePolicyRule
   //    OR: LeaveType → Policy.leaveTypeIds → LeavePolicyRule.policyId
-  // The rule has entitledDaysPerYear, advanceNoticeDays, etc.
+  // The leave type carries defaultDays (entitlement); the rule still has advanceNoticeDays, etc.
   const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
 
   // ─── Reusable: compute entitled / taken / remaining days for ANY leave type ───
@@ -398,7 +398,7 @@ function ApplyLeaveContent() {
 
     const lt = leaveTypes.find(t => t.id === leaveTypeId);
     const bal = leaveBalances.find(b => b.leaveType.id === leaveTypeId);
-    let entitled = rule?.entitledDaysPerYear || bal?.total || lt?.defaultDays || 0;
+    let entitled = bal?.total || lt?.defaultDays || 0;
 
     // BUG FIX: Apply pro-rata calculation based on the policy's creditMode.
     // If creditMode is 'Pro-rata monthly' and the employee joined mid-year,

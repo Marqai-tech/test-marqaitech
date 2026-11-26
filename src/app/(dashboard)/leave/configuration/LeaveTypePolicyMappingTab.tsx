@@ -35,7 +35,7 @@ interface PolicyRule {
   id: string; name: string; policyId?: string | null;
   employmentType: string; genderApplicability?: string; gender?: string;
   branchId?: string | null; departmentId?: string | null;
-  entitledDaysPerYear?: number; probationRestriction?: boolean;
+  probationRestriction?: boolean;
   branch?: { name: string } | null; department?: { name: string } | null;
 }
 interface Policy {
@@ -156,7 +156,7 @@ export default function LeaveTypePolicyMappingTab() {
     const rule = policyRules.find(r => r.id === m.policyRuleId);
     const policy = policies.find(p => p.id === rule?.policyId);
     const leaveType = leaveTypes.find(lt => lt.id === m.leaveTypeId);
-    const daysPerYear = rule?.entitledDaysPerYear || leaveType?.defaultDays || 0;
+    const daysPerYear = leaveType?.defaultDays || 0;
     return {
       ...m,
       policyTitle: policy?.title || '—',
@@ -508,14 +508,12 @@ function CreateMappingForm({ mode, editItem, leaveTypes, policyRules, policies, 
 
   const [saving, setSaving] = useState(false);
 
-  // When rule changes on a row, update daysPerYear from the rule
+  // When rule changes on a row, update daysPerYear from the leave type's defaultDays
   const updateRowRule = (leaveTypeId: string, ruleId: string) => {
     setRows(prev => prev.map(row => {
       if (row.leaveTypeId !== leaveTypeId) return row;
       if (!ruleId) return { ...row, ruleId: '', daysPerYear: row.defaultDays };
-      const rule = policyRules.find(r => r.id === ruleId);
-      const days = rule?.entitledDaysPerYear || row.defaultDays;
-      return { ...row, ruleId, daysPerYear: days };
+      return { ...row, ruleId, daysPerYear: row.defaultDays };
     }));
   };
 

@@ -25,7 +25,7 @@ export async function OPTIONS() {
 
 // GET: List leave policy rules (company-scoped)
 // Returns ALL columns including spec fields added via ALTER TABLE at runtime
-// (leaveTypeId, entitledDaysPerYear, gender, creditFrequency, etc.).
+// (leaveTypeId, gender, creditFrequency, etc.).
 // Previously this used Prisma's findMany, which silently drops columns not
 // declared in schema.prisma — that broke the setup wizard's Step 4 mapping
 // UI which filters rules by leaveTypeId ("No rule — create in Step 3").
@@ -250,10 +250,9 @@ export async function POST(req: NextRequest) {
       ];
       for (const col of ensureCols) { try { await db.$executeRawUnsafe(col); } catch {} }
 
-      const sql = 'UPDATE "LeavePolicyRule" SET "gender" = $1, "entitledDaysPerYear" = $2, "advanceNoticeDays" = $3, "minDaysPerRequest" = $4, "maxDaysPerRequest" = $5, "carryForwardToNextYear" = $6, "leaveEncashmentApplicable" = $7, "leaveTypeId" = $8, "ruleCode" = $9, "specificEmployeeIds" = $10, "onlyTheseEmployees" = $11, "creditFrequency" = $12, "creditDays" = $13, "prorata" = $14, "applyNextYear" = $15, "maxStretch" = $16, "monthlyLimit" = $17, "monthlyMaxDays" = $18, "monthlyMaxTimes" = $19, "backDate" = $20, "backDateWithin" = $21, "docRequired" = $22, "docAfterDays" = $23, "docWithin" = $24, "excludeHoliday" = $25, "excludeWeeklyOff" = $26, "maritalStatus" = $27, "empStatusJson" = $28, "workingReq" = $29, "workingDays" = $30, "esi" = $31, "esiSalary" = $32, "cfMode" = $33, "cfDays" = $34, "maxAccum" = $35, "expiryDays" = $36, "encashLimit" = $37, "halfDayAllowed" = $38, "showReason" = $39, "mandatoryReason" = $40, "showDaySelection" = $41, "showShift" = $42, "showAttachment" = $43, "mandatoryAttachment" = $44, "showContactNumber" = $45, "mandatoryContactNumber" = $46, "showContactAddress" = $47, "mandatoryContactAddress" = $48, "showHandover" = $49, "mandatoryHandover" = $50, "showTeamOnLeave" = $51, "showRelocation" = $52, "mandatoryRelocation" = $53, "showNotifyCc" = $54 WHERE "id" = $55';
+      const sql = 'UPDATE "LeavePolicyRule" SET "gender" = $1, "advanceNoticeDays" = $2, "minDaysPerRequest" = $3, "maxDaysPerRequest" = $4, "carryForwardToNextYear" = $5, "leaveEncashmentApplicable" = $6, "leaveTypeId" = $7, "ruleCode" = $8, "specificEmployeeIds" = $9, "onlyTheseEmployees" = $10, "creditFrequency" = $11, "creditDays" = $12, "prorata" = $13, "applyNextYear" = $14, "maxStretch" = $15, "monthlyLimit" = $16, "monthlyMaxDays" = $17, "monthlyMaxTimes" = $18, "backDate" = $19, "backDateWithin" = $20, "docRequired" = $21, "docAfterDays" = $22, "docWithin" = $23, "excludeHoliday" = $24, "excludeWeeklyOff" = $25, "maritalStatus" = $26, "empStatusJson" = $27, "workingReq" = $28, "workingDays" = $29, "esi" = $30, "esiSalary" = $31, "cfMode" = $32, "cfDays" = $33, "maxAccum" = $34, "expiryDays" = $35, "encashLimit" = $36, "halfDayAllowed" = $37, "showReason" = $38, "mandatoryReason" = $39, "showDaySelection" = $40, "showShift" = $41, "showAttachment" = $42, "mandatoryAttachment" = $43, "showContactNumber" = $44, "mandatoryContactNumber" = $45, "showContactAddress" = $46, "mandatoryContactAddress" = $47, "showHandover" = $48, "mandatoryHandover" = $49, "showTeamOnLeave" = $50, "showRelocation" = $51, "mandatoryRelocation" = $52, "showNotifyCc" = $53 WHERE "id" = $54';
       await db.$executeRawUnsafe(sql,
         String(body.gender || 'both'),
-        Number(body.entitledDaysPerYear || 0),
         Number(body.advanceNoticeDays || 0),
         Number(body.minDaysPerRequest || 0.5),
         Number(body.maxDaysPerRequest || 0),
@@ -327,7 +326,6 @@ const RULE_SPEC_FIELDS: Array<{ name: string; ddl: string }> = [
   { name: 'gender',                    ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "gender" TEXT NOT NULL DEFAULT 'both'` },
   { name: 'specificEmployeeIds',       ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "specificEmployeeIds" TEXT` },
   { name: 'onlyTheseEmployees',        ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "onlyTheseEmployees" BOOLEAN NOT NULL DEFAULT false` },
-  { name: 'entitledDaysPerYear',       ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "entitledDaysPerYear" DOUBLE PRECISION NOT NULL DEFAULT 0` },
   { name: 'advanceNoticeDays',         ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "advanceNoticeDays" INTEGER NOT NULL DEFAULT 0` },
   { name: 'minDaysPerRequest',         ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "minDaysPerRequest" DOUBLE PRECISION NOT NULL DEFAULT 0.5` },
   { name: 'maxDaysPerRequest',         ddl: `ALTER TABLE "LeavePolicyRule" ADD COLUMN IF NOT EXISTS "maxDaysPerRequest" DOUBLE PRECISION NOT NULL DEFAULT 0` },
@@ -386,7 +384,7 @@ const RULE_SPEC_FIELD_NAMES = new Set(RULE_SPEC_FIELDS.map(f => f.name));
 // Splits the update payload into Prisma-known fields (updated via Prisma)
 // and spec fields added via ALTER TABLE at runtime (updated via raw SQL).
 // Previously the entire payload was passed to Prisma.update, which threw
-// "Unknown arg" for spec fields like leaveTypeId, entitledDaysPerYear, etc.
+// "Unknown arg" for spec fields like leaveTypeId, gender, etc.
 export async function PUT(req: NextRequest) {
   const db = await getDb(req);
   try {
@@ -478,7 +476,7 @@ export async function PUT(req: NextRequest) {
       });
     }
 
-    // Step 2: Raw SQL UPDATE for spec fields (leaveTypeId, entitledDaysPerYear, etc.)
+    // Step 2: Raw SQL UPDATE for spec fields (leaveTypeId, gender, etc.)
     if (Object.keys(specData).length > 0) {
       // Ensure all spec columns exist (idempotent — safe even if ensureLeaveSetupSchema already ran).
       for (const f of RULE_SPEC_FIELDS) {

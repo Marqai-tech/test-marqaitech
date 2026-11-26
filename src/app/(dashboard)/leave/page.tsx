@@ -177,8 +177,6 @@ function LeavePageContent() {
   const [activeTab, setActiveTab] = useState<'my' | 'team' | 'admin'>('my');
   const [teamCalendar, setTeamCalendar] = useState<{ team: any[]; leaves: any[]; byDate: Record<string, number[]> } | null>(null);
   const [onLeaveTodayCount, setOnLeaveTodayCount] = useState(0);
-  // BUG FIX: fetch rules so we can resolve entitledDaysPerYear (same as Apply Leave page)
-  const [leaveRules, setLeaveRules] = useState<any[]>([]);
   // BUG FIX: fetch policies so we can filter leave types to only those
   // assigned to the employee (not ALL active leave types)
   const [leavePolicies, setLeavePolicies] = useState<any[]>([]);
@@ -254,13 +252,7 @@ function LeavePageContent() {
             id: lt.id, name: lt.name, code: lt.code, defaultDays: lt.defaultDays || 0, isPaid: lt.isPaid ?? true,
           })));
         }
-        // BUG FIX: fetch leave policy rules so we can resolve entitledDaysPerYear
-        // (same as Apply Leave page — the dashboard needs this to show correct totals)
-        const ruleRes = await fetch(`/api/leave-policy-rules?limit=100${sq ? `&${sq}` : ''}`, { headers }).catch(() => null);
-        if (ruleRes?.ok) {
-          const ruleData = await ruleRes.json();
-          setLeaveRules(ruleData.data || []);
-        }
+        // Entitlement now comes from the leave type's defaultDays (no rule fetch needed).
         // BUG FIX: fetch policies so we can filter leave types to only those
         // assigned to the employee via Policy.leaveTypeIds
         const polRes = await fetch(`/api/policies?category=leave&limit=100${sq ? `&${sq}` : ''}`, { headers }).catch(() => null);
@@ -314,8 +306,7 @@ function LeavePageContent() {
     );
 
     return filteredTypes.map(lt => {
-      const rule = leaveRules.find((r: any) => r.leaveTypeId === lt.id && r.status === 'active');
-      const entitled = rule?.entitledDaysPerYear || lt.defaultDays || 0;
+      const entitled = lt.defaultDays || 0;
       const year = new Date().getFullYear();
       const taken = leaveRequests
         .filter(l => l.leaveTypeId === lt.id && (l.status === 'approved' || l.status === 'pending') && new Date(l.startDate).getFullYear() === year)
@@ -335,7 +326,7 @@ function LeavePageContent() {
         carryForward: 0,
       } as LeaveBalance;
     });
-  }, [leaveBalances, leaveTypes, blocked, leaveRules, leaveRequests, leavePolicies, leaveMappings, empLeavePolicyIds, employee]);
+  }, [leaveBalances, leaveTypes, blocked, leaveRequests, leavePolicies, leaveMappings, empLeavePolicyIds, employee]);
 
   const sortedBalances = useMemo(() => effectiveBalances.slice().sort((a, b) => {
     const ai = order.indexOf(a.leaveType?.name?.toLowerCase() || ''); const bi = order.indexOf(b.leaveType?.name?.toLowerCase() || '');

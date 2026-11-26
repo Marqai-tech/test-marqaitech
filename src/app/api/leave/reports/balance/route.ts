@@ -3,7 +3,7 @@
  *
  * Returns employee-wise leave balance data computed from:
  *   1. LeaveTypePolicyMapping → which leave types + rules apply to employees
- *   2. LeavePolicyRule → entitledDaysPerYear for each leave type
+ *   2. LeaveType → defaultDays for each leave type
  *   3. LeaveRequest (approved) → days taken per employee per leave type
  *
  * Computed: remaining = entitled - taken
@@ -60,18 +60,18 @@ export async function GET(req: NextRequest) {
     let mappings: any[] = [];
     try {
       mappings = await db.$queryRawUnsafe(
-        `SELECT m.*, r.name as "ruleName", r."entitledDaysPerYear", r."leaveTypeId" as "ruleLeaveTypeId"
+        `SELECT m.*, r.name as "ruleName", r."leaveTypeId" as "ruleLeaveTypeId"
          FROM "LeaveTypePolicyMapping" m
          LEFT JOIN "LeavePolicyRule" r ON r.id = m."policyRuleId"
          WHERE m.status = 'active'`
       );
     } catch { mappings = []; }
 
-    // 4. Fetch all rules (for entitledDaysPerYear)
+    // 4. Fetch all rules (for scope/visibility)
     let rules: any[] = [];
     try {
       rules = await db.$queryRawUnsafe(
-        `SELECT id, name, "leaveTypeId", "entitledDaysPerYear", "policyId", gender, "employmentType"
+        `SELECT id, name, "leaveTypeId", "policyId", gender, "employmentType"
          FROM "LeavePolicyRule" WHERE status = 'active'`
       );
     } catch { rules = []; }
@@ -129,7 +129,8 @@ export async function GET(req: NextRequest) {
       const empLeaveTypes = new Map<string, { entitled: number; ruleName: string }>();
       for (const m of empMappings) {
         const ltId = m.leaveTypeId;
-        const entitled = Number(m.entitledDaysPerYear || 0);
+        const lt = leaveTypes.find((t: any) => t.id === ltId);
+        const entitled = Number(lt?.defaultDays || 0);
         const ruleName = m.ruleName || '—';
         if (!empLeaveTypes.has(ltId) || empLeaveTypes.get(ltId)!.entitled < entitled) {
           empLeaveTypes.set(ltId, { entitled, ruleName });
@@ -146,7 +147,8 @@ export async function GET(req: NextRequest) {
             if ((emp.gender || '').toLowerCase() !== r.gender.toLowerCase()) matches = false;
           }
           if (matches) {
-            empLeaveTypes.set(ltId, { entitled: Number(r.entitledDaysPerYear || 0), ruleName: r.name });
+            const lt = leaveTypes.find((t: any) => t.id === ltId);
+            empLeaveTypes.set(ltId, { entitled: Number(lt?.defaultDays || 0), ruleName: r.name });
           }
         }
       }

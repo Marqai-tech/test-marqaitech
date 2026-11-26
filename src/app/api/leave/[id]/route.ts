@@ -1171,28 +1171,15 @@ export async function PATCH(
           leaveRequest.employeeId, leaveRequest.leaveTypeId, currentYear,
         );
         if (balCheck.length === 0) {
-          // Resolve entitled days from LeavePolicyRule, fall back to LeaveType.defaultDays
+          // Resolve entitled days from LeaveType.defaultDays
           let entitledDays = 0;
           try {
-            const ruleRows: any[] = await db.$queryRawUnsafe(
-              `SELECT "entitledDaysPerYear" FROM "LeavePolicyRule"
-               WHERE "leaveTypeId" = $1 AND status = 'active'
-               ORDER BY "entitledDaysPerYear" DESC NULLS LAST LIMIT 1`,
+            const ltRows: any[] = await db.$queryRawUnsafe(
+              `SELECT "defaultDays" FROM "LeaveType" WHERE id = $1 LIMIT 1`,
               leaveRequest.leaveTypeId,
             );
-            if (ruleRows.length > 0 && Number(ruleRows[0].entitledDaysPerYear) > 0) {
-              entitledDays = Number(ruleRows[0].entitledDaysPerYear);
-            }
+            if (ltRows.length > 0) entitledDays = Number(ltRows[0].defaultDays) || 0;
           } catch {}
-          if (entitledDays === 0) {
-            try {
-              const ltRows: any[] = await db.$queryRawUnsafe(
-                `SELECT "defaultDays" FROM "LeaveType" WHERE id = $1 LIMIT 1`,
-                leaveRequest.leaveTypeId,
-              );
-              if (ltRows.length > 0) entitledDays = Number(ltRows[0].defaultDays) || 0;
-            } catch {}
-          }
           const newBalId = `lb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
           await db.$executeRawUnsafe(
             `INSERT INTO "LeaveBalance" ("id", "employeeId", "leaveTypeId", "year", "total", "used", "remaining", "carryForward", "createdAt", "updatedAt")
