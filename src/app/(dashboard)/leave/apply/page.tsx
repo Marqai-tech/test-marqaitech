@@ -191,106 +191,82 @@ function ApplyLeaveContent() {
         const myEmp = empData.employees?.find((e: any) => e.email === user?.email || e.userId === user?.id || (user?.employee?.id && e.id === user.employee.id)) || null;
         if (myEmp) setEmployee(myEmp);
 
-        // ─── Fetch employee's assigned policies (leavePolicyIds) ───
-        // The employees list API doesn't return leavePolicyIds (runtime column
-        // not in Prisma schema). Fetch it separately via the policies endpoint.
-        let empLeavePolicyIds: string[] = [];
-        if (myEmp?.id) {
-          try {
-            const empPolRes = await fetch(`/api/employees/${myEmp.id}/policies`, { headers });
-            if (empPolRes.ok) {
-              const empPolData = await empPolRes.json();
-              const empPol = empPolData.data?.employee || {};
-              const raw = empPol.leavePolicyIds || empPol.leavePolicyId;
-              try { empLeavePolicyIds = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : (raw ? [raw] : [])); } catch { empLeavePolicyIds = raw ? [raw] : []; }
-              console.log(`[apply-leave] Employee leavePolicyIds: ${JSON.stringify(empLeavePolicyIds)}`);
-            }
-          } catch (e) { console.warn('[apply-leave] Failed to fetch employee policies:', e); }
-        }
-
-        // ─── Policy-based leave type filtering ───
-        // Use the employee's directly-assigned policies (leavePolicyIds) to find
-        // which leave types they should see. Each policy has a leaveTypeIds
-        // field (JSON array of leave type IDs). Also check scope-based matching
-        // and LeaveTypePolicyMapping as fallbacks.
+        // ─── Simplified policy-based leave type resolution ───
+        // Fetch ALL active leave policies, check which apply to this employee
+        // (via directly-assigned leavePolicyIds OR scope-based matching),
+        // collect their leaveTypeIds, and show those leave types.
+        // LOP is always included if it exists.
         if (myEmp) {
           try {
-            const sep = sq ? `&${sq}` : '';
-            // Fetch policies with leaveTypeIds (raw SQL column, need the endpoint that returns it)
-            const polRes2 = await fetch(`/api/policies?category=leave&limit=100`, { headers }).catch(() => null);
-            const mapRes2 = await fetch(`/api/leave-type-policy-mappings?includeInactive=1`, { headers }).catch(() => null);
+            // Fetch employee's directly-assigned policy IDs
+            let empLeavePolicyIds: string[] = [];
+            try {
+              const empPolRes = await fetch(`/api/employees/${myEmp.id}/policies`, { headers });
+              if (empPolRes.ok) {
+                const empPolData = await empPolRes.json();
+                const empPol = empPolData.data?.employee || {};
+                const raw = empPol.leavePolicyIds || empPol.leavePolicyId;
+                empLeavePolicyIds = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : (raw ? [raw] : []));
+              }
+            } catch {}
 
+            // Fetch ALL active leave policies (they include leaveTypeIds via raw SQL)
+            const polRes2 = await fetch(`/api/policies?category=leave&limit=100`, { headers }).catch(() => null);
             const allowedLeaveTypeIds = new Set<string>();
-            let hasPolicyFilter = false;
             const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
 
-            // Source 1: Employee's directly-assigned policies (leavePolicyIds)
-            // Each policy has a leaveTypeIds field containing the leave type IDs
             if (polRes2?.ok) {
               const polData = await polRes2.json();
-              const policies = polData.policies || polData.data || [];
+              const allPolicies = polData.policies || polData.data || [];
+              console.log(`[apply-leave] Found ${allPolicies.length} leave policies, empLeavePolicyIds=${JSON.stringify(empLeavePolicyIds)}`);
 
-              if (empLeavePolicyIds.length > 0) {
-                for (const pid of empLeavePolicyIds) {
-                  const attachedPolicy = policies.find((p: any) => p.id === pid);
-                  if (attachedPolicy && attachedPolicy.status === 'active') {
-                    const ltIds = parseJson(attachedPolicy.leaveTypeIds);
-                    if (ltIds.length > 0) {
-                      hasPolicyFilter = true;
-                      ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
-                      console.log(`[apply-leave] Policy ${pid} (${attachedPolicy.title}) → ${ltIds.length} leave type(s): ${ltIds.join(', ')}`);
-                    }
-                  }
-                }
-              }
-
-              // Source 2: Scope-based policy matching (empStatus, branch, dept)
-              for (const p of policies) {
+              for (const p of allPolicies) {
                 if (p.status !== 'active') continue;
-                if (empLeavePolicyIds.includes(p.id)) continue; // already handled above
-                const empStatuses = parseJson(p.empStatus);
-                const branchIds = parseJson(p.branchIds);
-                const deptIds = parseJson(p.departmentIds);
-                let matches = true;
-                if (empStatuses.length > 0 && !empStatuses.map((s: string) => s.toLowerCase()).includes('all')) {
-                  const empStatus = (myEmp.employeeStatus || '').toLowerCase();
-                  if (empStatus && !empStatuses.map((s: string) => s.toLowerCase()).includes(empStatus)) matches = false;
+                const ltIds = parseJson(p.leaveTypeIds);
+                if (ltIds.length === 0) continue;
+
+                // Check if this policy applies to the employee:
+                // 1. Directly assigned via leavePolicyIds, OR
+                // 2. Scope-based matching (empStatus, branchIds, departmentIds)
+                let applies = false;
+
+                // Source 1: Directly assigned
+                if (empLeavePolicyIds.includes(p.id)) {
+                  applies = true;
                 }
-                if (matches && branchIds.length > 0 && myEmp.branchId && !branchIds.includes(myEmp.branchId)) matches = false;
-                if (matches && deptIds.length > 0 && myEmp.departmentId && !deptIds.includes(myEmp.departmentId)) matches = false;
-                if (matches) {
-                  const ltIds = parseJson(p.leaveTypeIds);
-                  if (ltIds.length > 0) {
-                    hasPolicyFilter = true;
-                    ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
+
+                // Source 2: Scope-based matching
+                if (!applies) {
+                  const empStatuses = parseJson(p.empStatus);
+                  const branchIds = parseJson(p.branchIds);
+                  const deptIds = parseJson(p.departmentIds);
+                  applies = true; // start optimistic — empty filters mean "all"
+                  if (empStatuses.length > 0 && !empStatuses.map((s: string) => s.toLowerCase()).includes('all')) {
+                    const empStatus = (myEmp.employeeStatus || '').toLowerCase();
+                    if (empStatus && !empStatuses.map((s: string) => s.toLowerCase()).includes(empStatus)) applies = false;
                   }
+                  if (applies && branchIds.length > 0 && myEmp.branchId && !branchIds.includes(myEmp.branchId)) applies = false;
+                  if (applies && deptIds.length > 0 && myEmp.departmentId && !deptIds.includes(myEmp.departmentId)) applies = false;
+                }
+
+                if (applies) {
+                  ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
+                  console.log(`[apply-leave] Policy "${p.title}" applies → leave types: ${ltIds.join(', ')}`);
                 }
               }
             }
 
-            // Source 3: LeaveTypePolicyMapping rows
-            if (mapRes2?.ok) {
-              const mapData = await mapRes2.json();
-              const mappings = mapData.data || [];
-              if (mappings.length > 0) {
-                hasPolicyFilter = true;
-                for (const m of mappings) {
-                  if (m.status !== 'active') continue;
-                  const empType = m.employmentType || 'all';
-                  if (empType !== 'all' && myEmp.employmentType && myEmp.employmentType !== empType.replace(/-/g, '_') && myEmp.employmentType !== empType) continue;
-                  if (m.branchId && myEmp.branchId !== m.branchId) continue;
-                  if (m.departmentId && myEmp.departmentId !== m.departmentId) continue;
-                  const gender = (m.genderApplicability || 'all').toLowerCase();
-                  if (gender !== 'all' && gender !== 'both' && myEmp.gender && myEmp.gender.toLowerCase() !== gender) continue;
-                  allowedLeaveTypeIds.add(m.leaveTypeId);
-                }
-              }
-            }
+            // Also always include LOP (Loss of Pay) — it should always be available
+            const lopType = activeTypes.find((t: any) =>
+              (t.code || '').toLowerCase().includes('lop') ||
+              (t.name || '').toLowerCase().includes('loss of pay')
+            );
+            if (lopType) allowedLeaveTypeIds.add(lopType.id);
 
             // If we found allowed leave type IDs, filter or fetch them
-            if (hasPolicyFilter && allowedLeaveTypeIds.size > 0) {
+            if (allowedLeaveTypeIds.size > 0) {
               let filtered = activeTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
-              // If the API returned 0 types (company scope filtering), fetch by ID
+              // If the API returned 0 matching types (company scope filtering), fetch by ID
               if (filtered.length === 0) {
                 console.log('[apply-leave] API returned 0 types, fetching by ID from policy leaveTypeIds...');
                 const ids = Array.from(allowedLeaveTypeIds);
@@ -300,7 +276,6 @@ function ApplyLeaveContent() {
                 filtered = results
                   .filter((r: any) => r && (r.status === 'active' || r.status === undefined))
                   .map((r: any) => r.leaveType || r);
-                console.log(`[apply-leave] Fetched ${filtered.length} leave types by ID.`);
               }
               activeTypes = filtered;
               setLeaveTypes(activeTypes);
