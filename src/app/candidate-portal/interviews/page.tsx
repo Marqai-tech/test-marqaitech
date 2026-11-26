@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiCalendar, FiClock, FiVideo, FiMapPin, FiCheck, FiX, FiRefreshCw, FiUser } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiVideo, FiMapPin, FiCheck, FiX, FiRefreshCw, FiUser, FiAlertCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import CandidatePortalNav, { fetchPortalState, type PortalState } from '@/components/candidate-portal/CandidatePortalNav';
 
@@ -62,7 +62,7 @@ export default function CandidateInterviewsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
-      toast.success(action === 'confirm' ? 'Attendance confirmed!' : action === 'reschedule' ? 'Reschedule requested' : 'Application withdrawn');
+      toast.success(action === 'confirm' ? 'Interview accepted! You are confirmed.' : action === 'reschedule' ? 'Reschedule requested' : 'Application withdrawn');
       fetchInterviews();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');
@@ -145,29 +145,35 @@ export default function CandidateInterviewsPage() {
                   </div>
                 )}
 
-                {interview.candidateStatus === 'pending' && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => handleRespond(interview.id, 'confirm')}
-                      disabled={responding === interview.id}
-                      className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      <FiCheck className="w-4 h-4" /> Confirm Attendance
-                    </button>
-                    <button
-                      onClick={() => handleRespond(interview.id, 'reschedule')}
-                      disabled={responding === interview.id}
-                      className="px-4 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 text-sm font-medium hover:bg-blue-100 disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      <FiRefreshCw className="w-4 h-4" /> Request Reschedule
-                    </button>
-                    <button
-                      onClick={() => handleRespond(interview.id, 'withdraw')}
-                      disabled={responding === interview.id}
-                      className="px-4 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-sm font-medium hover:bg-red-100 disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      <FiX className="w-4 h-4" /> Withdraw
-                    </button>
+                {interview.candidateStatus === 'pending' && interview.status && ['scheduled', 'rescheduled'].includes(interview.status) && (
+                  <div className="space-y-2">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-800 flex items-start gap-2">
+                      <FiAlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <span>Action needed: please accept this interview. If you do not accept in time, the interview will be <strong>automatically cancelled</strong> and HR will be notified.</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleRespond(interview.id, 'confirm')}
+                        disabled={responding === interview.id}
+                        className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <FiCheck className="w-4 h-4" /> Accept Interview
+                      </button>
+                      <button
+                        onClick={() => handleRespond(interview.id, 'reschedule')}
+                        disabled={responding === interview.id}
+                        className="px-4 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 text-sm font-medium hover:bg-blue-100 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <FiRefreshCw className="w-4 h-4" /> Request Reschedule
+                      </button>
+                      <button
+                        onClick={() => handleRespond(interview.id, 'withdraw')}
+                        disabled={responding === interview.id}
+                        className="px-4 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-sm font-medium hover:bg-red-100 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <FiX className="w-4 h-4" /> Withdraw
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -160,6 +160,26 @@ export default function CandidateDashboardPage() {
   const [matchingJobsLoading, setMatchingJobsLoading] = useState(false);
   const [reuploadingAppId, setReuploadingAppId] = useState<string | null>(null);
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
+  // Candidate interview acceptance (LOCKED-5) — dashboard quick action
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const handleAcceptInterview = async (interviewId: string) => {
+    setAcceptingId(interviewId);
+    try {
+      const res = await fetch(`/api/candidate-portal/interviews/${interviewId}/respond`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action: 'confirm' }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed');
+      toast.success('Interview accepted! You are confirmed.');
+      queueMicrotask(() => { fetchData(); });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to accept');
+    } finally {
+      setAcceptingId(null);
+    }
+  };
   // Scraped external jobs from job portals
   const [scrapedJobs, setScrapedJobs] = useState<Array<{
     id: string;
@@ -698,9 +718,28 @@ export default function CandidateDashboardPage() {
               ) : (
                 interviews.upcoming.map(iv => (
                   <div key={iv.id} className="bg-white rounded-xl border border-amber-200 p-3">
-                    <p className="text-xs font-semibold text-slate-800">{iv.jobTitle}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-semibold text-slate-800">{iv.jobTitle}</p>
+                      {['scheduled', 'rescheduled'].includes(iv.status) && (
+                        <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${iv.candidateStatus === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          {iv.candidateStatus === 'confirmed' ? 'Accepted' : 'Action needed'}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-500 uppercase mt-0.5">{iv.type} Interview</p>
                     <p className="text-[11px] text-slate-700 mt-1">{fmtDateTime(iv.date)}</p>
+                    {iv.candidateStatus !== 'confirmed' && ['scheduled', 'rescheduled'].includes(iv.status) && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => handleAcceptInterview(iv.id)}
+                          disabled={acceptingId === iv.id}
+                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          <FiCheck className="w-3.5 h-3.5" /> {acceptingId === iv.id ? 'Accepting…' : 'Accept Interview'}
+                        </button>
+                        <p className="text-[9.5px] text-amber-600 mt-1">Accept before the deadline — unaccepted interviews are auto-cancelled.</p>
+                      </div>
+                    )}
                     {iv.meetingUrl && (
                       <a href={iv.meetingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-teal-600 hover:text-teal-700 mt-1">
                         Join meeting <FiArrowRight className="w-3 h-3" />

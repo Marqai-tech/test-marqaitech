@@ -295,6 +295,20 @@ export async function GET(request: Request) {
     const attended: any[] = [];
     const missed: any[] = [];
 
+    // LOCKED-5: candidate acceptance state per interview (raw column kept
+    // outside the Prisma schema) so the dashboard can render the Accept
+    // button until the candidate confirms in the portal.
+    const candidateResponses: Record<string, string> = {};
+    try {
+      const respRows = await (db as any).$queryRawUnsafe(
+        `SELECT i."id", i."candidateResponse" FROM "Interview" i
+         JOIN "JobApplication" ja ON ja."id" = i."jobApplicationId"
+         WHERE LOWER(ja."candidateEmail") = LOWER($1)`,
+        email,
+      ) as any[];
+      for (const r of respRows) candidateResponses[r.id] = r.candidateResponse || 'pending';
+    } catch { /* column may not exist yet — defaults to pending */ }
+
     for (const app of applications) {
       for (const iv of app.interviews) {
         const ivDate = new Date(iv.date);
@@ -313,6 +327,7 @@ export async function GET(request: Request) {
           score: iv.score,
           aiScore: iv.aiScore,
           feedback: iv.feedback,
+          candidateStatus: candidateResponses[iv.id] || 'pending',
         };
         // Phase 10 fix: Don't skip rescheduled interviews — they should appear in upcoming
         if (iv.status === 'cancelled') continue;
