@@ -103,7 +103,7 @@ export default function BulkPolicyMappingPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [groups, setGroups] = useState<PolicyGroup[]>([]);
   const [loadingPolicies, setLoadingPolicies] = useState(true);
-  const [selectedPolicy, setSelectedPolicy] = useState<PolicyCard | null>(null);
+  const [selectedPolicies, setSelectedPolicies] = useState<PolicyCard[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<PolicyGroup | null>(null);
 
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
@@ -114,6 +114,8 @@ export default function BulkPolicyMappingPage() {
   const [deptFilter, setDeptFilter] = useState('');
   const [locFilter, setLocFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
+  const [designationFilter, setDesignationFilter] = useState('');
   const [listTab, setListTab] = useState<'list' | 'drag' | 'csv'>('list');
 
   const [applying, setApplying] = useState(false);
@@ -191,12 +193,13 @@ export default function BulkPolicyMappingPage() {
 
   // ─── step transitions ───
   const goStep2 = () => {
-    if (!selectedPolicy) return;
+    if (selectedPolicies.length === 0) return;
     setSelectedIds(new Set());
     setSearch(''); setDeptFilter(''); setLocFilter(''); setStatusFilter('');
+    setBranchFilter(''); setDesignationFilter('');
     setListTab('list');
     setStep(2);
-    loadEmployees(selectedPolicy);
+    loadEmployees(selectedPolicies[0]);
   };
 
   const goStep3 = () => {
@@ -205,14 +208,14 @@ export default function BulkPolicyMappingPage() {
   };
 
   const applyMapping = async () => {
-    if (!selectedPolicy) return;
+    if (selectedPolicies.length === 0) return;
     setApplying(true);
     try {
       const qs = scopeQueryStr ? `?${scopeQueryStr}` : '';
       const r = await fetch(`/api/leave/bulk-policy-mapping${qs}`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ policyId: selectedPolicy.id, employeeIds: [...selectedIds] }),
+        body: JSON.stringify({ policyId: selectedPolicies[0].id, policyIds: selectedPolicies.map(p => p.id), employeeIds: [...selectedIds] }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
@@ -228,7 +231,7 @@ export default function BulkPolicyMappingPage() {
   };
 
   const resetAll = () => {
-    setStep(1); setSelectedPolicy(null); setSelectedGroup(null);
+    setStep(1); setSelectedPolicies([]); setSelectedGroup(null);
     setSelectedIds(new Set()); setEmployees([]); setResult(null);
     loadPolicies();
   };
@@ -290,6 +293,8 @@ export default function BulkPolicyMappingPage() {
   // ─── filter + search employees ───
   const departments = useMemo(() => [...new Set(employees.map(e => e.department).filter(d => d && d !== '—'))].sort(), [employees]);
   const locations = useMemo(() => [...new Set(employees.map(e => e.location).filter(l => l && l !== '—'))].sort(), [employees]);
+  const branches = useMemo(() => [...new Set(employees.map(e => e.location).filter(l => l && l !== '—'))].sort(), [employees]);
+  const designations = useMemo(() => [...new Set(employees.map(e => e.designation).filter(d => d && d !== '—'))].sort(), [employees]);
   const statuses = useMemo(() => [...new Set(employees.map(e => e.employeeStatus).filter(Boolean))].sort(), [employees]);
 
   const filteredEmployees = useMemo(() => {
@@ -298,10 +303,12 @@ export default function BulkPolicyMappingPage() {
       if (q && !(e.name.toLowerCase().includes(q) || e.empCode.toLowerCase().includes(q) || e.designation.toLowerCase().includes(q) || e.email.toLowerCase().includes(q))) return false;
       if (deptFilter && e.department !== deptFilter) return false;
       if (locFilter && e.location !== locFilter) return false;
+      if (branchFilter && e.location !== branchFilter) return false;
+      if (designationFilter && e.designation !== designationFilter) return false;
       if (statusFilter && e.employeeStatus !== statusFilter) return false;
       return true;
     });
-  }, [employees, search, deptFilter, locFilter, statusFilter]);
+  }, [employees, search, deptFilter, locFilter, branchFilter, designationFilter, statusFilter]);
 
   const selectedEmployees = useMemo(
     () => employees.filter(e => selectedIds.has(e.id)),
@@ -317,15 +324,15 @@ export default function BulkPolicyMappingPage() {
   };
 
   const stats = useMemo(() => {
-    if (!selectedPolicy) return { newMap: 0, switched: 0, already: 0 };
+    if (selectedPolicies.length === 0) return { newMap: 0, switched: 0, already: 0 };
     let newMap = 0, switched = 0, already = 0;
     for (const e of selectedEmployees) {
       if (!e.currentPolicy) newMap++;
-      else if (e.currentPolicy.id === selectedPolicy.id) already++;
+      else if (e.currentPolicy.id === selectedPolicies[0].id) already++;
       else switched++;
     }
     return { newMap, switched, already };
-  }, [selectedEmployees, selectedPolicy]);
+  }, [selectedEmployees, selectedPolicies]);
 
   // ───────────────────────────────────────────── access guard ───
   if (!isAdmin) {
@@ -343,7 +350,7 @@ export default function BulkPolicyMappingPage() {
   // ════════════════════════════════════════════════════════════════
   // STEP 3 — Review & apply
   // ════════════════════════════════════════════════════════════════
-  if (step === 3 && selectedPolicy && !result) {
+  if (step === 3 && selectedPolicies.length > 0 && !result) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-28">
         <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-3" aria-label="Breadcrumb">
@@ -356,12 +363,12 @@ export default function BulkPolicyMappingPage() {
           {/* Policy summary */}
           <div className="md:col-span-1 rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Mapping to</p>
-            <p className="text-lg font-bold text-slate-900 mt-2">{selectedPolicy.name}</p>
-            <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-600">{selectedPolicy.ruleCode}</span>
+            <p className="text-lg font-bold text-slate-900 mt-2">{selectedPolicies[0].name}</p>
+            <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-600">{selectedPolicies[0].ruleCode}</span>
             <div className="mt-4 space-y-1.5 text-sm text-slate-600">
-              <p><span className="font-semibold text-slate-900">{selectedPolicy.daysPerYear}</span> days / year</p>
-              <p>Carry forward: <span className="font-medium">{selectedPolicy.carryForward ? 'Yes' : 'No'}</span></p>
-              <p>Meant for: <span className="font-medium">{selectedPolicy.meantFor}</span></p>
+              <p><span className="font-semibold text-slate-900">{selectedPolicies[0].daysPerYear}</span> days / year</p>
+              <p>Carry forward: <span className="font-medium">{selectedPolicies[0].carryForward ? 'Yes' : 'No'}</span></p>
+              <p>Meant for: <span className="font-medium">{selectedPolicies[0].meantFor}</span></p>
             </div>
             <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5 text-sm">
               <p className="flex justify-between"><span className="text-slate-500">New mappings</span><span className="font-semibold text-emerald-600">{stats.newMap}</span></p>
@@ -378,8 +385,8 @@ export default function BulkPolicyMappingPage() {
             </div>
             <div className="max-h-96 overflow-y-auto divide-y divide-slate-50">
               {selectedEmployees.map(e => {
-                const onIt = e.currentPolicy?.id === selectedPolicy.id;
-                const switched = e.currentPolicy && e.currentPolicy.id !== selectedPolicy.id;
+                const onIt = e.currentPolicy?.id === selectedPolicies[0].id;
+                const switched = e.currentPolicy && e.currentPolicy.id !== selectedPolicies[0].id;
                 return (
                   <div key={e.id} className="flex items-center gap-3 px-5 py-3">
                     <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${avatarColor(e.id)}`}>{initials(e.name)}</span>
@@ -392,7 +399,7 @@ export default function BulkPolicyMappingPage() {
                       <span className="flex items-center gap-1 text-[11px] text-slate-500 shrink-0">
                         <span className="max-w-32 truncate">{e.currentPolicy?.ruleCode || e.currentPolicy?.name}</span>
                         <FiArrowRight className="w-3 h-3 text-emerald-500" />
-                        <span className="max-w-32 truncate font-medium text-slate-700">{selectedPolicy.ruleCode}</span>
+                        <span className="max-w-32 truncate font-medium text-slate-700">{selectedPolicies[0].ruleCode}</span>
                       </span>
                     )}
                     {!e.currentPolicy && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-200 shrink-0">New mapping</span>}
@@ -403,10 +410,10 @@ export default function BulkPolicyMappingPage() {
           </div>
         </div>
 
-        {selectedPolicy.isOpenEnded && (
+        {selectedPolicies[0].isOpenEnded && (
           <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <FiInfo className="w-4 h-4 mt-0.5 shrink-0" />
-            <p>This policy currently has no explicit employee list (it applies to everyone who matches its rules). Applying will restrict it to the selected employees {selectedPolicy.mappedCount > 0 ? `plus the ${selectedPolicy.mappedCount} already mapped` : ''}.</p>
+            <p>This policy currently has no explicit employee list (it applies to everyone who matches its rules). Applying will restrict it to the selected employees {selectedPolicies[0].mappedCount > 0 ? `plus the ${selectedPolicies[0].mappedCount} already mapped` : ''}.</p>
           </div>
         )}
 
@@ -420,7 +427,7 @@ export default function BulkPolicyMappingPage() {
         )}
 
         {/* Footer */}
-        <div className="fixed bottom-0 inset-x-0 lg:pl-64 bg-white border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-40">
+        <div className="fixed bottom-0 inset-x-0 lg:pl-64 bg-white border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30">
           <button onClick={() => setStep(2)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-50">
             <FiChevronLeft className="w-4 h-4" /> Back
           </button>
@@ -476,9 +483,9 @@ export default function BulkPolicyMappingPage() {
   // ════════════════════════════════════════════════════════════════
   // STEP 2 — Select employees
   // ════════════════════════════════════════════════════════════════
-  if (step === 2 && selectedPolicy) {
+  if (step === 2 && selectedPolicies.length > 0) {
     return (
-      <div className="px-4 sm:px-6 py-6 pb-24">
+      <div className="px-4 sm:px-6 py-6 pb-32">
         <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-3" aria-label="Breadcrumb">
           <span>Leave</span><FiChevronRight className="w-3 h-3" /><span>Policies</span><FiChevronRight className="w-3 h-3" /><span className="text-slate-900 font-medium">Bulk policy mapping</span>
         </nav>
@@ -490,8 +497,8 @@ export default function BulkPolicyMappingPage() {
           <button onClick={() => setStep(1)} className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">
             <FiCheck className="w-3.5 h-3.5" />
             <span>Choose policy:</span>
-            <span className="font-semibold">{selectedPolicy.name}</span>
-            <span className="px-1.5 py-0.5 rounded bg-white/80 border border-emerald-200 text-[10px] font-semibold text-emerald-700">{selectedPolicy.ruleCode}</span>
+            <span className="font-semibold">{selectedPolicies[0].name}{selectedPolicies.length > 1 ? ` +${selectedPolicies.length - 1}` : ''}</span>
+            <span className="px-1.5 py-0.5 rounded bg-white/80 border border-emerald-200 text-[10px] font-semibold text-emerald-700">{selectedPolicies[0].ruleCode}</span>
           </button>
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
             <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center">2</span>
@@ -526,7 +533,7 @@ export default function BulkPolicyMappingPage() {
             {listTab === 'list' && (
               <>
                 {/* Search + filters */}
-                <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
                   <div className="relative sm:col-span-2 lg:col-span-1">
                     <FiSearch className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
@@ -543,6 +550,14 @@ export default function BulkPolicyMappingPage() {
                   <select value={locFilter} onChange={e => setLocFilter(e.target.value)} className="text-sm rounded-lg border border-slate-200 px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
                     <option value="">Location: All</option>
                     {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                  <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="text-sm rounded-lg border border-slate-200 px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                    <option value="">Branch: All</option>
+                    {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  <select value={designationFilter} onChange={e => setDesignationFilter(e.target.value)} className="text-sm rounded-lg border border-slate-200 px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                    <option value="">Designation: All</option>
+                    {designations.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                   <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="text-sm rounded-lg border border-slate-200 px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
                     <option value="">Status: All</option>
@@ -584,7 +599,7 @@ export default function BulkPolicyMappingPage() {
                       <tbody className="divide-y divide-slate-50">
                         {filteredEmployees.map(e => {
                           const checked = selectedIds.has(e.id);
-                          const onIt = e.currentPolicy?.id === selectedPolicy.id;
+                          const onIt = e.currentPolicy?.id === selectedPolicies[0].id;
                           return (
                             <tr
                               key={e.id}
@@ -687,8 +702,8 @@ export default function BulkPolicyMappingPage() {
             <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Mapping to</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: selectedGroup?.color || '#10b981' }} />
-              <p className="text-base font-bold text-slate-900">{selectedPolicy.name}</p>
-              <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[10px] font-semibold text-emerald-700">{selectedPolicy.ruleCode}</span>
+              <p className="text-base font-bold text-slate-900">{selectedPolicies[0].name}</p>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[10px] font-semibold text-emerald-700">{selectedPolicies[0].ruleCode}</span>
             </div>
 
             <div className="border-t border-slate-100 my-4" />
@@ -714,7 +729,7 @@ export default function BulkPolicyMappingPage() {
             <div className="max-h-64 overflow-y-auto space-y-2.5 -mx-1 px-1">
               {selectedEmployees.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">No employees selected yet — tick rows on the left.</p>}
               {selectedEmployees.map(e => {
-                const onIt = e.currentPolicy?.id === selectedPolicy.id;
+                const onIt = e.currentPolicy?.id === selectedPolicies[0].id;
                 const other = e.currentPolicy && !onIt;
                 return (
                   <div key={e.id} className="flex items-center gap-2.5">
@@ -734,12 +749,12 @@ export default function BulkPolicyMappingPage() {
         </div>
 
         {/* Footer */}
-        <div className="fixed bottom-0 inset-x-0 lg:pl-64 bg-white border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-40">
+        <div className="fixed bottom-0 inset-x-0 lg:pl-64 bg-white border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30">
           <button onClick={() => setStep(1)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-50">
             <FiChevronLeft className="w-4 h-4" /> Back
           </button>
           <p className="hidden sm:block text-sm text-slate-500 truncate">
-            <span className="font-semibold text-slate-700">{selectedIds.size}</span> selected for {selectedPolicy.name}
+            <span className="font-semibold text-slate-700">{selectedIds.size}</span> selected for {selectedPolicies[0].name}
           </p>
           <button
             onClick={goStep3}
@@ -757,7 +772,7 @@ export default function BulkPolicyMappingPage() {
   // STEP 1 — Choose policy
   // ════════════════════════════════════════════════════════════════
   return (
-    <div className="px-4 sm:px-6 py-6 pb-24">
+    <div className="px-4 sm:px-6 py-6 pb-32">
       <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-3" aria-label="Breadcrumb">
         <span>Leave</span><FiChevronRight className="w-3 h-3" /><span>Policies</span><FiChevronRight className="w-3 h-3" /><span className="text-slate-900 font-medium">Bulk policy mapping</span>
       </nav>
@@ -811,11 +826,19 @@ export default function BulkPolicyMappingPage() {
               </h2>
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {g.policies.map(p => {
-                  const selected = selectedPolicy?.id === p.id;
+                  const selected = selectedPolicies.some(sp => sp.id === p.id);
+                  const togglePolicy = () => {
+                    setSelectedPolicies(prev => {
+                      const exists = prev.some(sp => sp.id === p.id);
+                      if (exists) return prev.filter(sp => sp.id !== p.id);
+                      return [...prev, p];
+                    });
+                    setSelectedGroup(g);
+                  };
                   return (
                     <button
                       key={p.id}
-                      onClick={() => { setSelectedPolicy(p); setSelectedGroup(g); }}
+                      onClick={togglePolicy}
                       aria-pressed={selected}
                       className={`relative text-left rounded-xl border bg-white p-5 transition-all ${selected ? 'border-emerald-500 ring-2 ring-emerald-500/15 shadow-sm' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}
                     >
@@ -848,17 +871,24 @@ export default function BulkPolicyMappingPage() {
       )}
 
       {/* Footer */}
-      <div className="fixed bottom-0 inset-x-0 lg:pl-64 bg-white border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-40">
+      <div className="fixed bottom-0 inset-x-0 lg:pl-64 bg-white border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30">
         <button disabled className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-300 px-3 py-2 cursor-not-allowed">
           <FiChevronLeft className="w-4 h-4" /> Back
         </button>
-        <button
-          onClick={goStep2}
-          disabled={!selectedPolicy}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Continue <FiChevronRight className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-3">
+          {selectedPolicies.length > 0 && (
+            <span className="hidden sm:block text-sm text-slate-500">
+              <span className="font-semibold text-slate-700">{selectedPolicies.length}</span> policy{selectedPolicies.length === 1 ? '' : 'ies'} selected
+            </span>
+          )}
+          <button
+            onClick={goStep2}
+            disabled={selectedPolicies.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {selectedPolicies.length > 0 ? `Continue with ${selectedPolicies.length} policy(ies)` : 'Continue'} <FiChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
