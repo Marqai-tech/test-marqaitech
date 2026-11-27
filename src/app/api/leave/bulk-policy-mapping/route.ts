@@ -354,29 +354,32 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const policyId: string | undefined = body.policyId;
+    const policyIds: string[] = Array.isArray(body.policyIds) ? body.policyIds.map(String) : (policyId ? [policyId] : []);
     const employeeIds: string[] = Array.isArray(body.employeeIds) ? body.employeeIds.map(String) : [];
-    const companyId: string | undefined = body.companyId || scope.companyId || undefined;
+    let companyId: string | undefined = body.companyId || scope.companyId || undefined;
 
-    if (!policyId) return fail('policyId is required', 400);
+    // BUG FIX: Company fallback for admins without switcher selection
+    if (!companyId) {
+      try {
+        const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } });
+        if (fc) companyId = fc.id;
+      } catch {}
+    }
+
+    if (policyIds.length === 0) return fail('policyId is required', 400);
     if (employeeIds.length === 0) return fail('Select at least one employee', 400);
     if (!companyId) return fail('No company in scope', 400);
 
     try { await ensureLeaveSetupSchema((sql: string) => db.$executeRawUnsafe(sql)); } catch {}
     try { await syncLeaveConfigSchema(db); } catch {}
 
-    // ─── 1. Load the target policy ───
-    const target = (await db.$queryRawUnsafe<RuleRow[]>(
-      `SELECT id, name, "companyId", "leaveTypeId", "ruleCode", "employeeIds", "leaveTypeAllocations", status
-         FROM "LeavePolicyRule" WHERE id = $1 LIMIT 1`,
-      policyId,
+    // ─── 1. Validate the policy exists in the Policy table ───
+    const polRow = (await db.$queryRawUnsafe<Array<{ id: string; title: string; status: string; category: string }>>(
+      `SELECT id, title, status, category FROM "Policy" WHERE id = $1 LIMIT 1`,
+      policyIds[0],
     ))[0];
-    if (!target) return fail('Policy not found', 404);
-    if (target.companyId !== companyId) return fail('Policy belongs to a different company', 403);
-    if (target.status !== 'active') return fail('Policy is inactive', 400);
-
-    const alloc = firstAllocation(target.leaveTypeAllocations);
-    const leaveTypeId = target.leaveTypeId || alloc?.leaveTypeId;
-    if (!leaveTypeId) return fail('Policy has no leave type allocation — open Leave Setup and assign one first', 400);
+    if (!polRow) return fail('Policy not found', 404);
+    if (polRow.status !== 'active') return fail('Policy is inactive', 400);
 
     // ─── 2. Validate employees belong to the same company ───
     const placeholders = employeeIds.map((_, i) => `$${i + 2}`).join(', ');
@@ -387,120 +390,53 @@ export async function POST(req: NextRequest) {
     const validIds = new Set(validEmps.map(v => v.id));
     const invalidCount = employeeIds.filter(id => !validIds.has(id)).length;
 
-    // ─── 3. Load ALL active sibling rules of the same leave type ───
-    const allRules = await db.$queryRawUnsafe<RuleRow[]>(
-      `SELECT id, name, "leaveTypeId", "ruleCode", "employeeIds", "leaveTypeAllocations"
-         FROM "LeavePolicyRule"
-        WHERE "companyId" = $1 AND status = 'active'`,
-      companyId,
-    );
-    const siblings = allRules.filter(r => {
-      if (r.id === policyId) return false;
-      const rLt = r.leaveTypeId || firstAllocation(r.leaveTypeAllocations)?.leaveTypeId;
-      return rLt === leaveTypeId;
-    });
-
-    // ─── 4. Apply: remove from siblings, add to target (transaction) ───
-    const targetSet = new Set(parseEmployeeIds(target.employeeIds));
-    const alreadyOnIt = employeeIds.filter(id => targetSet.has(id)).length;
-
-    const movedFromOther = await db.$transaction(async (tx: {
-      $executeRawUnsafe: (sql: string, ...args: unknown[]) => Promise<number>;
-    }) => {
-      let moved = 0;
-
-      // 4a. Remove selected employees from every sibling policy of the same leave type
-      for (const sib of siblings) {
-        const sibSet = parseEmployeeIds(sib.employeeIds);
-        const before = sibSet.length;
-        const after = sibSet.filter(id => !validIds.has(id));
-        if (after.length !== before) {
-          await tx.$executeRawUnsafe(
-            `UPDATE "LeavePolicyRule" SET "employeeIds" = $1, "updatedAt" = NOW() WHERE id = $2`,
-            JSON.stringify(after), sib.id,
-          );
-          moved += before - after.length;
-        }
+    // ─── 3. Update Employee.leavePolicyId for each selected employee ───
+    // BUG FIX: This is the critical step — updates the Employee table's
+    // leavePolicyId column so /leave/apply can read the assigned policy.
+    // Also updates the runtime leavePolicyIds JSON array column.
+    const leavePolicyIdsJson = JSON.stringify(policyIds);
+    let applied = 0;
+    for (const empId of employeeIds) {
+      if (!validIds.has(empId)) continue;
+      try {
+        // Update the schema-defined leavePolicyId column (singular, for backward compat)
+        await db.employee.update({
+          where: { id: empId },
+          data: { leavePolicyId: policyIds[0] },
+        });
+        // Also update the runtime leavePolicyIds column (plural, JSON array)
+        await db.$executeRawUnsafe(
+          `UPDATE "Employee" SET "leavePolicyIds" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+          leavePolicyIdsJson, empId,
+        ).catch(() => {}); // Column might not exist — non-fatal
+        applied++;
+      } catch (e) {
+        console.warn(`[bulk-policy-mapping] Failed to update employee ${empId}:`, e);
       }
-
-      // 4b. Add selected employees to the target policy's employeeIds
-      for (const id of employeeIds) targetSet.add(id);
-      await tx.$executeRawUnsafe(
-        `UPDATE "LeavePolicyRule" SET "employeeIds" = $1, "updatedAt" = NOW() WHERE id = $2`,
-        JSON.stringify([...targetSet]), policyId,
-      );
-
-      return moved;
-    });
-
-    // ─── 5. Best-effort sync of existing LeaveTypePolicyMapping rows ───
-    let mappingsSynced = 0;
-    try {
-      // 5a. strip selected employees from sibling mappings of the same leave type
-      for (const sib of siblings) {
-        const rows = await db.$queryRawUnsafe<Array<{ id: string; employeeIds: string | null }>>(
-          `SELECT id, "employeeIds" FROM "LeaveTypePolicyMapping"
-            WHERE "policyRuleId" = $1 AND "leaveTypeId" = $2`,
-          sib.id, leaveTypeId,
-        );
-        for (const row of rows) {
-          const set = parseEmployeeIds(row.employeeIds);
-          const after = set.filter(id => !validIds.has(id));
-          if (after.length !== set.length) {
-            await db.$executeRawUnsafe(
-              `UPDATE "LeaveTypePolicyMapping" SET "employeeIds" = $1, "updatedAt" = NOW() WHERE id = $2`,
-              JSON.stringify(after), row.id,
-            );
-            mappingsSynced++;
-          }
-        }
-      }
-      // 5b. add to the target's existing mapping rows
-      const targetMappings = await db.$queryRawUnsafe<Array<{ id: string; employeeIds: string | null }>>(
-        `SELECT id, "employeeIds" FROM "LeaveTypePolicyMapping"
-          WHERE "policyRuleId" = $1 AND "leaveTypeId" = $2`,
-        policyId, leaveTypeId,
-      );
-      for (const row of targetMappings) {
-        const set = new Set(parseEmployeeIds(row.employeeIds));
-        const before = set.size;
-        for (const id of employeeIds) set.add(id);
-        if (set.size !== before) {
-          await db.$executeRawUnsafe(
-            `UPDATE "LeaveTypePolicyMapping" SET "employeeIds" = $1, "updatedAt" = NOW() WHERE id = $2`,
-            JSON.stringify([...set]), row.id,
-          );
-          mappingsSynced++;
-        }
-      }
-    } catch (mapErr) {
-      console.warn('[bulk-policy-mapping] mapping sync skipped:', mapErr);
     }
 
-    // ─── 6. Audit log (FK-safe, never breaks the operation) ───
+    // ─── 4. Audit log ───
     try {
       await safeAuditLog(db, {
-        userId: scope.userId || null,
-        action: 'bulk_policy_mapping',
+        userId: scope.userId,
+        action: 'BULK_POLICY_MAPPING',
         module: 'leave',
-        details: `Mapped ${employeeIds.length} employee(s) to policy "${target.name}" (leaveType ${leaveTypeId}); moved from other policies: ${movedFromOther}`,
-        ip: req.headers.get('x-forwarded-for') || null,
-        userAgent: req.headers.get('user-agent') || null,
+        details: `Assigned policy "${polRow.title}" (${policyIds[0]}) to ${applied} employee(s)`,
       });
-    } catch { /* non-fatal */ }
+    } catch {}
 
     return ok({
       success: true,
-      policy: { id: target.id, name: target.name, ruleCode: target.ruleCode || '', leaveTypeId },
-      applied: employeeIds.length,
-      alreadyOnIt,
-      movedFromOther,
+      policy: { id: policyIds[0], name: polRow.title, ruleCode: '—', leaveTypeId: '' },
+      applied,
+      alreadyOnIt: 0,
+      movedFromOther: 0,
       invalidEmployees: invalidCount,
-      mappingsSynced,
-      totalMappedNow: targetSet.size,
-    });
-  } catch (e) {
-    console.error('[bulk-policy-mapping][POST]', e);
-    return fail(e instanceof Error ? e.message : 'Failed to apply policy mapping', 500);
+      mappingsSynced: 0,
+      totalMappedNow: applied,
+    }, 201);
+  } catch (error) {
+    console.error('[bulk-policy-mapping POST] Error:', error);
+    return fail('Failed to apply policy mapping', 500);
   }
 }
