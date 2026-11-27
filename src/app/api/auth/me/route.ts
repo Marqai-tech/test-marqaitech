@@ -277,6 +277,7 @@ export async function GET(request: Request) {
           department: { select: { name: true } },
           designation: { select: { title: true } },
           branch: { select: { name: true } },
+          reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
         },
       });
 
@@ -292,6 +293,21 @@ export async function GET(request: Request) {
         } catch (e) {
           console.warn('[Auth/Me] profile backfill skipped:', e instanceof Error ? e.message : e);
         }
+      }
+
+      // ─── Fetch leavePolicyIds (plural, runtime column not in Prisma schema) ───
+      // The Employee table has both leavePolicyId (singular, Prisma) and
+      // leavePolicyIds (plural, runtime ALTER TABLE column for multi-policy).
+      // Both are needed for leave policy resolution on the apply page.
+      let leavePolicyIdsRaw: string | null = null;
+      if (employee) {
+        try {
+          const lpRows = await dataDb.$queryRawUnsafe(
+            `SELECT "leavePolicyIds" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+            employee.id,
+          ) as any[];
+          if (lpRows?.[0]?.leavePolicyIds) leavePolicyIdsRaw = lpRows[0].leavePolicyIds;
+        } catch { /* column might not exist yet — non-fatal */ }
       }
 
       if (employee) {
@@ -337,6 +353,23 @@ export async function GET(request: Request) {
           company: companyData,
           // Task 139 — pending-photo state so mobile/web can badge it
           avatarPendingAt: (employee as Record<string, unknown>).avatarPendingAt || null,
+          // ─── Policy/data fields (for leave policy + scope resolution) ───
+          // These are the fields the leave apply page, leave balance API, and
+          // approval workflow need to resolve which policies/rules apply to
+          // this employee. Without them, the system can only use the User
+          // table (which has role/email but NO policy assignments).
+          leavePolicyId: (employee as Record<string, unknown>).leavePolicyId || null,
+          leavePolicyIds: leavePolicyIdsRaw, // runtime column (JSON string of multiple policy IDs)
+          branchId: (employee as Record<string, unknown>).branchId || null,
+          departmentId: (employee as Record<string, unknown>).departmentId || null,
+          employeeStatus: (employee as Record<string, unknown>).employeeStatus || null,
+          gender: (employee as Record<string, unknown>).gender || null,
+          employmentType: (employee as Record<string, unknown>).employmentType || null,
+          dateOfJoining: (employee as Record<string, unknown>).dateOfJoining || null,
+          reportingManagerId: (employee as Record<string, unknown>).reportingManagerId || null,
+          reportingManager: employee.reportingManager
+            ? { id: employee.reportingManager.id, firstName: employee.reportingManager.firstName, lastName: employee.reportingManager.lastName, employeeId: employee.reportingManager.employeeId }
+            : null,
         };
       }
     } catch (empErr) {
