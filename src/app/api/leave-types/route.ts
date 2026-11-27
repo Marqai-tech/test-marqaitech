@@ -14,10 +14,13 @@ function employeeMatchesMapping(emp: any, mapping: any): boolean {
   if (!emp) return false;
 
   // employmentType: 'all' matches; otherwise must equal employee's type (normalized)
+  // Employee Prisma column is `employeeType` — accept either spelling.
+  const empEmpType = (emp as { employmentType?: string | null; employeeType?: string | null }).employmentType
+    ?? (emp as { employeeType?: string | null }).employeeType ?? null;
   const et = mapping.employmentType || 'all';
   if (et !== 'all') {
     const normalized = et.replace(/-/g, '_');
-    if (emp.employmentType && emp.employmentType !== normalized && emp.employmentType !== et) {
+    if (empEmpType && empEmpType !== normalized && empEmpType !== et) {
       return false;
     }
   }
@@ -212,7 +215,7 @@ export async function GET(req: NextRequest) {
           // Fetch the employee's full profile for scope matching
           const empFull = await db.employee.findFirst({
             where: { id: emp.id, status: 'active' },
-            select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
+            select: { id: true, companyId: true, employeeType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
           }).catch(() => emp);
 
           // Get ALL active mappings across the companies we're checking,
@@ -263,7 +266,7 @@ export async function GET(req: NextRequest) {
           // have assigned leave types via the Policy form. Use those.
           const empForPolicy = await db.employee.findFirst({
             where: { id: emp.id, status: 'active' },
-            select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
+            select: { id: true, companyId: true, employeeType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
           }).catch(() => emp);
           const policyLtIds = await resolvePolicyBasedLeaveTypeIds(db, empForPolicy);
           if (policyLtIds.size > 0) {
@@ -327,7 +330,7 @@ export async function GET(req: NextRequest) {
 
               const empFull = await db.employee.findFirst({
                 where: { id: empFb.id, status: 'active' },
-                select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
+                select: { id: true, companyId: true, employeeType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
               }).catch(() => empFb);
 
               let allMappings: any[] = [];

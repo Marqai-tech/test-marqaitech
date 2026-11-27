@@ -364,7 +364,9 @@ export async function GET(request: Request) {
           departmentId: (employee as Record<string, unknown>).departmentId || null,
           employeeStatus: (employee as Record<string, unknown>).employeeStatus || null,
           gender: (employee as Record<string, unknown>).gender || null,
-          employmentType: (employee as Record<string, unknown>).employmentType || null,
+          employmentType: (employee as Record<string, unknown>).employmentType
+            ?? (employee as Record<string, unknown>).employeeType
+            || null,
           dateOfJoining: (employee as Record<string, unknown>).dateOfJoining || null,
           reportingManagerId: (employee as Record<string, unknown>).reportingManagerId || null,
           reportingManager: employee.reportingManager

@@ -84,7 +84,7 @@ export interface ResolvedPolicy {
 }
 
 export function matchesEmployee(
-  emp: { id: string; employmentType: string | null; branchId: string | null; departmentId: string | null; gender: string | null; employeeStatus?: string | null },
+  emp: { id: string; employmentType?: string | null; employeeType?: string | null; branchId: string | null; departmentId: string | null; gender: string | null; employeeStatus?: string | null },
   scope: {
     employmentType?: string;
     branchId?: string | null;
@@ -115,11 +115,15 @@ export function matchesEmployee(
     }
   }
   // employmentType: 'all' matches; otherwise must equal employee's type
+  // NOTE: the Employee Prisma model column is `employeeType` — some call sites
+  // pass the value through as `employmentType`. Accept either so a mismatched
+  // field name can never throw PrismaClientValidationError (Unknown field).
+  const empEmploymentType = emp.employmentType ?? emp.employeeType ?? null;
   if (scope.employmentType && scope.employmentType !== 'all') {
     // Normalize: schema uses 'full-time'/'part-time' etc., employee uses 'full_time'/'part_time'
     const normalized = scope.employmentType.replace(/-/g, '_');
-    if (emp.employmentType && emp.employmentType !== normalized && emp.employmentType !== scope.employmentType) {
-      return { match: false, reason: `employment type '${emp.employmentType}' ≠ '${scope.employmentType}'` };
+    if (empEmploymentType && empEmploymentType !== normalized && empEmploymentType !== scope.employmentType) {
+      return { match: false, reason: `employment type '${empEmploymentType}' ≠ '${scope.employmentType}'` };
     }
   }
   // branchId: null = all branches; otherwise must match
@@ -173,17 +177,24 @@ export async function resolveLeavePolicy(
   const { employeeId, leaveTypeId } = params;
 
   // Fetch employee — include employeeStatus for BUG 237/238 probation/confirmed check
+  // CRITICAL: the Employee Prisma model column is `employeeType`, NOT
+  // `employmentType`. Selecting employmentType threw PrismaClientValidationError
+  // ("Unknown field employmentType") on every call — silently caught by callers,
+  // which made the apply-side eligibility always fail (BUG_256 follow-up).
   const employee = await db.employee.findUnique({
     where: { id: employeeId },
     select: {
       id: true,
-      employmentType: true,
+      employeeType: true,
       branchId: true,
       departmentId: true,
       gender: true,
       companyId: true,
       employeeStatus: true,
     },
+  }).catch((empErr: unknown) => {
+    console.error('[leave-policy-resolver] employee lookup failed:', empErr instanceof Error ? empErr.message : empErr);
+    return null;
   });
   if (!employee) {
     return { source: 'none', priority: 0, effective: {}, allMatches: [] };
@@ -223,6 +234,7 @@ export async function resolveLeavePolicy(
   for (const m of mappings) {
     const scopeCheck = matchesEmployee(employee, {
       employmentType: m.employmentType,
+      employeeType: employee.employeeType,
       branchId: m.branchId,
       departmentId: m.departmentId,
       genderApplicability: m.genderApplicability,
@@ -325,6 +337,7 @@ export async function resolveLeavePolicy(
     if (!allocation) continue; // false-positive LIKE match
     const scopeCheck = matchesEmployee(employee, {
       employmentType: r.employmentType,
+      employeeType: employee.employeeType,
       branchId: r.branchId,
       departmentId: r.departmentId,
       genderApplicability: r.genderApplicability || 'all',

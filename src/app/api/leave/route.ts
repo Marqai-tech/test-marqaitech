@@ -1009,8 +1009,10 @@ export async function POST(request: Request) {
         empStatusJson: string | null;
       };
       try {
-        const empRows2 = await db.$queryRawUnsafe<Array<{ id: string; companyId: string | null; employmentType: string | null; branchId: string | null; departmentId: string | null; gender: string | null; employeeStatus: string | null }>>(
-          `SELECT "id", "companyId", "employmentType", "branchId", "departmentId", "gender", "employeeStatus"
+        // NOTE: Employee's Prisma column is `employeeType` (NOT employmentType) —
+        // selecting the wrong name made this scan throw on tenant DBs.
+        const empRows2 = await db.$queryRawUnsafe<Array<{ id: string; companyId: string | null; employeeType: string | null; branchId: string | null; departmentId: string | null; gender: string | null; employeeStatus: string | null }>>(
+          `SELECT "id", "companyId", "employeeType", "branchId", "departmentId", "gender", "employeeStatus"
              FROM "Employee" WHERE "id" = $1 LIMIT 1`,
           employeeId
         );
@@ -1028,6 +1030,7 @@ export async function POST(request: Request) {
           for (const m of mapRows) {
             const scopeCheck = matchesEmployee(empFull, {
               employmentType: m.employmentType,
+              employeeType: empFull.employeeType,
               branchId: m.branchId,
               departmentId: m.departmentId,
               genderApplicability: m.genderApplicability,
