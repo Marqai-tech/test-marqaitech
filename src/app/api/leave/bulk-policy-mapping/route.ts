@@ -131,7 +131,14 @@ export async function GET(req: NextRequest) {
       return fail('Forbidden: admin access required', 403);
     }
     const url = new URL(req.url);
-    const companyId = url.searchParams.get('companyId') || scope.companyId;
+    let companyId = url.searchParams.get('companyId') || scope.companyId;
+    // BUG FIX: Fallback to first active company when admin has no company selected
+    if (!companyId) {
+      try {
+        const fc = await db.company.findFirst({ where: { status: 'active' }, select: { id: true }, orderBy: { createdAt: 'asc' } });
+        if (fc) companyId = fc.id;
+      } catch {}
+    }
     if (!companyId) {
       return fail('No company selected. Pick a company in the switcher first.', 400);
     }
