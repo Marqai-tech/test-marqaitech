@@ -18,9 +18,9 @@
 
 // ─────────────────────────── Types ───────────────────────────
 
-export type WorkflowType = 'recruitment' | 'preboarding' | 'onboarding' | 'requisition';
+export type WorkflowType = 'recruitment' | 'preboarding' | 'onboarding' | 'requisition' | 'job';
 
-export const WORKFLOW_TYPES: WorkflowType[] = ['recruitment', 'preboarding', 'onboarding', 'requisition'];
+export const WORKFLOW_TYPES: WorkflowType[] = ['recruitment', 'preboarding', 'onboarding', 'requisition', 'job'];
 
 export interface PipelineStage {
   key: string;        // persisted JobApplication.status value
@@ -128,6 +128,21 @@ export interface RequisitionWorkflowConfig {
   allowManagerSubmit?: boolean;
 }
 
+// ─────────────────────── Job approval workflow (dynamic, mirrors requisition C-32) ───────────────────────
+//
+// After a job posting is created it can require an approval chain (same
+// dynamic tier model as requisitions, configured in Recruitment → Settings →
+// Job Approval). While pending, JobPosting.status = 'pending_approval' and
+// jobApprovalStatus tracks the tier walk:
+//   'pending'          → waiting on Tier 1
+//   'tier_<n>_approved' → Tier n done, waiting on Tier n+1
+//   'approved'          → final — job flips to status 'open'
+//   'rejected'          → terminal (HR can edit + re-submit → pending again)
+export interface JobApprovalWorkflowConfig {
+  enabled: boolean;                 // false = jobs publish straight to 'open'
+  tiers: RequisitionApprovalTier[]; // sequential; minimum 1 when enabled
+}
+
 // ─────────────────────── System stage keys ───────────────────────
 
 /** JobApplication.status values (see prisma schema comment). */
@@ -224,11 +239,22 @@ export const DEFAULT_REQUISITION_CONFIG: RequisitionWorkflowConfig = {
   allowManagerSubmit: false,
 };
 
-export const DEFAULT_CONFIGS: Record<WorkflowType, RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig | RequisitionWorkflowConfig> = {
+// Default job approval chain: HR first, then a Tenant/Admin check — mirrors
+// the two-level requisition flow but with business-appropriate approvers.
+export const DEFAULT_JOB_CONFIG: JobApprovalWorkflowConfig = {
+  enabled: true,
+  tiers: [
+    { tier: 1, approverType: 'hr_admin', label: 'HR Approval' },
+    { tier: 2, approverType: 'tenant_admin', label: 'Admin Approval' },
+  ],
+};
+
+export const DEFAULT_CONFIGS: Record<WorkflowType, RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig | RequisitionWorkflowConfig | JobApprovalWorkflowConfig> = {
   recruitment: DEFAULT_RECRUITMENT_CONFIG,
   preboarding: DEFAULT_PREBOARDING_CONFIG,
   onboarding: DEFAULT_ONBOARDING_CONFIG,
   requisition: DEFAULT_REQUISITION_CONFIG,
+  job: DEFAULT_JOB_CONFIG,
 };
 
 // ─────────────────────────── Validation ───────────────────────────
@@ -381,6 +407,7 @@ export function validateWorkflowConfig(type: WorkflowType, cfg: unknown) {
     case 'preboarding': return validatePreboardingConfig(cfg);
     case 'onboarding': return validateOnboardingConfig(cfg);
     case 'requisition': return validateRequisitionConfig(cfg);
+    case 'job': return validateJobApprovalConfig(cfg);
   }
 }
 
@@ -431,6 +458,112 @@ export function validateRequisitionConfig(cfg: unknown): { ok: true; value: Requ
   };
 }
 
+// ─────────────────────── Job approval config validation ───────────────────────
+
+export function validateJobApprovalConfig(cfg: unknown): { ok: true; value: JobApprovalWorkflowConfig } | { ok: false; error: string } {
+  if (!cfg || typeof cfg !== 'object') return { ok: false, error: 'Config must be an object' };
+  const c = cfg as Record<string, unknown>;
+  if (!Array.isArray(c.tiers) || c.tiers.length === 0) {
+    return { ok: false, error: 'At least one approval tier is required' };
+  }
+  const allowed = ['reporting_manager', 'department_head', 'hr_admin', 'tenant_admin', 'ceo', 'finance', 'specific_user'];
+  const tiers: RequisitionApprovalTier[] = [];
+  let tierNo = 0;
+  for (const raw of c.tiers) {
+    if (!raw || typeof raw !== 'object') return { ok: false, error: 'Each tier must be an object' };
+    const t = raw as Record<string, unknown>;
+    if (!isStr(t.approverType) || !allowed.includes(t.approverType)) {
+      return { ok: false, error: `Invalid approverType "${String(t.approverType)}" — allowed: ${allowed.join(', ')}` };
+    }
+    tierNo += 1;
+    if (t.approverType === 'specific_user' && !isStr(t.approverUserId)) {
+      return { ok: false, error: `Tier ${tierNo}: specific_user requires approverUserId` };
+    }
+    tiers.push({
+      tier: tierNo,
+      approverType: t.approverType as RequisitionApprovalTier['approverType'],
+      approverUserId: isStr(t.approverUserId) ? t.approverUserId : null,
+      label: isStr(t.label) ? t.label.slice(0, 80) : undefined,
+    });
+  }
+  if (tiers.length > 10) return { ok: false, error: 'Too many tiers (max 10)' };
+  return {
+    ok: true,
+    value: {
+      enabled: c.enabled !== false,
+      tiers,
+    },
+  };
+}
+
+// ─────────────────────── Approval tier helpers (shared by requisition + job engines) ───────────────────────
+
+export const HR_APPROVER_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'company_hr_admin'];
+export const FINANCE_APPROVER_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'finance_admin'];
+
+/** Resolve which roles can approve at a given tier of a configured chain. */
+export function rolesForApprovalTier(tier: RequisitionApprovalTier): { roles: string[]; specificUserId: string | null } {
+  switch (tier.approverType) {
+    case 'hr_admin':
+      return { roles: HR_APPROVER_ROLES, specificUserId: null };
+    case 'finance':
+      return { roles: FINANCE_APPROVER_ROLES, specificUserId: null };
+    case 'tenant_admin':
+      return { roles: ['super_admin', 'tenant_admin'], specificUserId: null };
+    case 'ceo':
+      return { roles: ['super_admin', 'ceo'], specificUserId: null };
+    case 'department_head':
+      return { roles: ['super_admin', 'tenant_admin', 'admin', 'hr_admin'], specificUserId: null };
+    case 'reporting_manager':
+    case 'specific_user':
+    default:
+      return { roles: [], specificUserId: tier.approverType === 'specific_user' ? (tier.approverUserId || null) : null };
+  }
+}
+
+/**
+ * Check whether the current user can approve at the given tier.
+ * `jobHiringManagerId` — for job postings, the hiring team lead (from the
+ * hiringTeam JSON) acts as the reporting manager; null for requisitions
+ * means the caller passes the requisition's hiringManagerId.
+ */
+export function canApproveAtApprovalTier(
+  tier: RequisitionApprovalTier,
+  userRole: string,
+  userId: string,
+  hiringManagerId: string | null = null,
+  departmentHeadUserId: string | null = null,
+): boolean {
+  if (tier.approverType === 'reporting_manager') {
+    return !!hiringManagerId && hiringManagerId === userId;
+  }
+  if (tier.approverType === 'department_head') {
+    if (departmentHeadUserId) return departmentHeadUserId === userId;
+    return ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(userRole);
+  }
+  if (tier.approverType === 'specific_user') {
+    return !!tier.approverUserId && tier.approverUserId === userId;
+  }
+  const { roles } = rolesForApprovalTier(tier);
+  return roles.includes(userRole);
+}
+
+/** Map a completed-tier count into the persisted approvalStatus vocabulary. */
+export function approvalTierIndexToStatus(tierDone: number, totalTiers: number): string {
+  if (tierDone >= totalTiers) return 'approved';
+  if (tierDone === 0) return 'pending';
+  return `tier_${tierDone}_approved`;
+}
+
+/** Map a persisted approvalStatus back to the completed-tier count. */
+export function approvalStatusToTierIndex(status: string | null | undefined): number {
+  const s = String(status || 'pending');
+  if (s === 'pending') return 0;
+  if (s === 'approved') return Number.MAX_SAFE_INTEGER;
+  const m = s.match(/^tier_(\d+)_approved$/);
+  return m ? Number(m[1]) : 0;
+}
+
 // ─────────────────────────── Resolution ───────────────────────────
 
 function deepMergeList<T extends { key: string }>(base: T[], override: unknown): T[] {
@@ -460,7 +593,7 @@ export async function resolveWorkflowConfig(
   tenantId: string | null | undefined,
   type: WorkflowType,
   companyId?: string | null
-): Promise<RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig | RequisitionWorkflowConfig> {
+): Promise<RecruitmentWorkflowConfig | PreboardingWorkflowConfig | OnboardingWorkflowConfig | RequisitionWorkflowConfig | JobApprovalWorkflowConfig> {
   const defaults = DEFAULT_CONFIGS[type];
   if (!tenantId) return defaults;
   try {
@@ -498,6 +631,11 @@ export async function resolveWorkflowConfig(
       const v = validateRequisitionConfig(parsed);
       return v.ok ? v.value : defaults;
     }
+    if (type === 'job') {
+      // Same replace-merge strategy as requisitions (tier list has no keys).
+      const v = validateJobApprovalConfig(parsed);
+      return v.ok ? v.value : defaults;
+    }
     const v = validateOnboardingConfig({ ...defaults, ...(parsed as object) });
     return v.ok ? v.value : defaults;
   } catch {
@@ -517,6 +655,9 @@ export async function resolveOnboardingConfig(db: any, tenantId: string | null |
 }
 export async function resolveRequisitionConfig(db: any, tenantId: string | null | undefined, companyId?: string | null): Promise<RequisitionWorkflowConfig> {
   return (await resolveWorkflowConfig(db, tenantId, 'requisition', companyId)) as RequisitionWorkflowConfig;
+}
+export async function resolveJobApprovalConfig(db: any, tenantId: string | null | undefined, companyId?: string | null): Promise<JobApprovalWorkflowConfig> {
+  return (await resolveWorkflowConfig(db, tenantId, 'job', companyId)) as JobApprovalWorkflowConfig;
 }
 
 /** Enabled stage keys in configured order. */

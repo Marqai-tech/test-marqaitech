@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEdit2, FiTrash2,
   FiArrowLeft, FiRotateCcw, FiClock, FiSearch, FiBriefcase, FiCalendar,
@@ -57,13 +57,31 @@ function getApprovalLabel(status: string): string {
   return map[status] || status;
 }
 
+// Short status label for the narrow list column — full label shown via tooltip.
+function getApprovalShortLabel(status: string): string {
+  if (/^tier_\d+_approved$/.test(status)) {
+    const n = status.match(/^tier_(\d+)_approved$/)?.[1];
+    return `Tier ${n} OK`;
+  }
+  const map: Record<string, string> = {
+    draft: 'Draft',
+    pending: 'Pending',
+    manager_approved: 'Manager OK',
+    hr_approved: 'In Review',
+    budget_approved: 'Approved',
+    rejected: 'Rejected',
+    returned: 'Returned',
+  };
+  return map[status] || getApprovalLabel(status);
+}
+
 function getApprovalBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600',
-    pending: 'inline-flex items-center rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700',
-    hr_approved: 'inline-flex items-center rounded-md bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700',
-    budget_approved: 'inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700',
-    rejected: 'inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700',
+    draft: 'inline-flex items-center whitespace-nowrap rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600',
+    pending: 'inline-flex items-center whitespace-nowrap rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700',
+    hr_approved: 'inline-flex items-center whitespace-nowrap rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700',
+    budget_approved: 'inline-flex items-center whitespace-nowrap rounded-md bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700',
+    rejected: 'inline-flex items-center whitespace-nowrap rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700',
     returned: 'inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700',
   };
   return map[status] || 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600';
@@ -71,10 +89,10 @@ function getApprovalBadge(status: string) {
 
 function getPriorityBadge(priority: string) {
   const map: Record<string, string> = {
-    low: 'inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700',
-    medium: 'inline-flex items-center rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700',
-    high: 'inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700',
-    critical: 'inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700',
+    low: 'inline-flex items-center whitespace-nowrap rounded-md bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700',
+    medium: 'inline-flex items-center whitespace-nowrap rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700',
+    high: 'inline-flex items-center whitespace-nowrap rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700',
+    critical: 'inline-flex items-center whitespace-nowrap rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700',
   };
   return map[priority] || 'inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600';
 }
@@ -184,6 +202,17 @@ export default function RequisitionsPage() {
       setShowForm(true);
     }
   }, []);
+
+  // Sidebar deep-links: /requisitions?view=form opens the requisition form,
+  // /requisitions?view=list shows the list (Requisition Form / Requisition
+  // List sub-tabs under the Requisitions sidebar item). Reactive on the
+  // search params so switching sub-tabs without a remount still works.
+  const urlViewParams = useSearchParams();
+  const urlView = urlViewParams?.get('view');
+  useEffect(() => {
+    if (urlView === 'form') setShowForm(true);
+    if (urlView === 'list') setShowForm(false);
+  }, [urlView]);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
   const [designations, setDesignations] = useState<Array<{ id: string; title: string; departmentId: string | null }>>([]);
   // NEW-8: the logged-in user's managed department (if they are a department
@@ -906,7 +935,7 @@ export default function RequisitionsPage() {
           </button>
         </div>
 
-        <div className="grid min-h-[460px] grid-cols-1 gap-2.5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.35fr)]">
+        <div className="grid min-h-[460px] grid-cols-1 gap-2.5 xl:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.25fr)]">
           {/* Requisition List */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-2.5">
@@ -916,18 +945,19 @@ export default function RequisitionsPage() {
                 {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { setActiveTab('requisitions'); setListFilter(key); }} className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
               </div>
             </div>
-            <div className="grid grid-cols-[56px_minmax(0,1fr)_38px_58px_100px] items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+            {/* Columns are sized so every badge label fits without cropping */}
+            <div className="grid grid-cols-[62px_minmax(0,1fr)_36px_72px_104px] items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
               <span>Req ID</span><span>Position</span><span className="text-center">Open</span><span className="text-center">Priority</span><span className="text-center">Status</span>
             </div>
             <div className="max-h-[372px] space-y-1.5 overflow-y-auto p-2">
               {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-slate-100" />) : filteredRequisitions.length === 0 ? <div className="px-4 py-10 text-center"><FiSearch className="mx-auto h-6 w-6 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No matching requisitions</p><p className="mt-1 text-[10px] text-slate-400">Try another search or filter.</p></div> : filteredRequisitions.map((r) => {
                 const selected = selectedRequisition?.id === r.id;
-                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`grid min-h-[46px] w-full grid-cols-[56px_minmax(0,1fr)_38px_58px_100px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
-                  <span className="truncate text-[10px] font-bold text-slate-900" title={r.requisitionId || '—'}>{r.requisitionId || '—'}</span>
+                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`grid min-h-[46px] w-full grid-cols-[62px_minmax(0,1fr)_36px_72px_104px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
+                  <span className="text-[10px] font-bold text-slate-900" title={r.requisitionId || '—'}>{r.requisitionId || '—'}</span>
                   <span className="min-w-0" title={`${r.designation?.title || r.positionTitle || 'Position not specified'} — ${r.department?.name || 'Department not specified'}`}><span className="block truncate text-[11px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[9px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
                   <span className="text-center text-[11px] font-bold tabular-nums text-slate-900">{r.numberOfOpenings}</span>
-                  <span className="min-w-0"><span className={`${getPriorityBadge(r.priority)} w-full justify-center overflow-hidden px-1`} title={r.priority}><span className="truncate capitalize">{r.priority}</span></span></span>
-                  <span className="min-w-0"><span className={`${getApprovalBadge(r.approvalStatus)} w-full justify-center overflow-hidden px-1`} title={getApprovalLabel(r.approvalStatus)}><span className="truncate">{getApprovalLabel(r.approvalStatus)}</span></span></span>
+                  <span className="flex min-w-0 justify-center"><span className={`${getPriorityBadge(r.priority)} max-w-full`} title={r.priority}><span className="capitalize">{r.priority}</span></span></span>
+                  <span className="flex min-w-0 justify-center"><span className={`${getApprovalBadge(r.approvalStatus)} max-w-full`} title={getApprovalLabel(r.approvalStatus)}>{getApprovalShortLabel(r.approvalStatus)}</span></span>
                 </button>;
               })}
             </div>
@@ -951,7 +981,7 @@ export default function RequisitionsPage() {
                       <p className="mt-px text-[11px] text-slate-500">{r.department?.name || 'Department not specified'}</p>
                     </div>
                   </div>
-                  <span className="shrink-0"><span className="inline-flex items-center rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600"><span className="capitalize">{r.priority}</span> Priority</span></span>
+                  <span className="shrink-0"><span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600"><span className="capitalize">{r.priority}</span><span>Priority</span></span></span>
                 </div>
 
                 {/* Mini stat tiles */}

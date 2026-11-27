@@ -143,8 +143,9 @@ function getJobStatusBadge(status: string) {
     closed: 'thb-badge thb-badge-error',
     on_hold: 'thb-badge thb-badge-warning',
     filled: 'thb-badge thb-badge-info',
+    pending_approval: 'bg-amber-50 text-amber-700 thb-badge ring-1 ring-amber-200',
   };
-  const labels: Record<string, string> = { open: 'Open', closed: 'Closed', on_hold: 'On Hold', filled: 'Filled' };
+  const labels: Record<string, string> = { open: 'Open', closed: 'Closed', on_hold: 'On Hold', filled: 'Filled', pending_approval: 'Pending Approval' };
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
@@ -1195,6 +1196,8 @@ export default function RecruitmentPage() {
   // - If ?single=X is set → render ONLY that tab.
   // - Else (Recruitment sidebar, default) → render jobs + analytics (candidates is hidden,
   //   it's now reached via the dedicated "Find Candidates" sidebar item).
+  // NOTE: the tab strip itself was removed from the page (Create Jobs is
+  // single-purpose now); visibleTabs is kept as the URL-tab parser source.
   const visibleTabs: Array<{ key: 'jobs' | 'candidates' | 'analytics'; label: string; icon: typeof FiBriefcase }> = useMemo(() => {
     if (urlSingle === 'jobs') {
       return [{ key: 'jobs', label: 'Jobs', icon: FiBriefcase }];
@@ -1211,6 +1214,7 @@ export default function RecruitmentPage() {
       { key: 'analytics', label: 'Analytics', icon: FiBarChart2 },
     ];
   }, [urlSingle]);
+  void visibleTabs;
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1497,6 +1501,32 @@ export default function RecruitmentPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ─── Inline status editing in the Job Posting List ───
+  // The pencil icon opens a status dropdown right in the row (no redirect to
+  // the create-jobs form). Changing to 'open' re-enters the approval chain
+  // server-side when the posting hasn't been approved yet.
+  const [statusEditingId, setStatusEditingId] = useState<string | null>(null);
+  const [statusDraft, setStatusDraft] = useState('open');
+  const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
+  // Job approval chain: which pending jobs the current user can approve/reject
+  const [jobApprovalMap, setJobApprovalMap] = useState<Record<string, { canApprove: boolean; currentTier?: { label: string; index: number; total: number } }>>({});
+  const [jobActionBusyId, setJobActionBusyId] = useState<string | null>(null);
+
+  const fetchJobApprovals = useCallback(async () => {
+    try {
+      const res = await fetch('/api/recruitment/job-approval', { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, { canApprove: boolean; currentTier?: { label: string; index: number; total: number } }> = {};
+      for (const row of data.pending || []) {
+        map[row.id] = { canApprove: !!row.canApprove, currentTier: row.currentTier || undefined };
+      }
+      setJobApprovalMap(map);
+    } catch {
+      /* approval banner is non-critical */
+    }
+  }, []);
+
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   /* ─── Job Search Matrix (talent-acquisition candidate shortlisting) ─── */
@@ -1645,6 +1675,62 @@ export default function RecruitmentPage() {
   }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
+  useEffect(() => { queueMicrotask(() => fetchJobApprovals()); }, [fetchData, fetchJobApprovals]);
+
+  /* Inline status update from the Job Posting List (pencil → dropdown → save). */
+  const handleSaveJobStatus = async (jobId: string, nextStatus: string) => {
+    try {
+      setStatusSavingId(jobId);
+      const res = await fetch(`/api/recruitment/${jobId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'Failed to update status');
+      const approvalNote = nextStatus === 'open' && data?.jobPosting?.status === 'pending_approval'
+        ? ' — sent for approval'
+        : '';
+      toast.success(`Status updated to ${getJobStatusBadge(nextStatus).label}${approvalNote}`);
+      setStatusEditingId(null);
+      fetchData();
+      fetchJobApprovals();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setStatusSavingId(null);
+    }
+  };
+
+  /* Approve / reject the current tier of a pending job from the list. */
+  const handleJobApprovalAction = async (jobId: string, jobTitle: string, action: 'approve' | 'reject') => {
+    try {
+      setJobActionBusyId(jobId);
+      let remarks: string | null = null;
+      if (action === 'reject') {
+        remarks = window.prompt(`Reason for rejecting "${jobTitle}"? (optional)`) || null;
+        if (remarks === null) { setJobActionBusyId(null); return; }
+      }
+      const res = await fetch('/api/recruitment/job-approval', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ jobId, action, remarks }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'Approval action failed');
+      if (action === 'approve') {
+        toast.success(data?.final ? `"${jobTitle}" fully approved and published` : `Approval recorded — moved to the next tier`);
+      } else {
+        toast.success(`"${jobTitle}" rejected`);
+      }
+      fetchData();
+      fetchJobApprovals();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Approval action failed');
+    } finally {
+      setJobActionBusyId(null);
+    }
+  };
 
   /* Departments come ONLY from company master data (Company → Departments)
      via /api/departments — same source, company scope (scopeQuery) and
@@ -1909,6 +1995,7 @@ export default function RecruitmentPage() {
       }
       handleCancelJobForm();
       fetchData();
+      fetchJobApprovals();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to save job posting');
     } finally {
@@ -2174,9 +2261,9 @@ export default function RecruitmentPage() {
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBriefcase className="w-6 h-6 text-teal-500" />
-            {activeTab === 'jobs' ? 'Jobs' : activeTab === 'candidates' ? 'Candidates' : 'Recruitment'}
+            Jobs
           </h1>
-          <p className="text-thb-text-secondary mt-1">{activeTab === 'jobs' ? 'Create, manage, and publish job openings in one place' : 'Manage job postings and applications'}</p>
+          <p className="text-thb-text-secondary mt-1">Create, manage, and publish job openings in one place</p>
           {/* REQ-SEC-REC-03 PII masked indicator */}
           {!isRecruiterOrAdmin ? (
             <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold ring-1 ring-emerald-200" title="PII is masked for your role per REQ-SEC-REC-03.">
@@ -2449,35 +2536,17 @@ export default function RecruitmentPage() {
         ))}
       </div>
 
-      {/* Tab Navigation — hidden when ?view=resumes or ?view=interviews or ?view=kanban
-          (these views are dedicated single-purpose screens, no tab switching needed) */}
-      {!urlView && !urlSingle && (
-        <div className="thb-card p-1.5">
-          <div className="flex gap-1">
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === tab.key
-                    ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
-                    : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
-                }`}
-              >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      )}
+      {/* Tab Navigation removed — Create Jobs is a single-purpose screen.
+          Candidates live in the dedicated "Find Candidates" sidebar item and
+          Analytics has its own sidebar entry, so the old Jobs/Analytics tab
+          strip is gone. */}
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* JOBS TAB                                                    */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'jobs' && (
         <>
-        {/* Sub-tabs: My Jobs | From Requisition (approved requisitions → job) */}
+        {/* Sub-tabs: Jobs | From Requisition (approved requisitions → job) */}
         <div className="thb-card p-1.5">
           <div className="flex gap-1">
             <button
@@ -2485,7 +2554,7 @@ export default function RecruitmentPage() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${jobsSubTab === 'list' ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25' : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'}`}
             >
               <FiBriefcase className="w-4 h-4" />
-              My Jobs
+              Jobs
             </button>
             <button
               onClick={() => setJobsSubTab('requisitions')}
@@ -2533,6 +2602,7 @@ export default function RecruitmentPage() {
                 >
                   <option value="">All Status</option>
                   <option value="open">Open</option>
+                  <option value="pending_approval">Pending Approval</option>
                   <option value="closed">Closed</option>
                   <option value="on_hold">On Hold</option>
                   <option value="filled">Filled</option>
@@ -2598,7 +2668,8 @@ export default function RecruitmentPage() {
                       const badge = getJobStatusBadge(job.status);
                       const typeBadge = getJobTypeBadge(job.type);
                       const isDeleting = deleteConfirmId === job.id;
-                      const isExpanded = expandedJob === job.id;
+                      const isEditingStatus = statusEditingId === job.id && statusSavingId !== job.id;
+                      const approvalInfo = jobApprovalMap[job.id];
                       return (
                         <Fragment key={job.id}>
                           {isDeleting ? (
@@ -2624,7 +2695,7 @@ export default function RecruitmentPage() {
                             </tr>
                           ) : (
                             <>
-                              <tr onClick={() => setExpandedJob(job.id)} className={`cursor-pointer border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors ${isExpanded ? 'bg-teal-50/30' : ''}`}>
+                              <tr onClick={() => setExpandedJob(job.id)} className="cursor-pointer border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                                 <td className="px-5 py-4">
                                   <div className="min-w-0">
                                     <p className="text-sm font-semibold text-thb-text-primary">{job.title}</p>
@@ -2657,7 +2728,49 @@ export default function RecruitmentPage() {
                                   <span className="text-sm text-thb-text-secondary">{formatDate(job.postedDate)}</span>
                                 </td>
                                 <td className="px-5 py-4">
-                                  <span className={badge.className}>{badge.label}</span>
+                                  {isEditingStatus ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <select
+                                        value={statusDraft}
+                                        onChange={e => setStatusDraft(e.target.value)}
+                                        disabled={statusSavingId === job.id}
+                                        className="px-2 py-1.5 rounded-lg border border-teal-300 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white"
+                                        autoFocus
+                                      >
+                                        <option value="open">Open</option>
+                                        <option value="closed">Closed</option>
+                                        <option value="on_hold">On Hold</option>
+                                        <option value="filled">Filled</option>
+                                      </select>
+                                      <button
+                                        onClick={() => handleSaveJobStatus(job.id, statusDraft)}
+                                        disabled={statusSavingId === job.id}
+                                        className="px-2 py-1.5 bg-teal-600 text-white text-[11px] font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
+                                        title="Save status"
+                                      >
+                                        {statusSavingId === job.id ? '…' : 'Save'}
+                                      </button>
+                                      <button
+                                        onClick={() => { setStatusEditingId(null); setStatusDraft('open'); }}
+                                        className="px-2 py-1.5 border border-thb-border text-[11px] font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                                        title="Cancel"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col items-start gap-1">
+                                      <span className={badge.className}>{badge.label}</span>
+                                      {job.status === 'pending_approval' && approvalInfo?.currentTier && (
+                                        <span className="text-[10px] text-amber-600 font-medium" title={`Waiting for ${approvalInfo.currentTier.label} (tier ${approvalInfo.currentTier.index + 1} of ${approvalInfo.currentTier.total})`}>
+                                          {approvalInfo.currentTier.label} ({approvalInfo.currentTier.index + 1}/{approvalInfo.currentTier.total})
+                                        </span>
+                                      )}
+                                      {job.status === 'pending_approval' && (job as JobPosting & { jobApprovalStatus?: string }).jobApprovalStatus === 'rejected' && (
+                                        <span className="text-[10px] text-red-600 font-medium">Approval rejected</span>
+                                      )}
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-5 py-4">
                                   <div className="flex items-center justify-end gap-1">
@@ -2669,128 +2782,42 @@ export default function RecruitmentPage() {
                                       <FiEye className="w-4 h-4" />
                                     </Link>
                                     {isAdmin && (
+                                      <button
+                                        onClick={() => { setStatusEditingId(statusEditingId === job.id ? null : job.id); setStatusDraft(job.status === 'pending_approval' ? 'open' : (job.status || 'open')); }}
+                                        className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                                        title="Edit Status"
+                                      >
+                                        <FiEdit2 className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                    {approvalInfo?.canApprove && job.status === 'pending_approval' && (
                                       <>
-                                        <button onClick={() => handleOpenEditJobForm(job)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit">
-                                          <FiEdit2 className="w-4 h-4" />
+                                        <button
+                                          onClick={() => handleJobApprovalAction(job.id, job.title, 'approve')}
+                                          disabled={jobActionBusyId === job.id}
+                                          className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                                          title="Approve (current tier)"
+                                        >
+                                          <FiCheckCircle className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => setDeleteConfirmId(job.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
-                                          <FiTrash2 className="w-4 h-4" />
+                                        <button
+                                          onClick={() => handleJobApprovalAction(job.id, job.title, 'reject')}
+                                          disabled={jobActionBusyId === job.id}
+                                          className="p-2 rounded-lg text-thb-text-muted hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                          title="Reject"
+                                        >
+                                          <FiXCircle className="w-4 h-4" />
                                         </button>
                                       </>
                                     )}
-                                    <button onClick={() => setExpandedJob(isExpanded ? null : job.id)} className={`p-2 rounded-lg transition-colors ${isExpanded ? 'text-teal-600 bg-teal-50' : 'text-thb-text-muted hover:bg-slate-100'}`}>
-                                      {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
-                                    </button>
+                                    {isAdmin && (
+                                      <button onClick={() => setDeleteConfirmId(job.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+                                        <FiTrash2 className="w-4 h-4" />
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
-                              {/* Expanded Content */}
-                              {false && isExpanded && (
-                                <tr className="bg-slate-50/50">
-                                  <td colSpan={7} className="px-5 py-5">
-                                    <div className="space-y-4">
-                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                        <div>
-                                          <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Description</h4>
-                                          <p className="text-sm text-thb-text-secondary whitespace-pre-wrap">{job.description}</p>
-                                        </div>
-                                        <div className="space-y-3">
-                                          {job.requirements && (
-                                            <div>
-                                              <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Requirements</h4>
-                                              <p className="text-sm text-thb-text-secondary whitespace-pre-wrap">{job.requirements}</p>
-                                            </div>
-                                          )}
-                                          {(job.experience || job.salary) && (
-                                            <div className="flex gap-4">
-                                              {job.experience && <span className="text-sm text-thb-text-secondary">Experience: <strong>{job.experience}</strong></span>}
-                                              {job.salary && <span className="text-sm text-thb-text-secondary">Salary: <strong>{job.salary}</strong></span>}
-                                            </div>
-                                          )}
-                                          {job.closingDate && (
-                                            <span className="text-sm text-thb-text-secondary flex items-center gap-1">
-                                              <FiCalendar className="w-3.5 h-3.5" />Closes {formatDate(job.closingDate)}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      {/* Applications for this job */}
-                                      {job.applications && job.applications.length > 0 && (
-                                        <div>
-                                          <div className="flex items-center justify-between mb-2">
-                                            <h4 className="text-sm font-semibold text-thb-text-primary">Applications ({job.applications.length})</h4>
-                                            {!isRecruiterOrAdmin && (
-                                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200" title="PII is masked for your role per REQ-SEC-REC-03.">
-                                                <FiShield className="w-2.5 h-2.5" /> PII masked
-                                              </span>
-                                            )}
-                                          </div>
-                                          <div className="space-y-2 max-h-64 overflow-y-auto">
-                                            {job.applications.map(rawApp => {
-                                              const app = maskCandidateFields(
-                                                rawApp as unknown as Record<string, unknown>,
-                                                user?.role,
-                                                piiPolicies,
-                                              ) as unknown as JobApplication & { __piiMaskedFields?: string[] };
-                                              const appBadge = getAppStatusBadge(app.status);
-                                              const isEditing = editingAppId === app.id;
-                                              const maskedFields = app.__piiMaskedFields || [];
-                                              return (
-                                                <div key={app.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border transition-colors ${isEditing ? 'border-teal-300 bg-teal-50/50' : 'border-thb-border'}`}>
-                                                  <div className="min-w-0">
-                                                    <div className="flex items-center gap-1.5">
-                                                      <p className="text-sm font-medium text-thb-text-primary">{app.candidateName}</p>
-                                                      {maskedFields.length > 0 && (
-                                                        <span
-                                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200"
-                                                          title={buildPiiMaskTooltip(maskedFields)}
-                                                        >
-                                                          <FiShield className="w-2.5 h-2.5" /> PII masked
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                    <p className="text-xs text-thb-text-muted">{app.candidateEmail} · Applied {formatDate(app.appliedDate)}</p>
-                                                  </div>
-                                                  {isEditing ? (
-                                                    <div className="flex items-center gap-2">
-                                                      <select
-                                                        value={editAppStatus}
-                                                        onChange={e => setEditAppStatus(e.target.value)}
-                                                        className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-                                                      >
-                                                        <option value="applied">Applied</option>
-                                                        <option value="screening">Screening</option>
-                                                        <option value="shortlisted">Shortlisted</option>
-                                                        <option value="interview">Interview</option>
-                                                        <option value="rejected">Rejected</option>
-                                                      </select>
-                                                      <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-teal-600 text-white text-xs font-medium rounded hover:bg-teal-700 transition-colors">
-                                                        Save
-                                                      </button>
-                                                      <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
-                                                        Cancel
-                                                      </button>
-                                                    </div>
-                                                  ) : (
-                                                    <div className="flex items-center gap-2">
-                                                      <span className={appBadge.className}>{appBadge.label}</span>
-                                                      {isAdmin && ['applied', 'screening', 'shortlisted', 'interview'].includes(app.status) && (
-                                                        <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Change Hiring Stage">
-                                                          <FiEdit2 className="w-3.5 h-3.5" />
-                                                        </button>
-                                                      )}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
                             </>
                           )}
                         </Fragment>

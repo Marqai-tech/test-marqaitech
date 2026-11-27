@@ -28,6 +28,9 @@ export interface NavItem {
   isNew?: boolean;
   badge?: string;
   isDivider?: boolean;  // if true, renders as a sub-section header, not a link
+  // Expandable group: when set, the item renders as a collapsible parent and
+  // clicking it toggles its sub-items open/closed (children are the links).
+  children?: NavItem[];
 }
 
 export interface DashboardTab {
@@ -398,14 +401,18 @@ export const navSections: NavSection[] = [
     items: [
       // ── Primary recruitment workflow (kept in operational order) ──
       { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
+      // Requisitions is an expandable parent — clicking it toggles the Form / List
+      // sub-tabs open or closed; the children are the actual links.
+      { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment', children: [
+        { label: 'Requisition Form', href: '/requisitions?view=form', icon: <FiEdit3 className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
+        { label: 'Requisition List', href: '/requisitions?view=list', icon: <FiList className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
+      ] },
       { label: 'Create Jobs', href: '/recruitment?tab=jobs&single=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Find Candidates', href: '/recruitment?tab=candidates&single=candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Scheduled Interviews', href: '/interviews', icon: <FiClock className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'My Interviews', href: '/my-interviews', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Talent Pool', href: '/recruitment/talent-pool', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Resumes', href: '/recruitment?tab=candidates&view=resumes&single=candidates', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
       // ── Additional recruitment tools ──
       { label: 'Additional Tools', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
@@ -427,6 +434,8 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
       { label: 'Workflow Configuration', href: '/recruitment/workflow-config', icon: <FiGitBranch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Requisition Approval', href: '/settings/requisition-approval', icon: <FiShield className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+      { label: 'Job Approval', href: '/settings/job-approval', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Recruitment Settings', href: '/recruitment/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
       // ── Reports ──

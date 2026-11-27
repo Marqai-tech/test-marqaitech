@@ -3,6 +3,8 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { isTestPlatformHost } from '@/lib/tenant-filter';
 import { sendConfiguredEmail } from '@/lib/configured-email';
+import { resolveJobApprovalConfig } from '@/lib/recruitment-workflow';
+import { ensureJobApprovalColumns, submitJobForApproval } from '@/lib/job-approval';
 
 function corsHeaders() {
   return {
@@ -245,7 +247,7 @@ export async function PUT(
         module: 'recruitment',
         details: `Updated job posting: ${jobPosting.title}`,
       },
-    });
+    }).catch(() => null);
 
     return NextResponse.json(
       { jobPosting },
@@ -294,6 +296,25 @@ export async function PATCH(
     if (jobPosting) {
       const updateData: Record<string, unknown> = {};
       if (status !== undefined) updateData.status = status;
+
+      // ─── Dynamic job approval guard ───
+      // Setting a job to 'open' (publishing / activating a draft / re-submitting
+      // a rejected posting) must go through the tenant-configured approval
+      // chain unless the posting already completed it.
+      if (status === 'open' && (jobPosting as any).jobApprovalStatus !== 'approved') {
+        await ensureJobApprovalColumns(db);
+        const jobConfig = await resolveJobApprovalConfig(db, decodedRec.tenantId as string, null).catch(() => null);
+        const approvalApplies = !!jobConfig && jobConfig.enabled !== false && Array.isArray(jobConfig.tiers) && jobConfig.tiers.length > 0;
+        if (approvalApplies) {
+          const approvalData = await submitJobForApproval(
+            db,
+            decodedRec.tenantId as string,
+            { id: jobPosting.id, title: jobPosting.title, departmentId: jobPosting.departmentId },
+            jobConfig!,
+          );
+          Object.assign(updateData, approvalData);
+        }
+      }
 
       const updated = await db.jobPosting.update({
         where: { id },
@@ -677,7 +698,7 @@ export async function DELETE(
         module: 'recruitment',
         details: `Deleted job posting: ${existing.title}`,
       },
-    });
+    }).catch(() => null);
 
     return NextResponse.json(
       { message: 'Job posting deleted successfully' },

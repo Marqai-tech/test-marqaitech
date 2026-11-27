@@ -650,46 +650,6 @@ export default function JobDetailPage() {
                                 <>
                                   <button
                                     onClick={async () => {
-                                      try {
-                                        const r = await fetch('/api/recruitment/ai-feedback', {
-                                          method: 'POST',
-                                          headers: getAuthHeaders(),
-                                          body: JSON.stringify({ applicationId: app.id, action: 'draft' }),
-                                        });
-                                        const d = await r.json();
-                                        if (!r.ok) throw new Error(d.error || 'Failed');
-                                        const draft = d.feedback?.aiDraft || '';
-                                        const edited = prompt('Review and edit the AI feedback before publishing:', draft);
-                                        if (edited === null) return;
-                                        const r2 = await fetch('/api/recruitment/ai-feedback', {
-                                          method: 'POST',
-                                          headers: getAuthHeaders(),
-                                          body: JSON.stringify({ applicationId: app.id, action: 'approve', hrEditedVersion: edited }),
-                                        });
-                                        if (!r2.ok) throw new Error('Approve failed');
-                                        if (confirm('Publish this feedback to the candidate now?')) {
-                                          const r3 = await fetch('/api/recruitment/ai-feedback', {
-                                            method: 'POST',
-                                            headers: getAuthHeaders(),
-                                            body: JSON.stringify({ applicationId: app.id, action: 'publish' }),
-                                          });
-                                          if (!r3.ok) throw new Error('Publish failed');
-                                          toast.success('AI feedback published to candidate');
-                                        } else {
-                                          toast.success('Feedback saved as approved (not published yet)');
-                                        }
-                                        fetchJob();
-                                      } catch (e: unknown) {
-                                        toast.error(e instanceof Error ? e.message : 'Failed');
-                                      }
-                                    }}
-                                    className="p-2 rounded-lg text-thb-text-muted hover:text-sky-600 hover:bg-sky-50 transition-colors"
-                                    title="AI Feedback (REQ-STAT-05/06)"
-                                  >
-                                    <FiSend className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={async () => {
                                       if (!confirm(`Reject ${app.candidateName} without AI feedback?`)) return;
                                       try {
                                         const r = await fetch('/api/recruitment/ai-feedback', {

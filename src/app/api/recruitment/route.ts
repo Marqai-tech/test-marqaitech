@@ -6,6 +6,7 @@ import { isTestPlatformHost } from '@/lib/tenant-filter';
 import { validateEmail, validatePhone } from '@/lib/validators';
 import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 import { resolveRecruitmentConfig } from '@/lib/recruitment-workflow';
+import { ensureJobApprovalColumns, submitJobForApproval } from '@/lib/job-approval';
 
 function corsHeaders() {
   return {
@@ -420,7 +421,7 @@ export async function POST(request: Request) {
           module: 'recruitment',
           details: `Application submitted by ${candidateName} for job: ${jobExists.title}`,
         },
-      });
+      }).catch(() => null);
 
       return NextResponse.json(
         { application },
@@ -453,6 +454,7 @@ export async function POST(request: Request) {
       interviewPlan,
       requisitionId,
       hiringTeam,
+      status,
     } = body;
 
     // Requisition auto-map + gate (mirrors /api/jobs): when the form is driven
@@ -538,6 +540,22 @@ export async function POST(request: Request) {
     try {
       await db.$executeRawUnsafe(`ALTER TABLE "JobPosting" ADD COLUMN IF NOT EXISTS "hiringTeam" TEXT`);
     } catch { /* already exists */ }
+    await ensureJobApprovalColumns(db);
+
+    // ─── Dynamic job approval flow ───
+    // Jobs go through the tenant-configured approval chain (Recruitment →
+    // Settings → Job Approval) before going live. Drafts ('on_hold') skip
+    // approval until they are activated (setting status to 'open' from the
+    // list or the form re-routes them into the approval chain).
+    const requestedStatus = typeof status === 'string' && status ? status : 'open';
+    let jobConfig: import('@/lib/recruitment-workflow').JobApprovalWorkflowConfig | null = null;
+    try {
+      jobConfig = await (async () => {
+        const mod = await import('@/lib/recruitment-workflow');
+        return await mod.resolveJobApprovalConfig(db, decodedRec.tenantId as string, null);
+      })();
+    } catch { jobConfig = null; }
+    const approvalApplies = !!jobConfig && jobConfig.enabled !== false && Array.isArray(jobConfig.tiers) && jobConfig.tiers.length > 0 && requestedStatus !== 'on_hold';
 
     const jobPosting = await db.jobPosting.create({
       data: {
@@ -554,7 +572,9 @@ export async function POST(request: Request) {
         vacancies: vacancies || 1,
         interviewPlan: normalizedInterviewPlan,
         hiringTeam: hiringTeam ? (typeof hiringTeam === 'string' ? hiringTeam : JSON.stringify(hiringTeam)) : null,
-        status: 'open',
+        status: approvalApplies ? 'pending_approval' : requestedStatus,
+        jobApprovalStatus: approvalApplies ? 'pending' : null,
+        jobApprovalChain: approvalApplies ? JSON.stringify(jobConfig!.tiers.map((t, i) => ({ ...t, tier: i + 1 }))) : null,
       },
       include: {
         department: {
@@ -562,6 +582,16 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Notify Tier 1 approvers that a job is waiting for them
+    if (approvalApplies && jobConfig) {
+      await submitJobForApproval(
+        db,
+        decodedRec.tenantId as string,
+        { id: (jobPosting as any).id, title, departmentId },
+        jobConfig,
+      ).catch(() => null);
+    }
 
     // Link the approved requisition back to the new posting (non-fatal).
     // status → 'in_progress' marks it as converted so the "From Requisition"
@@ -602,7 +632,7 @@ export async function POST(request: Request) {
         module: 'recruitment',
         details: `Created job posting: ${title}`,
       },
-    });
+    }).catch(() => null);
 
     return NextResponse.json(
       { jobPosting },

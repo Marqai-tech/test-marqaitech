@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiLogOut,
   FiChevronLeft,
   FiChevronRight,
+  FiChevronDown,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
@@ -174,8 +175,32 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
       if (item.isDivider || item.href.startsWith('#')) return false;
       return currentFullPath === item.href || pathname === item.href.split('?')[0];
     });
-    return !hasExactMatch;
+    if (hasExactMatch) return false;
+    // Sub-route ownership: several items can share one base path (Create Jobs,
+    // Find Candidates, Resumes all live under /recruitment). Query-string items
+    // must NOT all light up for deeper sub-routes like /recruitment/<jobId> —
+    // only the FIRST item with that base path owns the sub-route highlight.
+    if (href.includes('?')) {
+      const firstWithSamePath = items.find(
+        (item) => !item.isDivider && !item.href.startsWith('#') && item.href.split('?')[0] === hrefPath
+      );
+      return firstWithSamePath?.href === href;
+    }
+    return true;
   };
+
+  // Expandable parent items (e.g. Requisitions → Form / List). Clicking the
+  // parent toggles its children; when a child is the active page the group
+  // auto-opens (unless the user explicitly closed it on this visit).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const childActive = (item: import('@/lib/navData').NavItem) =>
+    (item.children || []).some((child) => currentFullPath === child.href);
+  const parentPathActive = (item: import('@/lib/navData').NavItem) =>
+    pathname === item.href.split('?')[0] && !item.href.includes('?')
+      ? !(item.children || []).some((child) => currentFullPath === child.href)
+      : false;
+  const isGroupOpen = (item: import('@/lib/navData').NavItem) =>
+    openGroups[item.label] ?? childActive(item);
 
   const handleLogout = async () => {
     await logout();
@@ -303,6 +328,74 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
                 }
 
                 const isActive = isBestMatch(item.href, currentSection.items);
+                // Expandable parent (e.g. Requisitions with Form / List children)
+                if (item.children && item.children.length > 0) {
+                  const groupActive = childActive(item) || parentPathActive(item);
+                  const open = isGroupOpen(item);
+                  return (
+                    <li key={item.href}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenGroups(prev => ({ ...prev, [item.label]: !open }))}
+                        className={`flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
+                          groupActive
+                            ? 'bg-green-500/15 text-green-400'
+                            : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
+                        }`}
+                        title={item.label}
+                      >
+                        {groupActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-green-500 rounded-r-full" />
+                        )}
+                        <span className={`flex-shrink-0 ${groupActive ? 'text-green-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                          {item.icon}
+                        </span>
+                        <span className="flex-1 whitespace-nowrap overflow-hidden text-left">{item.label}</span>
+                        <FiChevronDown
+                          className={`flex-shrink-0 w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''} ${groupActive ? 'text-green-400' : 'text-thb-sidebar-text/60'}`}
+                        />
+                      </button>
+                      {open && (
+                        <ul className="mt-0.5 mb-1 space-y-0.5">
+                          {item.children.map((child) => {
+                            const childIsActive = currentFullPath === child.href;
+                            return (
+                              <li key={child.href}>
+                                <Link
+                                  href={child.href}
+                                  prefetch={false}
+                                  scroll={true}
+                                  onClick={() => {
+                                    const childPath = child.href.split('?')[0];
+                                    const childQuery = child.href.includes('?') ? child.href.split('?')[1] : '';
+                                    if (pathname === childPath && childQuery) {
+                                      router.push(`${childPath}?${childQuery}`);
+                                    }
+                                    if (isMobileMenu) onToggle();
+                                  }}
+                                  className={`flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 relative ${
+                                    childIsActive
+                                      ? 'bg-green-500/15 text-green-400'
+                                      : 'text-thb-sidebar-text/80 hover:bg-thb-sidebar-hover hover:text-slate-200'
+                                  }`}
+                                  title={child.label}
+                                >
+                                  {childIsActive && (
+                                    <div className="absolute left-[22px] top-1/2 -translate-y-1/2 w-[2px] h-3.5 bg-green-500 rounded-r-full" />
+                                  )}
+                                  <span className={`flex-shrink-0 ${childIsActive ? 'text-green-400' : 'text-thb-sidebar-text/60'}`}>
+                                    {child.icon}
+                                  </span>
+                                  <span className="flex-1 whitespace-nowrap overflow-hidden">{child.label}</span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                }
                 return (
                   <li key={item.href}>
                     <Link

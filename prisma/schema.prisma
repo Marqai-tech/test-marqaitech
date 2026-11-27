@@ -766,6 +766,14 @@ model JobPosting {
   interviewPlan String?
   hiringTeam   String? // JSON array of team members: [{"id","name","role":"interviewer|hiring_manager|recruiter|sourcer"}]
 
+  // Job approval chain (dynamic, mirrors requisition approval — see
+  // src/lib/recruitment-workflow.ts JobApprovalWorkflowConfig). Null on
+  // legacy rows / when no approval chain applies.
+  jobApprovalStatus String?   // pending | tier_<n>_approved | approved | rejected
+  jobApprovalChain  String?   // JSON snapshot of the configured tiers at submission
+  jobApprovalRemarks String?  // last approver remarks
+  jobApprovedAt     DateTime?
+
   applications JobApplication[]
   referrals    Referral[]
   boardPostings JobBoardPosting[]
