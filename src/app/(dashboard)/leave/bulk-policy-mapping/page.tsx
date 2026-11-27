@@ -163,59 +163,59 @@ export default function BulkPolicyMappingPage() {
     try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; }
   };
 
-  // ─── fetch policies from Policy table (NOT LeavePolicyRule) ───
+  // ─── fetch policies from Policy table — show as FLAT list (not grouped by leave type) ───
   const loadPolicies = useCallback(async () => {
     setLoadingPolicies(true);
     try {
-      // Fetch policies from /api/policies?category=leave (has company fallback)
-      const qs = scopeQueryStr ? `?${scopeQueryStr}` : '';
-      const polRes = await fetch(`/api/policies?category=leave&limit=100${qs ? '&' + scopeQueryStr : ''}`, { headers: getAuthHeaders() });
+      const polRes = await fetch(`/api/policies?category=leave&limit=100`, { headers: getAuthHeaders() });
       const polData = polRes.ok ? await polRes.json() : {};
       const allPolicies = polData.data || polData.policies || [];
 
-      // Fetch leave types to get names/codes for grouping
-      const ltRes = await fetch(`/api/leave-types?limit=100${qs ? '&' + scopeQueryStr : ''}`, { headers: getAuthHeaders() }).catch(() => null);
+      // Fetch leave types to resolve names for display
+      const ltRes = await fetch(`/api/leave-types?limit=100`, { headers: getAuthHeaders() }).catch(() => null);
       const ltData = ltRes?.ok ? await ltRes.json() : {};
       const allTypes = ltData.data || [];
 
-      // Build groups: one per leave type, with policies that include that type
-      const groupMap = new Map<string, PolicyGroup>();
+      // Build a FLAT list of policy cards (not grouped by leave type)
+      // Each card shows the policy name + which leave type(s) it covers
+      const cards: PolicyCard[] = [];
       for (const p of allPolicies) {
         if (p.status !== 'active') continue;
         const ltIds = parseJsonArr(p.leaveTypeIds);
-        if (ltIds.length === 0) continue;
+        // Resolve leave type names for display
+        const ltNames = ltIds.map((id: string) => {
+          const lt = allTypes.find((t: any) => t.id === id);
+          return lt ? lt.name : 'Unknown';
+        });
+        const firstLt = ltIds.length > 0 ? allTypes.find((t: any) => t.id === ltIds[0]) : null;
 
-        for (const ltId of ltIds) {
-          const lt = allTypes.find((t: any) => t.id === ltId);
-          if (!groupMap.has(ltId)) {
-            groupMap.set(ltId, {
-              leaveTypeId: ltId,
-              leaveTypeName: lt?.name || 'Unknown',
-              leaveTypeCode: lt?.code || '—',
-              color: lt?.calendarColor || null,
-              policies: [],
-            });
-          }
-          groupMap.get(ltId)!.policies.push({
-            id: p.id,
-            name: p.title || p.name || 'Untitled',
-            ruleCode: p.code || p.version || '—',
-            description: p.description || null,
-            daysPerYear: lt?.defaultDays || 0,
-            carryForward: false,
-            maxCarryForwardDays: 0,
-            maxForLabel: null,
-            meantFor: 'All employees',
-            mappedCount: 0,
-            leaveTypeId: ltId,
-            isOpenEnded: false,
-          });
-        }
+        cards.push({
+          id: p.id,
+          name: p.title || p.name || 'Untitled',
+          ruleCode: p.code || p.version || '—',
+          description: p.description || (ltNames.length > 0 ? `Covers: ${ltNames.join(', ')}` : null),
+          daysPerYear: firstLt?.defaultDays || 0,
+          carryForward: false,
+          maxCarryForwardDays: 0,
+          maxForLabel: null,
+          meantFor: ltNames.length > 0 ? ltNames.join(', ') : 'No leave types',
+          mappedCount: 0,
+          leaveTypeId: ltIds[0] || '',
+          isOpenEnded: false,
+        });
       }
 
-      const resultGroups = Array.from(groupMap.values()).sort((a, b) => a.leaveTypeName.localeCompare(b.leaveTypeName));
+      // Show as a single group containing all policies (flat list)
+      const resultGroups: PolicyGroup[] = cards.length > 0 ? [{
+        leaveTypeId: 'all',
+        leaveTypeName: 'Leave Policies',
+        leaveTypeCode: '',
+        color: null,
+        policies: cards,
+      }] : [];
+
       setGroups(resultGroups);
-      if (resultGroups.length === 0) {
+      if (cards.length === 0) {
         toast('No leave policies found. Create policies in Leave Setup first.', { icon: 'ℹ️' });
       }
     } catch (e) {
@@ -226,39 +226,42 @@ export default function BulkPolicyMappingPage() {
     }
   }, [scopeQueryStr, resolvedCompanyId]);
 
-  // ─── fetch policies (initial load; uses loadPolicies which fetches from Policy table) ───
+  // ─── fetch policies (initial load; flat list from Policy table) ───
   useEffect(() => {
     if (!isAdmin) return;
     let cancelled = false;
     (async () => {
       try {
-        // Fetch policies from /api/policies?category=leave (Policy table, not LeavePolicyRule)
         const polRes = await fetch(`/api/policies?category=leave&limit=100`, { headers: getAuthHeaders() });
         const polData = polRes.ok ? await polRes.json() : {};
         const allPolicies = polData.data || polData.policies || [];
-        // Fetch leave types for grouping
         const ltRes = await fetch(`/api/leave-types?limit=100`, { headers: getAuthHeaders() }).catch(() => null);
         const ltData = ltRes?.ok ? await ltRes.json() : {};
         const allTypes = ltData.data || [];
         if (cancelled) return;
 
-        // Build groups from Policy.leaveTypeIds
-        const groupMap = new Map<string, PolicyGroup>();
+        // Build FLAT list of policy cards (not grouped by leave type)
+        const cards: PolicyCard[] = [];
         for (const p of allPolicies) {
           if (p.status !== 'active') continue;
           const ltIds = parseJsonArr(p.leaveTypeIds);
-          if (ltIds.length === 0) continue;
-          for (const ltId of ltIds) {
-            const lt = allTypes.find((t: any) => t.id === ltId);
-            if (!groupMap.has(ltId)) {
-              groupMap.set(ltId, { leaveTypeId: ltId, leaveTypeName: lt?.name || 'Unknown', leaveTypeCode: lt?.code || '—', color: lt?.calendarColor || null, policies: [] });
-            }
-            groupMap.get(ltId)!.policies.push({ id: p.id, name: p.title || p.name || 'Untitled', ruleCode: p.code || '—', description: p.description || null, daysPerYear: lt?.defaultDays || 0, carryForward: false, maxCarryForwardDays: 0, maxForLabel: null, meantFor: 'All employees', mappedCount: 0, leaveTypeId: ltId, isOpenEnded: false });
-          }
+          const ltNames = ltIds.map((id: string) => allTypes.find((t: any) => t.id === id)?.name || 'Unknown');
+          const firstLt = ltIds.length > 0 ? allTypes.find((t: any) => t.id === ltIds[0]) : null;
+          cards.push({
+            id: p.id, name: p.title || p.name || 'Untitled',
+            ruleCode: p.code || '—',
+            description: p.description || (ltNames.length > 0 ? `Covers: ${ltNames.join(', ')}` : null),
+            daysPerYear: firstLt?.defaultDays || 0, carryForward: false,
+            maxCarryForwardDays: 0, maxForLabel: null,
+            meantFor: ltNames.length > 0 ? ltNames.join(', ') : 'No leave types',
+            mappedCount: 0, leaveTypeId: ltIds[0] || '', isOpenEnded: false,
+          });
         }
-        const resultGroups = Array.from(groupMap.values()).sort((a, b) => a.leaveTypeName.localeCompare(b.leaveTypeName));
+        const resultGroups: PolicyGroup[] = cards.length > 0 ? [{
+          leaveTypeId: 'all', leaveTypeName: 'Leave Policies', leaveTypeCode: '', color: null, policies: cards,
+        }] : [];
         setGroups(resultGroups);
-        if (resultGroups.length === 0) {
+        if (cards.length === 0) {
           toast('No leave policies found. Create policies in Leave Setup first.', { icon: 'ℹ️' });
         }
       } catch (e) {
