@@ -100,6 +100,25 @@ export default function BulkPolicyMappingPage() {
   const role = useAuthStore(s => s.user?.role || 'employee');
   const scopeQueryStr = useCompanyContextStore(s => s.scopeQuery());
 
+  // BUG FIX: Resolve companyId when admin has no company selected in switcher.
+  // The bulk-policy-mapping API requires companyId — without it, returns
+  // "No company selected" error and the page shows no policies.
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string>('');
+  useEffect(() => {
+    if (scopeQueryStr) return; // already have scope (tenant_admin/ceo with company)
+    // For admin/hr_admin without switcher selection, fetch own employee's company
+    (async () => {
+      try {
+        const r = await fetch('/api/employees?own=1&limit=1', { headers: getAuthHeaders() });
+        if (r.ok) {
+          const d = await r.json();
+          const emp = d.employees?.[0];
+          if (emp?.companyId) setResolvedCompanyId(emp.companyId);
+        }
+      } catch {}
+    })();
+  }, [scopeQueryStr, resolvedCompanyId]);
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [groups, setGroups] = useState<PolicyGroup[]>([]);
   const [loadingPolicies, setLoadingPolicies] = useState(true);
@@ -128,7 +147,7 @@ export default function BulkPolicyMappingPage() {
   const loadPolicies = useCallback(async () => {
     setLoadingPolicies(true);
     try {
-      const qs = scopeQueryStr ? `&${scopeQueryStr}` : '';
+      const qs = scopeQueryStr ? `&${scopeQueryStr}` : (resolvedCompanyId ? `&companyId=${resolvedCompanyId}` : '');
       const r = await fetch(`/api/leave/bulk-policy-mapping?mode=policies${qs}`, { headers: getAuthHeaders() });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
@@ -142,7 +161,7 @@ export default function BulkPolicyMappingPage() {
     } finally {
       setLoadingPolicies(false);
     }
-  }, [scopeQueryStr]);
+  }, [scopeQueryStr, resolvedCompanyId]);
 
   // ─── fetch policies (initial load; silent refresh via loadPolicies) ───
   useEffect(() => {
@@ -150,7 +169,7 @@ export default function BulkPolicyMappingPage() {
     let cancelled = false;
     (async () => {
       try {
-        const qs = scopeQueryStr ? `&${scopeQueryStr}` : '';
+        const qs = scopeQueryStr ? `&${scopeQueryStr}` : (resolvedCompanyId ? `&companyId=${resolvedCompanyId}` : '');
         const r = await fetch(`/api/leave/bulk-policy-mapping?mode=policies${qs}`, { headers: getAuthHeaders() });
         const j = await r.json();
         if (cancelled) return;
@@ -169,13 +188,13 @@ export default function BulkPolicyMappingPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [isAdmin, scopeQueryStr]);
+  }, [isAdmin, scopeQueryStr, resolvedCompanyId]);
 
   // ─── fetch employees for chosen policy's leave type ───
   const loadEmployees = useCallback(async (policy: PolicyCard) => {
     setLoadingEmployees(true);
     try {
-      const qs = scopeQueryStr ? `&${scopeQueryStr}` : '';
+      const qs = scopeQueryStr ? `&${scopeQueryStr}` : (resolvedCompanyId ? `&companyId=${resolvedCompanyId}` : '');
       const r = await fetch(
         `/api/leave/bulk-policy-mapping?mode=employees&leaveTypeId=${policy.leaveTypeId}${qs}`,
         { headers: getAuthHeaders() },
@@ -189,7 +208,7 @@ export default function BulkPolicyMappingPage() {
     } finally {
       setLoadingEmployees(false);
     }
-  }, [scopeQueryStr]);
+  }, [scopeQueryStr, resolvedCompanyId]);
 
   // ─── step transitions ───
   const goStep2 = () => {
