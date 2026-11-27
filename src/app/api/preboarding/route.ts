@@ -141,6 +141,7 @@ export async function POST(request: Request) {
       joiningDate,
       notes,
       offerId,
+      jobApplicationId,
       status,
     } = body;
 
@@ -150,11 +151,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only HR/Admin can create preboarding records' }, { status: 403, headers: corsHeaders() });
     }
 
-    // C-007 fix: Verify offer is accepted before creating preboarding
-    if (offerId) {
-      try {
+    // C-007 fix: Verify offer is accepted before creating preboarding.
+    // STAGE-GUARD (E2E audit): the offer check previously ran ONLY when the
+    // caller passed offerId — omitting offerId allowed preboarding records for
+    // ANY candidate (even a freshly registered applicant with no offer at
+    // all). The guard is now unconditional: when offerId is omitted we resolve
+    // the candidate's most recent application and its latest offer and still
+    // require that offer to be 'accepted'. If no accepted offer exists the
+    // request is refused and NOTHING is created.
+    let effectiveOfferId: string | null = offerId || null;
+    let effectiveJobApplicationId: string | null = jobApplicationId || null;
+    try {
+      if (effectiveOfferId) {
         const offerRow = await db.$queryRawUnsafe(
-          `SELECT "status", "candidateEmail" FROM "Offer" WHERE "id" = $1 LIMIT 1`, offerId,
+          `SELECT "status", "candidateEmail", "jobApplicationId" FROM "Offer" WHERE "id" = $1 LIMIT 1`, effectiveOfferId,
         ) as any[];
         if (!offerRow[0]) {
           return NextResponse.json({ error: 'Referenced offer not found' }, { status: 404, headers: corsHeaders() });
@@ -165,7 +175,53 @@ export async function POST(request: Request) {
         if (offerRow[0].candidateEmail && candidateEmail && offerRow[0].candidateEmail.toLowerCase() !== String(candidateEmail).toLowerCase()) {
           return NextResponse.json({ error: 'Candidate email does not match the accepted offer' }, { status: 400, headers: corsHeaders() });
         }
-      } catch { /* Offer table may not exist — allow */ }
+        effectiveJobApplicationId = effectiveJobApplicationId || offerRow[0].jobApplicationId || null;
+      } else {
+        // No offerId supplied — resolve from the candidate's application trail.
+        if (!candidateEmail) {
+          return NextResponse.json({ error: 'candidateEmail is required to initiate preboarding' }, { status: 400, headers: corsHeaders() });
+        }
+        const appRows = await db.$queryRawUnsafe(
+          `SELECT "id", "status" FROM "JobApplication" WHERE LOWER("candidateEmail") = LOWER($1) ORDER BY "appliedDate" DESC LIMIT 1`,
+          String(candidateEmail),
+        ) as any[];
+        if (!appRows[0]) {
+          return NextResponse.json({ error: 'No job application found for this candidate — preboarding cannot start without an accepted offer.' }, { status: 400, headers: corsHeaders() });
+        }
+        effectiveJobApplicationId = effectiveJobApplicationId || appRows[0].id;
+        const offRows = await db.$queryRawUnsafe(
+          `SELECT "id", "status" FROM "Offer" WHERE "jobApplicationId" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
+          appRows[0].id,
+        ) as any[];
+        if (!offRows[0]) {
+          return NextResponse.json({ error: 'No offer exists for this candidate — preboarding requires an accepted offer first.' }, { status: 400, headers: corsHeaders() });
+        }
+        if (offRows[0].status !== 'accepted') {
+          return NextResponse.json({ error: 'Preboarding can only start from an accepted offer. Current offer status: ' + offRows[0].status }, { status: 400, headers: corsHeaders() });
+        }
+        effectiveOfferId = offRows[0].id;
+        // Cross-check: the resolved offer must belong to the SAME candidate email.
+        const offEmailRows = await db.$queryRawUnsafe(
+          `SELECT "candidateEmail" FROM "Offer" WHERE "id" = $1 LIMIT 1`, effectiveOfferId,
+        ) as any[];
+        if (offEmailRows[0]?.candidateEmail && candidateEmail && offEmailRows[0].candidateEmail.toLowerCase() !== String(candidateEmail).toLowerCase()) {
+          return NextResponse.json({ error: 'Candidate email does not match the accepted offer' }, { status: 400, headers: corsHeaders() });
+        }
+      }
+
+      // Dedup: one live preboarding record per candidate email + accepted offer.
+      const dupRows = await db.$queryRawUnsafe(
+        `SELECT "id" FROM "PreboardingCandidate" WHERE LOWER("candidateEmail") = LOWER($1) AND "offerId" = $2 AND "cancelledAt" IS NULL LIMIT 1`,
+        String(candidateEmail || ''), effectiveOfferId,
+      ) as any[];
+      if (dupRows[0]) {
+        return NextResponse.json({ error: 'Preboarding has already been initiated for this candidate and offer', existingId: dupRows[0].id }, { status: 409, headers: corsHeaders() });
+      }
+    } catch (guardErr: unknown) {
+      if (guardErr && typeof guardErr === 'object' && 'status' in guardErr) throw guardErr;
+      // Infrastructure errors only (schema not synced yet) — the business
+      // guards above always return directly.
+      console.warn('[preboarding] guard lookup skipped:', guardErr instanceof Error ? guardErr.message : guardErr);
     }
 
     if (!candidateName || !candidateEmail) {
@@ -191,7 +247,8 @@ export async function POST(request: Request) {
           offerDate: offerDate ? new Date(offerDate) : new Date(),
           joiningDate: joiningDate ? new Date(joiningDate) : null,
           notes: notes || null,
-          offerId: offerId || null,
+          offerId: effectiveOfferId,
+          jobApplicationId: effectiveJobApplicationId,
           status: status || 'offer_accepted',
           documentsUploaded: null,
           backgroundCheckStatus: 'pending',

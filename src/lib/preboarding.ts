@@ -225,11 +225,17 @@ export async function ensurePreboardingId(db: PrismaClient, pb: { id: string; pr
 
 /** In-app candidate portal message (senderName + body are NOT NULL in DB). */
 export async function notifyCandidate(db: PrismaClient, candidateEmail: string, message: string): Promise<void> {
+  // E2E-audit fix: the previous INSERT referenced a non-existent "message"
+  // column; the .catch(() => 0) swallowed the failure, so candidates never
+  // received in-app messages (document approvals/rejections, BGV updates…).
+  // CandidateMessage has a single content column: "body".
   await db.$executeRawUnsafe(
-    `INSERT INTO "CandidateMessage" ("id","candidateEmail","senderName","senderRole","message","body","createdAt","updatedAt")
-     VALUES ($1,$2,'HR System','system',$3,$3,NOW(),NOW())`,
+    `INSERT INTO "CandidateMessage" ("id","candidateEmail","senderName","senderRole","body","createdAt","updatedAt")
+     VALUES ($1,$2,'HR System','system',$3,NOW(),NOW())`,
     `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, candidateEmail.toLowerCase(), message,
-  ).catch(() => 0);
+  ).catch((e: unknown) => {
+    console.warn('[preboarding] candidate message skipped:', e instanceof Error ? e.message : e);
+  });
 }
 
 /** Best-effort audit log write. */

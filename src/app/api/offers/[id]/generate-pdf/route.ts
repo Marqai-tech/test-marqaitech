@@ -155,6 +155,12 @@ export async function POST(
         module: 'offers',
         details: `Generated offer preview for offer ${id}${template ? ` using template "${template.name}"` : ' (default template)'}`,
       },
+    }).catch((e: unknown) => {
+      // Audit-log write must never fail the business action. Some audit users
+      // (platform-DB JWT ids) have no matching row in the tenant-DB User table
+      // (AuditLog.userId FK), which previously turned a SUCCESSFUL PDF
+      // generation into a misleading 500.
+      console.warn('[generate-pdf] audit log skipped:', e instanceof Error ? e.message : e);
     });
 
     return NextResponse.json(
