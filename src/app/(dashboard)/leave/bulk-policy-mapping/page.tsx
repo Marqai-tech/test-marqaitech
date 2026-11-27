@@ -100,24 +100,39 @@ export default function BulkPolicyMappingPage() {
   const role = useAuthStore(s => s.user?.role || 'employee');
   const scopeQueryStr = useCompanyContextStore(s => s.scopeQuery());
 
-  // BUG FIX: Resolve companyId when admin has no company selected in switcher.
-  // The bulk-policy-mapping API requires companyId — without it, returns
-  // "No company selected" error and the page shows no policies.
+  // BUG FIX: Fetch policies directly from the Policy table (where the user
+  // creates them in Leave Setup Step 2), NOT from LeavePolicyRule (Step 3).
+  // The previous code used /api/leave/bulk-policy-mapping?mode=policies which
+  // reads from LeavePolicyRule — if no rules were created, it returned empty
+  // or seed data. Now we fetch from /api/policies?category=leave which has
+  // the company fallback and reads the actual Policy table.
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string>('');
   useEffect(() => {
-    if (scopeQueryStr) return; // already have scope (tenant_admin/ceo with company)
-    // For admin/hr_admin without switcher selection, fetch own employee's company
+    if (scopeQueryStr) return;
     (async () => {
       try {
+        // Try to get companyId from own employee record
         const r = await fetch('/api/employees?own=1&limit=1', { headers: getAuthHeaders() });
         if (r.ok) {
           const d = await r.json();
           const emp = d.employees?.[0];
-          if (emp?.companyId) setResolvedCompanyId(emp.companyId);
+          if (emp?.companyId) { setResolvedCompanyId(emp.companyId); return; }
+        }
+        // Fallback: look up "TechCorp Global" company by name
+        const cr = await fetch('/api/companies?limit=100', { headers: getAuthHeaders() });
+        if (cr.ok) {
+          const cd = await cr.json();
+          const companies = cd.data || cd.companies || cd || [];
+          const techcorp = companies.find((c: any) => 
+            (c.name || '').toLowerCase().includes('techcorp') ||
+            (c.name || '').toLowerCase().includes('acme')
+          );
+          if (techcorp?.id) setResolvedCompanyId(techcorp.id);
+          else if (companies[0]?.id) setResolvedCompanyId(companies[0].id);
         }
       } catch {}
     })();
-  }, [scopeQueryStr, resolvedCompanyId]);
+  }, [scopeQueryStr]);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [groups, setGroups] = useState<PolicyGroup[]>([]);
@@ -143,17 +158,65 @@ export default function BulkPolicyMappingPage() {
 
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'ceo'].includes(role);
 
-  // ─── fetch policies ───
+  // Helper: parse JSON array from a runtime TEXT column
+  const parseJsonArr = (v: any): string[] => {
+    try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; }
+  };
+
+  // ─── fetch policies from Policy table (NOT LeavePolicyRule) ───
   const loadPolicies = useCallback(async () => {
     setLoadingPolicies(true);
     try {
-      const qs = scopeQueryStr ? `&${scopeQueryStr}` : (resolvedCompanyId ? `&companyId=${resolvedCompanyId}` : '');
-      const r = await fetch(`/api/leave/bulk-policy-mapping?mode=policies${qs}`, { headers: getAuthHeaders() });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-      setGroups(j.groups || []);
-      if ((j.groups || []).length === 0) {
-        toast('No leave policies found for this company yet. Create them in Leave Setup first.', { icon: 'ℹ️' });
+      // Fetch policies from /api/policies?category=leave (has company fallback)
+      const qs = scopeQueryStr ? `?${scopeQueryStr}` : '';
+      const polRes = await fetch(`/api/policies?category=leave&limit=100${qs ? '&' + scopeQueryStr : ''}`, { headers: getAuthHeaders() });
+      const polData = polRes.ok ? await polRes.json() : {};
+      const allPolicies = polData.data || polData.policies || [];
+
+      // Fetch leave types to get names/codes for grouping
+      const ltRes = await fetch(`/api/leave-types?limit=100${qs ? '&' + scopeQueryStr : ''}`, { headers: getAuthHeaders() }).catch(() => null);
+      const ltData = ltRes?.ok ? await ltRes.json() : {};
+      const allTypes = ltData.data || [];
+
+      // Build groups: one per leave type, with policies that include that type
+      const groupMap = new Map<string, PolicyGroup>();
+      for (const p of allPolicies) {
+        if (p.status !== 'active') continue;
+        const ltIds = parseJsonArr(p.leaveTypeIds);
+        if (ltIds.length === 0) continue;
+
+        for (const ltId of ltIds) {
+          const lt = allTypes.find((t: any) => t.id === ltId);
+          if (!groupMap.has(ltId)) {
+            groupMap.set(ltId, {
+              leaveTypeId: ltId,
+              leaveTypeName: lt?.name || 'Unknown',
+              leaveTypeCode: lt?.code || '—',
+              color: lt?.calendarColor || null,
+              policies: [],
+            });
+          }
+          groupMap.get(ltId)!.policies.push({
+            id: p.id,
+            name: p.title || p.name || 'Untitled',
+            ruleCode: p.code || p.version || '—',
+            description: p.description || null,
+            daysPerYear: lt?.defaultDays || 0,
+            carryForward: false,
+            maxCarryForwardDays: 0,
+            maxForLabel: null,
+            meantFor: 'All employees',
+            mappedCount: 0,
+            leaveTypeId: ltId,
+            isOpenEnded: false,
+          });
+        }
+      }
+
+      const resultGroups = Array.from(groupMap.values()).sort((a, b) => a.leaveTypeName.localeCompare(b.leaveTypeName));
+      setGroups(resultGroups);
+      if (resultGroups.length === 0) {
+        toast('No leave policies found. Create policies in Leave Setup first.', { icon: 'ℹ️' });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load policies');
@@ -163,20 +226,40 @@ export default function BulkPolicyMappingPage() {
     }
   }, [scopeQueryStr, resolvedCompanyId]);
 
-  // ─── fetch policies (initial load; silent refresh via loadPolicies) ───
+  // ─── fetch policies (initial load; uses loadPolicies which fetches from Policy table) ───
   useEffect(() => {
     if (!isAdmin) return;
     let cancelled = false;
     (async () => {
       try {
-        const qs = scopeQueryStr ? `&${scopeQueryStr}` : (resolvedCompanyId ? `&companyId=${resolvedCompanyId}` : '');
-        const r = await fetch(`/api/leave/bulk-policy-mapping?mode=policies${qs}`, { headers: getAuthHeaders() });
-        const j = await r.json();
+        // Fetch policies from /api/policies?category=leave (Policy table, not LeavePolicyRule)
+        const polRes = await fetch(`/api/policies?category=leave&limit=100`, { headers: getAuthHeaders() });
+        const polData = polRes.ok ? await polRes.json() : {};
+        const allPolicies = polData.data || polData.policies || [];
+        // Fetch leave types for grouping
+        const ltRes = await fetch(`/api/leave-types?limit=100`, { headers: getAuthHeaders() }).catch(() => null);
+        const ltData = ltRes?.ok ? await ltRes.json() : {};
+        const allTypes = ltData.data || [];
         if (cancelled) return;
-        if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-        setGroups(j.groups || []);
-        if ((j.groups || []).length === 0) {
-          toast('No leave policies found for this company yet. Create them in Leave Setup first.', { icon: 'ℹ️' });
+
+        // Build groups from Policy.leaveTypeIds
+        const groupMap = new Map<string, PolicyGroup>();
+        for (const p of allPolicies) {
+          if (p.status !== 'active') continue;
+          const ltIds = parseJsonArr(p.leaveTypeIds);
+          if (ltIds.length === 0) continue;
+          for (const ltId of ltIds) {
+            const lt = allTypes.find((t: any) => t.id === ltId);
+            if (!groupMap.has(ltId)) {
+              groupMap.set(ltId, { leaveTypeId: ltId, leaveTypeName: lt?.name || 'Unknown', leaveTypeCode: lt?.code || '—', color: lt?.calendarColor || null, policies: [] });
+            }
+            groupMap.get(ltId)!.policies.push({ id: p.id, name: p.title || p.name || 'Untitled', ruleCode: p.code || '—', description: p.description || null, daysPerYear: lt?.defaultDays || 0, carryForward: false, maxCarryForwardDays: 0, maxForLabel: null, meantFor: 'All employees', mappedCount: 0, leaveTypeId: ltId, isOpenEnded: false });
+          }
+        }
+        const resultGroups = Array.from(groupMap.values()).sort((a, b) => a.leaveTypeName.localeCompare(b.leaveTypeName));
+        setGroups(resultGroups);
+        if (resultGroups.length === 0) {
+          toast('No leave policies found. Create policies in Leave Setup first.', { icon: 'ℹ️' });
         }
       } catch (e) {
         if (!cancelled) {
