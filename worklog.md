@@ -6034,3 +6034,41 @@ Work Done (4 commits, each typechecked via scoped task tsconfig — full-project
 Deployment: 7a4edeb BUILDING; 8305f2b/c49c846 got no webhook deployment → triggered production deployment dpl_7erkWtAE via Vercel API gitSource (repoId 1422962694, ref main @ c49c846 — contains ALL four parts). Verification pending build completion.
 
 Also: removed a 2.7GB accidental 'core' dump (tsc OOM) from the first Part-5 commit attempt (pre-receive hook rejected it); added 'core' to .gitignore.
+
+── BULK POLICY MAPPING (2026-11-26) ──
+FEATURE: New "Bulk Policy Mapping" wizard in the Leave module (deployed & E2E-verified).
+- UI: src/app/(dashboard)/leave/bulk-policy-mapping/page.tsx — 3-step wizard:
+  (1) Choose policy — cards grouped by leave type (fetched live: quota, carry-forward,
+      meant-for/max-for labels, ruleCode badge, "N employees mapped today");
+  (2) Select employees — company roster with each employee's CURRENT policy for the
+      chosen leave type ("already on it" / "on another" / "Not mapped" badges), search +
+      department/location/status filters, CSV upload + drag&drop (match by employeeId/email),
+      sticky mapping panel with selected-employee badges;
+  (3) Review & apply — new-mappings / switched / already-on-it stats + per-employee
+      current→new arrows, then success screen with totals.
+- API: src/app/api/leave/bulk-policy-mapping/route.ts (admin-gated):
+  GET ?mode=policies — leave types + LeavePolicyRule cards grouped by type. Rule→leave-type
+  resolution: runtime leaveTypeId column → first leaveTypeAllocations entry. mappedCount =
+  rule.employeeIds ∪ LeaveTypePolicyMapping.employeeIds for that rule.
+  GET ?mode=employees — company roster (raw SQL join Department/Designation/Branch; NOTE:
+  Employee has NO employmentType column in tenant DBs — employeeStatus is the status filter)
+  + currentPolicy per employee for the chosen leave type.
+  POST { policyId, employeeIds } — TRANSACTION: strips selected employees from every sibling
+  rule of the SAME leave type (one policy per employee per leave type), adds them to the
+  target rule's employeeIds JSON, best-effort syncs existing LeaveTypePolicyMapping rows,
+  safeAuditLog'd. isOpenEnded rules (no employeeIds) become explicit lists on first apply —
+  UI shows an amber warning in step 3.
+- Nav: "Bulk Policy Mapping" under Leave > Settings (super_admin/tenant_admin/admin).
+- LOCAL TEST (env: DATABASE_URL=ep-blue-fire neondb, TEST_TENANT_SLUG=demo): seeded 4
+  bulktest-* rules in tenant_demo; verified via agent-browser — card grid, badges, filters,
+  selection panel, CSV upload (ACT-0900/0901 matched, ACT-9999 skipped), apply (2 new +
+  1 switch: movedFromOther=1), DB check (Standard=5, Probation=2), mapped counts refresh.
+  Gotcha: sandbox global DATABASE_URL=file:...custom.db overrides .env.local → dev must be
+  started with explicit DATABASE_URL env override (run-dev-local.sh).
+- DEPLOY: commit b74dbb5d → Vercel project 3boxes-hrms (team hrms-a6b1) READY, promoted to
+  3boxes-hrms-inky.vercel.app. PROD TEST as madhuri@marqaitech.com (MarqAI@2026): no policy
+  rules existed on test-marqaitech tenant → created 3 rules via POST /api/leave-policy-rules
+  (CL-STID/CL-PRB/SL-STD, TechCorp Global) through the app's own API, then full wizard flow
+  in browser: cards → selected Madhuri N + Manoj T → apply → "2 employees now on Casual
+  Leave - Standard"; GET mode=policies now reports Standard mapped=2. Mobile viewport 390px
+  verified. No console errors.
