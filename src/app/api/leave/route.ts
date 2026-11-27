@@ -1050,6 +1050,36 @@ export async function POST(request: Request) {
       }
     }
 
+    // ─── BUG_256 consistency fallback: company-wide policy documents ───
+    // The leave-types dropdown ALSO shows leave types declared on ANY active
+    // leave-category Policy document whose "Applies to" filters match the
+    // employee (resolvePolicyBasedLeaveTypeIds — shared helper). Mirror that
+    // here: an employee who sees a type via such a policy must be able to
+    // actually submit it. The ASSIGNED-policy check below remains as an
+    // additional (narrower) path.
+    if (!resolvedPolicyForSnapshot) {
+      try {
+        const { resolvePolicyBasedLeaveTypeIds } = await import('@/lib/leave-policy-resolver');
+        const empRows3 = await db.$queryRawUnsafe<Array<{ id: string; employeeStatus: string | null; branchId: string | null; departmentId: string | null }>>(
+          `SELECT "id", "employeeStatus", "branchId", "departmentId" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+          employeeId
+        );
+        const empForPolicies = empRows3[0];
+        if (empForPolicies) {
+          const policyLtIds = await resolvePolicyBasedLeaveTypeIds(db, empForPolicies);
+          if (policyLtIds.has(leaveTypeId)) {
+            resolvedPolicyForSnapshot = {
+              policyRuleName: 'Company leave policy',
+              source: 'company_policy_document',
+            };
+            console.log(`[leave] Employee eligible via company-wide leave policy document containing type ${leaveTypeId}`);
+          }
+        }
+      } catch (polScanErr) {
+        console.warn('[leave] Company policy-document scan failed (non-fatal):', polScanErr);
+      }
+    }
+
     // ─── Check Employee.leavePolicyIds (directly-assigned policies) ───
     // The resolver above only checks LeaveTypePolicyMapping + LeavePolicyRule.
     // It does NOT check the employee's directly-assigned leave policies

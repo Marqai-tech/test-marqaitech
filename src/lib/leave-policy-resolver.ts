@@ -392,6 +392,50 @@ export async function resolveLeavePolicy(
 }
 
 /**
+ * Policy-document based leave-type eligibility (shared by /api/leave-types
+ * list enforcement and the POST /api/leave apply gate).
+ *
+ * Scans ALL active leave-category Policy documents that declare leaveTypeIds
+ * and collects the union of those leave types for the employee, honoring the
+ * policy's "Applies to" filters (empStatus, branchIds, departmentIds,
+ * designationIds). Mirrors exactly what the leave-types dropdown shows so the
+ * list and the apply gate can never disagree (BUG_256).
+ */
+export async function resolvePolicyBasedLeaveTypeIds(
+  db: any,
+  emp: { id?: string; employeeStatus?: string | null; branchId?: string | null; departmentId?: string | null } | null,
+): Promise<Set<string>> {
+  const result = new Set<string>();
+  if (!emp?.id) return result;
+  try {
+    const policyRows: Array<{ leaveTypeIds: string | null; empStatus: string | null; branchIds: string | null; departmentIds: string | null; designationIds: string | null }> =
+      await db.$queryRawUnsafe(
+        `SELECT "leaveTypeIds", "empStatus", "branchIds", "departmentIds", "designationIds"
+           FROM "Policy"
+          WHERE category = 'leave' AND status = 'active'
+            AND "leaveTypeIds" IS NOT NULL AND "leaveTypeIds" != ''`
+      );
+    const safeJsonArray = (v: string | null): string[] => {
+      try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; }
+    };
+    for (const p of policyRows) {
+      const pStatuses = safeJsonArray(p.empStatus);
+      const pBranches = safeJsonArray(p.branchIds);
+      const pDepts = safeJsonArray(p.departmentIds);
+      // NOTE: designationIds intentionally not filtered here — the leave-types
+      // list-side fallback doesn't filter by designation either (behavior parity).
+      if (pStatuses.length > 0 && emp.employeeStatus && !pStatuses.includes(emp.employeeStatus)) continue;
+      if (pBranches.length > 0 && emp.branchId && !pBranches.includes(emp.branchId)) continue;
+      if (pDepts.length > 0 && emp.departmentId && !pDepts.includes(emp.departmentId)) continue;
+      for (const id of safeJsonArray(p.leaveTypeIds)) result.add(id);
+    }
+  } catch (e) {
+    console.warn('[leave-policy-resolver] policy-based leaveTypeIds fallback failed (non-fatal):', e);
+  }
+  return result;
+}
+
+/**
  * Validation helper — checks a leave application against the resolved policy.
  * Returns an array of error messages (empty = valid).
  */
