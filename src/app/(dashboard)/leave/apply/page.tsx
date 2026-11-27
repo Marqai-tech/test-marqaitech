@@ -199,14 +199,30 @@ function ApplyLeaveContent() {
         if (myEmp) {
           try {
             // Fetch employee's directly-assigned policy IDs
+            // BUG FIX: Use defensive parsing — leavePolicyId (singular) is a
+            // plain cuid (not JSON), so JSON.parse throws. The catch must
+            // return [v] as fallback, not silently abort the whole block.
             let empLeavePolicyIds: string[] = [];
+            // First, check if leavePolicyId is already on the employee object
+            // (from the /api/employees?own=1 fetch — now includes leavePolicyId)
+            if (myEmp.leavePolicyId) {
+              empLeavePolicyIds = [myEmp.leavePolicyId];
+            }
+            // Also fetch from the policies endpoint for the plural field
             try {
               const empPolRes = await fetch(`/api/employees/${myEmp.id}/policies`, { headers });
               if (empPolRes.ok) {
                 const empPolData = await empPolRes.json();
                 const empPol = empPolData.data?.employee || {};
                 const raw = empPol.leavePolicyIds || empPol.leavePolicyId;
-                empLeavePolicyIds = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : (raw ? [raw] : []));
+                // Defensive parse: handles JSON array string, plain cuid, null
+                try {
+                  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                  empLeavePolicyIds = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : empLeavePolicyIds);
+                } catch {
+                  // raw is a plain cuid (not JSON) — use it directly
+                  if (raw) empLeavePolicyIds = typeof raw === 'string' ? [raw] : (Array.isArray(raw) ? raw : [String(raw)]);
+                }
               }
             } catch {}
 

@@ -470,16 +470,21 @@ export async function GET(request: Request) {
       // ─── Self / team / admin scope enforcement ───
       if (isAuthed) {
         if (scope === 'self' && userId) {
-          // Task 113 — Employee directory scope: an employee sees THEIR OWN
-          // record + all ACTIVE colleagues in the SAME DEPARTMENT (user ask:
-          // "employee login should show the respective employee's department
-          // employees' details in the directory"). Falls back to self-only
-          // when the employee has no department (or no employee row).
+          // BUG FIX: When own=1 is passed, ALWAYS pin to the logged-in
+          // employee's own record only (don't include department colleagues).
+          // Previously own=1 was ignored, so limit=1 + department OR +
+          // orderBy createdAt desc could return a colleague instead of self.
+          const ownParam = searchParams.get('own');
           const ownEmp = await db.employee.findFirst({
             where: { userId, status: 'active' },
             select: { id: true, departmentId: true },
           }).catch(() => null);
-          if (ownEmp?.departmentId) {
+          if (ownParam === '1') {
+            // Pin to self only — used by /leave/apply to fetch the employee's
+            // own record (with leavePolicyId) for policy resolution
+            where.userId = userId;
+          } else if (ownEmp?.departmentId) {
+            // Task 113 — Employee directory scope: self + department colleagues
             where.OR = [
               { userId },
               { departmentId: ownEmp.departmentId, status: 'active' },
@@ -544,6 +549,9 @@ export async function GET(request: Request) {
             createdAt: true, updatedAt: true,
             // Bug 2 fix: include gender + maritalStatus so dashboard Gender Distribution widget works
             gender: true, maritalStatus: true,
+            // BUG FIX: include leavePolicyId so /leave/apply can resolve the
+            // employee's assigned policy without a second API round-trip
+            leavePolicyId: true,
             department: { select: { id: true, name: true } },
             designation: { select: { id: true, title: true } },
             branch: { select: { id: true, name: true } },
