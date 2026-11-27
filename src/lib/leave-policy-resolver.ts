@@ -83,7 +83,7 @@ export interface ResolvedPolicy {
   }>;
 }
 
-function matchesEmployee(
+export function matchesEmployee(
   emp: { id: string; employmentType: string | null; branchId: string | null; departmentId: string | null; gender: string | null; employeeStatus?: string | null },
   scope: {
     employmentType?: string;

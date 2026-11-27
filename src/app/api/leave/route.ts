@@ -987,6 +987,69 @@ export async function POST(request: Request) {
       console.warn('[leave] Policy resolution for snapshot failed (non-fatal):', policyErr);
     }
 
+    // ─── BUG_256 consistency fallback: mapping scan across ALL companies ───
+    // /api/leave-types treats an ACTIVE LeaveTypePolicyMapping as the sole
+    // gatekeeper and scans mappings across ALL companies that have them (the
+    // mapping may have been created while the company switcher had a different
+    // company selected than the employee's). The per-company resolver above can
+    // then legitimately return 'none' for an employee whose company never had
+    // the mapping row — the employee SEES the type in the dropdown but the
+    // apply call 403s. Mirror the list-side scan here so the dropdown and the
+    // apply gate can never disagree.
+    if (!resolvedPolicyForSnapshot) {
+      type MappingRow = {
+        id: string;
+        policyRuleId: string;
+        employmentType: string | null;
+        branchId: string | null;
+        departmentId: string | null;
+        genderApplicability: string | null;
+        employeeIds: string | null;
+        policyRuleName: string | null;
+        empStatusJson: string | null;
+      };
+      try {
+        const empRows2 = await db.$queryRawUnsafe<Array<{ id: string; companyId: string | null; employmentType: string | null; branchId: string | null; departmentId: string | null; gender: string | null; employeeStatus: string | null }>>(
+          `SELECT "id", "companyId", "employmentType", "branchId", "departmentId", "gender", "employeeStatus"
+             FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+          employeeId
+        );
+        const empFull = empRows2[0];
+        if (empFull) {
+          const mapRows = await db.$queryRawUnsafe<MappingRow[]>(
+            `SELECT m."id", m."policyRuleId", m."employmentType", m."branchId", m."departmentId",
+                    m."genderApplicability", m."employeeIds", r."name" AS "policyRuleName", r."empStatusJson"
+               FROM "LeaveTypePolicyMapping" m
+               LEFT JOIN "LeavePolicyRule" r ON r."id" = m."policyRuleId"
+              WHERE m."status" = 'active' AND m."leaveTypeId" = $1`,
+            leaveTypeId
+          );
+          const { matchesEmployee } = await import('@/lib/leave-policy-resolver');
+          for (const m of mapRows) {
+            const scopeCheck = matchesEmployee(empFull, {
+              employmentType: m.employmentType,
+              branchId: m.branchId,
+              departmentId: m.departmentId,
+              genderApplicability: m.genderApplicability,
+              employeeIds: m.employeeIds,
+              empStatusJson: m.empStatusJson,
+            });
+            if (scopeCheck.match) {
+              resolvedPolicyForSnapshot = {
+                policyRuleId: m.policyRuleId,
+                policyRuleName: m.policyRuleName,
+                source: 'mapping_all_companies',
+              };
+              console.log(`[leave] Employee eligible via all-companies mapping scan: mapping ${m.id} (${m.policyRuleName || 'rule'}) — ${scopeCheck.reason}`);
+              break;
+            }
+          }
+        }
+      } catch (scanErr) {
+        console.warn('[leave] All-companies mapping scan failed (non-fatal):', scanErr);
+      }
+    }
+
     // ─── Check Employee.leavePolicyIds (directly-assigned policies) ───
     // The resolver above only checks LeaveTypePolicyMapping + LeavePolicyRule.
     // It does NOT check the employee's directly-assigned leave policies
