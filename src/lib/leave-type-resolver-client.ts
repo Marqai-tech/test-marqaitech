@@ -28,15 +28,21 @@ function parseJsonArray(v: any): string[] {
 }
 
 /**
- * Resolve which leave type IDs an employee should see, based on policies
- * and mappings. Returns a Set of leave type IDs, or null if no filtering
- * applies (meaning: show whatever the API returned).
+ * Resolve which leave type IDs an employee should see, based on policies,
+ * mappings and policy rules. Returns a Set of leave type IDs, or null if no
+ * filtering applies (meaning: show whatever the API returned).
+ *
+ * BUG_256 fix: mapping rows with employeeIds set now only apply to the
+ * listed employees (mirrors the server-side employeeMatchesMapping logic),
+ * and directly-assigned LeavePolicyRule rows (bulk policy mapping) are
+ * honoured via the optional `rules` parameter.
  */
 export function resolveEmployeeLeaveTypeIds(
-  employee: EmployeeLite | null,
+  employee: EmployeeLite & { id: string },
   policies: any[],
   mappings: any[],
   empLeavePolicyIds: string[] = [],
+  rules: any[] = [],
 ): Set<string> | null {
   if (!employee) return null;
 
@@ -90,8 +96,33 @@ export function resolveEmployeeLeaveTypeIds(
       if (m.departmentId && employee.departmentId !== m.departmentId) continue;
       const gender = (m.genderApplicability || 'all').toLowerCase();
       if (gender !== 'all' && gender !== 'both' && employee.gender && employee.gender.toLowerCase() !== gender) continue;
+      // BUG_256 fix: employee-specific mappings (employeeIds set) only apply
+      // to the listed employees — otherwise every employee would see types
+      // mapped to someone else via bulk policy assignment.
+      const mEmpIds = parseJsonArray(m.employeeIds);
+      if (mEmpIds.length > 0 && !(employee as any).id) continue;
+      if (mEmpIds.length > 0 && !mEmpIds.includes((employee as any).id)) continue;
       hasFilter = true;
       allowed.add(m.leaveTypeId);
+    }
+  }
+
+  // Source 4: directly-assigned LeavePolicyRule rows (bulk policy mapping).
+  // A rule assigned to this employee via employeeIds grants its leaveType
+  // (direct column or first leaveTypeAllocations entry) even when the
+  // best-effort mapping sync did not produce a LeaveTypePolicyMapping row.
+  if (rules.length > 0) {
+    for (const r of rules) {
+      if (r.status && r.status !== 'active') continue;
+      const rEmpIds = parseJsonArray(r.employeeIds);
+      if (rEmpIds.length === 0 || !rEmpIds.includes((employee as any).id)) continue;
+      const alloc = parseJsonArray((r as any).leaveTypeAllocations);
+      const firstAllocLtId = Array.isArray(alloc) && alloc.length > 0 && (alloc[0] as any)?.leaveTypeId ? String((alloc[0] as any).leaveTypeId) : null;
+      const ltId = r.leaveTypeId || firstAllocLtId;
+      if (ltId) {
+        hasFilter = true;
+        allowed.add(ltId);
+      }
     }
   }
 
@@ -105,12 +136,13 @@ export function resolveEmployeeLeaveTypeIds(
  */
 export function filterLeaveTypesForEmployee(
   allTypes: any[],
-  employee: EmployeeLite | null,
+  employee: (EmployeeLite & { id: string }) | null,
   policies: any[],
   mappings: any[],
   empLeavePolicyIds: string[] = [],
+  rules: any[] = [],
 ): any[] {
-  const allowed = resolveEmployeeLeaveTypeIds(employee, policies, mappings, empLeavePolicyIds);
+  const allowed = resolveEmployeeLeaveTypeIds(employee, policies, mappings, empLeavePolicyIds, rules);
   if (!allowed) return allTypes; // no filter → show all
   return allTypes.filter((t: any) => allowed.has(t.id));
 }

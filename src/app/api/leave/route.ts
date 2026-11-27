@@ -886,11 +886,17 @@ export async function POST(request: Request) {
       try {
         // Fetch the rule with all monthly-limit columns (raw SQL because
         // these are runtime-added columns not in the Prisma schema).
+        // BUG_260 fix: the rule lookup is now mapping-aware — rules linked
+        // to this leave type ONLY via LeaveTypePolicyMapping (policyRuleId)
+        // are found too, not just rules with a direct leaveTypeId column.
         const ruleRows = await db.$queryRawUnsafe(
-          `SELECT "creditFrequency", "creditDays", "monthlyLimit", "monthlyMaxDays"
-           FROM "LeavePolicyRule"
-           WHERE "leaveTypeId" = $1 AND status = 'active'
-           ORDER BY "updatedAt" DESC LIMIT 1`,
+          `SELECT r."creditFrequency", r."creditDays", r."monthlyLimit", r."monthlyMaxDays"
+           FROM "LeavePolicyRule" r
+           WHERE r.status = 'active' AND (
+             r."leaveTypeId" = $1
+             OR r.id IN (SELECT m."policyRuleId" FROM "LeaveTypePolicyMapping" m WHERE m."leaveTypeId" = $1 AND m.status = 'active')
+           )
+           ORDER BY r."updatedAt" DESC LIMIT 1`,
           leaveTypeId,
         ) as any[];
         if (ruleRows.length > 0) {
@@ -905,10 +911,12 @@ export async function POST(request: Request) {
           if (hasMonthlyCap && monthlyCapDays > 0 && (monthlyLimit === 0 || monthlyCapDays < monthlyLimit)) monthlyLimit = monthlyCapDays;
 
           if (monthlyLimit > 0) {
-            // Sum days already taken in the current calendar month
-            const now = new Date();
-            const cy = now.getFullYear();
-            const cm = now.getMonth() + 1; // 1-indexed for SQL
+            // BUG_259 fix: the monthly credit window must be based on the
+            // SELECTED leave's start month — NOT today's month. Applying for
+            // a December leave in November evaluates December's usage.
+            const monthRef = parsedStart;
+            const cy = monthRef.getUTCFullYear();
+            const cm = monthRef.getUTCMonth() + 1; // 1-indexed for SQL
             const monthRows = await db.$queryRawUnsafe(
               `SELECT lr."startDate", lr."endDate", lr."halfDay"
                FROM "LeaveRequest" lr
@@ -934,7 +942,7 @@ export async function POST(request: Request) {
 
             const projected = monthTaken + requestedDays;
             if (projected > monthlyLimit) {
-              const monthName = now.toLocaleDateString('en-GB', { month: 'short' });
+              const monthName = monthRef.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
               return NextResponse.json({
                 error: `Monthly leave limit exceeded for "${leaveType.name}". You have used ${monthTaken} of ${monthlyLimit} day(s) allowed in ${monthName}. Remaining this month: ${Math.max(0, monthlyLimit - monthTaken)} day(s). Requested: ${requestedDays} day(s).`,
                 code: 'MONTHLY_LIMIT_EXCEEDED',

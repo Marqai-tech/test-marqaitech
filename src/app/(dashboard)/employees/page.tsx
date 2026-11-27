@@ -1026,7 +1026,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const fetchPolicyDropdowns = useCallback(async () => {
     try {
       const headers = getAuthHeaders();
-      const [lpRes, apRes, tpRes, ssRes, cpRes] = await Promise.allSettled([
+      const [lpRes, apRes, tpRes, ssRes, cpRes, ruleCardsRes] = await Promise.allSettled([
         fetch('/api/policies?category=leave&usable=1', { headers }),
         fetch('/api/policies?category=attendance&usable=1', { headers }),
         fetch('/api/policies?category=travel&usable=1', { headers }),
@@ -1034,6 +1034,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         // Task 137 — the Policies tab also shows every ACTIVE company policy
         // document assigned to this employee's audience (view + download)
         fetch('/api/policies?status=active&includeFile=1&limit=100', { headers }),
+        // BUG_255 fix: the "Confirmed employee policy" and other policies
+        // created in Leave Setup / Bulk Policy Mapping are LeavePolicyRule
+        // rows, NOT Policy documents — they never appeared in the dropdown
+        // before. Fetch the rule policy cards and merge them in below.
+        fetch(`/api/leave/bulk-policy-mapping?mode=policies${scopeCompanyId ? `&companyId=${scopeCompanyId}` : ''}`, { headers }),
       ]);
       if (lpRes.status === 'fulfilled' && lpRes.value.ok) { const d = await lpRes.value.json(); setLeavePolicies(d.policies || d.data || []); }
       if (apRes.status === 'fulfilled' && apRes.value.ok) { const d = await apRes.value.json(); setAttendancePolicies(d.policies || d.data || []); }
@@ -1044,10 +1049,34 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         const list = d.policies || d.data || [];
         setCompanyPolicies(Array.isArray(list) ? list.filter((p: Record<string, unknown>) => p.status !== 'inactive') : []);
       }
+      // BUG_255 fix (continued): merge the LeavePolicyRule policy cards into
+      // the leave policies list so ALL active leave policies are selectable
+      // when adding an employee.
+      if (ruleCardsRes.status === 'fulfilled' && ruleCardsRes.value.ok) {
+        try {
+          const rd = await ruleCardsRes.value.json();
+          const groups = rd.groups || [];
+          const ruleCards = (Array.isArray(groups) ? groups : []).flatMap((g: Record<string, unknown>) =>
+            ((g.policies as Array<Record<string, unknown>>) || []).map((p: Record<string, unknown>) => ({
+              id: String(p.id),
+              title: String(p.name || ''),
+              version: '',
+            }))
+          );
+          setLeavePolicies(prev => {
+            const seen = new Set(prev.map(p => p.id));
+            const merged = [...prev];
+            for (const c of ruleCards) {
+              if (!seen.has(c.id)) { merged.push(c); seen.add(c.id); }
+            }
+            return merged;
+          });
+        } catch { /* non-fatal */ }
+      }
     } catch (err) {
       console.error('Failed to fetch policy dropdowns', err);
     }
-  }, []);
+  }, [scopeCompanyId]);
 
   useEffect(() => {
     if (!persistHydrated) return;

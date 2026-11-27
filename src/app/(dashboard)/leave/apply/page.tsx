@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ApproverChainPreview from '@/components/ApproverChainPreview';
+import { filterLeaveTypesForEmployee } from '@/lib/leave-type-resolver-client';
 import { normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 
 /* ── Helpers ── */
@@ -179,9 +180,12 @@ function ApplyLeaveContent() {
           fetch(`/api/policies?category=leave&limit=100`, { headers }).catch(() => null),
           fetch(`/api/leave/form-settings`, { headers }).catch(() => null),
         ]);
-        if (ruleRes?.ok) { const rd = await ruleRes.json(); setRules(rd.data || []); }
-        if (mapRes?.ok) { const md = await mapRes.json(); setMappings(md.data || []); }
-        if (polRes?.ok) { const pd = await polRes.json(); setPolicies(pd.policies || pd.data || []); }
+        let fetchedRules: any[] = [];
+        let fetchedMappings: any[] = [];
+        let fetchedPolicies: any[] = [];
+        if (ruleRes?.ok) { const rd = await ruleRes.json(); fetchedRules = rd.data || []; setRules(fetchedRules); }
+        if (mapRes?.ok) { const md = await mapRes.json(); fetchedMappings = md.data || []; setMappings(fetchedMappings); }
+        if (polRes?.ok) { const pd = await polRes.json(); fetchedPolicies = pd.policies || pd.data || []; setPolicies(fetchedPolicies); }
         // Load tenant-wide form settings (which fields are shown/mandatory)
         if (fsRes?.ok) { const fsd = await fsRes.json(); setFormSettings(fsd.settings); }
         const ltData = await ltRes.json();
@@ -191,111 +195,62 @@ function ApplyLeaveContent() {
         const myEmp = empData.employees?.find((e: any) => e.email === user?.email || e.userId === user?.id || (user?.employee?.id && e.id === user.employee.id)) || null;
         if (myEmp) setEmployee(myEmp);
 
-        // ─── Simplified policy-based leave type resolution ───
-        // Fetch ALL active leave policies, check which apply to this employee
-        // (via directly-assigned leavePolicyIds OR scope-based matching),
-        // collect their leaveTypeIds, and show those leave types.
-        // LOP is always included if it exists.
+        // ─── BUG_256 fix: shared policy-based leave type resolution ───
+        // Use the SAME resolver as the Leave Dashboard and Apply-by-HR pages:
+        // (1) employee's directly-assigned policies, (2) scope-matched
+        // policies, (3) LeaveTypePolicyMapping rows (incl. employeeIds), and
+        // (4) directly-assigned LeavePolicyRule rows (bulk policy mapping).
+        // The previous duplicated filter only looked at Policy documents and
+        // silently no-op'd when none matched → ALL leave types were shown
+        // even though the employee had a policy with specific types.
         if (myEmp) {
           try {
-            // Fetch employee's directly-assigned policy IDs
-            // BUG FIX: Use defensive parsing — leavePolicyId (singular) is a
-            // plain cuid (not JSON), so JSON.parse throws. The catch must
-            // return [v] as fallback, not silently abort the whole block.
+            // Employee's directly-assigned policy IDs (defensive parsing —
+            // leavePolicyId is a plain cuid, not JSON)
             let empLeavePolicyIds: string[] = [];
-            // First, check if leavePolicyId is already on the employee object
-            // (from the /api/employees?own=1 fetch — now includes leavePolicyId)
             if (myEmp.leavePolicyId) {
               empLeavePolicyIds = [myEmp.leavePolicyId];
             }
-            // Also fetch from the policies endpoint for the plural field
             try {
               const empPolRes = await fetch(`/api/employees/${myEmp.id}/policies`, { headers });
               if (empPolRes.ok) {
                 const empPolData = await empPolRes.json();
                 const empPol = empPolData.data?.employee || {};
                 const raw = empPol.leavePolicyIds || empPol.leavePolicyId;
-                // Defensive parse: handles JSON array string, plain cuid, null
                 try {
                   const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
                   empLeavePolicyIds = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : empLeavePolicyIds);
                 } catch {
-                  // raw is a plain cuid (not JSON) — use it directly
                   if (raw) empLeavePolicyIds = typeof raw === 'string' ? [raw] : (Array.isArray(raw) ? raw : [String(raw)]);
                 }
               }
             } catch {}
 
-            // Fetch ALL active leave policies (they include leaveTypeIds via raw SQL)
-            const polRes2 = await fetch(`/api/policies?category=leave&limit=100`, { headers }).catch(() => null);
-            const allowedLeaveTypeIds = new Set<string>();
-            const parseJson = (v: any): string[] => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : []; } catch { return []; } };
-
-            if (polRes2?.ok) {
-              const polData = await polRes2.json();
-              const allPolicies = polData.policies || polData.data || [];
-              console.log(`[apply-leave] Found ${allPolicies.length} leave policies, empLeavePolicyIds=${JSON.stringify(empLeavePolicyIds)}`);
-
-              for (const p of allPolicies) {
-                if (p.status !== 'active') continue;
-                const ltIds = parseJson(p.leaveTypeIds);
-                if (ltIds.length === 0) continue;
-
-                // Check if this policy applies to the employee:
-                // 1. Directly assigned via leavePolicyIds, OR
-                // 2. Scope-based matching (empStatus, branchIds, departmentIds)
-                let applies = false;
-
-                // Source 1: Directly assigned
-                if (empLeavePolicyIds.includes(p.id)) {
-                  applies = true;
-                }
-
-                // Source 2: Scope-based matching
-                if (!applies) {
-                  const empStatuses = parseJson(p.empStatus);
-                  const branchIds = parseJson(p.branchIds);
-                  const deptIds = parseJson(p.departmentIds);
-                  applies = true; // start optimistic — empty filters mean "all"
-                  if (empStatuses.length > 0 && !empStatuses.map((s: string) => s.toLowerCase()).includes('all')) {
-                    const empStatus = (myEmp.employeeStatus || '').toLowerCase();
-                    if (empStatus && !empStatuses.map((s: string) => s.toLowerCase()).includes(empStatus)) applies = false;
-                  }
-                  if (applies && branchIds.length > 0 && myEmp.branchId && !branchIds.includes(myEmp.branchId)) applies = false;
-                  if (applies && deptIds.length > 0 && myEmp.departmentId && !deptIds.includes(myEmp.departmentId)) applies = false;
-                }
-
-                if (applies) {
-                  ltIds.forEach((id: string) => allowedLeaveTypeIds.add(id));
-                  console.log(`[apply-leave] Policy "${p.title}" applies → leave types: ${ltIds.join(', ')}`);
-                }
-              }
-            }
-
-            // Also always include LOP (Loss of Pay) — it should always be available
-            const lopType = activeTypes.find((t: any) =>
-              (t.code || '').toLowerCase().includes('lop') ||
-              (t.name || '').toLowerCase().includes('loss of pay')
+            const filtered = filterLeaveTypesForEmployee(
+              activeTypes,
+              {
+                id: myEmp.id,
+                employeeStatus: myEmp.employeeStatus,
+                employmentType: myEmp.employmentType,
+                branchId: myEmp.branchId,
+                departmentId: myEmp.departmentId,
+                gender: myEmp.gender,
+              },
+              fetchedPolicies,
+              fetchedMappings,
+              empLeavePolicyIds,
+              fetchedRules,
             );
-            if (lopType) allowedLeaveTypeIds.add(lopType.id);
-
-            // If we found allowed leave type IDs, filter or fetch them
-            if (allowedLeaveTypeIds.size > 0) {
-              let filtered = activeTypes.filter((t: any) => allowedLeaveTypeIds.has(t.id));
-              // If the API returned 0 matching types (company scope filtering), fetch by ID
-              if (filtered.length === 0) {
-                console.log('[apply-leave] API returned 0 types, fetching by ID from policy leaveTypeIds...');
-                const ids = Array.from(allowedLeaveTypeIds);
-                const results = await Promise.all(
-                  ids.map(id => fetch(`/api/leave-types/${id}`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null))
-                );
-                filtered = results
-                  .filter((r: any) => r && (r.status === 'active' || r.status === undefined))
-                  .map((r: any) => r.leaveType || r);
-              }
+            if (filtered.length > 0) {
               activeTypes = filtered;
               setLeaveTypes(activeTypes);
-              console.log(`[apply-leave] Final: employee sees ${activeTypes.length} leave type(s).`);
+              console.log(`[apply-leave] BUG_256: employee sees ${activeTypes.length} leave type(s) after policy/mapping resolution.`);
+            } else {
+              // The employee's policy/mappings exist but grant no leave types
+              // — surface a clear warning instead of silently showing every
+              // type in the tenant.
+              setPolicyWarning('No leave types are mapped to your leave policy yet. Please contact HR so your policy gets leave types configured.');
+              console.warn('[apply-leave] BUG_256: policy/mapping resolution returned 0 types for this employee.');
             }
           } catch (e) {
             console.warn('[apply-leave] Policy filter failed (non-fatal):', e);
@@ -356,7 +311,11 @@ function ApplyLeaveContent() {
   }, []);
 
   const todayStr = new Date().toLocaleDateString('en-CA');
-  const isHalfDay = form.session !== 'Full day';
+  // BUG_266 fix: half-day detection comes from the per-date selections
+  // (daySelections), NOT the legacy dead form.session field which the
+  // date-selection UI never updates (always 'Full day').
+  const halfDaySelections = Object.values(form.daySelections).filter((v) => v === 'first_half' || v === 'second_half');
+  const isHalfDay = halfDaySelections.length > 0;
   const selectedType = leaveTypes.find(t => t.id === form.leaveTypeId);
   const selectedBalance = leaveBalances.find(b => b.leaveType.id === form.leaveTypeId);
 
@@ -371,7 +330,7 @@ function ApplyLeaveContent() {
   // so we can disable zero-balance non-LOP types before the user picks them.
   // Also returns the resolved Rule object so downstream UI can read its
   // properties (advanceNoticeDays, halfDayAllowed, min/maxDaysPerRequest, etc.).
-  const computeRemaining = useCallback((leaveTypeId: string): { entitled: number; taken: number; remaining: number; isLop: boolean; rule: any | null; monthTaken: number } => {
+  const computeRemaining = useCallback((leaveTypeId: string, monthRefIso?: string | null): { entitled: number; taken: number; remaining: number; isLop: boolean; rule: any | null; monthTaken: number } => {
     if (!leaveTypeId) return { entitled: 0, taken: 0, remaining: 0, isLop: false, rule: null, monthTaken: 0 };
     // Path 1: LeaveType → Mapping → Rule
     const mapping = mappings.find((m: any) => m.leaveTypeId === leaveTypeId && m.status === 'active');
@@ -454,22 +413,28 @@ function ApplyLeaveContent() {
         && new Date(l.endDate) >= yStart)
       .reduce((sum: number, l: any) => sum + daysOf(l), 0);
 
-    // ─── Monthly taken: days already consumed in the CURRENT calendar month ───
+    // ─── Monthly taken: days already consumed in the SELECTED month ───
     // Used for monthly credit validation (Bug 2): if the rule's creditFrequency
     // is 'Monthly' with creditDays=N, or monthlyLimit=true with monthlyMaxDays=N,
-    // the employee can only use N days in the current month.
-    const now = new Date();
-    const cm = now.getMonth(); // 0-indexed
+    // the employee can only use N days in that month.
+    // BUG_259 fix: the month window is based on the SELECTED leave's start
+    // month (monthRefIso) — NOT today's month. Applying for a December leave
+    // in November must evaluate December's usage.
+    const monthRefDate = monthRefIso && !isNaN(new Date(`${monthRefIso}T00:00:00Z`).getTime())
+      ? new Date(`${monthRefIso}T00:00:00Z`)
+      : new Date();
+    const mYear = monthRefDate.getFullYear();
+    const mMonth = monthRefDate.getMonth(); // 0-indexed
     const monthTaken = ownLeaves
       .filter((l: any) => {
         if (l.leaveTypeId !== leaveTypeId) return false;
         if (l.status !== 'approved' && l.status !== 'pending') return false;
-        // Check if the leave's start date falls in the current calendar month.
+        // Check if the leave's start date falls in the SELECTED month.
         // We use startDate because that's when the leave is "taken" from the
         // employee's perspective. (A leave spanning month boundaries is counted
         // in its start month — matching how monthly credit is typically granted.)
         const s = new Date(l.startDate);
-        return !isNaN(s.getTime()) && s.getFullYear() === cy && s.getMonth() === cm;
+        return !isNaN(s.getTime()) && s.getFullYear() === mYear && s.getMonth() === mMonth;
       })
       .reduce((sum: number, l: any) => sum + daysOf(l), 0);
 
@@ -479,7 +444,9 @@ function ApplyLeaveContent() {
   }, [mappings, rules, policies, leaveTypes, leaveBalances, ownLeaves, holidays, employee]);
 
   // Selected type values (uses the reusable helper)
-  const selectedTypeInfo = computeRemaining(form.leaveTypeId);
+  // BUG_259 fix: pass the selected start date so the monthly credit check
+  // evaluates the month the leave is actually taken in.
+  const selectedTypeInfo = computeRemaining(form.leaveTypeId, form.startDate || null);
   const selectedRule = selectedTypeInfo.rule; // the actual Rule object — keeps downstream UI reading advanceNoticeDays etc. working
   const entitledDays = selectedTypeInfo.entitled;
   const takenDays = selectedTypeInfo.taken;
@@ -663,12 +630,40 @@ function ApplyLeaveContent() {
     push('Leave type allowed for employee', 'ok', `${selectedType.name} is in your leave profile.`);
 
     const leadDays = Math.floor((new Date(form.startDate).getTime() - Date.now()) / 86_400_000);
-    push('Applied early enough (notice)', leadDays >= 0 ? 'ok' : 'warn', leadDays >= 0 ? 'No advance notice needed.' : `Back-dated by ${Math.abs(leadDays)} day(s).`);
+    // BUG_266 fix: the notice check compares the lead time against the
+    // rule's advanceNoticeDays (shown as "Notice: 1d" in the UI) instead of
+    // always reporting "No advance notice needed".
+    const noticeDays = Math.max(0, Number(selectedRule?.advanceNoticeDays || 0));
+    if (leadDays < 0) {
+      push('Applied early enough (notice)', 'warn',
+        `Back-dated by ${Math.abs(leadDays)} day(s).${noticeDays > 0 ? ` Notice of ${noticeDays} day(s) required by policy.` : ''}`);
+    } else if (noticeDays > 0 && leadDays < noticeDays) {
+      push('Applied early enough (notice)', 'warn',
+        `Notice of ${noticeDays} day(s) required — applied only ${leadDays} day(s) ahead.`);
+    } else if (noticeDays > 0) {
+      push('Applied early enough (notice)', 'ok',
+        `Notice ${noticeDays} day(s) — applied ${leadDays} day(s) ahead.`);
+    } else {
+      push('Applied early enough (notice)', 'ok',
+        `Applied ${leadDays} day(s) ahead — no advance notice needed.`);
+    }
 
     if (calc.days === 0) push('Within minimum & maximum days', 'err', 'No leave day in selected dates.', 'LV-E17');
     else push('Within minimum & maximum days', 'ok', `${fmtNum(calc.days)} day(s) selected.`);
 
-    push('Half-day allowed', isHalfDay ? 'ok' : 'ok', isHalfDay ? `${form.session} selected.` : 'Full-day request.');
+    // BUG_266 fix: the half-day check must reflect the ACTUAL per-date
+    // selection (daySelections) and the rule's halfDayAllowed flag — not the
+    // dead form.session field that always reported "Full-day request".
+    if (isHalfDay) {
+      const halfAllowedByRule = !selectedRule || selectedRule.halfDayAllowed !== false;
+      push('Half-day allowed', halfAllowedByRule ? 'ok' : 'err',
+        halfAllowedByRule
+          ? `Half-day request — allowed (${halfDaySelections.length} × ½ day).`
+          : `${selectedType.name} does not allow half-days — remove the ½ day selection.`,
+        halfAllowedByRule ? null : 'LV-E12');
+    } else {
+      push('Half-day allowed', 'ok', 'Full-day request.');
+    }
 
     const needDoc = (selectedType.code || '').toLowerCase().includes('sl') || (selectedType.name || '').toLowerCase().includes('sick');
     push('Document attached when required', !needDoc || calc.days <= 3 || !!form.fileName ? 'ok' : 'warn',
@@ -732,7 +727,12 @@ function ApplyLeaveContent() {
       }
 
       if (monthlyLimit > 0) {
-        const monthName = new Date().toLocaleDateString('en-GB', { month: 'short' });
+        // BUG_259 fix: the month label comes from the SELECTED start date,
+        // not from today — a December request must show "Dec".
+        const monthRefDate2 = form.startDate && !isNaN(new Date(`${form.startDate}T00:00:00Z`).getTime())
+          ? new Date(`${form.startDate}T00:00:00Z`)
+          : new Date();
+        const monthName = monthRefDate2.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
         const projected = selectedTypeInfo.monthTaken + calc.days;
         if (selectedTypeInfo.monthTaken >= monthlyLimit) {
           // Already at/over the monthly limit — block entirely
@@ -824,7 +824,11 @@ function ApplyLeaveContent() {
       if (freq === 'monthly' && creditDays > 0) monthlyLimit = creditDays;
       if (selectedRule.monthlyLimit === true && monthlyCapDays > 0 && (monthlyLimit === 0 || monthlyCapDays < monthlyLimit)) monthlyLimit = monthlyCapDays;
       if (monthlyLimit > 0 && selectedTypeInfo.monthTaken + calc.days > monthlyLimit) {
-        const monthName = new Date().toLocaleDateString('en-GB', { month: 'short' });
+        // BUG_259 fix: month label from the SELECTED start date
+        const monthRefDate3 = form.startDate && !isNaN(new Date(`${form.startDate}T00:00:00Z`).getTime())
+          ? new Date(`${form.startDate}T00:00:00Z`)
+          : new Date();
+        const monthName = monthRefDate3.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
         toast.error(`Monthly limit exceeded for ${selectedType.name}: you have used ${fmtNum(selectedTypeInfo.monthTaken)} of ${fmtNum(monthlyLimit)} day(s) in ${monthName}. Remaining: ${fmtNum(Math.max(0, monthlyLimit - selectedTypeInfo.monthTaken))} day(s).`);
         return;
       }

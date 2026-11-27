@@ -150,6 +150,54 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           updateData.leavePolicyId = null;
         }
       } catch {}
+
+      // BUG_255 fix: ids in leavePolicyIds may reference LeavePolicyRule rows
+      // (policy cards from Leave Setup / Bulk Policy Mapping), not only Policy
+      // documents. Sync each matched rule's employeeIds so the assignment
+      // actually grants the rule's leave types on Apply Leave.
+      try {
+        const selectedIds: string[] = JSON.parse(body.leavePolicyIds || '[]');
+        if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+          const ruleRows: Array<{ id: string; employeeIds: string | null }> = await db.$queryRawUnsafe(
+            `SELECT id, "employeeIds" FROM "LeavePolicyRule" WHERE id = ANY($1::text[])`,
+            selectedIds,
+          ).catch(() => []);
+          const parseIds = (v: string | null): string[] => {
+            try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a.map(String) : []; } catch { return []; }
+          };
+          for (const r of ruleRows) {
+            const current = parseIds(r.employeeIds);
+            const nextIds = current.includes(id) ? current : [...current, id];
+            if (JSON.stringify(nextIds) !== JSON.stringify(current)) {
+              await db.$executeRawUnsafe(
+                `UPDATE "LeavePolicyRule" SET "employeeIds" = $1 WHERE id = $2`,
+                JSON.stringify(nextIds), r.id,
+              ).catch(() => null);
+            }
+          }
+          // Rules that previously included this employee but are no longer
+          // selected lose the assignment.
+          try {
+            const staleRows: Array<{ id: string; employeeIds: string | null }> = await db.$queryRawUnsafe(
+              `SELECT id, "employeeIds" FROM "LeavePolicyRule"
+               WHERE "employeeIds" LIKE $1 AND id <> ALL($2::text[])`,
+              `%"${id}"%`, selectedIds,
+            ).catch(() => []);
+            for (const r of staleRows) {
+              const current = parseIds(r.employeeIds);
+              const nextIds = current.filter(x => x !== id);
+              if (nextIds.length !== current.length) {
+                await db.$executeRawUnsafe(
+                  `UPDATE "LeavePolicyRule" SET "employeeIds" = $1 WHERE id = $2`,
+                  JSON.stringify(nextIds), r.id,
+                ).catch(() => null);
+              }
+            }
+          } catch { /* non-fatal */ }
+        }
+      } catch (e) {
+        console.warn('[emp policies PUT] LeavePolicyRule employeeIds sync failed (non-fatal):', e);
+      }
     }
 
     const updated = await db.employee.update({

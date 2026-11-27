@@ -46,6 +46,9 @@ interface WorkflowConfig {
   allowCancelAfterApproval: boolean;
   allowApproverHold: boolean;
   allowDateProposal: boolean;
+  // BUG_264: policy for cancelling a leave whose period has already ended
+  allowCancelAfterLeaveEnd: boolean;
+  cancelWithinDaysAfterLeaveEnd: number | null;
 }
 
 interface LeaveType { id: string; name: string; code: string; }
@@ -85,6 +88,9 @@ const DEFAULT_WORKFLOW: WorkflowConfig = {
   allowCancelAfterApproval: true, // employees CAN cancel after approval
   allowApproverHold: true,        // HR/Admin CAN hold leave
   allowDateProposal: true,        // HR/Admin CAN propose new dates
+  // BUG_264 defaults: past leaves CAN be cancelled, no time window
+  allowCancelAfterLeaveEnd: true,
+  cancelWithinDaysAfterLeaveEnd: null,
 };
 
 export default function ApprovalWorkflowsPage() {
@@ -191,6 +197,8 @@ export default function ApprovalWorkflowsPage() {
             allowCancelAfterApproval: parsedConfig.allowCancelAfterApproval ?? true,
             allowApproverHold: parsedConfig.allowApproverHold ?? true,
             allowDateProposal: parsedConfig.allowDateProposal ?? true,
+            allowCancelAfterLeaveEnd: parsedConfig.allowCancelAfterLeaveEnd ?? true,
+            cancelWithinDaysAfterLeaveEnd: parsedConfig.cancelWithinDaysAfterLeaveEnd ?? null,
           };
         });
         if (configs.length === 0) {
@@ -310,6 +318,8 @@ export default function ApprovalWorkflowsPage() {
           allowCancelAfterApproval: editConfig.allowCancelAfterApproval,
           allowApproverHold: editConfig.allowApproverHold,
           allowDateProposal: editConfig.allowDateProposal,
+          allowCancelAfterLeaveEnd: editConfig.allowCancelAfterLeaveEnd,
+          cancelWithinDaysAfterLeaveEnd: editConfig.cancelWithinDaysAfterLeaveEnd,
           leaveTypeIds: editConfig.leaveTypeIds || [],
         }),
         companyId: effectiveCompanyId() || undefined,
@@ -674,10 +684,37 @@ export default function ApprovalWorkflowsPage() {
                     { key: 'notifyEmployeeEachStep', label: 'Notify employee at each step', desc: 'Send notification to the employee after each tier action' },
                     { key: 'allowCancelAfterApproval', label: 'Employee can cancel leave after approval', desc: 'When checked, employees can raise a cancellation request on already-approved leaves (goes to Reporting Manager for approval). When unchecked, employees can only withdraw pending requests — not cancel approved ones.' },
                     { key: '__hrHold', label: 'HR/Admin can hold leave & propose new dates', desc: 'When checked, HR Admin / Admin / Tenant Admin can put a pending leave on hold and propose alternative dates. The employee is notified and can accept the proposed dates or withdraw. Unchecking this disables both hold and date proposal.' },
+                    { key: 'allowCancelAfterLeaveEnd', label: 'Allow cancelling a leave whose period has ended', desc: 'When checked, cancellation of a leave AFTER its period follows the time-window rule below (HR sign-off still applies for approved leaves). When unchecked, past leaves can never be cancelled.' },
+                    { key: '__cancelWindow', label: 'Limit cancellation to N days after the leave end', desc: 'Restricts cancellation of a past leave to the configured number of days after the leave end date (0 or empty = no time limit).' },
                   ].map(opt => {
                     // The __hrHold checkbox is a combined toggle that sets
                     // both allowApproverHold and allowDateProposal together.
+                    // The __cancelWindow "toggle" renders a number input for
+                    // cancelWithinDaysAfterLeaveEnd (BUG_264).
                     const isHrHoldCombined = opt.key === '__hrHold';
+                    const isCancelWindow = opt.key === '__cancelWindow';
+                    if (isCancelWindow) {
+                      return (
+                        <label key={opt.key} className="flex items-start gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            type="number"
+                            min={0}
+                            value={editConfig.cancelWithinDaysAfterLeaveEnd ?? ''}
+                            onChange={e => {
+                              const v = e.target.value === '' ? null : Math.max(0, Number(e.target.value));
+                              updateField('cancelWithinDaysAfterLeaveEnd', v);
+                            }}
+                            disabled={!editConfig.allowCancelAfterLeaveEnd}
+                            placeholder="No limit"
+                            className="w-20 mt-0.5 text-sm px-2 py-1 border border-slate-200 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-slate-700">{opt.label}</p>
+                            <p className="text-xs text-slate-500">{opt.desc}</p>
+                          </div>
+                        </label>
+                      );
+                    }
                     const checked = isHrHoldCombined
                       ? (editConfig.allowApproverHold !== false && editConfig.allowDateProposal !== false)
                       : (editConfig as any)[opt.key];

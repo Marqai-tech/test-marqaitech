@@ -172,10 +172,13 @@ export async function GET(req: NextRequest) {
 
     if ((scope && scope.scope === 'self') || requestedEmployeeId) {
       // Find the employee's record — by userId (self) or by direct id (admin)
+      // FIX (TDZ): the self branch previously referenced `emp` inside its own
+      // initializer (ReferenceError, swallowed by the catch) so employee-scope
+      // mapping enforcement NEVER ran — employees saw all leave types.
       const emp = requestedEmployeeId
         ? await db.employee.findFirst({ where: { id: requestedEmployeeId }, select: { id: true, companyId: true } }).catch(() => null)
         : await db.employee.findFirst({
-            where: { id: emp.id, status: 'active' },
+            where: { userId: scope.userId, status: 'active' },
             select: { id: true, companyId: true },
           }).catch(() => null);
 
@@ -297,12 +300,15 @@ export async function GET(req: NextRequest) {
         // Re-run mapping enforcement on the fallback types for employees.
         // Admins see all fallback types (no enforcement for admins).
         if (scope && scope.scope === 'self') {
-          const emp = await db.employee.findFirst({
-            where: { id: emp.id, status: 'active' },
+          // FIX (TDZ): the inner const previously shadowed itself (`where: { id: emp.id }`
+          // inside its own initializer) — ReferenceError → enforcement silently
+          // skipped. Resolve the employee by the authenticated user's id instead.
+          const empFb = await db.employee.findFirst({
+            where: { userId: scope.userId, status: 'active' },
             select: { id: true, companyId: true },
           }).catch(() => null);
 
-          if (emp?.id) {
+          if (empFb?.id) {
             // Get all companies that have mappings
             let mappingCompanyIds: string[] = [];
             let mappingsExist = false;
@@ -316,13 +322,13 @@ export async function GET(req: NextRequest) {
 
             if (mappingsExist) {
               // BUG-LM-001/002/003 FIX: Same direct-mapping check as above.
-              const companiesToCheck = [emp.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
+              const companiesToCheck = [empFb.companyId, ...mappingCompanyIds].filter(Boolean) as string[];
               const uniqueCompanies = [...new Set(companiesToCheck)];
 
               const empFull = await db.employee.findFirst({
-                where: { id: emp.id, status: 'active' },
+                where: { id: empFb.id, status: 'active' },
                 select: { id: true, companyId: true, employmentType: true, branchId: true, departmentId: true, gender: true, employeeStatus: true },
-              }).catch(() => emp);
+              }).catch(() => empFb);
 
               let allMappings: any[] = [];
               try {
@@ -352,7 +358,7 @@ export async function GET(req: NextRequest) {
               }
               filteredTypes = enforcedTypes;
               console.log(
-                `[leave-types] Fallback + mapping enforcement: employee=${emp.id} sees ${enforcedTypes.length} of ${fallback.length} fallback type(s).`
+                `[leave-types] Fallback + mapping enforcement: employee=${empFb.id} sees ${enforcedTypes.length} of ${fallback.length} fallback type(s).`
               );
             } else {
               // No mappings exist → show all fallback types (backward-compat)
@@ -373,13 +379,15 @@ export async function GET(req: NextRequest) {
     // only for male. Filter out gender-incompatible leave types from the final list.
     // This runs AFTER all other filtering so it always applies.
     if (scope && scope.scope === 'self') {
-      const emp = await db.employee.findFirst({
-        where: { id: emp.id, status: 'active' },
+      // FIX (TDZ): the lookup previously referenced `emp` inside its own
+      // initializer (ReferenceError → the gender filter never ran).
+      const empSelf = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
         select: { gender: true },
       }).catch(() => null);
 
-      if (emp) {
-        const empGender = (emp.gender || '').toLowerCase();
+      if (empSelf) {
+        const empGender = (empSelf.gender || '').toLowerCase();
         const beforeGenderFilter = filteredTypes.length;
         filteredTypes = filteredTypes.filter((lt: any) => {
           const category = getLeaveCategory({ name: lt.name, code: lt.code });

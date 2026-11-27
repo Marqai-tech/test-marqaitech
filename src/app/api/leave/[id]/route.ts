@@ -90,6 +90,37 @@ async function collectChainRecipients(
   return ids;
 }
 
+/**
+ * BUG_264 fix: policy check for cancelling a leave whose period has ALREADY
+ * ended. Returns an error message when the configured policy blocks the
+ * cancellation, or null when it is allowed.
+ *  - allowCancelAfterLeaveEnd=false → past leaves can never be cancelled.
+ *  - cancelWithinDaysAfterLeaveEnd=N → only within N days after the leave end.
+ * (Exported for unit tests — scripts/test-bugfixes.ts)
+ */
+export function pastLeaveCancellationError(
+  endDate: Date | string,
+  cfg: { allowCancelAfterLeaveEnd: boolean; cancelWithinDaysAfterLeaveEnd: number | null },
+): string | null {
+  try {
+    const end = new Date(endDate);
+    if (isNaN(end.getTime())) return null;
+    const now = new Date();
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (endDay.getTime() >= today.getTime()) return null; // leave period not over yet
+    if (!cfg.allowCancelAfterLeaveEnd) {
+      return 'This leave period has already ended. Cancelling a leave after its period is disabled by the leave workflow configuration.';
+    }
+    const daysPast = Math.floor((today.getTime() - endDay.getTime()) / 86400000);
+    const windowDays = Number(cfg.cancelWithinDaysAfterLeaveEnd);
+    if (windowDays > 0 && daysPast > windowDays) {
+      return `This leave ended ${daysPast} day(s) ago. Cancellation is only allowed within ${windowDays} day(s) after the leave end date (leave workflow configuration).`;
+    }
+    return null;
+  } catch { return null; }
+}
+
 /** Remove no-punch attendance rows created by the leave sync for a range. */
 async function removeLeaveAttendanceRows(
   db: PrismaClient, employeeId: string, startDate: Date | string, endDate: Date | string, leaveRequestId: string,
@@ -179,26 +210,18 @@ export async function PATCH(
       );
     }
 
-    // ─── Workflow configuration flags (Hold · Propose dates · Cancel after approval) ───
-    let cfgFlags = { allowCancelAfterApproval: true, allowApproverHold: true, allowDateProposal: true };
-    if (scope.tenantId) {
-      try {
-        const { loadWorkflowConfig } = await import('@/lib/leave-workflow');
-        const { config: _cfg } = await loadWorkflowConfig(db, scope.tenantId, existingLeave.leaveTypeId);
-        cfgFlags = {
-          allowCancelAfterApproval: _cfg.allowCancelAfterApproval !== false,
-          allowApproverHold: _cfg.allowApproverHold !== false,
-          allowDateProposal: _cfg.allowDateProposal !== false,
-        };
-      } catch { /* defaults stay true */ }
-    }
-
     // Get the token + decoded user for workflow authorization checks
     const token = getTokenFromHeaders(request);
     const decoded = token ? await verifyToken(token) : null;
     const userRole = decoded?.role as string || 'employee';
     const userId = decoded?.userId as string || scope.userId || '';
 
+    // FIX (root-cause Bug A): `existingLeave` MUST be fetched BEFORE the
+    // workflow-config flags block below — that block referenced
+    // `existingLeave.leaveTypeId` before its declaration (TDZ ReferenceError,
+    // silently swallowed by the catch), so allowApproverHold /
+    // allowDateProposal / allowCancelAfterApproval never actually loaded
+    // and their gates were dead code.
     const existingLeave = await db.leaveRequest.findUnique({
       where: { id },
       include: {
@@ -214,6 +237,28 @@ export async function PATCH(
         { error: 'Leave request not found' },
         { status: 404, headers: corsHeaders() }
       );
+    }
+
+    // ─── Workflow configuration flags (Hold · Propose dates · Cancel) ───
+    let cfgFlags = {
+      allowCancelAfterApproval: true,
+      allowApproverHold: true,
+      allowDateProposal: true,
+      allowCancelAfterLeaveEnd: true,
+      cancelWithinDaysAfterLeaveEnd: null as number | null,
+    };
+    if (scope.tenantId) {
+      try {
+        const { loadWorkflowConfig } = await import('@/lib/leave-workflow');
+        const { config: _cfg } = await loadWorkflowConfig(db, scope.tenantId, existingLeave.leaveTypeId);
+        cfgFlags = {
+          allowCancelAfterApproval: _cfg.allowCancelAfterApproval !== false,
+          allowApproverHold: _cfg.allowApproverHold !== false,
+          allowDateProposal: _cfg.allowDateProposal !== false,
+          allowCancelAfterLeaveEnd: _cfg.allowCancelAfterLeaveEnd !== false,
+          cancelWithinDaysAfterLeaveEnd: _cfg.cancelWithinDaysAfterLeaveEnd ?? null,
+        };
+      } catch { /* defaults stay true */ }
     }
 
     // ─── Company-scoped data visibility for approval/rejection ───
@@ -255,7 +300,10 @@ export async function PATCH(
       approved: ['pending'],
       rejected: ['pending'],
       cancelled: ['pending', 'approved', 'on_hold', 'cancel_requested'],
-      on_hold: ['pending', 'approved'],
+      // BUG_265 fix: 'on_hold' is now legal FROM 'on_hold' — HR can propose
+      // (or update) dates directly on an already-held request without
+      // releasing it first. Release stays an optional, separate action.
+      on_hold: ['pending', 'approved', 'on_hold'],
       withdrawn: ['pending', 'on_hold'],
       cancel_requested: ['approved'],
       release_hold: ['on_hold'],
@@ -291,13 +339,64 @@ export async function PATCH(
       if (proposedHoldDates && !cfgFlags.allowDateProposal) {
         return NextResponse.json({ error: 'Proposing new dates is disabled by the leave workflow configuration' }, { status: 403, headers: corsHeaders() });
       }
+      // BUG_265 fix: when the leave is ALREADY on hold, preserve the
+      // ORIGINAL prevStatus from the existing hold JSON (never overwrite it
+      // with 'on_hold') so Release/Accept still restore the right state.
+      const existingHoldInfo = existingLeave.status === 'on_hold' ? await readHoldJson(db, id) : null;
+      const holdPrevStatus = existingHoldInfo?.prevStatus === 'approved' ? 'approved' : 'pending';
+
+      // BUG_261 fix: proposed dates are validated against the employee's
+      // AVAILABLE balance (working days, holiday-aware). A proposal longer
+      // than the remaining balance is rejected with a clear message
+      // (unpaid/LOP types are exempt — they have no quota by design).
+      if (proposedHoldDates && (existingLeave.leaveType as any)?.isPaid !== false) {
+        try {
+          let holdWeekendDow: number[] | undefined;
+          try { holdWeekendDow = await getWeekendDays(db, scope.tenantId, existingLeave.employee.companyId); } catch { /* default */ }
+          const propHolidays = await getHolidaysInRange(db, new Date(proposedHoldDates.startDate), new Date(proposedHoldDates.endDate));
+          const propWalk = computeWorkingDays(new Date(proposedHoldDates.startDate), new Date(proposedHoldDates.endDate), holdWeekendDow, new Set(propHolidays.map(h => h.date)));
+          const propDays = leaveDaysConsumed(propWalk, existingLeave.halfDay);
+          // Available balance for the proposed range's year. If the hold was
+          // applied to an APPROVED leave, the ORIGINAL range's days are
+          // already deducted and will be credited back when the dates
+          // change — so they count towards what the new range may use.
+          let holdAvailable: number | null = null;
+          let holdTracked = false;
+          const holdBalanceRow = await db.leaveBalance.findFirst({
+            where: { employeeId: existingLeave.employeeId, leaveTypeId: existingLeave.leaveTypeId, year: new Date(proposedHoldDates.startDate).getUTCFullYear() },
+            select: { remaining: true },
+          }).catch(() => null);
+          if (holdBalanceRow) { holdTracked = true; holdAvailable = holdBalanceRow.remaining; }
+          else if (((existingLeave.leaveType as any)?.defaultDays ?? 0) > 0) { holdTracked = true; holdAvailable = Number((existingLeave.leaveType as any).defaultDays); }
+          if (holdTracked && holdAvailable !== null) {
+            if (holdPrevStatus === 'approved') {
+              const oldHoldDays = existingLeave.chargeableDays ?? (existingLeave.halfDay
+                ? 0.5
+                : Math.ceil((new Date(existingLeave.endDate).getTime() - new Date(existingLeave.startDate).getTime()) / 86400000) + 1);
+              holdAvailable = holdAvailable + Math.abs(oldHoldDays);
+            }
+            if (propDays > holdAvailable) {
+              return NextResponse.json({
+                error: `Cannot propose these dates: they need ${propDays} day(s) but the available balance for "${existingLeave.leaveType?.name || 'this leave type'}" is ${holdAvailable} day(s).`,
+                code: 'INSUFFICIENT_LEAVE_BALANCE',
+                availableBalance: holdAvailable,
+                proposedDays: propDays,
+              }, { status: 400, headers: corsHeaders() });
+            }
+          }
+        } catch (holdBalErr) {
+          console.warn('[leave hold] Proposed-dates balance validation failed (non-fatal):', holdBalErr);
+        }
+      }
+
       await ensureHoldColumns(db);
       const holdPayload = {
         ...(proposedHoldDates ? { startDate: proposedHoldDates.startDate, endDate: proposedHoldDates.endDate } : {}),
         proposedBy: proposedHoldDates ? 'approver' : null,
-        prevStatus: existingLeave.status, // 'pending' | 'approved' — restored on release/accept
-        note: comments || null,
-        heldAt: new Date().toISOString(),
+        prevStatus: holdPrevStatus, // ORIGINAL 'pending' | 'approved' — restored on release/accept
+        note: comments || existingHoldInfo?.note || null,
+        heldAt: existingHoldInfo?.heldAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       await db.$executeRawUnsafe(
         `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = $1, "holdComments" = $2 WHERE "id" = $3`,
@@ -315,12 +414,18 @@ export async function PATCH(
       // Notify employee (in-app) + employee + approval chain + HR (multi-channel)
       if (leaveRequest?.employee?.userId) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): createNotification takes ONE params object
+          // ({ tenantId, userId, title, message, ... }). The old (db, params)
+          // form passed the Prisma client as params so tenantId/userId/title
+          // were undefined — EVERY in-app leave notification silently failed.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: leaveRequest.employee.userId,
-            type: 'leave_on_hold',
             title: 'Leave request put on hold',
             message: `Your ${leaveRequest.leaveType?.name || 'leave'} request has been put on hold.${proposedTxt}${comments ? ` Reason: ${comments}` : ''}`,
-            data: { leaveRequestId: id, proposedHoldDates, comments },
+            type: 'warning',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
@@ -378,12 +483,15 @@ export async function PATCH(
       // Notify employee + chain
       if (leaveRequest?.employee?.userId) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: leaveRequest.employee.userId,
-            type: 'leave_hold_released',
             title: 'Leave hold released',
             message: `The hold on your ${leaveRequest.leaveType?.name || 'leave'} request has been released. Status: ${prevStatus}.${comments ? ` Comment: ${comments}` : ''}`,
-            data: { leaveRequestId: id, comments, prevStatus },
+            type: 'info',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
@@ -433,25 +541,81 @@ export async function PATCH(
         newDays = Math.ceil((new Date(hold.endDate).getTime() - new Date(hold.startDate).getTime()) / 86400000) + 1;
       }
 
+      // BUG_261 fix (accept side): the NEW range is validated against the
+      // employee's available balance BEFORE anything is mutated. If the hold
+      // was applied to an APPROVED leave, the original range's days are
+      // already deducted and will be credited back — they count towards what
+      // the new range may use. Unpaid/LOP types are exempt.
+      if ((existingLeave.leaveType as any)?.isPaid !== false) {
+        try {
+          let acceptAvailable: number | null = null;
+          let acceptTracked = false;
+          const acceptBalanceRow = await db.leaveBalance.findFirst({
+            where: { employeeId: existingLeave.employeeId, leaveTypeId: existingLeave.leaveTypeId, year: new Date(hold.startDate).getUTCFullYear() },
+            select: { remaining: true },
+          }).catch(() => null);
+          if (acceptBalanceRow) { acceptTracked = true; acceptAvailable = acceptBalanceRow.remaining; }
+          else if (((existingLeave.leaveType as any)?.defaultDays ?? 0) > 0) { acceptTracked = true; acceptAvailable = Number((existingLeave.leaveType as any).defaultDays); }
+          if (acceptTracked && acceptAvailable !== null) {
+            if (prevStatus === 'approved') {
+              const oldAcceptDays = existingLeave.chargeableDays ?? (existingLeave.halfDay
+                ? 0.5
+                : Math.ceil((new Date(oldEnd).getTime() - new Date(oldStart).getTime()) / 86400000) + 1);
+              acceptAvailable = acceptAvailable + Math.abs(oldAcceptDays);
+            }
+            if (newDays > acceptAvailable) {
+              return NextResponse.json({
+                error: `Cannot apply these dates: they need ${newDays} day(s) but the available balance for "${existingLeave.leaveType?.name || 'this leave type'}" is ${acceptAvailable} day(s).`,
+                code: 'INSUFFICIENT_LEAVE_BALANCE',
+                availableBalance: acceptAvailable,
+                requestedDays: newDays,
+              }, { status: 400, headers: corsHeaders() });
+            }
+          }
+        } catch (acceptBalErr) {
+          console.warn('[leave accept] Balance validation failed (non-fatal):', acceptBalErr);
+        }
+      }
+
       await ensureHoldColumns(db);
       await db.$executeRawUnsafe(
         `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = NULL WHERE "id" = $1`, id
       ).catch(() => null);
 
+      // BUG_262 fix: ACCEPTING proposed dates must NOT bypass the approval
+      // workflow. If the held leave was previously APPROVED and the dates
+      // changed, the request re-enters the configured approval workflow as
+      // 'pending' (workflow stage reset so it re-initializes from tier 1 on
+      // the next approval). A leave that was PENDING before the hold stays
+      // pending at its current tier — an explicit product-owner rule would
+      // be needed to let an HR proposal count as approval.
+      const rerouteToWorkflow = prevStatus === 'approved' && datesChanged;
       const leaveRequest = await db.leaveRequest.update({
         where: { id },
         data: {
           startDate: new Date(hold.startDate),
           endDate: new Date(hold.endDate),
-          status: prevStatus,
-          ...(prevStatus === 'approved' ? { chargeableDays: newDays } : {}),
+          status: rerouteToWorkflow ? 'pending' : prevStatus,
+          ...(prevStatus === 'approved' && !rerouteToWorkflow ? { chargeableDays: newDays } : {}),
           comments: comments || existingLeave.comments,
         },
         include: { employee: { select: { firstName: true, lastName: true, userId: true, companyId: true } }, leaveType: { select: { name: true } } },
       }).catch(() => null);
 
-      if (prevStatus === 'approved' && datesChanged) {
-        // Balance: credit the old range back, charge the new range (double-entry ledger)
+      // Reset the workflow stage so the next approval re-initializes the
+      // configured tier chain (raw SQL — runtime columns).
+      if (rerouteToWorkflow) {
+        try {
+          await db.$executeRawUnsafe(
+            `UPDATE "LeaveRequest" SET "workflowStage" = NULL, "currentApproverId" = NULL WHERE "id" = $1`, id
+          );
+        } catch { /* column may not exist on legacy DBs */ }
+      }
+
+      if (rerouteToWorkflow) {
+        // Balance: credit the OLD range back. The NEW range is charged when
+        // the re-entered approval workflow finalizes (BUG_262 — the request
+        // goes back through the approval chain instead of being self-approved).
         try {
           let oldDays = existingLeave.chargeableDays ?? (existingLeave.halfDay
             ? 0.5
@@ -468,35 +632,28 @@ export async function PATCH(
             reason: `Hold resolved — original range credited back (${oldDays} day(s))`,
             createdBy: scope.userId, leaveRequestId: id,
           });
-          await appendLedgerEntry(db, {
-            employeeId: existingLeave.employeeId, leaveTypeId: existingLeave.leaveTypeId,
-            year: new Date(hold.startDate).getFullYear(), transactionType: 'consume', days: Math.abs(newDays),
-            sourceType: 'leave_request', sourceId: id,
-            reason: `Hold resolved — new range charged (${newDays} day(s))`,
-            createdBy: scope.userId, leaveRequestId: id,
-          });
         } catch (balErr) {
           console.warn('[leave] Balance re-computation on date change failed (non-fatal):', balErr);
         }
-        // Attendance: clean the old range, sync the new one
+        // Attendance: clean the old range — the new range is synced again on
+        // final approval (never before sign-off).
         await removeLeaveAttendanceRows(db, existingLeave.employeeId, oldStart, oldEnd, id);
-        await syncAttendanceForLeave(db, {
-          employeeId: existingLeave.employeeId,
-          startDate: hold.startDate, endDate: hold.endDate,
-          halfDay: existingLeave.halfDay, leaveRequestId: id,
-          leaveTypeName: existingLeave.leaveType?.name, weekendDow,
-        });
       }
 
       // Notify employee + approver chain — everyone in the flow
       if (leaveRequest?.employee?.userId) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: leaveRequest.employee.userId,
-            type: 'leave_dates_accepted',
             title: 'Leave dates confirmed',
-            message: `Your ${leaveRequest.leaveType?.name || 'leave'} has been moved to ${String(hold.startDate).split('T')[0]} → ${String(hold.endDate).split('T')[0]}. Status: ${prevStatus}.`,
-            data: { leaveRequestId: id, startDate: hold.startDate, endDate: hold.endDate, prevStatus },
+            message: rerouteToWorkflow
+              ? `Your ${leaveRequest.leaveType?.name || 'leave'} has been moved to ${String(hold.startDate).split('T')[0]} → ${String(hold.endDate).split('T')[0]}. The request has re-entered the approval workflow.`
+              : `Your ${leaveRequest.leaveType?.name || 'leave'} has been moved to ${String(hold.startDate).split('T')[0]} → ${String(hold.endDate).split('T')[0]}. Status: ${prevStatus}.`,
+            type: 'info',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
@@ -507,10 +664,19 @@ export async function PATCH(
           Proposed_From: String(hold.startDate).split('T')[0],
           Proposed_To: String(hold.endDate).split('T')[0],
         });
+        // BUG_262 fix: make the request ACTIONABLE again — after acceptance
+        // the request follows the configured approval workflow, so the
+        // current approver receives an approval request (not just an
+        // informational note).
+        if (rerouteToWorkflow && existingLeave.currentApproverId) {
+          await dispatchLeaveEvent(db, scope.tenantId, 'leave.applied', leaveRequest, existingLeave.currentApproverId, comments, request, [existingLeave.currentApproverId]).catch(() => null);
+        }
       } catch { /* non-fatal */ }
       return NextResponse.json({
         success: true, leaveRequest,
-        message: `Dates updated — leave is ${prevStatus}${status === 'accept_proposed_dates' ? ' (accepted by employee)' : ' (applied by approver)'}`,
+        message: rerouteToWorkflow
+          ? `Dates updated — the request has re-entered the approval workflow (${status === 'accept_proposed_dates' ? 'accepted by employee' : 'applied by approver'})`
+          : `Dates updated — leave is ${prevStatus}${status === 'accept_proposed_dates' ? ' (accepted by employee)' : ' (applied by approver)'}`,
       }, { headers: corsHeaders() });
     }
 
@@ -553,23 +719,29 @@ export async function PATCH(
       const approverIds = await collectChainRecipients(db, scope.tenantId, null, existingLeave.currentApproverId, id);
       for (const uid of approverIds) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: uid,
-            type: 'leave_counter_proposed',
             title: 'Employee suggested different dates',
             message: `${empName3} suggested ${String(proposedDates.startDate).split('T')[0]} → ${String(proposedDates.endDate).split('T')[0]} for their held ${leaveRequest.leaveType?.name || 'leave'}.${comments ? ` Note: ${comments}` : ''}`,
-            data: { leaveRequestId: id, proposedDates, comments },
+            type: 'warning',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
       if (leaveRequest?.employee?.userId) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: leaveRequest.employee.userId,
-            type: 'leave_counter_proposed',
             title: 'Date suggestion sent',
             message: `Your suggested dates were sent to the approver for review.`,
-            data: { leaveRequestId: id, proposedDates },
+            type: 'info',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
@@ -603,12 +775,15 @@ export async function PATCH(
 
       if (leaveRequest?.employee?.userId) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: leaveRequest.employee.userId,
-            type: 'leave_counter_declined',
             title: 'Date suggestion declined',
             message: `The approver declined your suggested dates. Your ${leaveRequest.leaveType?.name || 'leave'} is still on hold.${comments ? ` Comment: ${comments}` : ''}`,
-            data: { leaveRequestId: id, comments },
+            type: 'info',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
         try {
@@ -623,23 +798,63 @@ export async function PATCH(
     // Employee withdraws a pending/on_hold request. No approval needed.
     // Balance is released. The approval chain is notified.
     if (status === 'withdrawn') {
+      // BUG_263 fix: an ON_HOLD leave whose original state was APPROVED has
+      // its balance ALREADY deducted — withdrawing must restore the balance
+      // and release the held attendance rows. The final status is stored as
+      // 'withdrawn' (previously mapped to 'cancelled'), and stale hold data
+      // is cleared so the request disappears from the HR Team actions list.
+      const withdrawHoldJson = existingLeave.status === 'on_hold' ? await readHoldJson(db, id) : null;
+      const wasApprovedBefore = existingLeave.status === 'approved'
+        || (existingLeave.status === 'on_hold' && withdrawHoldJson?.prevStatus === 'approved');
+
       const leaveRequest = await db.leaveRequest.update({
         where: { id },
-        data: { status: 'cancelled', cancellationReason: comments, comments, cancelledAt: new Date() },
+        data: { status: 'withdrawn', cancellationReason: comments, comments, cancelledAt: new Date() },
         include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
       }).catch(() => null);
+
+      // Restore the deducted balance + attendance rows when the held/approved leave had its balance taken
+      if (wasApprovedBefore) {
+        try {
+          const wdChargeableDays = existingLeave.chargeableDays ?? (existingLeave.halfDay
+            ? 0.5
+            : Math.ceil((new Date(existingLeave.endDate).getTime() - new Date(existingLeave.startDate).getTime()) / 86400000) + 1);
+          await appendLedgerEntry(db, {
+            employeeId: existingLeave.employeeId, leaveTypeId: existingLeave.leaveTypeId,
+            year: new Date(existingLeave.startDate).getFullYear(), transactionType: 'reverse',
+            days: Math.abs(wdChargeableDays), sourceType: 'leave_request', sourceId: id,
+            reason: `Leave withdrawn — balance restored (${wdChargeableDays} day(s))`,
+            createdBy: scope.userId, leaveRequestId: id,
+          });
+          console.log(`[leave] Balance restored for withdrawn leave ${id}: +${wdChargeableDays} day(s)`);
+        } catch (wdRevErr) {
+          console.warn(`[leave] Balance restoration failed for withdrawn leave ${id} (non-fatal):`, wdRevErr);
+        }
+        await removeLeaveAttendanceRows(db, existingLeave.employeeId, existingLeave.startDate, existingLeave.endDate, id);
+      }
+
+      // Clear stale hold data so the request disappears from Team actions
+      if (existingLeave.status === 'on_hold') {
+        await ensureHoldColumns(db);
+        await db.$executeRawUnsafe(
+          `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = NULL, "holdComments" = NULL WHERE "id" = $1`, id
+        ).catch(() => null);
+      }
 
       // Notify the approval chain that the request was withdrawn
       const empName4 = `${leaveRequest?.employee?.firstName || ''} ${leaveRequest?.employee?.lastName || ''}`.trim() || 'An employee';
       const chainIds4 = await collectChainRecipients(db, scope.tenantId, null, existingLeave.currentApproverId, id);
       for (const uid of chainIds4) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: uid,
-            type: 'leave_withdrawn',
             title: 'Leave request withdrawn',
             message: `${empName4} withdrew their ${leaveRequest.leaveType?.name || 'leave'} request (${String(existingLeave.startDate).split('T')[0]} → ${String(existingLeave.endDate).split('T')[0]}).`,
-            data: { leaveRequestId: id, comments },
+            type: 'info',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
@@ -662,6 +877,14 @@ export async function PATCH(
       if (!cfgFlags.allowCancelAfterApproval) {
         return NextResponse.json({ error: 'Cancelling an approved leave is disabled by the leave workflow configuration' }, { status: 403, headers: corsHeaders() });
       }
+      // BUG_264 fix: cancellation AFTER the leave period follows the
+      // configured policy — the workflow config can disable cancelling a
+      // past leave entirely (allowCancelAfterLeaveEnd=false) or restrict it
+      // to N days after the leave end date.
+      const pastCancelErr = pastLeaveCancellationError(existingLeave.endDate, cfgFlags);
+      if (pastCancelErr) {
+        return NextResponse.json({ error: pastCancelErr, code: 'CANCEL_AFTER_LEAVE_END_BLOCKED' }, { status: 403, headers: corsHeaders() });
+      }
       const leaveRequest = await db.leaveRequest.update({
         where: { id },
         data: { status: 'cancel_requested', cancellationReason: comments, comments },
@@ -674,23 +897,29 @@ export async function PATCH(
       const approverIds5 = await collectChainRecipients(db, scope.tenantId, null, existingLeave.currentApproverId, id);
       for (const uid of approverIds5) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: uid,
-            type: 'leave_cancel_request',
             title: 'Cancellation request — action needed',
             message: `${empName5} requested cancellation of the APPROVED ${leaveRequest.leaveType?.name || 'leave'} (${String(existingLeave.startDate).split('T')[0]} → ${String(existingLeave.endDate).split('T')[0]}).${comments ? ` Reason: ${comments}` : ''}`,
-            data: { leaveRequestId: id, comments },
+            type: 'warning',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
       if (leaveRequest?.employee?.userId) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: leaveRequest.employee.userId,
-            type: 'leave_cancel_request',
             title: 'Cancellation request submitted',
             message: `Your cancellation request for the ${leaveRequest.leaveType?.name || 'leave'} has been submitted and is pending approval. The leave stays approved until the cancellation is approved.`,
-            data: { leaveRequestId: id, comments },
+            type: 'info',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
       }
@@ -713,12 +942,15 @@ export async function PATCH(
 
       if (leaveRequest?.employee?.userId) {
         try {
-          await createNotification(db, {
+          // FIX (root-cause Bug B): single params-object signature.
+          await createNotification({
+            tenantId: scope.tenantId || '',
             userId: leaveRequest.employee.userId,
-            type: 'leave_cancel_declined',
             title: 'Cancellation request declined',
             message: `Your cancellation request for the ${leaveRequest.leaveType?.name || 'leave'} was declined. The leave remains approved (${String(existingLeave.startDate).split('T')[0]} → ${String(existingLeave.endDate).split('T')[0]}).${comments ? ` Comment: ${comments}` : ''}`,
-            data: { leaveRequestId: id, comments },
+            type: 'info',
+            category: 'leave',
+            link: '/leave',
           });
         } catch { /* non-fatal */ }
         try {
@@ -731,6 +963,18 @@ export async function PATCH(
 
     // ─── Handle cancellation (no workflow involved) ───
     if (status === 'cancelled') {
+      // BUG_264 fix: a DIRECT cancellation of a leave whose period has
+      // already ended follows the configured policy. Cancellations that are
+      // the sign-off step of an employee's 'cancel_requested' (current
+      // status 'cancel_requested') are NOT re-checked — the policy was
+      // already enforced when the request was raised.
+      if (existingLeave.status !== 'cancel_requested') {
+        const directPastErr = pastLeaveCancellationError(existingLeave.endDate, cfgFlags);
+        if (directPastErr) {
+          return NextResponse.json({ error: directPastErr, code: 'CANCEL_AFTER_LEAVE_END_BLOCKED' }, { status: 403, headers: corsHeaders() });
+        }
+      }
+
       // Fetch the existing leave request to check if it was already approved
       // (if so, we need to reverse the balance deduction)
       const existingRequest = await db.leaveRequest.findUnique({
@@ -804,6 +1048,15 @@ export async function PATCH(
         module: 'leave',
         details: `Cancelled leave request ${id}${wasApproved ? ' (balance restored)' : ''}`,
       });
+
+      // Clear stale hold data when cancelling a held request so the row no
+      // longer shows proposal chips in Team actions.
+      if (existingLeave.status === 'on_hold') {
+        await ensureHoldColumns(db);
+        await db.$executeRawUnsafe(
+          `UPDATE "LeaveRequest" SET "proposedHoldDatesJson" = NULL, "holdComments" = NULL WHERE "id" = $1`, id
+        ).catch(() => null);
+      }
 
       // ─── BUG_066 fix: Email 5 — Leave Cancellation Confirmation ───
       // Per the Leave Module Notification Workflow spec, both the employee
@@ -929,7 +1182,7 @@ export async function PATCH(
       if (status === 'approved') {
         // Advance to the next tier (or finalize if last tier)
         const { advanceLeaveWorkflow } = await import('@/lib/leave-workflow');
-        const result = await advanceLeaveWorkflow(
+        let result = await advanceLeaveWorkflow(
           db,
           id,
           existingLeave.employeeId,
@@ -938,6 +1191,30 @@ export async function PATCH(
           comments || '',
           existingLeave.leaveType?.name,
         );
+
+        // BUG_258 fix: SINGLE-CLICK approval. Previously one click only
+        // advanced one tier, so HR (authorized to approve every tier) had to
+        // click the tick button twice before the leave was approved. While
+        // the workflow advanced to a next tier AND the acting user is
+        // authorized to approve that tier too, keep advancing so ONE click
+        // finalizes the leave. The loop stops at the first tier that needs a
+        // DIFFERENT approver (e.g. a manager approving tier 1 of a chain
+        // whose tier 2 is HR).
+        let autoAdvances = 0;
+        while (!result.finalized && result.nextTier && autoAdvances < 10) {
+          const canAlsoApproveNext = await canUserApproveCurrentTier(db, id, userId, userRole, scope.tenantId);
+          if (!canAlsoApproveNext) break;
+          result = await advanceLeaveWorkflow(
+            db,
+            id,
+            existingLeave.employeeId,
+            scope.tenantId,
+            scope.userId || userId,
+            comments || '',
+            existingLeave.leaveType?.name,
+          );
+          autoAdvances++;
+        }
 
         if (result.finalized) {
           // ─── Balance deduction is now handled centrally inside

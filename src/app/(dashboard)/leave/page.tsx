@@ -109,6 +109,9 @@ function getStatusPill(status: string) {
     cancelled: { bg: 'bg-slate-100 border-slate-200', text: 'text-slate-600', dot: 'bg-slate-400', label: 'Cancelled' },
     on_hold: { bg: 'bg-violet-50 border-violet-200', text: 'text-violet-700', dot: 'bg-violet-500', label: 'On Hold' },
     cancel_requested: { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500', label: 'Cancel Requested' },
+    // BUG_263 fix: withdrawn requests keep their own status (previously the
+    // server mapped withdrawal to 'cancelled')
+    withdrawn: { bg: 'bg-slate-100 border-slate-300', text: 'text-slate-700', dot: 'bg-slate-500', label: 'Withdrawn' },
   };
   return map[s] || { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', dot: 'bg-slate-400', label: status };
 }
@@ -969,8 +972,11 @@ function TeamActionsTable({ leaveRequests, onCancelled }: {
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-[15px] font-bold text-slate-900">Team actions</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Hold · propose dates · release · cancellation sign-off</p>
+          {/* BUG_257 fix: the title now describes the content (holds, date
+              proposals, release and cancellation sign-off) instead of the
+              vague "Team actions". */}
+          <h3 className="text-[15px] font-bold text-slate-900">Hold &amp; Cancellation Requests</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Hold, propose new dates, release and approve cancellations</p>
         </div>
         <span className="text-[11px] font-semibold text-slate-400">{actionable.length} actionable</span>
       </div>
@@ -1422,8 +1428,19 @@ function ApproveLeavesTable({ pendingApprovals, holidays, onCancelled }: {
     try {
       setApprovingId(id);
       const res = await fetch(`/api/leave/${id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status: 'approved', comments: 'Approved' }) });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to approve'); }
-      toast.success('Leave approved · balance deducted');
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { throw new Error(d.error || 'Failed to approve'); }
+      // BUG_258 fix: read the server's response instead of hardcoding a false
+      // "balance deducted" toast. One click now finalizes the leave when the
+      // approver is authorized for every remaining tier (server-side loop);
+      // when the chain moves to a DIFFERENT approver, the message says so.
+      if (d.workflowFinalized || d.leaveRequest?.status === 'approved') {
+        toast.success(d.message || 'Leave approved · balance deducted');
+      } else if (d.workflowAdvanced) {
+        toast.success(d.message || `Tier approved — awaiting tier ${d.nextTier} approver`);
+      } else {
+        toast.success(d.message || 'Leave approved');
+      }
       onCancelled();
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to approve'); }
     finally { setApprovingId(null); }

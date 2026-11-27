@@ -55,6 +55,12 @@ export interface WorkflowConfig {
   // With a hold, the approver can PROPOSE different dates; the employee can
   // ACCEPT them or COUNTER-PROPOSE other dates for the approver to apply.
   allowDateProposal?: boolean;
+  // BUG_264 fix: policy for cancelling a leave whose period has ALREADY
+  // ended. allowCancelAfterLeaveEnd=false blocks cancelling past leaves
+  // entirely; cancelWithinDaysAfterLeaveEnd=N restricts cancellation to N
+  // days after the leave end date (null/0 = no time limit).
+  allowCancelAfterLeaveEnd?: boolean;
+  cancelWithinDaysAfterLeaveEnd?: number | null;
 
   sandwichRuleEnabled?: boolean;        // leave sandwiched between holidays/weekends counts as leave
   proRataEnabled?: boolean;             // pro-rata leave for mid-year joiners
@@ -80,6 +86,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
   allowCancelAfterApproval: true,
   allowApproverHold: true,
   allowDateProposal: true,
+  // BUG_264: past-leave cancellation policy defaults (allowed, no time window)
+  allowCancelAfterLeaveEnd: true,
+  cancelWithinDaysAfterLeaveEnd: null,
   // Unified policy defaults (mirror legacy LeavePolicyRule defaults)
   sandwichRuleEnabled: true,
   proRataEnabled: false,
