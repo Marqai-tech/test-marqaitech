@@ -807,11 +807,31 @@ export async function PATCH(
       const wasApprovedBefore = existingLeave.status === 'approved'
         || (existingLeave.status === 'on_hold' && withdrawHoldJson?.prevStatus === 'approved');
 
+      // NOTE: LeaveRequest has NO `cancelledAt` column in the Prisma schema —
+      // writing it here caused PrismaClientValidationError ("Unknown arg
+      // cancelledAt"), which the .catch() swallowed, so the request's status
+      // silently NEVER changed to 'withdrawn' (the HR Team actions list kept
+      // showing it and balances were not released). We keep `cancellationReason`
+      // + `comments`; if a DB has a legacy `cancelledAt` column we also stamp
+      // it via raw SQL below.
       const leaveRequest = await db.leaveRequest.update({
         where: { id },
-        data: { status: 'withdrawn', cancellationReason: comments, comments, cancelledAt: new Date() },
+        data: { status: 'withdrawn', cancellationReason: comments, comments },
         include: { employee: { select: { firstName: true, lastName: true, userId: true } }, leaveType: { select: { name: true } } },
-      }).catch(() => null);
+      }).catch((wdErr: unknown) => {
+        console.error('[leave withdraw] status update failed:', wdErr instanceof Error ? wdErr.message : wdErr);
+        return null;
+      });
+      if (!leaveRequest) {
+        return NextResponse.json(
+          { error: 'Failed to withdraw the leave request — please try again or contact support.' },
+          { status: 500, headers: corsHeaders() }
+        );
+      }
+      // Legacy tenant DBs may carry a `cancelledAt` column — stamp it best-effort.
+      try {
+        await db.$executeRawUnsafe(`UPDATE "LeaveRequest" SET "cancelledAt" = NOW() WHERE "id" = $1`, id);
+      } catch { /* column not present — fine */ }
 
       // Restore the deducted balance + attendance rows when the held/approved leave had its balance taken
       if (wasApprovedBefore) {
