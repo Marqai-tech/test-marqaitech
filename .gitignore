@@ -51,3 +51,4 @@ core
 
 .vercel
 .env*
+dev.log
