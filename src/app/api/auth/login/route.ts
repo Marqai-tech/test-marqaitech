@@ -244,6 +244,34 @@ export async function POST(request: Request) {
       }
     }
 
+    // ─── Employee table fallback (2026-11-26 fix) ───
+    // If the email wasn't found in the User table directly, check the Employee
+    // table by email. Employees sometimes have a different email in the User
+    // table than in the Employee table (e.g., amrutha2@ vs amrutha@). By
+    // resolving Employee.email → Employee.userId → User.id, we can authenticate
+    // the employee even when the User email doesn't match.
+    if (!user && email) {
+      try {
+        const empRow = await db.employee.findFirst({
+          where: { email: { equals: email, mode: 'insensitive' } },
+          select: { userId: true },
+        }).catch(() => null);
+        if (empRow?.userId) {
+          const userViaEmp = await db.user.findUnique({
+            where: { id: empRow.userId },
+            select: { ...userSelect, tenant: tenantSelect },
+          }).catch(() => null);
+          if (userViaEmp) {
+            console.log(`[Login] User not found by email "${email}" — resolved via Employee table → userId ${empRow.userId}`);
+            user = userViaEmp;
+          }
+        }
+      } catch (empLookupErr) {
+        // Non-fatal — fall through to the "user not found" error below
+        console.warn('[Login] Employee table fallback failed:', empLookupErr);
+      }
+    }
+
     // If user was found in tenant DB, attach tenant info
     if (user && !user.tenant && userTenant) {
       user.tenant = userTenant;
