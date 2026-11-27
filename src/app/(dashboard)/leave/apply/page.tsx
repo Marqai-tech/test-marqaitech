@@ -246,11 +246,53 @@ function ApplyLeaveContent() {
               setLeaveTypes(activeTypes);
               console.log(`[apply-leave] BUG_256: employee sees ${activeTypes.length} leave type(s) after policy/mapping resolution.`);
             } else {
-              // The employee's policy/mappings exist but grant no leave types
-              // — surface a clear warning instead of silently showing every
-              // type in the tenant.
-              setPolicyWarning('No leave types are mapped to your leave policy yet. Please contact HR so your policy gets leave types configured.');
-              console.warn('[apply-leave] BUG_256: policy/mapping resolution returned 0 types for this employee.');
+              // ─── Fallback: fetch leave types directly by the policy's leaveTypeIds ───
+              // The /api/leave-types endpoint filters by companyId for employees.
+              // If the employee's company doesn't match the leave type's company
+              // (common in multi-company tenants), the API returns 0 types even
+              // though the employee has a valid policy with leaveTypeIds.
+              // Fix: fetch each leave type by ID directly via /api/leave-types/[id].
+              const policyLeaveTypeIds = new Set<string>();
+              for (const pid of empLeavePolicyIds) {
+                const p = fetchedPolicies.find((pp: any) => pp.id === pid);
+                if (p && p.status === 'active') {
+                  const ltIds = parseJson(p.leaveTypeIds);
+                  ltIds.forEach((id: string) => policyLeaveTypeIds.add(id));
+                }
+              }
+              if (policyLeaveTypeIds.size > 0) {
+                console.log(`[apply-leave] Standard API returned 0 types — fetching ${policyLeaveTypeIds.size} type(s) directly by policy leaveTypeIds.`);
+                const fetchedById: any[] = [];
+                for (const ltid of policyLeaveTypeIds) {
+                  try {
+                    const ltRes2 = await fetch(`/api/leave-types/${ltid}`, { headers }).catch(() => null);
+                    if (ltRes2?.ok) {
+                      const ltData2 = await ltRes2.json();
+                      // The API returns the leave type directly (not wrapped)
+                      const lt = ltData2.leaveType || ltData2.data || (ltData2.id ? ltData2 : null);
+                      if (lt) {
+                        fetchedById.push(lt);
+                      }
+                    }
+                  } catch { /* non-fatal — skip this type */ }
+                }
+                if (fetchedById.length > 0) {
+                  activeTypes = fetchedById.filter((t: any) => t.status === 'active' || t.status === undefined);
+                  setLeaveTypes(activeTypes);
+                  console.log(`[apply-leave] Fetched ${activeTypes.length} leave type(s) directly by policy leaveTypeIds.`);
+                } else {
+                  // Direct fetch also failed — the leave type IDs in the policy
+                  // might be stale/deleted. Surface a clear warning.
+                  setPolicyWarning('Your leave policy references leave types that could not be found. Please contact HR to verify the policy configuration.');
+                  console.warn('[apply-leave] Policy leaveTypeIds exist but direct fetch returned 0 types.');
+                }
+              } else {
+                // The employee's policy/mappings exist but grant no leave types
+                // — surface a clear warning instead of silently showing every
+                // type in the tenant.
+                setPolicyWarning('No leave types are mapped to your leave policy yet. Please contact HR so your policy gets leave types configured.');
+                console.warn('[apply-leave] BUG_256: policy/mapping resolution returned 0 types for this employee.');
+              }
             }
           } catch (e) {
             console.warn('[apply-leave] Policy filter failed (non-fatal):', e);
