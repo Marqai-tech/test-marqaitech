@@ -201,7 +201,19 @@ function LeavePageContent() {
         fetch(`/api/employees?limit=1&own=1&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
         fetch(`/api/holidays${sq ? `?${sq}` : ''}`, { headers }).catch(() => null),
       ]);
-      if (leaveRes.ok) { const data = await leaveRes.json(); setLeaveRequests(data.leaveRequests || []); setAllLeaveRequests(data.leaveRequests || []); }
+      if (leaveRes.ok) {
+        const data = await leaveRes.json();
+        // BUG FIX: Deduplicate leave requests by ID — the API may return
+        // duplicate rows due to JOINs (e.g., multiple balance rows per request).
+        const seen = new Set<string>();
+        const deduped = (data.leaveRequests || []).filter((r: LeaveRequest) => {
+          if (seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        });
+        setLeaveRequests(deduped);
+        setAllLeaveRequests(deduped);
+      }
       // Fetch accurate count of employees on leave today (avoids truncation issues with limit=100)
       const onLeaveRes = await fetch(`/api/leave?onLeaveToday=1${sq ? `&${sq}` : ''}`, { headers }).catch(() => null);
       if (onLeaveRes?.ok) {
@@ -1479,8 +1491,8 @@ function ApproveLeavesTable({ pendingApprovals, holidays, onCancelled }: {
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100">
         <div>
-          <h3 className="text-[15px] font-bold text-slate-900">Approve leaves</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Requests waiting on you · oldest first</p>
+          <h3 className="text-[15px] font-bold text-slate-900">Approve Hold &amp; Cancellation Requests</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Accept or reject leave requests · oldest first</p>
         </div>
         <div className="flex items-center gap-2">
           <select value={typeF} onChange={e => setTypeF(e.target.value)} className="h-8 px-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 bg-white">
