@@ -1135,12 +1135,31 @@ function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: 
 
   // Show all employees with a role (for the dropdowns)
   const empOptions = employees.length > 0 ? employees : [];
+
+  // ─── Filter state: shortlist employees by branch / dept / designation ───
+  const [filterBranch, setFilterBranch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [filterDesignation, setFilterDesignation] = useState('');
+
+  // Derive unique values for the filter dropdowns
+  const branchOptions = [...new Set(empOptions.map(e => e.branch).filter(Boolean))].sort();
+  const deptOptions = [...new Set(empOptions.map(e => e.department).filter(Boolean))].sort();
+  const designationOptions = [...new Set(empOptions.map(e => e.designation).filter(Boolean))].sort();
+
+  // Filter employees based on the selected filters
+  const filteredEmps = empOptions.filter(e => {
+    if (filterBranch && e.branch !== filterBranch) return false;
+    if (filterDept && e.department !== filterDept) return false;
+    if (filterDesignation && e.designation !== filterDesignation) return false;
+    return true;
+  });
+
   // Format employee label with branch/dept/designation for easy identification
   const empLabel = (e: EmpOption) => {
     const parts = [e.name];
     if (e.designation) parts.push(`(${e.designation})`);
-    if (e.department) parts.push(`— ${e.department}`);
-    if (e.branch) parts.push(`· ${e.branch}`);
+    if (e.department) parts.push(`\u2014 ${e.department}`);
+    if (e.branch) parts.push(`\u00b7 ${e.branch}`);
     return parts.join(' ');
   };
 
@@ -1159,20 +1178,46 @@ function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: 
 
       {/* Body */}
       <div className="p-6 space-y-5">
+        {/* ─── Employee filters (shortlist by branch / dept / designation) ─── */}
+        <div>
+          <label className="block text-[12.5px] font-semibold text-slate-700 mb-2">Filter Employees</label>
+          <div className="grid grid-cols-3 gap-3">
+            <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} className="h-9 px-2 rounded-lg border border-slate-200 text-[12.5px] bg-white">
+              <option value="">All Branches</option>
+              {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="h-9 px-2 rounded-lg border border-slate-200 text-[12.5px] bg-white">
+              <option value="">All Departments</option>
+              {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)} className="h-9 px-2 rounded-lg border border-slate-200 text-[12.5px] bg-white">
+              <option value="">All Designations</option>
+              {designationOptions.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          {(filterBranch || filterDept || filterDesignation) && (
+            <p className="text-[11px] text-slate-500 mt-1.5">
+              Showing {filteredEmps.length} of {empOptions.length} employees
+              <button onClick={() => { setFilterBranch(''); setFilterDept(''); setFilterDesignation(''); }}
+                className="ml-2 text-blue-600 font-semibold hover:underline">Clear filters</button>
+            </p>
+          )}
+        </div>
+
         {/* Approver + Proxy */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Original Approver <span className="text-red-500">*</span></label>
             <select value={form.approverId} onChange={e => set('approverId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
               <option value="">— Select approver —</option>
-              {empOptions.map(e => <option key={e.id} value={e.id}>{empLabel(e)}</option>)}
+              {filteredEmps.map(e => <option key={e.id} value={e.id}>{empLabel(e)}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Proxy Approver <span className="text-red-500">*</span></label>
             <select value={form.proxyId} onChange={e => set('proxyId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
               <option value="">— Select proxy —</option>
-              {empOptions.filter(e => e.id !== form.approverId).map(e => <option key={e.id} value={e.id}>{empLabel(e)}</option>)}
+              {filteredEmps.filter(e => e.id !== form.approverId).map(e => <option key={e.id} value={e.id}>{empLabel(e)}</option>)}
             </select>
           </div>
         </div>
