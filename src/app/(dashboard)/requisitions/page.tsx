@@ -1013,7 +1013,7 @@ export default function RequisitionsPage() {
       {/* Tabs — Employee-module underline style. switchTab resets the list
           filter so My Approvals is never silently filtered to empty. */}
       <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
-        <button type="button" onClick={() => switchTab('requisitions')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'requisitions' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Requisition List</button>
+        <button type="button" onClick={() => switchTab('requisitions')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'requisitions' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Requisition</button>
         <button type="button" onClick={() => switchTab('approvals')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'approvals' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>My Approvals ({needsActionCount})</button>
       </div>
 
@@ -1049,7 +1049,7 @@ export default function RequisitionsPage() {
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-4">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-bold text-slate-900">{activeTab === 'approvals' ? 'Awaiting My Action' : 'Requisition List'}</h3>
+                <h3 className="text-sm font-bold text-slate-900">{activeTab === 'approvals' ? 'Awaiting My Action' : 'Requisition'}</h3>
                 {activeTab === 'approvals' && <span className="inline-flex h-7 items-center rounded-md bg-green-50 px-2.5 text-xs font-bold text-green-700">Approval queue</span>}
               </div>
               <div className="relative mt-3"><FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID, title, or department..." className="h-10 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/10" /></div>

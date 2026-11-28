@@ -9,12 +9,21 @@
  *
  * Layout (viewport-fit, no horizontal scrolling):
  *   - Header: breadcrumb, title, subtitle, Refresh + Export
- *   - Summary cards: Total Candidates / New Applications / In Screening / Shortlisted
- *   - Filter card: Job Posting, search, Source, Experience, Status, Sort, Clear Filters
- *   - Candidate list: aligned compact rows, internal vertical scroll only
- *   - "View Profile" → FULL-PAGE profile (never a modal): resume preview +
- *     download, skills, experience, education, screening answers, recruiter
- *     notes, tags, activity timeline, per-application status actions
+ *   - Summary cards: Total Candidates / New Applications / In Screening /
+ *     Shortlisted / In Interview / Offered
+ *   - Filter card: Job Posting, search, Source, Experience, Status, Sort,
+ *     Clear Filters
+ *   - Candidate list: responsive card grid (1 / 2 / 3 columns). Each card:
+ *     avatar + name + role, colored status badge, one experience · source
+ *     detail line, up to 4 skill chips (+N more), ONE full-width advance
+ *     button (STATUS_META.nextLabel), email and View Profile. Cards carry no
+ *     note / tag / reject actions — rejection lives in the profile only.
+ *   - "View Profile" → FULL-PAGE profile (never a modal): header card with
+ *     status badge + one-click advance / Reject actions and an Applied →
+ *     Screening → Shortlisted → Interview → Offer → Hired pipeline stepper,
+ *     then full-width Resume (preview toggle + download) and Applied To
+ *     cards, followed by Contact, Skills, Experience, Education,
+ *     Certifications, Screening Answers and the Activity timeline.
  *
  * Status flow (forward-only): applied → screening → shortlisted → interview →
  * offered. The interview-stage and offer-stage moves happen HERE (Move to
@@ -30,19 +39,18 @@
  * not offered.
  *
  * Data: everything dynamic from the existing APIs.
- *   - GET  /api/recruitment/candidate-search  (aggregated candidates; now also
- *     returns source / notes / resume / coverLetter per application)
+ *   - GET  /api/recruitment/candidate-search  (aggregated candidates; returns
+ *     source / notes / resume / coverLetter per application)
  *   - GET  /api/recruitment?limit=200         (job postings for the filter)
- *   - PATCH /api/recruitment/:applicationId   ({ status } for stage moves,
- *     { recruiterNotes | tags } stored inside the notes JSON next to the AI
- *     feedback keys — nothing is overwritten)
+ *   - PATCH /api/recruitment/:applicationId   ({ status } for stage moves)
  *   No candidate data is hardcoded; every value on screen comes from the DB.
  */
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
-  Search, RefreshCw, Download, X, Eye, FileText, Tag, StickyNote, Clock, MapPin,
-  Mail, Phone, Briefcase, Award, Star, ArrowRight, ArrowLeft, CheckCircle2,
-  Ban, Loader2, AlertTriangle, Calendar, Users, UserPlus, UserCheck,
+  Search, RefreshCw, Download, X, FileText, StickyNote, Clock,
+  Mail, Briefcase, Award, Star, ArrowLeft, CheckCircle2,
+  Loader2, AlertTriangle, Calendar, Users, UserPlus, UserCheck,
+  ChevronRight, UserRound,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BackButton } from '@/components/hrms/BackButton';
@@ -104,13 +112,11 @@ interface RecruiterNote { text: string; at: string; }
 
 /* ─────────────────────────── design-system tokens ────────────────────────── */
 
-const INPUT_CLS = 'h-[34px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
-/* Filter-bar controls: like INPUT_CLS but NO w-full — explicit widths below
-   must win, otherwise every dropdown stretches to 100% and stacks vertically. */
+/* Filter-bar controls: fixed height, NO w-full — explicit widths below must
+   win, otherwise every dropdown stretches to 100% and stacks vertically. */
 const FILTER_CLS = 'h-[30px] rounded-[7px] border border-slate-300 bg-white px-2 text-[11.5px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15';
 const CARD_CLS = 'rounded-xl border border-slate-200 bg-white shadow-sm';
 const SECTION_TITLE = 'text-[12.5px] font-bold text-slate-800';
-const LABEL_CLS = 'text-[11px] font-semibold text-slate-500';
 
 const STATUS_META: Record<string, { label: string; badge: string; next?: string; nextLabel?: string }> = {
   applied: { label: 'Applied', badge: 'bg-blue-50 text-blue-700 border-blue-200', next: 'screening', nextLabel: 'Move to Screening' },
@@ -122,6 +128,16 @@ const STATUS_META: Record<string, { label: string; badge: string; next?: string;
   offered: { label: 'Offered', badge: 'bg-teal-50 text-teal-700 border-teal-200' },
   hired: { label: 'Hired', badge: 'bg-green-100 text-green-800 border-green-300' },
 };
+
+/* Pipeline order for the profile stepper (Applied → … → Hired). */
+const PIPELINE_STAGES: Array<{ key: string; label: string }> = [
+  { key: 'applied', label: 'Applied' },
+  { key: 'screening', label: 'Screening' },
+  { key: 'shortlisted', label: 'Shortlisted' },
+  { key: 'interview', label: 'Interview' },
+  { key: 'offered', label: 'Offer' },
+  { key: 'hired', label: 'Hired' },
+];
 
 /* Stage guidance — where the FOLLOW-UP action for the current stage lives.
    Shown in the profile banner (and referenced by transition toasts) so HR
@@ -177,7 +193,7 @@ function isPdfResume(resume?: string | null): boolean {
   return r.startsWith('data:application/pdf') || r.endsWith('.pdf') || r.includes('.pdf?') || r.includes('.pdf#');
 }
 
-/** notes field doubles as AI-feedback JSON; recruiter notes/tags live inside it. */
+/** notes field doubles as AI-feedback JSON; legacy recruiter notes still show in the timeline. */
 function parseApplicationNotes(raw?: string | null): { legacy: string; recruiterNotes: RecruiterNote[]; tags: string[] } {
   if (!raw) return { legacy: '', recruiterNotes: [], tags: [] };
   const s = String(raw).trim();
@@ -200,6 +216,29 @@ function csvEscape(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/* ───────────────────── small shared presentational pieces ─────────────────── */
+
+function CardHead({ icon, title, right }: { icon: React.ReactNode; title: string; right?: React.ReactNode }) {
+  return (
+    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        {icon}
+        <h3 className={SECTION_TITLE}>{title}</h3>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function InfoCell({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <p className="mt-0.5 break-words text-[11.5px] font-semibold text-slate-700">{value}</p>
+    </div>
+  );
+}
+
 /* ══════════════════════════════ main component ═══════════════════════════ */
 
 export function FindCandidates() {
@@ -214,21 +253,13 @@ export function FindCandidates() {
   // profile (full page — never a modal)
   const [viewEmail, setViewEmail] = useState<string | null>(null);
   const [bannerDismissedFor, setBannerDismissedFor] = useState<string | null>(null);
+  const [resumeOpen, setResumeOpen] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const profileScrollRef = useRef<HTMLDivElement | null>(null);
 
   // actions
   const [transitioningApp, setTransitioningApp] = useState<string | null>(null);
   const [confirmRejectApp, setConfirmRejectApp] = useState<string | null>(null);
-  // inline row composers
-  const [noteRowEmail, setNoteRowEmail] = useState<string | null>(null);
-  const [tagRowEmail, setTagRowEmail] = useState<string | null>(null);
-  const [rowNoteText, setRowNoteText] = useState('');
-  const [rowTagText, setRowTagText] = useState('');
-  // profile composers
-  const [profileNoteText, setProfileNoteText] = useState('');
-  const [profileTagText, setProfileTagText] = useState('');
-  const [savingNotes, setSavingNotes] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   /* ───────────────────────────── data loading ───────────────────────────── */
@@ -321,9 +352,8 @@ export function FindCandidates() {
 
   const openProfile = (email: string) => {
     setViewEmail(email);
-    setResumeLoading(true);
-    setProfileNoteText('');
-    setProfileTagText('');
+    setResumeOpen(false);
+    setResumeLoading(false);
     setConfirmRejectApp(null);
     requestAnimationFrame(() => profileScrollRef.current?.scrollTo({ top: 0 }));
   };
@@ -377,60 +407,6 @@ export function FindCandidates() {
     }
   };
 
-  /** Persist recruiter notes / tags on the primary application (notes JSON). */
-  const persistNotes = async (app: AppRow, patch: { recruiterNotes?: RecruiterNote[]; tags?: string[] }) => {
-    setSavingNotes(true);
-    try {
-      const res = await fetch(`/api/recruitment/${app.id}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(patch),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
-      await fetchData();
-      return true;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save');
-      return false;
-    } finally {
-      setSavingNotes(false);
-    }
-  };
-
-  const saveNote = async (app: AppRow | null, email: string, text: string, fromProfile: boolean) => {
-    const trimmed = text.trim();
-    if (!trimmed) { toast.error('Note cannot be empty'); return; }
-    if (!app) { toast.error('No application linked to this candidate'); return; }
-    const parsed = parseApplicationNotes(app.notes);
-    const note: RecruiterNote = { text: trimmed, at: new Date().toISOString() };
-    const ok = await persistNotes(app, { recruiterNotes: [note, ...parsed.recruiterNotes] });
-    if (ok) {
-      toast.success('Note added');
-      if (fromProfile) setProfileNoteText(''); else { setRowNoteText(''); setNoteRowEmail(null); }
-    }
-  };
-
-  const addTag = async (app: AppRow | null, text: string, fromProfile: boolean) => {
-    const tag = text.trim();
-    if (!tag) { toast.error('Enter a tag first'); return; }
-    if (!app) { toast.error('No application linked to this candidate'); return; }
-    const parsed = parseApplicationNotes(app.notes);
-    if (parsed.tags.some(t => t.toLowerCase() === tag.toLowerCase())) { toast.error('Tag already added'); return; }
-    const ok = await persistNotes(app, { tags: [...parsed.tags, tag] });
-    if (ok) {
-      toast.success('Tag added');
-      if (fromProfile) setProfileTagText(''); else { setRowTagText(''); setTagRowEmail(null); }
-    }
-  };
-
-  const removeTag = async (app: AppRow | null, tag: string) => {
-    if (!app) return;
-    const parsed = parseApplicationNotes(app.notes);
-    const ok = await persistNotes(app, { tags: parsed.tags.filter(t => t !== tag) });
-    if (ok) toast.success('Tag removed');
-  };
-
   const clearFilters = () => {
     setFilters({ jobId: 'all', q: '', source: 'all', minExp: '', maxExp: '', status: 'all', sort: 'newest' });
   };
@@ -442,7 +418,6 @@ export function FindCandidates() {
       const lines = [header.join(',')];
       for (const e of visibleEntries) {
         const app = e.applications?.[0];
-        const parsed = parseApplicationNotes(app?.notes);
         lines.push([
           e.candidateName, e.candidateEmail, e.candidatePhone || '', app?.jobTitle || app?.position || '',
           app?.department || '', String(e.totalExperienceYears ?? ''),
@@ -474,70 +449,88 @@ export function FindCandidates() {
     </span>
   );
 
-  const resumeDot = (app?: AppRow) => (
-    <span
-      title={app?.resume ? 'Resume on file — click View Profile to preview' : 'No resume uploaded'}
-      className={`inline-flex h-[22px] w-[26px] items-center justify-center rounded-md border ${app?.resume ? 'border-green-200 bg-green-50 text-green-600' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
-    >
-      <FileText className="h-3 w-3" />
-    </span>
-  );
-
-  const skillChips = (skills: string[], max = 3) => {
+  const skillChips = (skills: string[], max = 4) => {
     if (!skills.length) return <span className="text-[11px] text-slate-400">No skills parsed</span>;
     const shown = skills.slice(0, max);
+    const extra = skills.length - shown.length;
     return (
-      <div className="flex min-w-0 flex-wrap items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {shown.map(s => (
-          <span key={s} className="inline-flex h-[20px] max-w-[110px] items-center truncate rounded-md border border-emerald-200 bg-emerald-50 px-1.5 text-[10px] font-semibold text-emerald-700">
+          <span
+            key={s}
+            title={s}
+            className="inline-flex h-[22px] max-w-[130px] items-center truncate rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[10px] font-semibold text-emerald-700"
+          >
             {s.charAt(0).toUpperCase() + s.slice(1)}
           </span>
         ))}
-        {skills.length > max && (
-          <span className="text-[10px] font-semibold text-slate-400">+{skills.length - max}</span>
+        {extra > 0 && (
+          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+            +{extra} more
+          </span>
         )}
       </div>
     );
   };
 
-  const forwardBtn = (app: AppRow, name: string, compact?: boolean) => {
-    const meta = STATUS_META[app.status || ''];
-    if (!meta?.next) return null;
-    const hint = meta.next === 'interview'
+  /** One-click forward-stage button. `block` renders the full-width card footer variant. */
+  const forwardBtn = (app: AppRow, name: string, block?: boolean) => {
+    const next = STATUS_META[app.status || '']?.next;
+    const nextLabel = STATUS_META[app.status || '']?.nextLabel;
+    if (!next || !nextLabel) return null;
+    const busy = transitioningApp === app.id;
+    const hint = next === 'interview'
       ? 'Advance to the Interview stage — then schedule the slot from Scheduled Interviews → Schedule Interview tab'
-      : meta.next === 'offered'
+      : next === 'offered'
         ? 'Advance to the Offer stage — then create and release the offer from the Offer Management tab'
-        : meta.nextLabel;
+        : nextLabel;
+    if (block) {
+      return (
+        <button
+          onClick={() => transitionStatus(app, next, name)}
+          disabled={busy}
+          className="inline-flex h-[34px] w-full items-center justify-center gap-1 rounded-md bg-green-600 px-3 text-[11.5px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700 disabled:opacity-60"
+          title={hint}
+        >
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          {nextLabel}
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      );
+    }
     return (
       <button
-        onClick={() => transitionStatus(app, meta.next as string, name)}
-        disabled={transitioningApp === app.id}
-        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[10.5px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700 disabled:opacity-60"
+        onClick={() => transitionStatus(app, next, name)}
+        disabled={busy}
+        className="inline-flex h-[28px] items-center gap-1 rounded-md bg-green-600 px-2.5 text-[10.5px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700 disabled:opacity-60"
         title={hint}
       >
-        {transitioningApp === app.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
-        {compact ? meta.nextLabel : meta.nextLabel}
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+        {nextLabel}
+        <ChevronRight className="h-3 w-3" aria-hidden />
       </button>
     );
   };
 
-  const rejectBtn = (app: AppRow, name: string) => {
-    // Rejection is a screening-scope decision: only offered while this screen
-    // owns the candidate (Applied / Screening). Shortlisted and beyond are
-    // managed further down the pipeline; rejected is terminal.
-    if (app.status !== 'applied' && app.status !== 'screening') return null;
+  /** Reject button (always confirms first).
+   *  Application rows: screening scope only (Applied / Screening).
+   *  Profile header (`anyStage`): any non-terminal stage — never hired/rejected. */
+  const rejectBtn = (app: AppRow, name: string, anyStage?: boolean) => {
+    if (app.status === 'hired' || app.status === 'rejected') return null;
+    if (!anyStage && app.status !== 'applied' && app.status !== 'screening') return null;
+    const busy = transitioningApp === app.id;
     if (confirmRejectApp === app.id) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5">
+        <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-1.5 py-1">
           <span className="text-[10.5px] font-bold text-red-700">Reject?</span>
           <button
             onClick={() => rejectCandidate(app, name)}
-            disabled={transitioningApp === app.id}
-            className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
-          >{transitioningApp === app.id ? '…' : 'Yes'}</button>
+            disabled={busy}
+            className="inline-flex h-[26px] items-center rounded bg-red-600 px-2 text-[10.5px] font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+          >{busy ? '…' : 'Yes'}</button>
           <button
             onClick={() => setConfirmRejectApp(null)}
-            className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-600 transition hover:bg-slate-50"
+            className="inline-flex h-[26px] items-center rounded border border-slate-200 bg-white px-2 text-[10.5px] font-bold text-slate-600 transition hover:bg-slate-50"
           >No</button>
         </span>
       );
@@ -545,161 +538,73 @@ export function FindCandidates() {
     return (
       <button
         onClick={() => setConfirmRejectApp(app.id)}
-        disabled={transitioningApp === app.id}
-        className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-[10.5px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+        disabled={busy}
+        className="inline-flex h-[28px] items-center gap-1 rounded-md border border-red-200 bg-white px-2.5 text-[10.5px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
         title="Reject candidate"
       >
-        <Ban className="h-3 w-3" /> Reject
+        <X className="h-3 w-3" /> Reject
       </button>
     );
   };
 
-  /* ═══════════════════════════ candidate row ══════════════════════════════ */
+  /* ═══════════════════════════ candidate card ═════════════════════════════ */
 
-  const renderRow = (e: CandidateEntry) => {
+  const renderCard = (e: CandidateEntry) => {
     const app = e.applications?.[0];
-    const parsed = parseApplicationNotes(app?.notes);
-    const match = e.matchScore;
+    const status = app?.status || e.latestStatus;
+    const meta = STATUS_META[status || ''];
+    const exp0 = e.parsedResume?.experience?.[0];
+    const appliedTitle = app?.jobTitle || app?.position || '';
+    const roleLine = exp0?.role
+      ? [exp0.role, exp0.company].filter(Boolean).join(' · ')
+      : appliedTitle ? `Applied for ${appliedTitle}` : '';
+    const src = sourceLabel(app?.source);
+    const detail = [
+      e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)} yrs experience` : '',
+      src !== '—' ? src : '',
+      e.matchScore != null ? `${Math.round(e.matchScore)}% match` : '',
+    ].filter(Boolean).join(' · ');
+
     return (
-      <div key={e.candidateEmail}>
-        <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1.5 px-3 py-2.5 transition hover:bg-slate-50/70 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1.1fr)_54px_minmax(170px,1.7fr)_80px_82px_118px_auto]">
-          {/* candidate */}
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-700">
-              {initials(e.candidateName)}
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-[12.5px] font-bold text-slate-800">{e.candidateName || 'Unknown'}</div>
-              <div className="flex min-w-0 items-center gap-1 text-[10.5px] text-slate-500">
-                <Mail className="h-3 w-3 shrink-0" /><span className="truncate">{e.candidateEmail}</span>
-              </div>
-            </div>
+      <div key={e.candidateEmail} className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-green-200 hover:shadow">
+        {/* identity row — avatar + name/role left, status badge right */}
+        <div className="flex items-start gap-2.5">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-green-50 text-[12px] font-extrabold text-green-700">
+            {initials(e.candidateName)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[12px] font-extrabold text-slate-900" title={e.candidateName}>{e.candidateName || 'Unknown'}</p>
+            <p className="line-clamp-2 break-words text-[11px] leading-4 text-slate-500" title={roleLine}>{roleLine || '—'}</p>
           </div>
-          {/* applied to */}
-          <div className="min-w-0">
-            <div className="truncate text-[11.5px] font-semibold text-slate-700">{app?.jobTitle || app?.position || 'Position not specified'}</div>
-            <div className="truncate text-[10.5px] text-slate-500">{app?.department || '—'}{app?.company ? ` · ${app.company}` : ''}</div>
-          </div>
-          {/* experience */}
-          <div className="text-[11.5px] font-semibold text-slate-700">
-            {e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)}y` : '—'}
-          </div>
-          {/* skills */}
-          <div className="min-w-0">{skillChips(e.skills || [])}</div>
-          {/* source */}
-          <div className="truncate text-[11px] font-medium text-slate-600">{sourceLabel(app?.source)}</div>
-          {/* applied date */}
-          <div className="flex items-center gap-1 text-[11px] text-slate-600">
-            <Calendar className="h-3 w-3 shrink-0 text-slate-400" />{fmtDate(app?.appliedDate || e.latestAppliedDate)}
-          </div>
-          {/* status + resume */}
-          <div className="flex items-center gap-1.5">
-            {statusBadge(app?.status || e.latestStatus)}
-            {resumeDot(app)}
-            {match != null && (
-              <span title="AI match score" className="inline-flex h-[22px] items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-bold text-slate-600">
-                <Star className="h-2.5 w-2.5 text-amber-500" />{Math.round(match)}%
-              </span>
-            )}
-          </div>
-          {/* actions */}
-          <div className="flex items-center justify-start gap-1 lg:justify-end">
-            {app?.status === 'shortlisted' && (
-              <span title="After moving to Interview, schedule the slot from Scheduled Interviews → Schedule Interview tab" className="mr-1 hidden text-[10px] font-semibold text-green-600 xl:inline">
-                Then schedule → Scheduled Interviews
-              </span>
-            )}
-            {app?.status === 'interview' && (
-              <span title="After the rounds are done, move to Offer — the offer itself is released from the Offer Management tab" className="mr-1 hidden text-[10px] font-semibold text-purple-600 xl:inline">
-                Then offer → Offer Management
-              </span>
-            )}
-            {app?.status === 'offered' && (
-              <span title="Create and release the offer from the Offer Management tab" className="mr-1 hidden text-[10px] font-semibold text-teal-600 xl:inline">
-                Release offer → Offer Management
-              </span>
-            )}
-            {app && forwardBtn(app, e.candidateName, true)}
-            {app && rejectBtn(app, e.candidateName)}
-            {app && (
-              <MiniIconBtn title="Add note" active={noteRowEmail === e.candidateEmail} onClick={() => { setNoteRowEmail(noteRowEmail === e.candidateEmail ? null : e.candidateEmail); setTagRowEmail(null); setRowNoteText(''); }}>
-                <StickyNote className="h-3.5 w-3.5" />
-              </MiniIconBtn>
-            )}
-            {app && (
-              <MiniIconBtn title="Add tag" active={tagRowEmail === e.candidateEmail} onClick={() => { setTagRowEmail(tagRowEmail === e.candidateEmail ? null : e.candidateEmail); setNoteRowEmail(null); setRowTagText(''); }}>
-                <Tag className="h-3.5 w-3.5" />
-              </MiniIconBtn>
-            )}
-            {app?.resume && (
-              <MiniIconBtn title="View resume" onClick={() => openProfile(e.candidateEmail)}>
-                <FileText className="h-3.5 w-3.5" />
-              </MiniIconBtn>
-            )}
+          <span
+            className={`inline-flex h-[22px] flex-none items-center rounded-full border px-2 text-[10.5px] font-bold capitalize ${statusBadgeCls(status)}`}
+            title={statusLabel(status)}
+          >
+            {statusLabel(status)}
+          </span>
+        </div>
+
+        {/* one detail line — experience · source · match */}
+        <p className="mt-2.5 truncate text-[10px] text-slate-400" title={detail}>{detail || '—'}</p>
+
+        {/* skills — max 4 chips, then "+N more" so cards stay even */}
+        <div className="mt-2">{skillChips(e.skills || [], 4)}</div>
+
+        {/* footer — one-click advance button, email, View Profile; always bottom-aligned */}
+        <div className="mt-auto pt-3">
+          {app && meta?.next ? forwardBtn(app, e.candidateName, true) : null}
+          <p className={`truncate text-[10px] text-slate-400 ${app && meta?.next ? 'mt-2' : ''}`} title={e.candidateEmail}>
+            {e.candidateEmail || '—'}
+          </p>
+          <div className="mt-2 flex items-center gap-2 border-t border-slate-100 pt-2.5">
             <button
               onClick={() => openProfile(e.candidateEmail)}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10.5px] font-bold text-green-700 transition hover:border-green-300 hover:bg-green-50"
+              className="inline-flex h-[28px] items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-green-700 transition hover:border-green-300 hover:bg-green-50"
             >
-              <Eye className="h-3 w-3" /> View Profile
+              <UserRound className="h-3.5 w-3.5" /> View Profile
             </button>
           </div>
         </div>
-
-        {/* inline note composer (no modals) */}
-        {noteRowEmail === e.candidateEmail && app && (
-          <div className="border-t border-slate-100 bg-slate-50/70 px-3 py-2.5">
-            <div className="flex items-center gap-2">
-              <StickyNote className="h-3.5 w-3.5 shrink-0 text-green-600" />
-              <input
-                autoFocus
-                value={rowNoteText}
-                onChange={ev => setRowNoteText(ev.target.value)}
-                onKeyDown={ev => { if (ev.key === 'Enter') saveNote(app, e.candidateEmail, rowNoteText, false); }}
-                placeholder={`Note about ${e.candidateName}…`}
-                className={INPUT_CLS}
-              />
-              <button
-                onClick={() => saveNote(app, e.candidateEmail, rowNoteText, false)}
-                disabled={savingNotes}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
-              >
-                {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Save Note
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* inline tag composer (no modals) */}
-        {tagRowEmail === e.candidateEmail && app && (
-          <div className="border-t border-slate-100 bg-slate-50/70 px-3 py-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Tag className="h-3.5 w-3.5 shrink-0 text-green-600" />
-              {parsed.tags.map(t => (
-                <span key={t} className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold text-emerald-700">
-                  {t}
-                  <button onClick={() => removeTag(app, t)} title="Remove tag" className="text-emerald-500 transition hover:text-red-500">
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              <input
-                autoFocus
-                value={rowTagText}
-                onChange={ev => setRowTagText(ev.target.value)}
-                onKeyDown={ev => { if (ev.key === 'Enter') addTag(app, rowTagText, false); }}
-                placeholder="Add tag…"
-                className={`${INPUT_CLS} max-w-[220px]`}
-              />
-              <button
-                onClick={() => addTag(app, rowTagText, false)}
-                disabled={savingNotes}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
-              >
-                {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Add Tag
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -717,55 +622,91 @@ export function FindCandidates() {
     const guidance = primary ? STAGE_GUIDANCE[primary.status || ''] : undefined;
     const bannerKey = `${e.candidateEmail}|${primary?.status || ''}`;
     const showBanner = !!guidance && bannerDismissedFor !== bannerKey;
+
+    // Pipeline stepper — the current stage comes from the primary (first)
+    // application; interview_completed maps onto the Interview pill.
+    const stageKey = primary?.status === 'interview_completed' ? 'interview' : (primary?.status || '');
+    const curIdx = PIPELINE_STAGES.findIndex(s => s.key === stageKey);
+
+    const exp0 = parsed?.experience?.[0];
+    const appliedTitle = primary?.jobTitle || primary?.position || '';
+    const roleLine = exp0?.role
+      ? [exp0.role, exp0.company].filter(Boolean).join(' · ')
+      : appliedTitle ? `Applied for ${appliedTitle}` : '';
+    const expLine = e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)} yrs experience` : '';
+
     const timeline = [
-      ...(e.applications || []).map(a => ({ icon: 'job', title: `Applied to ${a.jobTitle || a.position || 'a position'}`, at: a.appliedDate, sub: `Source: ${sourceLabel(a.source)}` })),
-      ...parsedNotes.recruiterNotes.map(n => ({ icon: 'note', title: 'Recruiter note added', at: n.at, sub: n.text })),
-      ...(primary?.updatedAt ? [{ icon: 'clock', title: 'Application last updated', at: primary.updatedAt, sub: '' }] : []),
+      ...(e.applications || []).map(a => ({ title: `Applied to ${a.jobTitle || a.position || 'a position'}`, at: a.appliedDate, sub: `Source: ${sourceLabel(a.source)}` })),
+      ...parsedNotes.recruiterNotes.map(n => ({ title: 'Recruiter note added', at: n.at, sub: n.text })),
+      ...(primary?.updatedAt ? [{ title: 'Application last updated', at: primary.updatedAt, sub: '' }] : []),
     ]
       .filter(ev => ev.at)
       .sort((a, b) => new Date(b.at as string).getTime() - new Date(a.at as string).getTime())
       .slice(0, 12);
 
     return (
-      <div className="flex min-h-0 flex-col gap-3">
-        {/* profile header */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {/* profile header — identity left; status badge + advance / reject right; pipeline stepper below */}
         <div className={CARD_CLS + ' p-4'}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <button
                 onClick={() => { setViewEmail(null); setBannerDismissedFor(null); }}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50"
+                className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50"
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Back
               </button>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[14px] font-bold text-emerald-700">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-green-50 text-[14px] font-extrabold text-green-700">
                 {initials(e.candidateName)}
-              </div>
+              </span>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate text-[17px] font-bold text-slate-900">{e.candidateName || 'Unknown'}</h1>
-                  {statusBadge(primary?.status || e.latestStatus)}
-                  {e.matchScore != null && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">
-                      <Star className="h-3 w-3" /> {Math.round(e.matchScore)}% AI match
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
-                  <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{e.candidateEmail || '—'}</span>
-                  <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{e.candidatePhone || parsed?.phone || '—'}</span>
-                  {(parsed?.location) && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{parsed.location}</span>}
-                  <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)} years experience` : 'Experience not parsed'}</span>
-                </div>
+                <h1 className="truncate text-[17px] font-bold text-slate-900">{e.candidateName || 'Unknown'}</h1>
+                <p className="mt-0.5 break-words text-[11.5px] text-slate-500">
+                  {[roleLine, expLine].filter(Boolean).join(' · ') || '—'}
+                </p>
               </div>
             </div>
             {primary && (
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-none flex-wrap items-center gap-2">
+                {statusBadge(primary.status || e.latestStatus)}
+                {e.matchScore != null && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">
+                    <Star className="h-3 w-3" /> {Math.round(e.matchScore)}% AI match
+                  </span>
+                )}
                 {forwardBtn(primary, e.candidateName)}
-                {rejectBtn(primary, e.candidateName)}
+                {rejectBtn(primary, e.candidateName, true)}
               </div>
             )}
           </div>
+
+          {/* pipeline stepper — Applied → Screening → Shortlisted → Interview → Offer → Hired */}
+          <div className="mt-3 flex w-full flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
+            <span className="mr-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Pipeline</span>
+            {PIPELINE_STAGES.map((s, i) => (
+              <React.Fragment key={s.key}>
+                {i > 0 && <ChevronRight className="h-3 w-3 flex-none text-slate-300" aria-hidden />}
+                <span
+                  className={`inline-flex h-[22px] items-center rounded-full px-2.5 text-[10px] font-bold ${
+                    s.key === stageKey
+                      ? `border ${statusBadgeCls(stageKey)}`
+                      : curIdx >= 0 && i < curIdx
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-slate-100 text-slate-400'
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </React.Fragment>
+            ))}
+            {primary?.status === 'rejected' && (
+              <>
+                <ChevronRight className="h-3 w-3 flex-none text-slate-300" aria-hidden />
+                <span className="inline-flex h-[22px] items-center rounded-full bg-red-100 px-2.5 text-[10px] font-bold text-red-700">Rejected</span>
+              </>
+            )}
+          </div>
+
           {showBanner && guidance && (
             <div className="mt-3 flex items-start justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
               <div className="flex items-start gap-2">
@@ -781,27 +722,95 @@ export function FindCandidates() {
           )}
         </div>
 
-        {/* profile body — two columns, single scroll */}
-        <div ref={profileScrollRef} className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto pr-0.5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-          {/* left column */}
+        {/* profile body — full-width Resume + Applied To, then 2-col details, single scroll */}
+        <div ref={profileScrollRef} className="min-h-0 flex-1 overflow-y-auto pr-0.5">
           <div className="flex flex-col gap-3">
-            {/* applied to */}
+            {/* resume — preview toggle + download */}
             <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Applied To ({(e.applications || []).length})</h3>
-              </div>
+              <CardHead
+                icon={<FileText className="h-4 w-4 text-green-600" />}
+                title="Resume"
+                right={primary?.resume ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        if (resumeOpen) setResumeOpen(false);
+                        else { setResumeOpen(true); setResumeLoading(true); }
+                      }}
+                      className="inline-flex h-[28px] items-center rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      {resumeOpen ? 'Hide Resume' : 'View Resume'}
+                    </button>
+                    <a
+                      href={primary.resume}
+                      download
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-[28px] items-center gap-1 rounded-md bg-green-600 px-2.5 text-[11px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download
+                    </a>
+                  </div>
+                ) : undefined}
+              />
+              {primary?.resume ? (
+                isPdfResume(primary.resume) ? (
+                  resumeOpen ? (
+                    <div className="relative">
+                      {resumeLoading && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
+                          <div className="flex items-center gap-2 text-[11.5px] text-slate-500">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Loading resume preview…
+                          </div>
+                        </div>
+                      )}
+                      <iframe
+                        src={primary.resume}
+                        title={`${e.candidateName} resume preview`}
+                        className="h-[440px] w-full rounded-lg border border-slate-200 bg-white"
+                        onLoad={() => setResumeLoading(false)}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-[11.5px] text-slate-500">Resume on file — click “View Resume” to preview it here, or download a copy.</p>
+                  )
+                ) : (
+                  <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center">
+                    <FileText className="h-8 w-8 text-slate-400" />
+                    <p className="text-[12px] font-semibold text-slate-600">Resume on file (non-PDF)</p>
+                    <p className="text-[11px] text-slate-400">Use the Download button above to open it.</p>
+                  </div>
+                )
+              ) : (
+                <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center">
+                  <FileText className="h-8 w-8 text-slate-300" />
+                  <p className="text-[12px] font-semibold text-slate-500">No resume uploaded</p>
+                  <p className="text-[11px] text-slate-400">The candidate did not attach a resume to this application.</p>
+                </div>
+              )}
+            </div>
+
+            {/* applied to — per-application stage actions */}
+            <div className={CARD_CLS + ' p-4'}>
+              <CardHead
+                icon={<Briefcase className="h-4 w-4 text-green-600" />}
+                title={`Applied To (${(e.applications || []).length})`}
+              />
               <div className="space-y-2">
                 {(e.applications || []).map(a => (
                   <div key={a.id} className="rounded-lg border border-slate-200 p-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="truncate text-[12.5px] font-bold text-slate-800">{a.jobTitle || a.position || 'Position not specified'}</div>
-                        <div className="truncate text-[10.5px] text-slate-500">{a.department || '—'}{a.company ? ` · ${a.company}` : ''} · Applied {fmtDate(a.appliedDate)} · Source: {sourceLabel(a.source)}</div>
+                        <div className="truncate text-[12.5px] font-bold text-slate-800" title={a.jobTitle || a.position || 'Position not specified'}>
+                          {a.jobTitle || a.position || 'Position not specified'}
+                        </div>
+                        <div className="truncate text-[10.5px] text-slate-500">
+                          {a.department || '—'}{a.company ? ` · ${a.company}` : ''} · Applied {fmtDate(a.appliedDate)} · Source: {sourceLabel(a.source)}
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         {statusBadge(a.status)}
-                        {forwardBtn(a, e.candidateName, true)}
+                        {forwardBtn(a, e.candidateName)}
                         {rejectBtn(a, e.candidateName)}
                       </div>
                     </div>
@@ -813,248 +822,106 @@ export function FindCandidates() {
               </div>
             </div>
 
-            {/* skills */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <Award className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Skills ({(e.skills || []).length})</h3>
-              </div>
-              {(e.skills || []).length ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {(e.skills || []).map(s => (
-                    <span key={s} className="inline-flex h-[22px] items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-700">
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </span>
-                  ))}
-                </div>
-              ) : <p className="text-[11.5px] text-slate-400">No skills parsed from the resume yet.</p>}
-            </div>
-
-            {/* experience */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Experience</h3>
-                <span className="text-[10.5px] font-semibold text-slate-400">Total {e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)} yrs` : '—'}</span>
-              </div>
-              {(parsed?.experience || []).length ? (
-                <div className="space-y-2">
-                  {(parsed?.experience || []).map((x, i) => (
-                    <div key={i} className="rounded-lg border border-slate-200 px-2.5 py-2">
-                      <div className="text-[12px] font-bold text-slate-800">{x.role || 'Role'}</div>
-                      <div className="text-[10.5px] text-slate-500">{x.company || 'Company'} · {x.duration || 'Duration N/A'}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : <p className="text-[11.5px] text-slate-400">No experience entries parsed from the resume.</p>}
-            </div>
-
-            {/* education */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <Award className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Education</h3>
-              </div>
-              {(parsed?.education || []).length ? (
-                <div className="space-y-2">
-                  {(parsed?.education || []).map((x, i) => (
-                    <div key={i} className="rounded-lg border border-slate-200 px-2.5 py-2">
-                      <div className="text-[12px] font-bold text-slate-800">{x.degree || 'Degree'}</div>
-                      <div className="text-[10.5px] text-slate-500">{x.institution || 'Institution'}{x.year ? ` · ${x.year}` : ''}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : <p className="text-[11.5px] text-slate-400">No education entries parsed from the resume.</p>}
-            </div>
-
-            {/* certifications */}
-            {(parsed?.certifications || []).length > 0 && (
+            {/* details — two columns */}
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {/* contact */}
               <div className={CARD_CLS + ' p-4'}>
-                <div className="mb-2.5 flex items-center gap-2">
-                  <Award className="h-4 w-4 text-green-600" />
-                  <h3 className={SECTION_TITLE}>Certifications ({(parsed?.certifications || []).length})</h3>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {(parsed?.certifications || []).map((c, i) => (
-                    <span key={i} className="inline-flex h-[22px] max-w-[240px] items-center truncate rounded-md border border-blue-200 bg-blue-50 px-2 text-[11px] font-semibold text-blue-700">{c}</span>
-                  ))}
+                <CardHead icon={<Mail className="h-4 w-4 text-green-600" />} title="Contact" />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <InfoCell label="Email" value={e.candidateEmail || '—'} />
+                  <InfoCell label="Phone" value={e.candidatePhone || parsed?.phone || 'Not added'} />
+                  <InfoCell label="Source" value={sourceLabel(primary?.source)} />
+                  <InfoCell label="Location" value={parsed?.location || 'Not added'} />
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* right column */}
-          <div className="flex flex-col gap-3">
-            {/* resume */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-green-600" />
-                  <h3 className={SECTION_TITLE}>Resume</h3>
-                </div>
-                {primary?.resume && (
-                  <a
-                    href={primary.resume}
-                    download
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white shadow-sm shadow-green-600/20 transition hover:bg-green-700"
-                  >
-                    <Download className="h-3 w-3" /> Download
-                  </a>
-                )}
+              {/* skills */}
+              <div className={CARD_CLS + ' p-4'}>
+                <CardHead icon={<Award className="h-4 w-4 text-green-600" />} title={`Skills (${(e.skills || []).length})`} />
+                {(e.skills || []).length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(e.skills || []).map(s => (
+                      <span key={s} title={s} className="inline-flex h-[22px] items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-700">
+                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                      </span>
+                    ))}
+                  </div>
+                ) : <p className="text-[11.5px] text-slate-400">No skills parsed from the resume yet.</p>}
               </div>
-              {primary?.resume ? (
-                isPdfResume(primary.resume) ? (
-                  <div className="relative">
-                    {resumeLoading && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
-                        <div className="flex items-center gap-2 text-[11.5px] text-slate-500">
-                          <Loader2 className="h-4 w-4 animate-spin" /> Loading resume preview…
-                        </div>
+
+              {/* experience */}
+              <div className={CARD_CLS + ' p-4'}>
+                <CardHead
+                  icon={<Briefcase className="h-4 w-4 text-green-600" />}
+                  title="Experience"
+                  right={<span className="text-[10.5px] font-semibold text-slate-400">Total {e.totalExperienceYears ? `${Number(e.totalExperienceYears).toFixed(1)} yrs` : '—'}</span>}
+                />
+                {(parsed?.experience || []).length ? (
+                  <div className="space-y-2">
+                    {(parsed?.experience || []).map((x, i) => (
+                      <div key={i} className="rounded-lg border border-slate-200 px-2.5 py-2">
+                        <div className="text-[12px] font-bold text-slate-800">{x.role || 'Role'}</div>
+                        <div className="text-[10.5px] text-slate-500">{x.company || 'Company'} · {x.duration || 'Duration N/A'}</div>
                       </div>
-                    )}
-                    <iframe
-                      src={primary.resume}
-                      title={`${e.candidateName} resume preview`}
-                      className="h-72 w-full rounded-lg border border-slate-200 bg-white"
-                      onLoad={() => setResumeLoading(false)}
-                    />
+                    ))}
+                  </div>
+                ) : <p className="text-[11.5px] text-slate-400">No experience entries parsed from the resume.</p>}
+              </div>
+
+              {/* education */}
+              <div className={CARD_CLS + ' p-4'}>
+                <CardHead icon={<Award className="h-4 w-4 text-green-600" />} title="Education" />
+                {(parsed?.education || []).length ? (
+                  <div className="space-y-2">
+                    {(parsed?.education || []).map((x, i) => (
+                      <div key={i} className="rounded-lg border border-slate-200 px-2.5 py-2">
+                        <div className="text-[12px] font-bold text-slate-800">{x.degree || 'Degree'}</div>
+                        <div className="text-[10.5px] text-slate-500">{x.institution || 'Institution'}{x.year ? ` · ${x.year}` : ''}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-[11.5px] text-slate-400">No education entries parsed from the resume.</p>}
+              </div>
+
+              {/* certifications */}
+              {(parsed?.certifications || []).length > 0 && (
+                <div className={CARD_CLS + ' p-4'}>
+                  <CardHead icon={<Award className="h-4 w-4 text-green-600" />} title={`Certifications (${(parsed?.certifications || []).length})`} />
+                  <div className="flex flex-wrap gap-1.5">
+                    {(parsed?.certifications || []).map((c, i) => (
+                      <span key={i} title={c} className="inline-flex h-[22px] max-w-[240px] items-center truncate rounded-md border border-blue-200 bg-blue-50 px-2 text-[11px] font-semibold text-blue-700">{c}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* screening answers */}
+              <div className={CARD_CLS + ' p-4'}>
+                <CardHead icon={<StickyNote className="h-4 w-4 text-green-600" />} title="Screening Answers" />
+                {primary?.coverLetter ? (
+                  <div className="max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-[11.5px] leading-relaxed text-slate-700">
+                    {primary.coverLetter}
                   </div>
                 ) : (
-                  <div className="flex h-72 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center">
-                    <FileText className="h-8 w-8 text-slate-400" />
-                    <p className="text-[12px] font-semibold text-slate-600">Resume on file (non-PDF)</p>
-                    <p className="text-[11px] text-slate-400">Use the Download button above to open it.</p>
-                  </div>
-                )
-              ) : (
-                <div className="flex h-72 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center">
-                  <FileText className="h-8 w-8 text-slate-300" />
-                  <p className="text-[12px] font-semibold text-slate-500">No resume uploaded</p>
-                  <p className="text-[11px] text-slate-400">The candidate did not attach a resume to this application.</p>
-                </div>
-              )}
-            </div>
-
-            {/* screening answers */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <StickyNote className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Screening Answers</h3>
+                  <p className="text-[11.5px] text-slate-400">No screening answers on file for this application.</p>
+                )}
               </div>
-              {primary?.coverLetter ? (
-                <div className="max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-[11.5px] leading-relaxed text-slate-700">
-                  {primary.coverLetter}
-                </div>
-              ) : (
-                <p className="text-[11.5px] text-slate-400">No screening answers on file for this application.</p>
-              )}
-            </div>
 
-            {/* recruiter notes */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <StickyNote className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Recruiter Notes ({parsedNotes.recruiterNotes.length})</h3>
-              </div>
-              {primary ? (
-                <div className="space-y-2.5">
-                  {parsedNotes.legacy && (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-[11.5px] text-slate-600">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Earlier note</span>
-                      <p className="mt-1 whitespace-pre-wrap">{parsedNotes.legacy}</p>
-                    </div>
-                  )}
-                  {parsedNotes.recruiterNotes.map((n, i) => (
-                    <div key={i} className="rounded-lg border border-slate-200 p-2.5">
-                      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400">
-                        <span className="font-bold uppercase tracking-wide">Recruiter</span>
-                        <span>{new Date(n.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+              {/* activity timeline */}
+              <div className={CARD_CLS + ' p-4'}>
+                <CardHead icon={<Clock className="h-4 w-4 text-green-600" />} title="Activity Timeline" />
+                {timeline.length ? (
+                  <div className="relative ml-1.5 space-y-3 border-l border-slate-200 pl-4">
+                    {timeline.map((ev, i) => (
+                      <div key={i} className="relative">
+                        <span className="absolute -left-[21px] top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-white bg-green-500" />
+                        <div className="text-[11.5px] font-semibold text-slate-700">{ev.title}</div>
+                        <div className="text-[10.5px] text-slate-400">{fmtDate(ev.at as string)}{ev.sub ? ` · ${ev.sub}` : ''}</div>
                       </div>
-                      <p className="mt-1 whitespace-pre-wrap text-[11.5px] text-slate-700">{n.text}</p>
-                    </div>
-                  ))}
-                  {parsedNotes.recruiterNotes.length === 0 && !parsedNotes.legacy && (
-                    <p className="text-[11.5px] text-slate-400">No notes yet — add the first screening note below.</p>
-                  )}
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      value={profileNoteText}
-                      onChange={ev => setProfileNoteText(ev.target.value)}
-                      onKeyDown={ev => { if (ev.key === 'Enter') saveNote(primary, e.candidateEmail, profileNoteText, true); }}
-                      placeholder="Add a screening note…"
-                      className={INPUT_CLS}
-                    />
-                    <button
-                      onClick={() => saveNote(primary, e.candidateEmail, profileNoteText, true)}
-                      disabled={savingNotes}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-[10.5px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
-                    >
-                      {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Add Note
-                    </button>
+                    ))}
                   </div>
-                </div>
-              ) : <p className="text-[11.5px] text-slate-400">No application linked — notes unavailable.</p>}
-            </div>
-
-            {/* tags */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <Tag className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Tags ({parsedNotes.tags.length})</h3>
+                ) : <p className="text-[11.5px] text-slate-400">No activity recorded yet.</p>}
               </div>
-              {primary ? (
-                <div className="space-y-2">
-                  {parsedNotes.tags.length ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {parsedNotes.tags.map(t => (
-                        <span key={t} className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
-                          {t}
-                          <button onClick={() => removeTag(primary, t)} title="Remove tag" className="text-emerald-500 transition hover:text-red-500">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  ) : <p className="text-[11.5px] text-slate-400">No tags yet.</p>}
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={profileTagText}
-                      onChange={ev => setProfileTagText(ev.target.value)}
-                      onKeyDown={ev => { if (ev.key === 'Enter') addTag(primary, profileTagText, true); }}
-                      placeholder="Add tag…"
-                      className={INPUT_CLS}
-                    />
-                    <button
-                      onClick={() => addTag(primary, profileTagText, true)}
-                      disabled={savingNotes}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-green-300 bg-white px-2.5 py-1.5 text-[10.5px] font-bold text-green-700 transition hover:bg-green-50 disabled:opacity-60"
-                    >
-                      {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Add Tag
-                    </button>
-                  </div>
-                </div>
-              ) : <p className="text-[11.5px] text-slate-400">No application linked — tags unavailable.</p>}
-            </div>
-
-            {/* activity timeline */}
-            <div className={CARD_CLS + ' p-4'}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-green-600" />
-                <h3 className={SECTION_TITLE}>Activity Timeline</h3>
-              </div>
-              {timeline.length ? (
-                <div className="relative ml-1.5 space-y-3 border-l border-slate-200 pl-4">
-                  {timeline.map((ev, i) => (
-                    <div key={i} className="relative">
-                      <span className="absolute -left-[21px] top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-white bg-green-500" />
-                      <div className="text-[11.5px] font-semibold text-slate-700">{ev.title}</div>
-                      <div className="text-[10.5px] text-slate-400">{fmtDate(ev.at as string)}{ev.sub ? ` · ${ev.sub}` : ''}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : <p className="text-[11.5px] text-slate-400">No activity recorded yet.</p>}
             </div>
           </div>
         </div>
@@ -1223,72 +1090,63 @@ export function FindCandidates() {
             </div>
           )}
 
-          {/* candidate list — internal vertical scroll only */}
-          <div className={`${CARD_CLS} flex min-h-0 flex-1 flex-col overflow-hidden`}>
-            {/* aligned column headers */}
-            <div className="grid grid-cols-1 gap-x-3 border-b border-slate-200 bg-slate-50/80 px-3 py-2 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1.1fr)_54px_minmax(170px,1.7fr)_80px_82px_118px_auto]">
-              {['Candidate', 'Applied To', 'Exp.', 'Skills', 'Source', 'Applied', 'Status', ''].map((h, i) => (
-                <div key={i} className={`hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 lg:block ${i === 7 ? 'text-right' : ''}`}>{h}</div>
-              ))}
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 lg:hidden">Candidates</div>
-            </div>
-            <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
-              {loading && (
-                <div className="space-y-0">
-                  {[0, 1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className="flex items-center gap-3 px-3 py-3">
-                      <div className="h-8 w-8 animate-pulse rounded-full bg-slate-100" />
-                      <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
-                      <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
-                      <div className="h-3 flex-1 animate-pulse rounded bg-slate-100" />
-                      <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100" />
+          {/* candidate cards — responsive grid, internal vertical scroll only */}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+            {loading && (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {[0, 1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-2.5">
+                      <div className="h-10 w-10 flex-none animate-pulse rounded-full bg-slate-100" />
+                      <div className="min-w-0 flex-1 space-y-1.5 pt-1">
+                        <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+                        <div className="h-2.5 w-3/4 animate-pulse rounded bg-slate-100" />
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="mt-3 h-2.5 w-2/3 animate-pulse rounded bg-slate-100" />
+                    <div className="mt-3 flex gap-1.5">
+                      <div className="h-[22px] w-16 animate-pulse rounded-md bg-slate-100" />
+                      <div className="h-[22px] w-16 animate-pulse rounded-md bg-slate-100" />
+                      <div className="h-[22px] w-16 animate-pulse rounded-md bg-slate-100" />
+                    </div>
+                    <div className="mt-4 h-[34px] animate-pulse rounded-md bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            )}
 
-              {!loading && !error && entries.length === 0 && (
-                <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-                  <Users className="h-9 w-9 text-slate-300" />
-                  <p className="text-[13px] font-bold text-slate-700">No candidates yet</p>
-                  <p className="max-w-sm text-[11.5px] text-slate-400">
-                    Candidates appear here as soon as they apply to your job postings. Share your postings or connect the careers page to start receiving applications.
-                  </p>
-                </div>
-              )}
+            {!loading && !error && entries.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                <Users className="h-9 w-9 text-slate-300" />
+                <p className="text-[13px] font-bold text-slate-700">No candidates yet</p>
+                <p className="max-w-sm text-[11.5px] text-slate-400">
+                  Candidates appear here as soon as they apply to your job postings. Share your postings or connect the careers page to start receiving applications.
+                </p>
+              </div>
+            )}
 
-              {!loading && !error && entries.length > 0 && visibleEntries.length === 0 && (
-                <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-                  <Search className="h-9 w-9 text-slate-300" />
-                  <p className="text-[13px] font-bold text-slate-700">No candidates match these filters</p>
-                  <p className="text-[11.5px] text-slate-400">Try widening the search or clearing a filter or two.</p>
-                  <button
-                    onClick={clearFilters}
-                    className="mt-1 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-green-700 transition hover:bg-green-50"
-                  >
-                    <X className="h-3 w-3" /> Clear Filters
-                  </button>
-                </div>
-              )}
+            {!loading && !error && entries.length > 0 && visibleEntries.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                <Search className="h-9 w-9 text-slate-300" />
+                <p className="text-[13px] font-bold text-slate-700">No candidates match these filters</p>
+                <p className="text-[11.5px] text-slate-400">Try widening the search or clearing a filter or two.</p>
+                <button
+                  onClick={clearFilters}
+                  className="mt-1 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-green-700 transition hover:bg-green-50"
+                >
+                  <X className="h-3 w-3" /> Clear Filters
+                </button>
+              </div>
+            )}
 
-              {!loading && !error && visibleEntries.map(e => renderRow(e))}
-            </div>
+            {!loading && !error && visibleEntries.length > 0 && (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {visibleEntries.map(e => renderCard(e))}
+              </div>
+            )}
           </div>
         </>
       )}
     </div>
-  );
-}
-
-/* small reusable icon button (kept outside the component to keep renderRow tidy) */
-function MiniIconBtn(props: { title: string; active?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={props.onClick}
-      title={props.title}
-      className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border transition ${props.active ? 'border-green-300 bg-green-50 text-green-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
-    >
-      {props.children}
-    </button>
   );
 }
