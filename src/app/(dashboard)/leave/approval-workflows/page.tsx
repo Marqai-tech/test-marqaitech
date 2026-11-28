@@ -114,7 +114,7 @@ export default function ApprovalWorkflowsPage() {
   const [testRun, setTestRun] = useState(false);
 
   // ─── Tab state: "Approval Workflow" (existing) vs "Application Form Settings" (new) ───
-  const [activeTab, setActiveTab] = useState<'workflow' | 'form-settings'>('workflow');
+  const [activeTab, setActiveTab] = useState<'workflow' | 'form-settings' | 'proxy'>('workflow');
 
   // ─── Application Form Settings state ───
   // Tenant-wide config: which fields appear on the Apply Leave form and
@@ -159,6 +159,75 @@ export default function ApprovalWorkflowsPage() {
   const updateFormSetting = (key: string, value: boolean) => {
     setFormSettings((prev: any) => ({ ...prev, [key]: value }));
   };
+
+  // ─── Proxy Management state ───
+  const [proxyDelegations, setProxyDelegations] = useState<any[]>([]);
+  const [proxyLoading, setProxyLoading] = useState(false);
+  const [proxySaving, setProxySaving] = useState(false);
+  const [showProxyModal, setShowProxyModal] = useState(false);
+  const [editingProxy, setEditingProxy] = useState<any | null>(null);
+  const [proxyFilter, setProxyFilter] = useState<'all' | 'active' | 'scheduled' | 'disabled' | 'expired'>('all');
+
+  const fetchProxyDelegations = useCallback(async () => {
+    setProxyLoading(true);
+    try {
+      const res = await fetch('/api/leave/proxy-delegations', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const d = await res.json();
+        setProxyDelegations(d.data || []);
+      }
+    } catch { toast.error('Failed to load proxy delegations'); }
+    finally { setProxyLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'proxy' && proxyDelegations.length === 0 && !proxyLoading) {
+      fetchProxyDelegations();
+    }
+  }, [activeTab, proxyDelegations.length, proxyLoading, fetchProxyDelegations]);
+
+  const saveProxy = async (data: any) => {
+    setProxySaving(true);
+    try {
+      const method = editingProxy ? 'PUT' : 'POST';
+      const body = editingProxy ? { ...data, id: editingProxy.id } : data;
+      const res = await fetch('/api/leave/proxy-delegations', {
+        method, headers: getAuthHeaders(), body: JSON.stringify(body),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed to save'); }
+      toast.success(editingProxy ? 'Proxy delegation updated' : 'Proxy delegation created');
+      setShowProxyModal(false);
+      setEditingProxy(null);
+      fetchProxyDelegations();
+    } catch (e: any) { toast.error(e.message || 'Failed to save'); }
+    finally { setProxySaving(false); }
+  };
+
+  const deleteProxy = async (id: string) => {
+    if (!confirm('Delete this proxy delegation?')) return;
+    try {
+      const res = await fetch(`/api/leave/proxy-delegations?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to delete');
+      toast.success('Proxy delegation deleted');
+      fetchProxyDelegations();
+    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
+  };
+
+  const toggleProxyEnabled = async (proxy: any) => {
+    try {
+      const res = await fetch('/api/leave/proxy-delegations', {
+        method: 'PUT', headers: getAuthHeaders(),
+        body: JSON.stringify({ id: proxy.id, isEnabled: !proxy.isEnabled }),
+      });
+      if (!res.ok) throw new Error('Failed to toggle');
+      fetchProxyDelegations();
+    } catch (e: any) { toast.error(e.message || 'Failed to toggle'); }
+  };
+
+  const filteredProxies = proxyDelegations.filter(p => {
+    if (proxyFilter === 'all') return true;
+    return p.status === proxyFilter;
+  });
 
   const sq = scopeQuery();
   const sep = sq ? `&${sq}` : '';
@@ -381,6 +450,12 @@ export default function ApprovalWorkflowsPage() {
         >
           <FiCheck className="w-4 h-4 inline mr-1.5" /> Application Form Settings
         </button>
+        <button
+          onClick={() => setActiveTab('proxy')}
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${activeTab === 'proxy' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <FiUsers className="w-4 h-4 inline mr-1.5" /> Proxy Management
+        </button>
       </div>
 
       {/* ═══ Application Form Settings tab ═══ */}
@@ -502,6 +577,135 @@ export default function ApprovalWorkflowsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ═══ Proxy Management tab ═══ */}
+      {activeTab === 'proxy' && (
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left: Proxy Delegations table */}
+          <div className="col-span-12 lg:col-span-8">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Proxy Delegations</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">Delegate approval authority when the original approver is unavailable or misses SLA.</p>
+                </div>
+                <button onClick={() => { setEditingProxy(null); setShowProxyModal(true); }} className="h-9 px-4 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 flex items-center gap-1.5">
+                  <FiPlus className="w-4 h-4" /> Assign Proxy
+                </button>
+              </div>
+              {/* Filter tabs */}
+              <div className="px-5 py-2 border-b border-slate-100 flex gap-1">
+                {(['all', 'active', 'scheduled', 'disabled', 'expired'] as const).map(f => (
+                  <button key={f} onClick={() => setProxyFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize ${proxyFilter === f ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+              {proxyLoading ? (
+                <div className="flex items-center justify-center py-16"><FiRefreshCw className="w-8 h-8 animate-spin text-slate-300" /></div>
+              ) : filteredProxies.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <FiUsers className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm">No proxy delegations found. Click "Assign Proxy" to create one.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/50">
+                        <th className="px-4 py-2.5 text-left text-[11px] font-bold text-slate-500 uppercase">Approver → Proxy</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-bold text-slate-500 uppercase">Leave Types</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-bold text-slate-500 uppercase">Date Range</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-bold text-slate-500 uppercase">Status</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-bold text-slate-500 uppercase">Permissions</th>
+                        <th className="px-4 py-2.5 text-center text-[11px] font-bold text-slate-500 uppercase">Enabled</th>
+                        <th className="px-4 py-2.5 text-right text-[11px] font-bold text-slate-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProxies.map((p: any) => {
+                        const statusColors: Record<string,string> = { active: 'bg-emerald-100 text-emerald-700', scheduled: 'bg-blue-100 text-blue-700', disabled: 'bg-slate-100 text-slate-500', expired: 'bg-amber-100 text-amber-700' };
+                        const permList = Object.entries(p.permissions || {}).filter(([,v]) => v === true).map(([k]) => k.replace('can','').replace(/([A-Z])/g,' $1').trim().toLowerCase());
+                        return (
+                          <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/30">
+                            <td className="px-4 py-3">
+                              <p className="text-[12.5px] font-semibold text-slate-800">{p.approverName}</p>
+                              <p className="text-[11px] text-slate-400">→ {p.proxyName}</p>
+                            </td>
+                            <td className="px-4 py-3 text-[11.5px] text-slate-600">{(p.leaveTypeNames || []).join(', ')}</td>
+                            <td className="px-4 py-3 text-[11.5px] text-slate-600 whitespace-nowrap">{p.startDate} – {p.endDate}</td>
+                            <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold capitalize ${statusColors[p.status] || 'bg-slate-100 text-slate-500'}`}>{p.status}</span></td>
+                            <td className="px-4 py-3 text-[10.5px] text-slate-500 max-w-[140px] truncate">{permList.join(', ') || '—'}</td>
+                            <td className="px-4 py-3 text-center">
+                              <button onClick={() => toggleProxyEnabled(p)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${p.isEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${p.isEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                              <button onClick={() => { setEditingProxy(p); setShowProxyModal(true); }} className="text-xs font-semibold text-blue-600 hover:text-blue-700 mr-2"><FiEdit2 className="w-3.5 h-3.5 inline" /></button>
+                              <button onClick={() => deleteProxy(p.id)} className="text-xs font-semibold text-red-500 hover:text-red-700"><FiTrash2 className="w-3.5 h-3.5 inline" /></button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Awaiting Action panel */}
+          <div className="col-span-12 lg:col-span-4">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden sticky top-4">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-700">Awaiting action</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-red-100 text-red-700">SLA routing</span>
+                </div>
+                <p className="text-[11.5px] text-slate-500 mt-1">Overdue requests can be routed to an active proxy.</p>
+              </div>
+              <div className="p-4 space-y-3">
+                {proxyDelegations.filter(p => p.status === 'active').length === 0 ? (
+                  <div className="text-center py-8 text-slate-400">
+                    <FiCheckCircle className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                    <p className="text-xs">No active proxy delegations. Assign a proxy to enable SLA routing.</p>
+                  </div>
+                ) : (
+                  proxyDelegations.filter(p => p.status === 'active').map((p: any) => (
+                    <div key={p.id} className="p-3 rounded-lg border border-amber-200 bg-amber-50">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[12.5px] font-semibold text-slate-800">{p.approverName}</p>
+                        <span className="text-[10px] font-bold text-amber-700">Overdue</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-2">Proxy: {p.proxyName} · SLA: {p.slaHours}h</p>
+                      <div className="flex gap-1.5">
+                        <select className="flex-1 h-8 px-2 rounded-lg border border-slate-200 text-[11.5px] bg-white" defaultValue={p.proxyId}>
+                          <option value={p.proxyId}>{p.proxyName}</option>
+                        </select>
+                        <button className="h-8 px-3 rounded-lg bg-amber-600 text-white text-[11.5px] font-semibold hover:bg-amber-700">Route</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Proxy Modal */}
+      {showProxyModal && (
+        <ProxyModal
+          editing={editingProxy}
+          employees={employees}
+          leaveTypes={leaveTypes}
+          onSave={saveProxy}
+          onClose={() => { setShowProxyModal(false); setEditingProxy(null); }}
+          saving={proxySaving}
+        />
       )}
 
       {/* ═══ Approval Workflow tab (existing UI) ═══ */}
@@ -842,6 +1046,196 @@ export default function ApprovalWorkflowsPage() {
       )}
       </>
       )}
+    </div>
+  );
+}
+
+/* ─── Proxy Modal Component ─── */
+function ProxyModal({ editing, employees, leaveTypes, onSave, onClose, saving }: {
+  editing: any | null;
+  employees: EmpOption[];
+  leaveTypes: LeaveType[];
+  onSave: (data: any) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const [form, setForm] = useState({
+    approverId: editing?.approverId || '',
+    proxyId: editing?.proxyId || '',
+    startDate: editing?.startDate || new Date().toISOString().split('T')[0],
+    endDate: editing?.endDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+    activationCondition: editing?.activationCondition || 'sla_timeout',
+    slaHours: editing?.slaHours || 24,
+    leaveTypeIds: editing?.leaveTypeIds || ['all'],
+    maxLeaveDays: editing?.maxLeaveDays || 0,
+    reason: editing?.reason || '',
+    notifyOriginalApprover: editing?.notifyOriginalApprover ?? true,
+    showProxyNameToEmployee: editing?.showProxyNameToEmployee ?? true,
+    isEnabled: editing?.isEnabled ?? true,
+    permissions: editing?.permissions || {
+      canApprove: true, canReject: true, canReturnForClarification: true,
+      canModifyDates: false, canChangeLeaveType: false,
+      canPartiallyApprove: false, canCancelApproved: false, canRedelegate: false,
+    },
+  });
+
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const setPerm = (k: string, v: boolean) => setForm(f => ({ ...f, permissions: { ...f.permissions, [k]: v } }));
+  const toggleLeaveType = (id: string) => {
+    setForm(f => {
+      let current = f.leaveTypeIds.includes('all') ? [] : [...f.leaveTypeIds];
+      if (current.includes(id)) current = current.filter(x => x !== id);
+      else current.push(id);
+      if (current.length === 0) current = ['all'];
+      return { ...f, leaveTypeIds: current };
+    });
+  };
+
+  const submit = () => {
+    if (!form.approverId || !form.proxyId) { toast.error('Select both approver and proxy'); return; }
+    if (form.approverId === form.proxyId) { toast.error('Approver and proxy cannot be the same'); return; }
+    if (!form.startDate || !form.endDate) { toast.error('Date range is required'); return; }
+    onSave(form);
+  };
+
+  const PERMISSION_FIELDS = [
+    { key: 'canApprove', label: 'Approve' },
+    { key: 'canReject', label: 'Reject (with reason)' },
+    { key: 'canReturnForClarification', label: 'Return for clarification' },
+    { key: 'canModifyDates', label: 'Modify dates / duration' },
+    { key: 'canChangeLeaveType', label: 'Change leave type (e.g. CL → LWP)' },
+    { key: 'canPartiallyApprove', label: 'Partially approve' },
+    { key: 'canCancelApproved', label: 'Cancel approved leave' },
+    { key: 'canRedelegate', label: 'Re-delegate to another person' },
+  ];
+
+  const empOptions = employees.filter(e => e.role && ['tenant_admin','admin','hr_admin','manager','ceo','employee'].includes((e.role||'').toLowerCase()));
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <h3 className="text-lg font-bold text-slate-900">{editing ? 'Edit Proxy Approver' : 'Assign Proxy Approver'}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><FiX className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6 space-y-5">
+          {/* Approver + Proxy */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Original Approver <span className="text-red-500">*</span></label>
+              <select value={form.approverId} onChange={e => set('approverId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
+                <option value="">— Select approver —</option>
+                {empOptions.map(e => <option key={e.id} value={e.id}>{e.name} ({e.role})</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Proxy Approver <span className="text-red-500">*</span></label>
+              <select value={form.proxyId} onChange={e => set('proxyId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
+                <option value="">— Select proxy —</option>
+                {empOptions.filter(e => e.id !== form.approverId).map(e => <option key={e.id} value={e.id}>{e.name} ({e.role})</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Date range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Start Date <span className="text-red-500">*</span></label>
+              <input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+            </div>
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">End Date <span className="text-red-500">*</span></label>
+              <input type="date" value={form.endDate} min={form.startDate} onChange={e => set('endDate', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+            </div>
+          </div>
+
+          {/* Activation condition */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Activation Condition</label>
+              <select value={form.activationCondition} onChange={e => set('activationCondition', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
+                <option value="sla_timeout">Approver didn't act within SLA</option>
+                <option value="on_leave">Approver on leave</option>
+                <option value="always">Always</option>
+              </select>
+            </div>
+            {form.activationCondition === 'sla_timeout' && (
+              <div>
+                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">SLA Hours (auto-escalate after)</label>
+                <input type="number" min={1} value={form.slaHours} onChange={e => set('slaHours', parseInt(e.target.value) || 24)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+              </div>
+            )}
+          </div>
+
+          {/* Leave types */}
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Leave Types</label>
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => set('leaveTypeIds', ['all'])}
+                className={`px-2.5 py-1 rounded text-[11px] font-bold border ${form.leaveTypeIds.includes('all') ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>All Types</button>
+              {leaveTypes.map(lt => (
+                <button key={lt.id} onClick={() => toggleLeaveType(lt.id)}
+                  className={`px-2.5 py-1 rounded text-[11px] font-bold border ${form.leaveTypeIds.includes(lt.id) ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{lt.code}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Max leave days */}
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Max leave days proxy can approve (0 = unlimited, escalate if exceeded)</label>
+            <input type="number" min={0} value={form.maxLeaveDays} onChange={e => set('maxLeaveDays', parseInt(e.target.value) || 0)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+          </div>
+
+          {/* Permissions */}
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-2">Proxy Permissions</label>
+            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-slate-50 border border-slate-100">
+              {PERMISSION_FIELDS.map(p => (
+                <label key={p.key} className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={form.permissions[p.key] === true} onChange={e => setPerm(p.key, e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+                  {p.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Reason */}
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Reason (optional)</label>
+            <textarea rows={2} value={form.reason} onChange={e => set('reason', e.target.value)} placeholder="e.g. Annual leave, business trip"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none" />
+          </div>
+
+          {/* Notification options */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
+              <input type="checkbox" checked={form.notifyOriginalApprover} onChange={e => set('notifyOriginalApprover', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+              Notify original approver of proxy actions
+            </label>
+            <label className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
+              <input type="checkbox" checked={form.showProxyNameToEmployee} onChange={e => set('showProxyNameToEmployee', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+              Show proxy name to employee
+            </label>
+          </div>
+
+          {/* Enabled toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100">
+            <span className="text-[12.5px] font-semibold text-slate-700">Enabled</span>
+            <button onClick={() => set('isEnabled', !form.isEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 sticky bottom-0 bg-white">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={submit} disabled={saving} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
+            {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSave className="w-4 h-4" />} Save Proxy
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
