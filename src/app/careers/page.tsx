@@ -156,6 +156,9 @@ export default function CareersPage() {
   // that creates a NEW candidate record, not connected to their existing
   // candidate-portal login).
   const [loggedInCandidateEmail, setLoggedInCandidateEmail] = useState<string | null>(null);
+  // ?apply=<jobId> — job to auto-open after verification (set when the
+  // register page redirects back here post-verification).
+  const [pendingApplyJobId, setPendingApplyJobId] = useState<string | null>(null);
   // Resume parsing state — when candidate uploads a resume we kick off a
   // server-side parse via /api/public/parse-resume and auto-fill the form
   // fields from the result.
@@ -189,6 +192,14 @@ export default function CareersPage() {
         const url = new URL(window.location.href);
         const ref = url.searchParams.get('ref');
         const jobId = url.searchParams.get('jobId');
+        // ?apply=<jobId> — returned here by the candidate register page after
+        // the account is verified, so the candidate continues the application
+        // they started (instead of landing on the portal home with the job
+        // context lost).
+        const applyParam = url.searchParams.get('apply');
+        if (applyParam && typeof applyParam === 'string' && applyParam.trim()) {
+          setPendingApplyJobId(applyParam.trim());
+        }
         if (ref && typeof ref === 'string' && ref.trim()) {
           setReferralToken(ref.trim());
         }
@@ -395,7 +406,12 @@ export default function CareersPage() {
     // can be created. This prevents anonymous submissions followed by a
     // confusing post-submit account setup step.
     if (typeof window !== 'undefined' && !localStorage.getItem('tb_candidate_token')) {
-      toast.error('Create and verify a candidate account before applying.');
+      // Friendly, actionable gate (reported issue: the old message "Create
+      // and verify a candidate account before applying" read like an error
+      // with no way forward). We route to account creation WITH the job
+      // attached; after verification the register page sends the candidate
+      // straight back here via ?apply=<jobId> and the form opens itself.
+      toast.success('Create your free candidate account to apply — it takes less than a minute.');
       router.push(`/candidate-portal/register?jobId=${encodeURIComponent(job.id)}&title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company?.name || job.tenant?.name || '3Boxes')}&location=${encodeURIComponent(job.location || 'Not specified')}&department=${encodeURIComponent(job.department?.name || 'Not specified')}&type=${encodeURIComponent(JOB_TYPE_LABELS[job.type] || job.type || 'Full-time')}`);
       return;
     }
@@ -414,6 +430,27 @@ export default function CareersPage() {
     setParsedSkills([]);
     setShowApply(true);
   };
+
+  /* ── Continue-after-verification — open the apply modal for ?apply=<jobId> ──
+   * The register page redirects here after email verification. Once the job
+   * list is loaded and the candidate session exists, open the apply form for
+   * the exact job the candidate originally clicked. */
+  useEffect(() => {
+    if (!pendingApplyJobId || loading || jobs.length === 0) return;
+    // queueMicrotask defers setState out of the synchronous effect body —
+    // same pattern as the URL-param capture effect above.
+    queueMicrotask(() => {
+      const target = jobs.find(j => j.id === pendingApplyJobId) || null;
+      setPendingApplyJobId(null);
+      if (!target) {
+        toast.success('Account verified! Browse the jobs below and click Apply Now.');
+        return;
+      }
+      toast.success('Account verified — continue your application.');
+      openApply(target);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingApplyJobId, loading, jobs]);
   const closeApply = () => {
     setShowApply(false);
     setApplyJob(null);

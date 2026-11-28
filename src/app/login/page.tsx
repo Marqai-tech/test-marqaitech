@@ -68,9 +68,20 @@ export default function LoginPage() {
   useEffect(() => {
     const detectTenant = async () => {
       try {
+        // 0. Honor the ?mode= deep link BEFORE anything else. The candidate
+        //    register page links to /login?mode=candidate — without this, the
+        //    login page opened in Employee/HR mode and the "Sign up" link
+        //    then took candidates to the COMPANY trial registration page
+        //    (/register) instead of the candidate account creation page
+        //    (reported bug: "when I click sign up it takes me to the wrong
+        //    place").
+        const urlParams = new URLSearchParams(window.location.search);
+        const modeParam = urlParams.get('mode');
+        if (modeParam === 'candidate') setLoginMode('candidate');
+        else if (modeParam === 'vendor') setLoginMode('vendor');
+
         // 1. Check ?tenant= query param first (highest priority — matches
         //    middleware's extractTenantSlug logic in src/middleware.ts).
-        const urlParams = new URLSearchParams(window.location.search);
         const tenantParam = urlParams.get('tenant');
         if (tenantParam) {
           const res = await fetch(`/api/public/tenant-info?slug=${encodeURIComponent(tenantParam)}`);
@@ -940,28 +951,29 @@ export default function LoginPage() {
               <div className="h-px flex-1 bg-slate-200" />
             </div>
             <p className="text-center text-sm text-slate-500 mb-4">
-              {/* TC_077: "Sign up" and "New Company? Start Free Trial" both link to /register.
-                  This is intentional — /register is the free-trial company registration page.
-                  The in-form "Sign up" text link is a minimal entry point for existing users
-                  who don't have an account yet. The "Start Free Trial" card below is a more
-                  prominent promotional entry point with marketing copy. Both lead to the same
-                  registration flow since there is no separate "user sign-up" vs "company
-                  registration" distinction in the current product design. */}
+              {/* Sign up destinations (bug fix: candidates clicking "Sign up"
+                  used to land on the company trial page or a dead-end toast).
+                  Now the candidate account creation page is always offered
+                  first; the company trial link stays for employers. */}
               Don&apos;t have an account?{' '}
-              {tenantInfo ? (
-                <button
-                  type="button"
-                  onClick={() => toast('Please contact your HR administrator to get an account.', { icon: 'ℹ️' })}
-                  className="font-bold text-[#16254E] hover:underline"
-                >
-                  Sign up
-                </button>
-              ) : loginMode === 'candidate' ? (
-                <Link href="/candidate-portal/register" className="font-bold text-[#16254E] hover:underline">
-                  Sign up
-                </Link>
-              ) : (
-                <Link href="/register" className="font-bold text-[#16254E] hover:underline">Sign up</Link>
+              <Link href="/candidate-portal/register" className="font-bold text-[#16254E] hover:underline">
+                Candidate sign up
+              </Link>
+              {loginMode !== 'candidate' && (
+                <>
+                  {' '}or{' '}
+                  {tenantInfo ? (
+                    <button
+                      type="button"
+                      onClick={() => toast('Please contact your HR administrator to get an employee account.', { icon: 'ℹ️' })}
+                      className="font-bold text-[#16254E] hover:underline"
+                    >
+                      employee sign up
+                    </button>
+                  ) : (
+                    <Link href="/register" className="font-bold text-[#16254E] hover:underline">company sign up</Link>
+                  )}
+                </>
               )}
             </p>
           </div>

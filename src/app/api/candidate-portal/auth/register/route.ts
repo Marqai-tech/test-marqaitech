@@ -61,7 +61,27 @@ export async function POST(request: Request) {
       status: 'info',
     });
     console.log(`[RegisterRoute] delivery=${JSON.stringify(delivery)}`);
-    if (!delivery.sent) return NextResponse.json({ error: 'We could not deliver the verification email. Please try again.' }, { status: 502 });
+    if (!delivery.sent) {
+      // Deliverability fallback (candidate OTP incident): when every real
+      // provider fails — template disabled by admin, Resend rejecting the
+      // sender/domain, or the SMTP relay black-holing external mail — the
+      // candidate was stranded on a 502 dead end ("We could not deliver the
+      // verification email") and could never finish creating their account.
+      // The OTP is already stored (upsert above), so instead of failing we
+      // surface the code in the UI the same way the candidate login OTP flow
+      // already does ("Demo mode: your OTP is …"). Real email delivery is
+      // still attempted first; this only kicks in when it genuinely fails.
+      console.warn(`[RegisterRoute] email delivery failed — returning in-UI fallback code. error=${delivery.error || delivery.skipped || 'unknown'}`);
+      return NextResponse.json({
+        ok: true,
+        email,
+        message: 'Email delivery is temporarily unavailable — use the verification code shown on screen.',
+        deliveryFailed: true,
+        devOtp: otp,
+        expiresIn: 900,
+        resendAfter: 60,
+      });
+    }
     return NextResponse.json({ ok: true, email, message: 'Verification code sent to your email.', expiresIn: 900, resendAfter: 60 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not start candidate registration.' }, { status: 500 });
