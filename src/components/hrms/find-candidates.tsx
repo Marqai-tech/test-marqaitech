@@ -45,6 +45,7 @@ import {
   Ban, Loader2, AlertTriangle, Calendar, Users, UserPlus, UserCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -1081,12 +1082,15 @@ export function FindCandidates() {
           {/* header */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                <span>Recruitment</span><span className="text-slate-300">/</span>
-                <span className="font-semibold text-green-700">Find Candidates</span>
+              <div className="mb-2">
+                <BackButton fallbackHref="/recruitment" />
               </div>
-              <h1 className="mt-0.5 text-[19px] font-bold text-slate-900">Find Candidates</h1>
-              <p className="text-[12px] text-slate-500">Search, review, screen, and shortlist candidates.</p>
+              <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                <span>Recruitment</span><span className="text-slate-400">/</span>
+                <span className="font-medium text-slate-700">Find Candidates</span>
+              </div>
+              <h1 className="mt-0.5 text-xl font-bold text-slate-900">Find Candidates</h1>
+              <p className="mt-1 text-sm text-slate-500">Search, review, screen, and shortlist candidates.</p>
             </div>
             <div className="flex items-center gap-2">
               <button

@@ -24,6 +24,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { BackButton } from '@/components/hrms/BackButton';
 import ScheduleScreen from './ScheduleScreen';
 
 function getAuthHeaders() {
@@ -602,12 +603,15 @@ export default function InterviewsPage() {
   /* ── Schedule Interview sub-tab ── */
   if (pageTab === 'schedule') {
     return (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center text-[10.5px] text-slate-400 gap-1.5">
-          <span>Recruitment</span><span className="text-slate-300">/</span>
-          <button onClick={() => setPageTab('list')} className="font-semibold hover:text-green-700 transition">Scheduled Interviews</button>
-          <span className="text-slate-300">/</span>
-          <span className="font-semibold text-green-700">Schedule Interview</span>
+      <div className="space-y-4">
+        <div>
+          <BackButton onClick={() => setPageTab('list')} fallbackHref="/interviews" label="Back to Interviews" />
+        </div>
+        <div className="flex items-center gap-1.5 text-sm text-slate-500">
+          <span>Recruitment</span><span className="text-slate-400">/</span>
+          <button onClick={() => setPageTab('list')} className="transition hover:text-green-600">Scheduled Interviews</button>
+          <span className="text-slate-400">/</span>
+          <span className="font-medium text-slate-700">Schedule Interview</span>
         </div>
         <ScheduleScreen
           interviews={interviews}
@@ -727,30 +731,38 @@ export default function InterviewsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-3" style={{ height: 'calc(100vh - 8rem)', minHeight: 560 }}>
-      {/* breadcrumb + header */}
-      <div className="flex items-center text-[10.5px] text-slate-400 gap-1.5">
-        <span>Recruitment</span><span className="text-slate-300">/</span>
-        <span className="font-semibold text-green-700">Scheduled Interviews</span>
+    /* Main-page scrolling: no fixed viewport height, no inner scroll —
+       the whole screen grows naturally and the page scrolls (user requirement).
+       Horizontal scroll is kept only for the wide table itself. */
+    <div className="space-y-4">
+      {/* back button — required on every screen */}
+      <div>
+        <BackButton fallbackHref="/recruitment" />
       </div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+
+      {/* breadcrumb + header — Employee-module typography */}
+      <div className="-mt-2 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-[19px] font-bold text-slate-900 tracking-tight">Scheduled Interviews</h1>
-          <p className="text-[12px] text-slate-500 mt-0.5">Panel acceptance, feedback, and final decisions — everything inline, nothing buried in modals.</p>
+          <h2 className="text-xl font-bold text-slate-900">Scheduled Interviews</h2>
+          <nav aria-label="Breadcrumb" className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+            <span>Recruitment</span><span className="text-slate-400">/</span>
+            <span className="font-medium text-slate-700">Scheduled Interviews</span>
+          </nav>
+          <p className="mt-1 text-sm text-slate-500">Panel acceptance, feedback, and final decisions — everything inline, nothing buried in modals.</p>
         </div>
         {/* sub-tab switch: list | schedule */}
         <div className="inline-flex rounded-[9px] border border-slate-300 bg-white p-0.5 shrink-0">
           <button
             onClick={() => setPageTab('list')}
-            className={`h-[28px] px-3 rounded-[7px] text-[11.5px] font-bold transition ${pageTab === 'list' ? 'bg-green-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`h-10 px-4 rounded-[7px] text-sm font-semibold transition ${pageTab === 'list' ? 'bg-green-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             All Interviews
           </button>
           <button
             onClick={() => setPageTab('schedule')}
-            className={`h-[28px] px-3 rounded-[7px] text-[11.5px] font-bold inline-flex items-center gap-1.5 transition ${pageTab === 'schedule' ? 'bg-green-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`h-10 px-4 rounded-[7px] text-sm font-semibold inline-flex items-center gap-1.5 transition ${pageTab === 'schedule' ? 'bg-green-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <FiCalendar className="w-3 h-3" /> Schedule Interview
+            <FiCalendar className="w-4 h-4" /> Schedule Interview
           </button>
         </div>
       </div>
@@ -822,9 +834,9 @@ export default function InterviewsPage() {
         </button>
       </div>
 
-      {/* table */}
-      <div className={`${CARD_CLS} flex-1 min-h-0 flex flex-col overflow-hidden`}>
-        <div className="flex-1 min-h-0 overflow-auto">
+      {/* table — grows with the page; only horizontal scroll for the wide table */}
+      <div className={`${CARD_CLS} overflow-hidden`}>
+        <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[980px]">
             <thead>
               <tr>

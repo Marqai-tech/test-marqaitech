@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings } from '@/lib/roleAccess';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -274,6 +275,7 @@ export default function WorkflowConfigPage() {
 
   return (
     <div className="p-6 md:p-8 space-y-6">
+      <BackButton fallbackHref="/recruitment" />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-start gap-3">

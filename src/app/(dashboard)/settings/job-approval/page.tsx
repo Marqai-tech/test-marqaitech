@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { FiShield, FiPlus, FiTrash2, FiArrowUp, FiArrowDown, FiSave, FiInfo, FiCheckCircle } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
+import { BackButton } from '@/components/hrms/BackButton'
 
 // Dynamic Job Approval Chain — mirrors the Requisition Approval Chain page.
 // Tiers, order and approver types are managed here; the job engine
@@ -114,6 +115,7 @@ export default function JobApprovalPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton fallbackHref="/recruitment" />
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">

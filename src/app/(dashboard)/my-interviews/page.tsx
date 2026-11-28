@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -358,7 +359,11 @@ export default function MyInterviewsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-3" style={{ height: 'calc(100vh - 8rem)', minHeight: 560 }}>
+    /* Main-page scrolling — no fixed viewport height, no inner scroll */
+    <div className="space-y-4">
+      <div>
+        <BackButton fallbackHref="/recruitment" />
+      </div>
       {/* breadcrumb + header */}
       <div className="flex items-center text-[10.5px] text-slate-400 gap-1.5">
         <span>Recruitment</span><span className="text-slate-300">/</span>
@@ -485,9 +490,9 @@ export default function MyInterviewsPage() {
         </button>
       </div>
 
-      {/* table */}
-      <div className={`${CARD_CLS} flex-1 min-h-0 flex flex-col overflow-hidden`}>
-        <div className="flex-1 min-h-0 overflow-auto">
+      {/* table — grows with the page; only horizontal scroll for the wide table */}
+      <div className={`${CARD_CLS} overflow-hidden`}>
+        <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[900px]">
             <thead>
               <tr>

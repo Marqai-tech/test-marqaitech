@@ -44,6 +44,7 @@ import toast from 'react-hot-toast';
 import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { BackButton } from '@/components/hrms/BackButton';
 import {
   maskCandidateFields,
   buildPiiMaskTooltip,
@@ -2256,8 +2257,12 @@ export default function RecruitmentPage() {
 
   return (
     <div className="space-y-6">
+      {/* Back button — required on every screen */}
+      <div>
+        <BackButton fallbackHref="/dashboard" />
+      </div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="-mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBriefcase className="w-6 h-6 text-teal-500" />

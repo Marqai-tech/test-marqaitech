@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEdit2, FiTrash2,
   FiArrowLeft, FiRotateCcw, FiClock, FiSearch, FiBriefcase, FiCalendar,
-  FiFileText, FiUsers, FiUser, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle, FiHome, FiVolume2,
+  FiFileText, FiUsers, FiUser, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle, FiVolume2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -109,19 +111,20 @@ function getStatusBadge(status: string) {
 }
 
 // Detail mini-stat tile per the mock: white card, hairline border, small
-// colored icon on top, gray label, bold value.
+// colored icon on top, gray label, bold value. Values wrap instead of
+// truncate — no wording may ever be cropped/hidden (user requirement).
 function StatTile({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
-      <span className="flex h-4 items-center">{icon}</span>
-      <p className="mt-0.5 text-[10px] text-slate-500">{label}</p>
-      <p className="mt-px truncate text-xs font-bold text-slate-900" title={value}>{value}</p>
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+      <span className="flex h-5 items-center">{icon}</span>
+      <p className="mt-1 text-xs text-slate-500">{label}</p>
+      <p className="mt-0.5 break-words text-sm font-bold text-slate-900">{value}</p>
     </div>
   );
 }
 
 function DetailField({ label, value, capitalize = false }: { label: string; value: string; capitalize?: boolean }) {
-  return <div className="min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5"><p className="text-[10px] text-slate-500">{label}</p><p className={`mt-px break-words text-xs font-semibold text-slate-800 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
+  return <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5"><p className="text-xs text-slate-500">{label}</p><p className={`mt-0.5 break-words text-sm font-semibold text-slate-800 ${capitalize ? 'capitalize' : ''}`}>{value}</p></div>;
 }
 
 // Vertical approval timeline: pick the most relevant history entry for a
@@ -162,8 +165,12 @@ function composeSalaryRange(min: string, max: string): string {
   if (a && b) return `${a}-${b}`;
   return a || b;
 }
-const INPUT_CLS = 'h-[30px] w-full rounded-[7px] border border-slate-300 bg-white px-2.5 text-[11px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
-const BADGE = 'inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold';
+const INPUT_CLS = 'h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
+const LABEL_CLS = 'text-sm font-medium text-slate-600';
+const BADGE = 'inline-flex h-7 items-center rounded-md px-2.5 text-xs font-semibold';
+// Employee-module action button style — used by every detail-panel action so
+// wording is never cropped and buttons never overlap (they wrap on narrow screens).
+const ACTION_BTN_CLS = 'inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold shadow-sm transition';
 export default function RequisitionsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -192,6 +199,13 @@ export default function RequisitionsPage() {
   const [skillInput, setSkillInput] = useState('');
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'requisitions' | 'approvals'>('requisitions');
+  // Switching tabs must reset the list filter — a stale "Approved" filter
+  // from the Requisitions tab previously made My Approvals look broken
+  // (the intersection filtered out every pending row).
+  const switchTab = (tab: 'requisitions' | 'approvals') => {
+    setActiveTab(tab);
+    setListFilter('all');
+  };
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [listFilter, setListFilter] = useState<'all' | 'action' | 'pending' | 'draft' | 'approved'>('all');
 
@@ -358,18 +372,6 @@ export default function RequisitionsPage() {
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
   const resetFormExtras = () => { setSkillChips([]); setSkillInput(''); setSalaryMin(''); setSalaryMax(''); };
-
-  const handleAddNew = () => {
-    // NEW-8 fix: seed the manager's locked department so the form state
-    // matches the department shown in the locked select (the lock effect
-    // above also self-heals this on open).
-    setForm(managerDepartment ? { ...initialForm, departmentId: managerDepartment.id } : initialForm);
-    resetFormExtras();
-    setEditingId(null);
-    setShowForm(true);
-    setViewingId(null);
-    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  };
 
   const handleEdit = (item: Requisition) => {
     setForm({
@@ -569,6 +571,10 @@ export default function RequisitionsPage() {
   };
 
   const needsAction = useCallback((r: Requisition) => {
+    // Tier-aware first: the list API annotates `nextTier.eligible` for ANY
+    // approval chain (department_head / specific_user / tier 3+ / custom),
+    // so this works even when the legacy role checks below would miss it.
+    if ((r as any).nextTier?.eligible) return true;
     if (isHr && r.approvalStatus === 'pending') return true;
     if (isFinance && r.approvalStatus === 'hr_approved') return true;
     return r.hiringManagerId === user?.id && ['draft', 'returned'].includes(r.approvalStatus);
@@ -595,44 +601,55 @@ export default function RequisitionsPage() {
   const needsActionCount = requisitions.filter(needsAction).length;
   const draftCount = requisitions.filter((r) => ['draft', 'returned'].includes(r.approvalStatus)).length;
 
-  // Mock-styled primary/negative actions for the detail panel
+  // Mock-styled primary/negative actions for the detail panel.
+  // Every button here is wired to a real API action — Approve / Reject /
+  // Return are always visible when it is the user's turn to act.
   const detailActions = (r: Requisition) => {
     const actions: React.ReactNode[] = [];
     const isRequester = r.hiringManagerId === user?.id;
 
     if (isRequester && r.approvalStatus === 'returned') {
       actions.push(
-        <button key="resubmit" onClick={() => handleApproval(r.id, 'submit')} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-5 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-50">
+        <button key="resubmit" onClick={() => handleApproval(r.id, 'submit')} className={`${ACTION_BTN_CLS} border border-blue-300 bg-white text-blue-700 hover:bg-blue-50`}>
           <FiRotateCcw className="h-4 w-4" />Resubmit
         </button>
       );
     }
-    if (isHr && r.approvalStatus === 'pending') {
+    // Legacy role blocks run ONLY when the API did not annotate a next tier —
+    // otherwise the default HR/Finance chains would show both the legacy and
+    // tier-aware buttons (duplicated Approve/Reject rows).
+    const annotatedTier: { approverType: string; label: string; eligible: boolean } | null = (r as any).nextTier || null;
+    if (!annotatedTier) {
+      if (isHr && r.approvalStatus === 'pending') {
       actions.push(
-        <button key="hr_approve" onClick={() => handleApproval(r.id, 'hr_approve')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
+        <button key="hr_approve" onClick={() => handleApproval(r.id, 'hr_approve')} className={`${ACTION_BTN_CLS} bg-green-600 text-white hover:bg-green-700`}>
           <FiCheck className="h-4 w-4" />Approve
         </button>,
-        <button key="return" onClick={() => handleApproval(r.id, 'return')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
-          <FiRotateCcw className="h-4 w-4" />Return for Changes
-        </button>,
-        <button key="hr_reject" onClick={() => handleApproval(r.id, 'hr_reject')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
+        <button key="hr_reject" onClick={() => handleApproval(r.id, 'hr_reject')} className={`${ACTION_BTN_CLS} border border-red-300 bg-white text-red-600 hover:bg-red-50`}>
           <FiXCircle className="h-4 w-4" />Reject
-        </button>
-      );
-    }
-    if (isFinance && r.approvalStatus === 'hr_approved') {
-      actions.push(
-        <button key="fin_approve" onClick={() => handleApproval(r.id, 'finance_approve')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
-          <FiCheck className="h-4 w-4" />Approve Finance
         </button>,
-        <button key="fin_reject" onClick={() => handleApproval(r.id, 'finance_reject')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
+        <button key="return" onClick={() => handleApproval(r.id, 'return')} className={`${ACTION_BTN_CLS} border border-amber-300 bg-white text-amber-700 hover:bg-amber-50`}>
           <FiRotateCcw className="h-4 w-4" />Return for Changes
         </button>
       );
+      }
+      if (isFinance && r.approvalStatus === 'hr_approved') {
+        actions.push(
+          <button key="fin_approve" onClick={() => handleApproval(r.id, 'finance_approve')} className={`${ACTION_BTN_CLS} bg-green-600 text-white hover:bg-green-700`}>
+            <FiCheck className="h-4 w-4" />Approve
+          </button>,
+          <button key="fin_reject" onClick={() => handleApproval(r.id, 'finance_reject')} className={`${ACTION_BTN_CLS} border border-red-300 bg-white text-red-600 hover:bg-red-50`}>
+            <FiXCircle className="h-4 w-4" />Reject
+          </button>,
+          <button key="fin_return" onClick={() => handleApproval(r.id, 'return')} className={`${ACTION_BTN_CLS} border border-amber-300 bg-white text-amber-700 hover:bg-amber-50`}>
+            <FiRotateCcw className="h-4 w-4" />Return for Changes
+          </button>
+        );
+      }
     }
     if (isHr && r.approvalStatus === 'budget_approved') {
       actions.push(
-        <button key="create_job" onClick={() => handleCreateJobPosting(r)} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
+        <button key="create_job" onClick={() => handleCreateJobPosting(r)} className={`${ACTION_BTN_CLS} bg-green-600 text-white hover:bg-green-700`}>
           <FiPlus className="h-4 w-4" />Create Job Posting
         </button>
       );
@@ -640,14 +657,18 @@ export default function RequisitionsPage() {
     // NEW-8/NEW-9: tier-aware actions for ANY chain state (department_head,
     // specific_user, tier_3+, custom chains). The API annotates each row with
     // `nextTier` = the next pending tier + whether the current user is
-    // eligible. The generic 'approve' action advances whatever tier is next.
-    const nextTier: { approverType: string; label: string; eligible: boolean } | null = (r as any).nextTier || null;
+    // eligible. Approve advances whatever tier is next; Reject and Return
+    // are wired to the generic 'reject' / 'return' actions.
+    const nextTier = annotatedTier;
     if (nextTier?.eligible) {
       actions.push(
-        <button key="tier_approve" onClick={() => handleApproval(r.id, 'approve')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/25 transition hover:bg-green-700">
-          <FiCheck className="h-4 w-4" />Approve ({nextTier.label})
+        <button key="tier_approve" onClick={() => handleApproval(r.id, 'approve')} className={`${ACTION_BTN_CLS} bg-green-600 text-white hover:bg-green-700`}>
+          <FiCheck className="h-4 w-4" />Approve
         </button>,
-        <button key="tier_return" onClick={() => handleApproval(r.id, 'return')} className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50">
+        <button key="tier_reject" onClick={() => handleApproval(r.id, 'reject')} className={`${ACTION_BTN_CLS} border border-red-300 bg-white text-red-600 hover:bg-red-50`}>
+          <FiXCircle className="h-4 w-4" />Reject
+        </button>,
+        <button key="tier_return" onClick={() => handleApproval(r.id, 'return')} className={`${ACTION_BTN_CLS} border border-amber-300 bg-white text-amber-700 hover:bg-amber-50`}>
           <FiRotateCcw className="h-4 w-4" />Return for Changes
         </button>
       );
@@ -658,48 +679,50 @@ export default function RequisitionsPage() {
   if (showForm) {
     const roundRows = parseInterviewPlan(form.interviewPlan);
     return (
-      <div className="-m-3 flex flex-col gap-1.5 overflow-y-auto bg-slate-50 p-2.5 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
-        {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-slate-500 [@media(max-height:760px)]:hidden">
-          <a href="/dashboard" className="text-slate-400 transition hover:text-green-700" aria-label="Home"><FiHome className="h-3.5 w-3.5" /></a>
-          <span className="text-slate-300">/</span>
-          <a href="/recruitment" className="transition hover:text-green-700">Recruitment</a>
-          <span className="text-slate-300">/</span>
-          <button type="button" onClick={handleCancelForm} className="transition hover:text-green-700">Requisitions</button>
-          <span className="text-slate-300">/</span>
-          <span className="font-semibold text-green-700">{editingId ? 'Edit Requisition' : 'Raise Requisition'}</span>
-        </nav>
-
-        {/* Compact title row */}
-        <div className="flex shrink-0 items-center gap-2.5">
-          <h1 className="text-[22px] font-bold leading-[26px] text-slate-900">{editingId ? 'Edit Requisition' : 'Raise New Requisition'}</h1>
-          <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-100 px-2 text-[10px] font-bold text-green-700"><FiFileText className="h-3 w-3" />{editingId ? 'Editing' : 'Draft'}</span>
+      <div className="space-y-5">
+        {/* Back button + breadcrumb — required on every screen */}
+        <div className="flex items-center gap-3">
+          <BackButton onClick={handleCancelForm} fallbackHref="/requisitions?view=list" label="Back to List" />
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-slate-500">
+            <Link href="/recruitment" className="transition hover:text-green-600">Recruitment</Link>
+            <span className="text-slate-400">/</span>
+            <span className="font-medium text-slate-700">{editingId ? 'Edit Requisition' : 'Raise Requisition'}</span>
+          </nav>
         </div>
-        <p className="shrink-0 text-[11px] leading-4 text-slate-500 [@media(max-height:760px)]:hidden">Create a hiring request with role details, requirements, budget and interview rounds.</p>
+
+        {/* Title row */}
+        <div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 className="text-xl font-bold text-slate-900">{editingId ? 'Edit Requisition' : 'Raise New Requisition'}</h2>
+            <span className="inline-flex h-7 items-center gap-1 rounded-md bg-green-100 px-2.5 text-xs font-bold text-green-700"><FiFileText className="h-3.5 w-3.5" />{editingId ? 'Editing' : 'Draft'}</span>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">Create a hiring request with role details, requirements, budget and interview rounds.</p>
+        </div>
 
         {/* Required-field note + compact approval path */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-[10px] border border-slate-200 bg-white px-3 py-1.5 shadow-sm [@media(max-height:680px)]:hidden">
-          <span className="text-[11px] text-slate-500">Required fields are marked with <span className="font-bold text-red-500">*</span></span>
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="font-bold text-slate-600">Approval Path:</span>
-            <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-50 px-2 font-bold text-green-700 ring-1 ring-inset ring-green-100"><FiUser className="h-3 w-3" />HR</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <span className="text-sm text-slate-500">Required fields are marked with <span className="font-bold text-red-500">*</span></span>
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            <span className="font-semibold text-slate-600">Approval Path:</span>
+            <span className="inline-flex h-7 items-center gap-1 rounded-md bg-green-50 px-2.5 font-semibold text-green-700 ring-1 ring-inset ring-green-100"><FiUser className="h-3.5 w-3.5" />HR</span>
             <span className="text-slate-400">→</span>
-            <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-50 px-2 font-bold text-green-700 ring-1 ring-inset ring-green-100"><FiDollarSign className="h-3 w-3" />Finance</span>
+            <span className="inline-flex h-7 items-center gap-1 rounded-md bg-green-50 px-2.5 font-semibold text-green-700 ring-1 ring-inset ring-green-100"><FiDollarSign className="h-3.5 w-3.5" />Finance</span>
             <span className="text-slate-400">→</span>
-            <span className="inline-flex h-6 items-center gap-1 rounded-md bg-green-50 px-2 font-bold text-green-700 ring-1 ring-inset ring-green-100"><FiVolume2 className="h-3 w-3" />Job Posting</span>
+            <span className="inline-flex h-7 items-center gap-1 rounded-md bg-green-50 px-2.5 font-semibold text-green-700 ring-1 ring-inset ring-green-100"><FiVolume2 className="h-3.5 w-3.5" />Job Posting</span>
           </div>
         </div>
 
         {/* Two-column cards */}
-        <div className="grid shrink-0 grid-cols-1 gap-2 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Role & Position */}
-          <section className="rounded-[10px] border border-slate-200 bg-white p-2.5 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiBriefcase className="h-4 w-4" /></span>
-              <h2 className="text-[15px] font-bold text-slate-900">Role &amp; Position</h2>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiBriefcase className="h-4 w-4" /></span>
+              <h3 className="text-base font-bold text-slate-900">Role &amp; Position</h3>
             </div>
-            <div className="mt-2 grid grid-cols-[118px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1">
-              <label className="text-[11px] font-semibold text-slate-600">Department <span className="text-red-500">*</span></label>
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className={`${LABEL_CLS} mb-1 block`}>Department <span className="text-red-500">*</span></label>
               {managerDepartment ? (
                 // NEW-8: Department Manager — locked to their own department.
                 // The API also forces this server-side, so it cannot be bypassed.
@@ -725,126 +748,149 @@ export default function RequisitionsPage() {
                   <select required disabled value="" className={`${INPUT_CLS} bg-slate-50 text-slate-400`}>
                     <option value="">No departments found</option>
                   </select>
-                  <p className="mt-0.5 text-[10px] text-amber-600">No departments exist yet — HR/Admin must create them under Company → Departments, then refresh this page.</p>
+                  <p className="mt-0.5 text-xs text-amber-600">No departments exist yet — HR/Admin must create them under Company → Departments, then refresh this page.</p>
                 </div>
               )}
+              </div>
 
-              <label className="text-[11px] font-semibold text-slate-600">Position / Designation <span className="text-red-500">*</span></label>
-              {designations.length > 0 ? (
-                <select value={form.designationId} disabled={!form.departmentId} onChange={(e) => {
-                  const desig = visibleDesignations.find(d => d.id === e.target.value);
-                  setForm({ ...form, designationId: e.target.value, positionTitle: desig?.title || form.positionTitle });
-                }} className={INPUT_CLS}>
-                  <option value="">{form.departmentId ? 'Select designation…' : 'Pick a department first…'}</option>
-                  {visibleDesignations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-                </select>
-              ) : (
-                <input value={form.positionTitle} onChange={(e) => setForm({ ...form, positionTitle: e.target.value, designationId: e.target.value })} placeholder="e.g. Data Engineer 2" className={INPUT_CLS} />
-              )}
+              <div>
+                <label className={`${LABEL_CLS} mb-1 block`}>Position / Designation <span className="text-red-500">*</span></label>
+                {visibleDesignations.length > 0 ? (
+                  <select value={form.designationId} disabled={!form.departmentId} onChange={(e) => {
+                    const desig = visibleDesignations.find(d => d.id === e.target.value);
+                    setForm({ ...form, designationId: e.target.value, positionTitle: desig?.title || form.positionTitle });
+                  }} className={INPUT_CLS}>
+                    <option value="">{form.departmentId ? 'Select designation…' : 'Pick a department first…'}</option>
+                    {visibleDesignations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                  </select>
+                ) : (
+                  <input value={form.positionTitle} onChange={(e) => setForm({ ...form, positionTitle: e.target.value, designationId: e.target.value })} placeholder="e.g. Data Engineer 2" className={INPUT_CLS} />
+                )}
+                {form.departmentId && visibleDesignations.length === 0 && (
+                  <p className="mt-1 text-xs text-slate-400">No designations configured for this department — type the position name above.</p>
+                )}
+              </div>
 
-              <label className="text-[11px] font-semibold text-slate-600">Position Type <span className="text-red-500">*</span></label>
-              <select value={form.positionType} onChange={(e) => setForm({ ...form, positionType: e.target.value })} className={INPUT_CLS}>
-                <option value="new">New</option>
-                <option value="replacement">Replacement</option>
-              </select>
-
-              <label className="text-[11px] font-semibold text-slate-600">Vacancies <span className="text-red-500">*</span></label>
-              <input type="number" min={1} value={form.numberOfOpenings} onChange={(e) => setForm({ ...form, numberOfOpenings: parseInt(e.target.value) || 1 })} className={INPUT_CLS} />
-
-              <label className="text-[11px] font-semibold text-slate-600">Employment Type <span className="text-red-500">*</span></label>
-              <select value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value })} className={INPUT_CLS}>
-                <option value="full-time">Full-time</option>
-                <option value="part-time">Part-time</option>
-                <option value="contract">Contract</option>
-                <option value="internship">Internship</option>
-              </select>
-
-              <label className="text-[11px] font-semibold text-slate-600">Priority <span className="text-red-500">*</span></label>
-              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={INPUT_CLS}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Position Type <span className="text-red-500">*</span></label>
+                  <select value={form.positionType} onChange={(e) => setForm({ ...form, positionType: e.target.value })} className={INPUT_CLS}>
+                    <option value="new">New</option>
+                    <option value="replacement">Replacement</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Vacancies <span className="text-red-500">*</span></label>
+                  <input type="number" min={1} value={form.numberOfOpenings} onChange={(e) => setForm({ ...form, numberOfOpenings: parseInt(e.target.value) || 1 })} className={INPUT_CLS} />
+                </div>
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Employment Type <span className="text-red-500">*</span></label>
+                  <select value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value })} className={INPUT_CLS}>
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="contract">Contract</option>
+                    <option value="internship">Internship</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Priority <span className="text-red-500">*</span></label>
+                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={INPUT_CLS}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </section>
 
           {/* Requirements & Budget */}
-          <section className="rounded-[10px] border border-slate-200 bg-white p-2.5 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiDollarSign className="h-4 w-4" /></span>
-              <h2 className="text-[15px] font-bold text-slate-900">Requirements &amp; Budget</h2>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiDollarSign className="h-4 w-4" /></span>
+              <h3 className="text-base font-bold text-slate-900">Requirements &amp; Budget</h3>
             </div>
-            <div className="mt-2 grid grid-cols-[118px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1">
-              <label className="text-[11px] font-semibold text-slate-600">Salary Range / Budget <span className="text-red-500">*</span></label>
-              <div className="flex items-center gap-1.5">
-                <input value={salaryMin} onChange={(e) => { const v = e.target.value; setSalaryMin(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(v, salaryMax) })); }} placeholder="Min" className={INPUT_CLS} inputMode="text" />
-                <span className="shrink-0 text-[12px] text-slate-400">−</span>
-                <input value={salaryMax} onChange={(e) => { const v = e.target.value; setSalaryMax(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(salaryMin, v) })); }} placeholder="Max" className={INPUT_CLS} inputMode="text" />
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className={`${LABEL_CLS} mb-1 block`}>Salary Range / Budget <span className="text-red-500">*</span></label>
+                <div className="flex items-center gap-2">
+                  <input value={salaryMin} onChange={(e) => { const v = e.target.value; setSalaryMin(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(v, salaryMax) })); }} placeholder="Min" className={INPUT_CLS} inputMode="text" />
+                  <span className="shrink-0 text-sm text-slate-400">−</span>
+                  <input value={salaryMax} onChange={(e) => { const v = e.target.value; setSalaryMax(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(salaryMin, v) })); }} placeholder="Max" className={INPUT_CLS} inputMode="text" />
+                </div>
               </div>
 
-              <label className="text-[11px] font-semibold text-slate-600">Required Skills <span className="text-red-500">*</span></label>
-              <div className="flex min-h-[34px] w-full flex-wrap items-center gap-1 rounded-[7px] border border-slate-300 bg-white px-1.5 py-1 transition focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/15">
-                {skillChips.map((chip) => (
-                  <span key={chip} className="inline-flex items-center gap-1 rounded-md bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-800">
-                    {chip}
-                    <button type="button" onClick={() => removeSkillChip(chip)} className="text-green-600 transition hover:text-red-500" aria-label={`Remove skill ${chip}`}><FiX className="h-3 w-3" /></button>
-                  </span>
-                ))}
-                <input
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addSkillChips(skillInput); } else if (e.key === 'Backspace' && !skillInput && skillChips.length > 0) { removeSkillChip(skillChips[skillChips.length - 1]); } }}
-                  onBlur={() => { if (skillInput.trim()) addSkillChips(skillInput); }}
-                  placeholder={skillChips.length === 0 ? 'Type a skill and press Enter' : 'Add skill…'}
-                  className="h-6 min-w-[100px] flex-1 border-0 bg-transparent text-[12px] text-slate-800 outline-none placeholder:text-slate-400"
-                  aria-label="Add required skill"
-                />
+              <div>
+                <label className={`${LABEL_CLS} mb-1 block`}>Required Skills <span className="text-red-500">*</span></label>
+                <div className="flex min-h-[42px] w-full flex-wrap items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 transition focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/15">
+                  {skillChips.map((chip) => (
+                    <span key={chip} className="inline-flex items-center gap-1 rounded-md bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
+                      {chip}
+                      <button type="button" onClick={() => removeSkillChip(chip)} className="text-green-600 transition hover:text-red-500" aria-label={`Remove skill ${chip}`}><FiX className="h-3 w-3" /></button>
+                    </span>
+                  ))}
+                  <input
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addSkillChips(skillInput); } else if (e.key === 'Backspace' && !skillInput && skillChips.length > 0) { removeSkillChip(skillChips[skillChips.length - 1]); } }}
+                    onBlur={() => { if (skillInput.trim()) addSkillChips(skillInput); }}
+                    placeholder={skillChips.length === 0 ? 'Type a skill and press Enter' : 'Add skill…'}
+                    className="h-7 min-w-[120px] flex-1 border-0 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                    aria-label="Add required skill"
+                  />
+                </div>
               </div>
 
-              <label className="text-[11px] font-semibold text-slate-600">Experience Required <span className="text-red-500">*</span></label>
-              <input value={form.experienceRequired} onChange={(e) => setForm({ ...form, experienceRequired: e.target.value })} placeholder="e.g. 3-5 years" list="exp-suggestions" className={INPUT_CLS} />
-              <datalist id="exp-suggestions">
-                <option value="0-1 years" /><option value="1-3 years" /><option value="3-5 years" /><option value="5-8 years" /><option value="8+ years" />
-              </datalist>
-
-              <label className="text-[11px] font-semibold text-slate-600">Qualification <span className="text-red-500">*</span></label>
-              <input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. B.E. / B.Tech" list="qual-suggestions" className={INPUT_CLS} />
-              <datalist id="qual-suggestions">
-                <option value="B.E. / B.Tech" /><option value="M.Tech" /><option value="MBA" /><option value="Any Graduate" /><option value="Post Graduate" />
-              </datalist>
-
-              <label className="text-[11px] font-semibold text-slate-600">Position Closing Date <span className="text-red-500">*</span></label>
-              <input type="date" value={form.expectedJoiningDate} onChange={(e) => setForm({ ...form, expectedJoiningDate: e.target.value })} className={INPUT_CLS} />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Experience Required <span className="text-red-500">*</span></label>
+                  <input value={form.experienceRequired} onChange={(e) => setForm({ ...form, experienceRequired: e.target.value })} placeholder="e.g. 3-5 years" list="exp-suggestions" className={INPUT_CLS} />
+                  <datalist id="exp-suggestions">
+                    <option value="0-1 years" /><option value="1-3 years" /><option value="3-5 years" /><option value="5-8 years" /><option value="8+ years" />
+                  </datalist>
+                </div>
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Qualification <span className="text-red-500">*</span></label>
+                  <input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. B.E. / B.Tech" list="qual-suggestions" className={INPUT_CLS} />
+                  <datalist id="qual-suggestions">
+                    <option value="B.E. / B.Tech" /><option value="M.Tech" /><option value="MBA" /><option value="Any Graduate" /><option value="Post Graduate" />
+                  </datalist>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={`${LABEL_CLS} mb-1 block`}>Position Closing Date <span className="text-red-500">*</span></label>
+                  <input type="date" value={form.expectedJoiningDate} onChange={(e) => setForm({ ...form, expectedJoiningDate: e.target.value })} className={INPUT_CLS} />
+                </div>
+              </div>
             </div>
           </section>
         </div>
 
-        {/* Interview Rounds — full width, compact table */}
-        <section className="flex min-h-[150px] flex-col rounded-[10px] border border-green-200 bg-white p-2.5 shadow-sm lg:flex-1">
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiUsers className="h-4 w-4" /></span>
-            <h2 className="text-[15px] font-bold text-slate-900">Interview Rounds <span className="text-red-500">*</span></h2>
+        {/* Interview Rounds — full width table, grows with the page (no inner scroll) */}
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiUsers className="h-4 w-4" /></span>
+            <h3 className="text-base font-bold text-slate-900">Interview Rounds <span className="text-red-500">*</span></h3>
           </div>
-          <div id="interview-rounds-list" className="mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-[8px] border border-slate-200 [scrollbar-width:thin]">
-            <div className="grid grid-cols-[36px_minmax(0,1fr)_150px_80px] gap-2 rounded-t-[8px] bg-green-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-700">
+          <div id="interview-rounds-list" className="mt-3 rounded-lg border border-slate-200">
+            <div className="grid grid-cols-[36px_minmax(0,1fr)_170px_90px] gap-2 rounded-t-lg bg-green-50 px-3 py-2 text-xs font-bold text-slate-700">
               <span>#</span><span>Round Name</span><span>Round Type</span><span className="text-center">Actions</span>
             </div>
             {roundRows.map((row, i) => (
-              <div key={i} className="grid grid-cols-[36px_minmax(0,1fr)_150px_80px] items-center gap-2 border-t border-slate-100 px-2.5 py-1">
-                <span className="text-[12px] font-semibold text-slate-500">{i + 1}</span>
+              <div key={i} className="grid grid-cols-[36px_minmax(0,1fr)_170px_90px] items-center gap-2 border-t border-slate-100 px-3 py-1.5">
+                <span className="text-sm font-semibold text-slate-500">{i + 1}</span>
                 <input
                   id={`round-name-${i}`}
                   value={row.name}
                   placeholder="Enter round name"
                   onChange={e => { const next = [...roundRows]; next[i] = { ...row, name: e.target.value }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }}
-                  className="h-[30px] w-full rounded-[7px] border border-slate-300 bg-white px-2 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/15"
+                  className={INPUT_CLS}
                   aria-label={`Round ${i + 1} name`}
                 />
                 <select
                   value={row.type}
                   onChange={e => { const next = [...roundRows]; next[i] = { ...row, type: e.target.value as InterviewPlanRow['type'] }; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }}
-                  className="h-[30px] w-full rounded-[7px] border border-slate-300 bg-white px-1.5 text-[12px] text-slate-800 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/15"
+                  className={INPUT_CLS}
                   aria-label={`Round ${i + 1} type`}
                 >
                   <option value="technical">Technical</option>
@@ -853,24 +899,24 @@ export default function RequisitionsPage() {
                   <option value="ai">AI</option>
                 </select>
                 <div className="flex items-center justify-center gap-1">
-                  <button type="button" onClick={() => focusRoundName(i)} className="flex h-7 w-7 items-center justify-center rounded-md text-green-600 transition hover:bg-green-50" aria-label={`Edit round ${i + 1}`}><FiEdit2 className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan(roundRows.filter((_, index) => index !== i)) })} className="flex h-7 w-7 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50" aria-label={`Delete round ${i + 1}`}><FiTrash2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => focusRoundName(i)} className="flex h-8 w-8 items-center justify-center rounded-md text-green-600 transition hover:bg-green-50" aria-label={`Edit round ${i + 1}`}><FiEdit2 className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => setForm({ ...form, interviewPlan: serializeInterviewPlan(roundRows.filter((_, index) => index !== i)) })} className="flex h-8 w-8 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50" aria-label={`Delete round ${i + 1}`}><FiTrash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             ))}
-            {roundRows.length === 0 && <div className="border-t border-slate-100 px-3 py-4 text-center text-[11px] text-red-600">No interview rounds configured. Click <b>Add Round</b> and enter a round name.</div>}
+            {roundRows.length === 0 && <div className="border-t border-slate-100 px-3 py-5 text-center text-sm text-red-600">No interview rounds configured. Click <b>Add Round</b> and enter a round name.</div>}
           </div>
-          <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
-            <button type="button" onClick={() => { const next = [...roundRows, { name: '', type: 'technical' as const }]; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); setTimeout(() => { const list = document.getElementById('interview-rounds-list'); if (list) list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' }); }, 50); }} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-600 bg-white px-3 text-[11px] font-bold text-green-700 transition hover:bg-green-50"><FiPlus className="h-3.5 w-3.5" />Add Round</button>
-            <p className="text-[10px] text-slate-400">{roundRows.length} round(s) configured · at least one named round is required to submit</p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <button type="button" onClick={() => { const next = [...roundRows, { name: '', type: 'technical' as const }]; setForm({ ...form, interviewPlan: serializeInterviewPlan(next) }); }} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-green-600 bg-white px-4 text-sm font-bold text-green-700 transition hover:bg-green-50"><FiPlus className="h-4 w-4" />Add Round</button>
+            <p className="text-xs text-slate-400">{roundRows.length} round(s) configured · at least one named round is required to submit</p>
           </div>
         </section>
 
         {/* Bottom action bar */}
-        <div className="flex shrink-0 items-center justify-end gap-2 rounded-[10px] border border-slate-200 bg-white px-3 py-2 shadow-sm">
-          <button onClick={handleCancelForm} className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-4 text-[12px] font-bold text-slate-600 transition hover:bg-slate-50">Cancel</button>
-          <button onClick={() => handleSave('draft')} disabled={submitting} className="inline-flex h-9 items-center rounded-md border-2 border-green-600 bg-white px-4 text-[12px] font-bold text-green-700 transition hover:bg-green-50 disabled:opacity-50">{submitting ? 'Saving…' : 'Save as Draft'}</button>
-          <button onClick={() => handleSave('submit')} disabled={submitting} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-green-600 px-5 text-[12px] font-bold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50"><FiCheck className="h-3.5 w-3.5" />{submitting ? 'Saving…' : 'Submit for Approval'}</button>
+        <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <button onClick={handleCancelForm} className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
+          <button onClick={() => handleSave('draft')} disabled={submitting} className="inline-flex h-10 items-center rounded-lg border-2 border-green-600 bg-white px-4 text-sm font-bold text-green-700 transition hover:bg-green-50 disabled:opacity-50">{submitting ? 'Saving…' : 'Save as Draft'}</button>
+          <button onClick={() => handleSave('submit')} disabled={submitting} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-green-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50"><FiCheck className="h-4 w-4" />{submitting ? 'Saving…' : 'Submit for Approval'}</button>
         </div>
       </div>
     );
@@ -878,84 +924,89 @@ export default function RequisitionsPage() {
 
 
   return (
-    <div className="space-y-2.5">
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px]">
-        <a href="/recruitment" className="font-semibold text-green-600 hover:text-green-700 hover:underline">Recruitment</a>
-        <span className="text-slate-400">/</span>
-        <span className="text-slate-600">Requisitions</span>
-      </nav>
+    <div className="space-y-6">
+      {/* Back button — required on every screen */}
+      <div>
+        <BackButton fallbackHref="/recruitment" />
+      </div>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <h1 className="text-base font-bold leading-tight tracking-tight text-slate-900">Requisitions</h1>
-          <p className="mt-0.5 text-[11px] text-slate-500">Raise, review, and approve hiring requests in one place</p>
+      {/* Header — Employee-module typography */}
+      <div className="-mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-slate-900 mb-1">Requisitions</h2>
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-slate-500">
+            <button type="button" onClick={() => router.push('/recruitment')} className="transition hover:text-green-600">Recruitment</button>
+            <span className="text-slate-400">/</span>
+            <span className="font-medium text-slate-700">Requisitions</span>
+          </nav>
         </div>
-        <div className="flex items-center gap-2">
-          {isHr && (
-            <a href="/settings/requisition-approval" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50" title="Configure who approves requisitions and in which order">
-              Approval Chain Settings
-            </a>
-          )}
-          {/* NEW-8 (strict): only Department Heads and HR/Admin can raise requisitions.
-              The API enforces the same rule — a regular employee gets 403. */}
-          {managerDepartment || isHr ? (
-            <button onClick={handleAddNew} className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-green-600/25 transition hover:bg-green-700">
-              <FiPlus className="h-3.5 w-3.5" /> Raise Requisition
-            </button>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-400">
-              Only Department Heads or HR can raise requisitions
+        <p className="text-sm text-slate-500">Raise, review, and approve hiring requests in one place</p>
+      </div>
+
+      {/* Tabs — Employee-module underline style. switchTab resets the list
+          filter so My Approvals is never silently filtered to empty. */}
+      <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
+        <button type="button" onClick={() => switchTab('requisitions')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'requisitions' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Requisitions</button>
+        <button type="button" onClick={() => switchTab('approvals')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'approvals' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>My Approvals ({needsActionCount})</button>
+      </div>
+
+      {/* Stat cards — Employee-module white card style */}
+      <section aria-label="Requisition workspace" className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <button type="button" onClick={() => { switchTab('requisitions'); setListFilter('action'); }} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-green-300">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-500">Needs My Action</span>
+              <span className="mt-1 block text-2xl font-bold text-slate-900">{needsActionCount}</span>
             </span>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-end gap-1 border-b border-transparent">
-        <button type="button" onClick={() => setActiveTab('requisitions')} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${activeTab === 'requisitions' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>Requisitions</button>
-        <button type="button" onClick={() => setActiveTab('approvals')} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${activeTab === 'approvals' ? 'bg-green-50 text-green-700 shadow-[inset_0_-2px_0_0_#16a34a]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>My Approvals ({needsActionCount})</button>
-      </div>
-
-      {/* Stat cards */}
-      <section aria-label="Requisition workspace" className="space-y-2.5">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('action'); }} className="flex items-center gap-2.5 rounded-xl bg-green-50 p-2.5 text-left transition hover:bg-green-100/70">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-green-600 shadow-sm"><FiCheck className="h-4 w-4" /></span>
-            <span><span className="block text-[11px] font-bold text-slate-900">Needs My Action</span><span className="mt-px block text-lg font-bold text-slate-900">{needsActionCount}</span></span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600"><FiCheck className="h-5 w-5" /></span>
           </button>
-          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('pending'); }} className="flex items-center gap-2.5 rounded-xl bg-amber-50 p-2.5 text-left transition hover:bg-amber-100/70">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-amber-500 shadow-sm"><FiClock className="h-4 w-4" /></span>
-            <span><span className="block text-[11px] font-bold text-slate-900">Pending Approvals</span><span className="mt-px block text-lg font-bold text-slate-900">{inApprovalCount}</span></span>
+          <button type="button" onClick={() => { switchTab('requisitions'); setListFilter('pending'); }} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-amber-300">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-500">Pending Approvals</span>
+              <span className="mt-1 block text-2xl font-bold text-slate-900">{inApprovalCount}</span>
+            </span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-500"><FiClock className="h-5 w-5" /></span>
           </button>
-          <button type="button" onClick={() => { setActiveTab('requisitions'); setListFilter('approved'); }} className="flex items-center gap-2.5 rounded-xl bg-blue-50 p-2.5 text-left transition hover:bg-blue-100/70">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-blue-500 shadow-sm"><FiCheckCircle className="h-4 w-4" /></span>
-            <span><span className="block text-[11px] font-bold text-slate-900">Approved This Month</span><span className="mt-px block text-lg font-bold text-slate-900">{approvedCount}</span></span>
+          <button type="button" onClick={() => { switchTab('requisitions'); setListFilter('approved'); }} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-300">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-500">Approved This Month</span>
+              <span className="mt-1 block text-2xl font-bold text-slate-900">{approvedCount}</span>
+            </span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500"><FiCheckCircle className="h-5 w-5" /></span>
           </button>
         </div>
 
-        <div className="grid min-h-[460px] grid-cols-1 gap-2.5 xl:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.25fr)]">
+        <div className="grid min-h-[460px] grid-cols-1 gap-4 xl:grid-cols-[minmax(430px,1fr)_minmax(0,1.1fr)]">
           {/* Requisition List */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 p-2.5">
-              <h2 className="text-xs font-bold text-slate-900">Requisition List</h2>
-              <div className="relative mt-2"><FiSearch className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID, title, or department..." className="w-full rounded-md border border-slate-300 bg-white py-1.5 pl-7 pr-2 text-[11px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/10" /></div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { setActiveTab('requisitions'); setListFilter(key); }} className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
+            <div className="border-b border-slate-100 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-slate-900">{activeTab === 'approvals' ? 'Awaiting My Action' : 'Requisition List'}</h3>
+                {activeTab === 'approvals' && <span className="inline-flex h-7 items-center rounded-md bg-green-50 px-2.5 text-xs font-bold text-green-700">Approval queue</span>}
+              </div>
+              <div className="relative mt-3"><FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID, title, or department..." className="h-10 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/10" /></div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { switchTab('requisitions'); setListFilter(key); }} className={`rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
               </div>
             </div>
-            {/* Columns are sized so every badge label fits without cropping */}
-            <div className="grid grid-cols-[62px_minmax(0,1fr)_36px_72px_104px] items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
-              <span>Req ID</span><span>Position</span><span className="text-center">Open</span><span className="text-center">Priority</span><span className="text-center">Status</span>
+            {/* Columns sized so every badge fits without cropping. On phones the
+                Openings column is hidden — 5 columns do not fit at 375px. */}
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_78px_92px] items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:grid-cols-[66px_minmax(0,1fr)_44px_80px_104px]">
+              <span className="whitespace-nowrap">Req ID</span><span className="whitespace-nowrap">Position</span><span className="hidden whitespace-nowrap text-center sm:block">Open</span><span className="whitespace-nowrap text-center">Priority</span><span className="whitespace-nowrap text-center">Status</span>
             </div>
-            <div className="max-h-[372px] space-y-1.5 overflow-y-auto p-2">
-              {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-slate-100" />) : filteredRequisitions.length === 0 ? <div className="px-4 py-10 text-center"><FiSearch className="mx-auto h-6 w-6 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No matching requisitions</p><p className="mt-1 text-[10px] text-slate-400">Try another search or filter.</p></div> : filteredRequisitions.map((r) => {
+            <div className="max-h-[560px] space-y-1.5 overflow-y-auto p-3">
+              {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-slate-100" />) : filteredRequisitions.length === 0 ? (
+                <div className="px-4 py-12 text-center">
+                  <FiSearch className="mx-auto h-8 w-8 text-slate-300" />
+                  <p className="mt-3 text-sm font-semibold text-slate-700">{activeTab === 'approvals' ? 'Nothing needs your action right now' : 'No matching requisitions'}</p>
+                  <p className="mt-1 text-xs text-slate-400">{activeTab === 'approvals' ? 'Requisitions waiting for your approval will appear here automatically.' : 'Try another search or filter.'}</p>
+                </div>
+              ) : filteredRequisitions.map((r) => {
                 const selected = selectedRequisition?.id === r.id;
-                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`grid min-h-[46px] w-full grid-cols-[62px_minmax(0,1fr)_36px_72px_104px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
-                  <span className="text-[10px] font-bold text-slate-900" title={r.requisitionId || '—'}>{r.requisitionId || '—'}</span>
-                  <span className="min-w-0" title={`${r.designation?.title || r.positionTitle || 'Position not specified'} — ${r.department?.name || 'Department not specified'}`}><span className="block truncate text-[11px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[9px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
-                  <span className="text-center text-[11px] font-bold tabular-nums text-slate-900">{r.numberOfOpenings}</span>
+                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`grid min-h-[56px] w-full grid-cols-[64px_minmax(0,1fr)_78px_92px] items-center gap-1.5 rounded-lg border px-3 py-2 text-left transition sm:grid-cols-[66px_minmax(0,1fr)_44px_80px_104px] ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
+                  <span className="text-[11px] font-bold text-slate-900" title={r.requisitionId || '—'}>{r.requisitionId || '—'}</span>
+                  <span className="min-w-0" title={`${r.designation?.title || r.positionTitle || 'Position not specified'} — ${r.department?.name || 'Department not specified'}`}><span className="block truncate text-[13px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[11px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
+                  <span className="hidden text-center text-[13px] font-bold tabular-nums text-slate-900 sm:block">{r.numberOfOpenings}</span>
                   <span className="flex min-w-0 justify-center"><span className={`${getPriorityBadge(r.priority)} max-w-full`} title={r.priority}><span className="capitalize">{r.priority}</span></span></span>
                   <span className="flex min-w-0 justify-center"><span className={`${getApprovalBadge(r.approvalStatus)} max-w-full`} title={getApprovalLabel(r.approvalStatus)}>{getApprovalShortLabel(r.approvalStatus)}</span></span>
                 </button>;
@@ -965,58 +1016,59 @@ export default function RequisitionsPage() {
 
           {/* Requisition Detail */}
           <div id="view-panel" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            {!selectedRequisition ? <div className="flex min-h-[440px] flex-col items-center justify-center p-6 text-center"><FiBriefcase className="h-8 w-8 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">Select a requisition</p><p className="mt-1 text-[10px] text-slate-400">Choose a request from the list to review its details and actions.</p></div> : (() => {
+            {!selectedRequisition ? <div className="flex min-h-[440px] flex-col items-center justify-center p-8 text-center"><FiBriefcase className="h-10 w-10 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Select a requisition</p><p className="mt-1 text-xs text-slate-400">Choose a request from the list to review its details and actions.</p></div> : (() => {
               const r = selectedRequisition;
               const stageIndex = r.approvalStatus === 'budget_approved' ? 3 : r.approvalStatus === 'hr_approved' ? 2 : r.approvalStatus === 'pending' ? 1 : 0;
               const isFailed = r.approvalStatus === 'rejected';
               const skillList = (r.skillsRequired || '').split(',').map(s => s.trim()).filter(Boolean);
-              return <div className="p-3 sm:p-4">
+              return <div className="p-4">
                 {/* Detail header */}
-                <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2.5">
-                  <div className="flex min-w-0 items-start gap-2.5">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiFileText className="h-4 w-4" /></span>
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600"><FiFileText className="h-5 w-5" /></span>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold text-slate-900">{r.requisitionId || 'REQUISITION'}</p>
-                      <h2 className="truncate text-base font-bold tracking-tight text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</h2>
-                      <p className="mt-px text-[11px] text-slate-500">{r.department?.name || 'Department not specified'}</p>
+                      <p className="text-xs font-bold text-slate-900">{r.requisitionId || 'REQUISITION'}</p>
+                      <h3 className="break-words text-base font-bold tracking-tight text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</h3>
+                      <p className="mt-0.5 text-sm text-slate-500">{r.department?.name || 'Department not specified'}</p>
                     </div>
                   </div>
-                  <span className="shrink-0"><span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600"><span className="capitalize">{r.priority}</span><span>Priority</span></span></span>
+                  <span className="shrink-0"><span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-red-100 px-2.5 py-1 text-xs font-bold text-red-600"><span className="capitalize">{r.priority}</span><span>Priority</span></span></span>
                 </div>
 
                 {/* Mini stat tiles */}
-                <div className="mt-2.5 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                  <StatTile label="Openings" value={String(r.numberOfOpenings)} icon={<FiUsers className="h-3.5 w-3.5 text-green-600" />} />
-                  <StatTile label="Salary Budget" value={r.salaryBudget || 'Not specified'} icon={<FiDollarSign className="h-3.5 w-3.5 text-amber-500" />} />
-                  <StatTile label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not specified'} icon={<FiCalendar className="h-3.5 w-3.5 text-green-600" />} />
-                  <StatTile label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} icon={<FiLayers className="h-3.5 w-3.5 text-green-600" />} />
+                <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <StatTile label="Openings" value={String(r.numberOfOpenings)} icon={<FiUsers className="h-4 w-4 text-green-600" />} />
+                  <StatTile label="Salary Budget" value={r.salaryBudget || 'Not specified'} icon={<FiDollarSign className="h-4 w-4 text-amber-500" />} />
+                  <StatTile label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not specified'} icon={<FiCalendar className="h-4 w-4 text-green-600" />} />
+                  <StatTile label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} icon={<FiLayers className="h-4 w-4 text-green-600" />} />
                 </div>
 
                 {/* Required skills */}
-                <div className="mt-2.5">
-                  <h3 className="text-[11px] font-bold text-slate-900">Required Skills</h3>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {skillList.length > 0 ? skillList.map((skill) => <span key={skill} className="rounded-md bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">{skill}</span>) : <span className="text-[10px] text-slate-400">Not specified</span>}
+                <div className="mt-4">
+                  <h4 className="text-sm font-bold text-slate-900">Required Skills</h4>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {skillList.length > 0 ? skillList.map((skill) => <span key={skill} className="rounded-md bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">{skill}</span>) : <span className="text-xs text-slate-400">Not specified</span>}
                   </div>
                 </div>
 
-                {/* Approval timeline (horizontal compact strip, replaces tall vertical) */}
-                <div className="mt-2.5">
-                  <h3 className="text-[11px] font-bold text-slate-900">Approval Timeline</h3>
-                  <div className="mt-1.5 flex items-center gap-1">
+                {/* Approval timeline — labels never crop: text sits in its own
+                    non-shrinking span, connectors absorb the remaining width */}
+                <div className="mt-4">
+                  <h4 className="text-sm font-bold text-slate-900">Approval Timeline</h4>
+                  <div className="mt-2 flex items-center gap-1">
                     {['Submitted', 'HR Review', 'Finance', 'Job Posting'].map((label, index) => {
                       const done = index < stageIndex || (index === 3 && r.approvalStatus === 'budget_approved');
                       const current = index === stageIndex && r.approvalStatus !== 'budget_approved';
                       const isLast = index === 3;
                       return (
-                        <div key={label} className="flex items-center gap-1 flex-1">
-                          <div className="flex items-center gap-1">
-                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${isFailed && current ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-green-600 bg-green-600 text-white' : current ? 'border-green-500 bg-white' : 'border-slate-300 bg-white'}`}>
-                              {done ? <FiCheck className="h-2.5 w-2.5" /> : <span className={`h-1.5 w-1.5 rounded-full ${current ? 'bg-green-500' : 'bg-slate-200'}`} />}
+                        <div key={label} className="flex items-center gap-1 flex-1 min-w-0">
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isFailed && current ? 'border-red-500 bg-red-50 text-red-600' : done ? 'border-green-600 bg-green-600 text-white' : current ? 'border-green-500 bg-white' : 'border-slate-300 bg-white'}`}>
+                              {done ? <FiCheck className="h-3 w-3" /> : <span className={`h-1.5 w-1.5 rounded-full ${current ? 'bg-green-500' : 'bg-slate-200'}`} />}
                             </span>
-                            <span className={`text-[9px] font-semibold ${current || done ? 'text-slate-900' : 'text-slate-500'}`}>{label}</span>
+                            <span className={`text-xs font-semibold ${current || done ? 'text-slate-900' : 'text-slate-500'}`}>{label}</span>
                           </div>
-                          {!isLast && <span className={`h-px flex-1 ${done ? 'bg-green-500' : 'bg-slate-200'}`} />}
+                          {!isLast && <span className={`h-px min-w-[8px] flex-1 ${done ? 'bg-green-500' : 'bg-slate-200'}`} />}
                         </div>
                       );
                     })}
@@ -1025,7 +1077,7 @@ export default function RequisitionsPage() {
 
                 {/* Full details (toggled by View Full Details) */}
                 {showFullDetails && (
-                  <div className="mt-2.5 grid auto-rows-fr gap-2 border-t border-slate-100 pt-2.5 sm:grid-cols-2">
+                  <div className="mt-4 grid auto-rows-fr gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
                     <DetailField label="Experience" value={r.experienceRequired || 'Not specified'} />
                     <DetailField label="Qualification" value={r.qualification || 'Not specified'} />
                     <DetailField label="Position Type" value={r.positionType || 'Not specified'} capitalize />
@@ -1034,18 +1086,19 @@ export default function RequisitionsPage() {
                 )}
 
                 {/* Approval history */}
-                {approvalHistory.length > 0 && !showFullDetails && <details className="group mt-2.5 rounded-lg border border-slate-200 bg-slate-50"><summary className="flex cursor-pointer list-none items-center justify-between px-2.5 py-1.5 text-[11px] font-semibold text-slate-700"><span>Approval history ({approvalHistory.length})</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary><div className="max-h-32 space-y-1.5 overflow-y-auto border-t border-slate-200 p-2">{approvalHistory.map((h) => <div key={h.id} className="rounded-md border border-slate-100 bg-white p-2 text-[10px]"><p className="text-slate-700">{h.details}</p><p className="mt-px text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
+                {approvalHistory.length > 0 && !showFullDetails && <details className="group mt-4 rounded-lg border border-slate-200 bg-slate-50"><summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700"><span>Approval history ({approvalHistory.length})</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary><div className="max-h-40 space-y-1.5 overflow-y-auto border-t border-slate-200 p-2">{approvalHistory.map((h) => <div key={h.id} className="rounded-md border border-slate-100 bg-white p-2 text-xs"><p className="text-slate-700">{h.details}</p><p className="mt-0.5 text-slate-400">{new Date(h.createdAt).toLocaleString('en-IN')}</p></div>)}</div></details>}
 
-                {/* Actions */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
-                  {(() => { const actions = detailActions(r); return actions.length > 0 ? actions : <span className="text-[11px] text-slate-400">No actions available for your role at this stage.</span>; })()}
-                  <button type="button" onClick={() => setShowFullDetails((v) => !v)} className="inline-flex items-center gap-1 rounded-md border border-green-600 bg-white px-2.5 py-1 text-[11px] font-bold text-green-700 transition hover:bg-green-50">
-                    <FiExternalLink className="h-3 w-3" />{showFullDetails ? 'Hide' : 'View Full Details'}
+                {/* Actions — buttons wrap, never overlap; Approve / Reject are
+                    always shown when it is the user's turn to act */}
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                  {(() => { const actions = detailActions(r); return actions.length > 0 ? actions : <span className="text-sm text-slate-400">No actions available for your role at this stage.</span>; })()}
+                  <button type="button" onClick={() => setShowFullDetails((v) => !v)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-green-600 bg-white px-3 py-1.5 text-xs font-bold text-green-700 transition hover:bg-green-50">
+                    <FiExternalLink className="h-3.5 w-3.5" />{showFullDetails ? 'Hide' : 'View Full Details'}
                   </button>
-                  {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"><FiEdit2 className="h-3 w-3" /> Edit</button>}
-                  {r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"><FiTrash2 className="h-3 w-3" /> Delete</button>}
+                  {(r.approvalStatus === 'draft' || r.approvalStatus === 'returned') && <button type="button" onClick={() => handleEdit(r)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50"><FiEdit2 className="h-3.5 w-3.5" /> Edit</button>}
+                  {r.approvalStatus === 'draft' && <button type="button" onClick={() => setDeleteConfirmId(r.id)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50"><FiTrash2 className="h-3.5 w-3.5" /> Delete</button>}
                 </div>
-                {deleteConfirmId === r.id && <div className="mt-2 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-[10px] font-semibold text-red-700">Delete this draft requisition permanently?</p><div className="flex gap-1.5"><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold">Cancel</button><button type="button" onClick={() => handleDelete(r.id)} disabled={deleting} className="rounded-md bg-red-600 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete Draft'}</button></div></div>}
+                {deleteConfirmId === r.id && <div className="mt-3 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-semibold text-red-700">Delete this draft requisition permanently?</p><div className="flex gap-2"><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">Cancel</button><button type="button" onClick={() => handleDelete(r.id)} disabled={deleting} className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete Draft'}</button></div></div>}
               </div>;
             })()}
           </div>

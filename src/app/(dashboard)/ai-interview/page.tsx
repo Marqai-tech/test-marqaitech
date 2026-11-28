@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -635,6 +636,7 @@ export default function AIInterviewPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton fallbackHref="/recruitment" />
       {/* REQ-SEC-REC-02 — AI Transparency banner */}
       <div className="thb-card border-l-4 border-l-amber-400 bg-amber-50/40 p-4">
         <div className="flex items-start gap-3">

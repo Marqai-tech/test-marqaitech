@@ -11,6 +11,7 @@ import { FiSearch, FiUsers, FiStar, FiMail, FiTrash2, FiPlus, FiClock, FiArrowRi
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleDashboardShell from '@/components/ModuleDashboardShell';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -362,6 +363,8 @@ export default function TalentPoolPage() {
   );
 
   return (
+    <>
+      <BackButton fallbackHref="/recruitment" />
     <ModuleDashboardShell
       moduleKey="recruitment"
       moduleLabel="Recruitment"
@@ -376,5 +379,6 @@ export default function TalentPoolPage() {
         talent_pool: poolView,
       }}
     />
+    </>
   );
 }

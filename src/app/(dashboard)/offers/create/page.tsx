@@ -26,6 +26,7 @@ import {
   FiUser, FiFileText, FiSearch, FiClock, FiSend, FiSave, FiCheckCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -321,6 +322,9 @@ export default function CreateOfferPage() {
 
   return (
     <div className="flex flex-col gap-3 min-h-0">
+      <div className="shrink-0">
+        <BackButton fallbackHref="/offers" />
+      </div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>

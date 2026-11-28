@@ -7,6 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleSettingsPanel, { recruitmentSections } from '@/components/ModuleSettingsPanel';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -146,6 +147,7 @@ export default function RecruitmentSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton fallbackHref="/recruitment" />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

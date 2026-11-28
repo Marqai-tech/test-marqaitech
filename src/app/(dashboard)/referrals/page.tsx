@@ -12,6 +12,7 @@ import { FaWhatsapp, FaLinkedinIn, FaTwitter, FaFacebookF } from 'react-icons/fa
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
+import { BackButton } from '@/components/hrms/BackButton';
 
 /* ──────────────────────────────────────────────────────────────────── */
 /* Types                                                                */
@@ -486,6 +487,7 @@ export default function ReferralsPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton fallbackHref="/recruitment" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

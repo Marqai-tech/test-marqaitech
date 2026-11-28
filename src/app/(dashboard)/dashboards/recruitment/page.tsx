@@ -21,6 +21,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   Panel, StatCard, StatSkeleton,
 } from '@/components/dashboard/smarthr-widgets';
+import { BackButton } from '@/components/hrms/BackButton';
 
 /* ═══════════════ helpers ═══════════════ */
 
@@ -296,6 +297,8 @@ function RecruitmentSettingsPlaceholder() {
 
 function RecruitmentPageContent() {
   return (
+    <>
+      <BackButton fallbackHref="/recruitment" />
     <ModuleDashboardShell
       moduleKey="recruitment"
       moduleLabel="Recruitment"
@@ -310,6 +313,7 @@ function RecruitmentPageContent() {
         settings: <RecruitmentSettingsPlaceholder />,
       }}
     />
+    </>
   );
 }
 

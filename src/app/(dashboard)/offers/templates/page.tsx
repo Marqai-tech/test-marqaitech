@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { normalizeTemplateMarkup, renderOfferTemplate, wrapRenderedOffer } from '@/lib/offer-template';
+import { BackButton } from '@/components/hrms/BackButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -462,6 +463,7 @@ export default function OfferTemplatesPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton fallbackHref="/offers" />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">

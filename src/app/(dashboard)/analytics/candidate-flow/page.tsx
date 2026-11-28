@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import ModuleIntro from '@/components/ModuleIntro';
+import { BackButton } from '@/components/hrms/BackButton';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -110,6 +111,7 @@ export default function CandidateFlowAnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton fallbackHref="/recruitment" />
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
