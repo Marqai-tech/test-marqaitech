@@ -65,7 +65,7 @@ const ROLE_OPTIONS: Array<{ value: string; label: string; icon: any }> = [
   { value: 'employee', label: 'Employee', icon: FiUser },
 ];
 
-interface EmpOption { id: string; name: string; email: string; role?: string; employeeId?: string; }
+interface EmpOption { id: string; name: string; email: string; role?: string; employeeId?: string; branch?: string; department?: string; designation?: string; }
 
 const DEFAULT_WORKFLOW: WorkflowConfig = {
   name: 'New Workflow',
@@ -200,6 +200,9 @@ export default function ApprovalWorkflowsPage() {
             email: e.email || '',
             role: e.user?.role || e.role || '',
             employeeId: e.employeeId || '',
+            branch: e.branch?.name || '',
+            department: e.department?.name || '',
+            designation: e.designation?.title || '',
           }));
           setEmployees(emps);
         })
@@ -1131,9 +1134,15 @@ function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: 
   ];
 
   // Show all employees with a role (for the dropdowns)
-  const empOptions = employees.length > 0
-    ? employees
-    : [];
+  const empOptions = employees.length > 0 ? employees : [];
+  // Format employee label with branch/dept/designation for easy identification
+  const empLabel = (e: EmpOption) => {
+    const parts = [e.name];
+    if (e.designation) parts.push(`(${e.designation})`);
+    if (e.department) parts.push(`— ${e.department}`);
+    if (e.branch) parts.push(`· ${e.branch}`);
+    return parts.join(' ');
+  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -1156,14 +1165,14 @@ function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: 
             <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Original Approver <span className="text-red-500">*</span></label>
             <select value={form.approverId} onChange={e => set('approverId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
               <option value="">— Select approver —</option>
-              {empOptions.map(e => <option key={e.id} value={e.id}>{e.name} {e.role ? `(${e.role})` : ''} {e.email ? `— ${e.email}` : ''}</option>)}
+              {empOptions.map(e => <option key={e.id} value={e.id}>{empLabel(e)}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Proxy Approver <span className="text-red-500">*</span></label>
             <select value={form.proxyId} onChange={e => set('proxyId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
               <option value="">— Select proxy —</option>
-              {empOptions.filter(e => e.id !== form.approverId).map(e => <option key={e.id} value={e.id}>{e.name} {e.role ? `(${e.role})` : ''} {e.email ? `— ${e.email}` : ''}</option>)}
+              {empOptions.filter(e => e.id !== form.approverId).map(e => <option key={e.id} value={e.id}>{empLabel(e)}</option>)}
             </select>
           </div>
         </div>

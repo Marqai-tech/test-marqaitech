@@ -98,22 +98,85 @@ export async function GET(request: NextRequest) {
     ) as any[];
 
     // Compute status + resolve approver/proxy names
+    // The IDs stored in the delegation are Employee IDs (from the /api/employees
+    // dropdown). We look up names from BOTH the Employee table (firstName +
+    // lastName + branch + department + designation) AND the User table (name +
+    // email + role) to handle both cases.
     const enriched = await Promise.all((rows || []).map(async (r: any) => {
       const status = computeStatus(r.startDate, r.endDate, r.isEnabled);
       let approverName = 'Unknown';
+      let approverEmail = '';
+      let approverBranch = '';
+      let approverDept = '';
+      let approverDesignation = '';
+      let approverRole = '';
       let proxyName = 'Unknown';
-      try {
-        const aRows = await db.$queryRawUnsafe(
-          `SELECT u."name", u.email FROM "User" u WHERE u.id = $1 LIMIT 1`, r.approverId
-        ) as any[];
-        if (aRows?.[0]) approverName = aRows[0].name || aRows[0].email;
-      } catch {}
-      try {
-        const pRows = await db.$queryRawUnsafe(
-          `SELECT u."name", u.email FROM "User" u WHERE u.id = $1 LIMIT 1`, r.proxyId
-        ) as any[];
-        if (pRows?.[0]) proxyName = pRows[0].name || pRows[0].email;
-      } catch {}
+      let proxyEmail = '';
+      let proxyBranch = '';
+      let proxyDept = '';
+      let proxyDesignation = '';
+      let proxyRole = '';
+
+      // Helper: look up a person by ID from both Employee and User tables
+      const lookupPerson = async (id: string) => {
+        let result: { name: string; email: string; branch: string; dept: string; designation: string; role: string } = {
+          name: 'Unknown', email: '', branch: '', dept: '', designation: '', role: ''
+        };
+        // Try Employee table first (the dropdown stores Employee.id)
+        try {
+          const eRows = await db.$queryRawUnsafe(
+            `SELECT e."firstName", e."lastName", e.email, e."employeeId",
+                    d.name AS dept, des.title AS designation, b.name AS branch,
+                    u.role, u.email AS user_email
+             FROM "Employee" e
+             LEFT JOIN "Department" d ON d.id = e."departmentId"
+             LEFT JOIN "Designation" des ON des.id = e."designationId"
+             LEFT JOIN "Branch" b ON b.id = e."branchId"
+             LEFT JOIN "User" u ON u.id = e."userId"
+             WHERE e.id = $1 LIMIT 1`,
+            id
+          ) as any[];
+          if (eRows?.[0]) {
+            const e = eRows[0];
+            result.name = `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown';
+            result.email = e.email || e.user_email || '';
+            result.branch = e.branch || '';
+            result.dept = e.dept || '';
+            result.designation = e.designation || '';
+            result.role = e.role || '';
+            return result;
+          }
+        } catch {}
+        // Fallback: try User table directly
+        try {
+          const uRows = await db.$queryRawUnsafe(
+            `SELECT u."name", u.email, u.role FROM "User" u WHERE u.id = $1 LIMIT 1`, id
+          ) as any[];
+          if (uRows?.[0]) {
+            result.name = uRows[0].name || uRows[0].email || 'Unknown';
+            result.email = uRows[0].email || '';
+            result.role = uRows[0].role || '';
+          }
+        } catch {}
+        return result;
+      };
+
+      const approverInfo = await lookupPerson(r.approverId);
+      approverName = approverInfo.name;
+      approverEmail = approverInfo.email;
+      approverBranch = approverInfo.branch;
+      approverDept = approverInfo.dept;
+      approverDesignation = approverInfo.designation;
+      approverRole = approverInfo.role;
+
+      const proxyInfo = await lookupPerson(r.proxyId);
+      proxyName = proxyInfo.name;
+      proxyEmail = proxyInfo.email;
+      proxyBranch = proxyInfo.branch;
+      proxyDept = proxyInfo.dept;
+      proxyDesignation = proxyInfo.designation;
+      proxyRole = proxyInfo.role;
+
       let leaveTypeNames: string[] = [];
       try {
         const ltRaw = typeof r.leaveTypeIds === 'string' ? JSON.parse(r.leaveTypeIds) : r.leaveTypeIds;
@@ -131,8 +194,18 @@ export async function GET(request: NextRequest) {
         id: r.id,
         approverId: r.approverId,
         approverName,
+        approverEmail,
+        approverBranch,
+        approverDept,
+        approverDesignation,
+        approverRole,
         proxyId: r.proxyId,
         proxyName,
+        proxyEmail,
+        proxyBranch,
+        proxyDept,
+        proxyDesignation,
+        proxyRole,
         startDate: r.startDate instanceof Date ? r.startDate.toISOString().split('T')[0] : String(r.startDate),
         endDate: r.endDate instanceof Date ? r.endDate.toISOString().split('T')[0] : String(r.endDate),
         activationCondition: r.activationCondition,
