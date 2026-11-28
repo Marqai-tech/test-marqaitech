@@ -101,15 +101,38 @@ export async function GET(request: Request) {
     // conversion both need the typed position name — annotate it back onto
     // each row with one raw query.
     try {
+      // Runtime columns (positionTitle / grade / shiftTimings) are NOT part of
+      // the Prisma schema — ensure they exist, then annotate them back onto
+      // each row with one raw query so the UI can display them.
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "positionTitle" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "grade" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "shiftTimings" TEXT`);
       const reqIds = (requisitions as any[]).map((r) => r.id).filter(Boolean);
       if (reqIds.length > 0) {
         const ptRows = await db.$queryRawUnsafe(
-          `SELECT "id", "positionTitle" FROM "Requisition" WHERE "id" IN (${reqIds.map((_, i) => `$${i + 1}`).join(',')})`,
+          `SELECT "id", "positionTitle", "grade", "shiftTimings" FROM "Requisition" WHERE "id" IN (${reqIds.map((_, i) => `$${i + 1}`).join(',')})`,
           ...reqIds,
         ) as any[];
-        const ptMap = new Map<string, string | null>(ptRows.map((row: any) => [row.id, row.positionTitle ?? null]));
+        const ptMap = new Map<string, { positionTitle: string | null; grade: string | null; shiftTimings: string | null }>(ptRows.map((row: any) => [row.id, { positionTitle: row.positionTitle ?? null, grade: row.grade ?? null, shiftTimings: row.shiftTimings ?? null }]));
         for (const r of requisitions as any[]) {
-          if (ptMap.has(r.id)) r.positionTitle = ptMap.get(r.id) ?? null;
+          const extra = ptMap.get(r.id);
+          if (extra) {
+            r.positionTitle = extra.positionTitle;
+            r.grade = extra.grade;
+            r.shiftTimings = extra.shiftTimings;
+          }
+        }
+        // Requested By: resolve the hiring manager's display name for the list rows.
+        const mgrIds = Array.from(new Set((requisitions as any[]).map((r) => r.hiringManagerId).filter(Boolean)));
+        if (mgrIds.length > 0) {
+          const mgrRows = await db.$queryRawUnsafe(
+            `SELECT "id", "name" FROM "User" WHERE "id" IN (${mgrIds.map((_, i) => `$${i + 1}`).join(',')})`,
+            ...mgrIds,
+          ) as any[];
+          const mgrMap = new Map<string, string>(mgrRows.map((row: any) => [row.id, row.name ?? null]));
+          for (const r of requisitions as any[]) {
+            if (r.hiringManagerId && mgrMap.has(r.hiringManagerId)) r.managerName = mgrMap.get(r.hiringManagerId) ?? null;
+          }
         }
       }
     } catch { /* very old tenant without the column — leave undefined */ }
@@ -194,6 +217,8 @@ export async function POST(request: Request) {
       reason, // Task 164: reason/justification for hiring
       action, // Task 164: 'draft' | 'submit' (default: 'submit')
       positionTitle, // Task 167: raw position name (e.g. "Data Engineer 2")
+      grade, // company-module linked: designation level grade (e.g. "Grade 2")
+      shiftTimings, // company-module linked: shift name + timings from Company → Shifts
     } = body;
     // E2E fix: salaryBudget column is TEXT — clients sending a JS number caused
     // a Prisma "Invalid value" 500. Coerce numbers to string; empty → null.
@@ -356,6 +381,9 @@ export async function POST(request: Request) {
     // Task 167: ensure positionTitle column exists at runtime
     try {
       await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "positionTitle" TEXT`);
+      // Company-module linked fields (grade / shift timings) — same additive pattern
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "grade" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "shiftTimings" TEXT`);
     } catch { /* already exists */ }
 
     // Task 164: draft vs submit
@@ -386,6 +414,8 @@ export async function POST(request: Request) {
         status: isDraft ? 'draft' : 'open',
         // Phase 3 fix: persist positionTitle and reason (were only in SQL fallback)
         positionTitle: positionTitle || null,
+        grade: grade || null,
+        shiftTimings: shiftTimings || null,
         reason: reason || null,
         interviewPlan: normalizedInterviewPlan,
       } as any, // cast to any to allow optional fields not in the Prisma schema yet
@@ -401,14 +431,14 @@ export async function POST(request: Request) {
         `INSERT INTO "Requisition" ("id", "requisitionId", "companyId", "branchId", "departmentId", "designationId",
           "hiringManagerId", "positionType", "replacementEmployeeId", "numberOfOpenings", "employmentType",
           "skillsRequired", "experienceRequired", "qualification", "salaryBudget", "projectId", "clientId",
-          "priority", "expectedJoiningDate", "approvalStatus", "status", "positionTitle", "interviewPlan", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW(), NOW())`,
+          "priority", "expectedJoiningDate", "approvalStatus", "status", "positionTitle", "grade", "shiftTimings", "interviewPlan", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, NOW(), NOW())`,
         id, requisitionId, resolvedCompanyId, branchId || null, resolvedDepartmentId, resolvedDesignationId || null,
         decoded.userId, positionType || 'new', replacementEmployeeId || null, numberOfOpenings ?? 1, employmentType || 'full-time',
         skillsRequired || null, experienceRequired || null, qualification || null, salaryBudget || null,
         projectId || null, clientId || null, priority || 'medium',
         expectedJoiningDate ? new Date(expectedJoiningDate) : null,
-        approvalStatus, isDraft ? 'draft' : 'open', positionTitle || null, normalizedInterviewPlan
+        approvalStatus, isDraft ? 'draft' : 'open', positionTitle || null, grade || null, shiftTimings || null, normalizedInterviewPlan
       );
       return { id, requisitionId, ...body, positionTitle, department: { name: departmentId }, designation: { title: positionTitle || designationId || '' } };
     });

@@ -261,7 +261,8 @@ export async function PATCH(
     const body = await request.json();
     const { action, comments, departmentId, designationId, positionType, numberOfOpenings,
             employmentType, skillsRequired, experienceRequired, qualification,
-            salaryBudget, priority, expectedJoiningDate, reason, interviewPlan } = body;
+            salaryBudget, priority, expectedJoiningDate, reason, interviewPlan,
+            grade, shiftTimings } = body;
 
     // Task 164: fetch existing via RAW SQL fallback
     const existing = await db.requisition.findUnique({ where: { id } }).catch(async () => {
@@ -332,6 +333,8 @@ export async function PATCH(
     if (experienceRequired !== undefined) updateData.experienceRequired = experienceRequired || null;
     if (qualification !== undefined) updateData.qualification = qualification || null;
     if (salaryBudget !== undefined) updateData.salaryBudget = salaryBudget || null;
+    if (grade !== undefined) updateData.grade = grade || null;
+    if (shiftTimings !== undefined) updateData.shiftTimings = shiftTimings || null;
     if (priority !== undefined) updateData.priority = priority;
     if (expectedJoiningDate !== undefined) updateData.expectedJoiningDate = expectedJoiningDate ? new Date(expectedJoiningDate) : null;
     if (interviewPlan !== undefined) {
@@ -516,6 +519,13 @@ export async function PATCH(
     }
 
     // ─── Update the requisition ───
+    // Ensure runtime-added columns (positionTitle / grade / shiftTimings) exist
+    // before the update touches them — additive, idempotent.
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "positionTitle" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "grade" TEXT`);
+      await db.$executeRawUnsafe(`ALTER TABLE "Requisition" ADD COLUMN IF NOT EXISTS "shiftTimings" TEXT`);
+    } catch { /* already exists */ }
     const requisition = await db.requisition.update({
       where: { id },
       data: updateData,

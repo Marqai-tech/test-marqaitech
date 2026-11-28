@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   FiPlus, FiX, FiCheck, FiXCircle, FiAlertCircle, FiEdit2, FiTrash2,
   FiArrowLeft, FiRotateCcw, FiClock, FiSearch, FiBriefcase, FiCalendar,
-  FiFileText, FiUsers, FiUser, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle, FiVolume2,
+  FiFileText, FiUsers, FiUser, FiDollarSign, FiLayers, FiExternalLink, FiCheckCircle, FiVolume2, FiMapPin,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -19,7 +19,7 @@ function getAuthHeaders() {
 }
 
 interface Requisition {
-  id: string; requisitionId: string; positionType: string; numberOfOpenings: number; employmentType: string; priority: string; approvalStatus: string; status: string; skillsRequired: string | null; experienceRequired: string | null; qualification: string | null; salaryBudget: string | null; expectedJoiningDate: string | null; interviewPlan?: string | null; companyId?: string; hiringManagerId?: string; positionTitle?: string;
+  id: string; requisitionId: string; positionType: string; numberOfOpenings: number; employmentType: string; priority: string; approvalStatus: string; status: string; skillsRequired: string | null; experienceRequired: string | null; qualification: string | null; salaryBudget: string | null; expectedJoiningDate: string | null; interviewPlan?: string | null; companyId?: string; hiringManagerId?: string; positionTitle?: string; branchId?: string | null; branch?: { id: string; name: string } | null; grade?: string | null; shiftTimings?: string | null;
   department?: { id?: string; name: string } | null; designation?: { id?: string; title: string } | null;
 }
 
@@ -32,7 +32,7 @@ const HR_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'hr_admin', 'co
 const FINANCE_ROLES = ['super_admin', 'tenant_admin', 'ceo', 'admin', 'finance_admin'];
 
 const initialForm = {
-  departmentId: '', designationId: '', positionTitle: '', positionType: 'new', numberOfOpenings: 1, employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '', reason: '', interviewPlan: JSON.stringify([{ sequence: 1, name: 'Technical Round 1', type: 'technical' }, { sequence: 2, name: 'HR Round', type: 'hr' }], null, 2),
+  departmentId: '', designationId: '', positionTitle: '', positionType: 'new', numberOfOpenings: 1, branchId: '', grade: '', shiftTimings: '', employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '', reason: '', interviewPlan: JSON.stringify([{ sequence: 1, name: 'Technical Round 1', type: 'technical' }, { sequence: 2, name: 'HR Round', type: 'hr' }], null, 2),
 };
 
 type InterviewPlanRow = { name: string; type: 'technical' | 'hr' | 'ai' | 'client' };
@@ -170,7 +170,7 @@ const LABEL_CLS = 'text-sm font-medium text-slate-600';
 const BADGE = 'inline-flex h-7 items-center rounded-md px-2.5 text-xs font-semibold';
 // Employee-module action button style — used by every detail-panel action so
 // wording is never cropped and buttons never overlap (they wrap on narrow screens).
-const ACTION_BTN_CLS = 'inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold shadow-sm transition';
+const ACTION_BTN_CLS = 'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold shadow-sm transition';
 export default function RequisitionsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -193,8 +193,12 @@ export default function RequisitionsPage() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [form, setForm] = useState(initialForm);
-  const [salaryMin, setSalaryMin] = useState('');
-  const [salaryMax, setSalaryMax] = useState('');
+  // Company-module master data for the new form fields:
+  //   Location → Company → Branches,  Shift Timings → Company → Shifts,
+  //   Grade → Designation levels (company module). Budget auto-fills from the
+  //   designation's salary band. All fetched in fetchDeptDesignations below.
+  const [branches, setBranches] = useState<Array<{ id: string; name: string; city?: string | null }>>([]);
+  const [shifts, setShifts] = useState<Array<{ id: string; name: string; startTime?: string | null; endTime?: string | null }>>([]);
   const [skillChips, setSkillChips] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState('');
   const [search, setSearch] = useState('');
@@ -205,9 +209,12 @@ export default function RequisitionsPage() {
   const switchTab = (tab: 'requisitions' | 'approvals') => {
     setActiveTab(tab);
     setListFilter('all');
+    // With the "Back to list" button removed (user request), clicking a tab is
+    // the way back — always exit any open requisition detail.
+    setViewingId(null);
   };
   const [showFullDetails, setShowFullDetails] = useState(false);
-  const [listFilter, setListFilter] = useState<'all' | 'action' | 'pending' | 'draft' | 'approved'>('all');
+  const [listFilter, setListFilter] = useState<'all' | 'action' | 'pending' | 'draft' | 'approved' | 'rejected'>('all');
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('new') === '1') {
@@ -228,7 +235,7 @@ export default function RequisitionsPage() {
     if (urlView === 'list') setShowForm(false);
   }, [urlView]);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; companyName?: string }>>([]);
-  const [designations, setDesignations] = useState<Array<{ id: string; title: string; departmentId: string | null }>>([]);
+  const [designations, setDesignations] = useState<Array<{ id: string; title: string; departmentId: string | null; level?: number | null; minSalary?: number | null; maxSalary?: number | null }>>([]);
   // NEW-8: the logged-in user's managed department (if they are a department
   // head). When set, the requisition form locks the department to it — the
   // API enforces the same rule server-side.
@@ -279,9 +286,12 @@ export default function RequisitionsPage() {
       // client-side, and server-side title-dedup would otherwise hide
       // another department's same-titled designation (two departments can
       // legitimately both have "Manager").
-      const [deptRes, desigRes] = await Promise.all([
+      const [deptRes, desigRes, branchRes, shiftRes] = await Promise.all([
         fetch(`/api/departments?limit=500${scopeParam}`, { headers: getAuthHeaders() }).catch(() => null),
         fetch(`/api/designations?limit=1000${scopeParam}&noDedupe=1`, { headers: getAuthHeaders() }).catch(() => null),
+        // Company-module master data: branches (locations) + shifts (timings)
+        fetch(`/api/branches?limit=500${scopeParam}`, { headers: getAuthHeaders() }).catch(() => null),
+        fetch(`/api/shifts?limit=500${scopeParam}`, { headers: getAuthHeaders() }).catch(() => null),
       ]);
       let anyFailed = false;
       if (deptRes?.ok) {
@@ -313,7 +323,7 @@ export default function RequisitionsPage() {
           const desigData = await desigRes.json();
           const desigList = desigData.designations || desigData.data || (Array.isArray(desigData) ? desigData : []);
           const seenDesig = new Set<string>();
-          const dedupedDesigs: Array<{ id: string; title: string; departmentId: string | null }> = [];
+          const dedupedDesigs: Array<{ id: string; title: string; departmentId: string | null; level?: number | null; minSalary?: number | null; maxSalary?: number | null }> = [];
           for (const d of desigList) {
             if (!d?.id || !d?.title) continue;
             // Dedupe by ID, never by title — same-titled designations in
@@ -321,13 +331,27 @@ export default function RequisitionsPage() {
             if (seenDesig.has(d.id)) continue;
             seenDesig.add(d.id);
             const deptId = d.departmentId || d.department?.id || null;
-            dedupedDesigs.push({ id: d.id, title: d.title, departmentId: deptId });
+            dedupedDesigs.push({ id: d.id, title: d.title, departmentId: deptId, level: d.level ?? null, minSalary: d.minSalary ?? null, maxSalary: d.maxSalary ?? null });
           }
           dedupedDesigs.sort((a, b) => a.title.localeCompare(b.title));
           setDesignations(dedupedDesigs);
         } catch { anyFailed = true; }
       } else {
         anyFailed = true;
+      }
+      if (branchRes?.ok) {
+        try {
+          const branchData = await branchRes.json();
+          const branchList = branchData.data || branchData.branches || (Array.isArray(branchData) ? branchData : []);
+          if (branchList.length) setBranches(branchList.filter((b: any) => b?.id && b?.name).map((b: any) => ({ id: b.id, name: String(b.name), city: b.city ?? null })));
+        } catch { /* non-fatal — Location select stays empty */ }
+      }
+      if (shiftRes?.ok) {
+        try {
+          const shiftData = await shiftRes.json();
+          const shiftList = shiftData.data || shiftData.shifts || (Array.isArray(shiftData) ? shiftData : []);
+          if (shiftList.length) setShifts(shiftList.filter((s: any) => s?.id && s?.name).map((s: any) => ({ id: s.id, name: String(s.name), startTime: s.startTime ?? '', endTime: s.endTime ?? '' })));
+        } catch { /* non-fatal — Shift select stays empty */ }
       }
       if (anyFailed) {
         console.error('Requisition master-data fetch failed', {
@@ -385,14 +409,14 @@ export default function RequisitionsPage() {
       experienceRequired: item.experienceRequired || '',
       qualification: item.qualification || '',
       salaryBudget: item.salaryBudget || '',
+      branchId: item.branchId || '',
+      grade: item.grade || '',
+      shiftTimings: item.shiftTimings || '',
       priority: item.priority || 'medium',
       expectedJoiningDate: item.expectedJoiningDate ? new Date(item.expectedJoiningDate).toISOString().split('T')[0] : '',
       reason: '',
       interviewPlan: item.interviewPlan || initialForm.interviewPlan,
     });
-    const [sm, sx] = parseSalaryRange(item.salaryBudget);
-    setSalaryMin(sm);
-    setSalaryMax(sx);
     setSkillChips((item.skillsRequired || '').split(',').map(s => s.trim()).filter(Boolean));
     setSkillInput('');
     setEditingId(item.id);
@@ -580,6 +604,13 @@ export default function RequisitionsPage() {
     return r.hiringManagerId === user?.id && ['draft', 'returned'].includes(r.approvalStatus);
   }, [isFinance, isHr, user?.id]);
 
+  // Grade options come from the company module: the designation levels
+  // configured for the selected department (Company → Departments → Designations).
+  const gradeOptions = useMemo(() => {
+    const levels = Array.from(new Set(visibleDesignations.map((d) => d.level).filter((l): l is number => l != null))).sort((a, b) => a - b);
+    return levels.map((l) => `Grade ${l}`);
+  }, [visibleDesignations]);
+
   const filteredRequisitions = useMemo(() => {
     const query = search.trim().toLowerCase();
     return requisitions.filter((r) => {
@@ -590,16 +621,20 @@ export default function RequisitionsPage() {
         || (listFilter === 'action' && needsAction(r))
         || (listFilter === 'pending' && ['pending', 'hr_approved'].includes(r.approvalStatus))
         || (listFilter === 'draft' && ['draft', 'returned'].includes(r.approvalStatus))
-        || (listFilter === 'approved' && r.approvalStatus === 'budget_approved');
+        || (listFilter === 'approved' && r.approvalStatus === 'budget_approved')
+        || (listFilter === 'rejected' && r.approvalStatus === 'rejected');
       return matchesSearch && matchesTab && matchesFilter;
     });
   }, [activeTab, listFilter, needsAction, requisitions, search]);
 
-  const selectedRequisition = requisitions.find((r) => r.id === viewingId) || filteredRequisitions[0] || null;
+  // No auto-selection: clicking a requisition opens it full-screen; the list
+  // stays clean until the user picks one.
+  const selectedRequisition = requisitions.find((r) => r.id === viewingId) || null;
   const inApprovalCount = requisitions.filter((r) => ['pending', 'hr_approved'].includes(r.approvalStatus)).length;
   const approvedCount = requisitions.filter((r) => r.approvalStatus === 'budget_approved').length;
   const needsActionCount = requisitions.filter(needsAction).length;
   const draftCount = requisitions.filter((r) => ['draft', 'returned'].includes(r.approvalStatus)).length;
+  const rejectedCount = requisitions.filter((r) => r.approvalStatus === 'rejected').length;
 
   // Mock-styled primary/negative actions for the detail panel.
   // Every button here is wired to a real API action — Approve / Reject /
@@ -663,7 +698,7 @@ export default function RequisitionsPage() {
     if (nextTier?.eligible) {
       actions.push(
         <button key="tier_approve" onClick={() => handleApproval(r.id, 'approve')} className={`${ACTION_BTN_CLS} bg-green-600 text-white hover:bg-green-700`}>
-          <FiCheck className="h-4 w-4" />Approve
+          <FiCheck className="h-4 w-4" />Approve{nextTier?.label ? ` by ${String(nextTier.label).replace(/\s*Approval\s*$/i, '').trim()}` : ''}
         </button>,
         <button key="tier_reject" onClick={() => handleApproval(r.id, 'reject')} className={`${ACTION_BTN_CLS} border border-red-300 bg-white text-red-600 hover:bg-red-50`}>
           <FiXCircle className="h-4 w-4" />Reject
@@ -758,7 +793,13 @@ export default function RequisitionsPage() {
                 {visibleDesignations.length > 0 ? (
                   <select value={form.designationId} disabled={!form.departmentId} onChange={(e) => {
                     const desig = visibleDesignations.find(d => d.id === e.target.value);
-                    setForm({ ...form, designationId: e.target.value, positionTitle: desig?.title || form.positionTitle });
+                    // Company-module auto-fill: Grade comes from the designation
+                    // level, Budget from the designation's company salary band.
+                    const band = (desig?.minSalary != null && desig?.maxSalary != null)
+                      ? `₹${Number(desig.minSalary).toLocaleString('en-IN')} – ₹${Number(desig.maxSalary).toLocaleString('en-IN')}`
+                      : form.salaryBudget;
+                    const grade = desig?.level != null ? `Grade ${desig.level}` : form.grade;
+                    setForm({ ...form, designationId: e.target.value, positionTitle: desig?.title || form.positionTitle, salaryBudget: band, grade });
                   }} className={INPUT_CLS}>
                     <option value="">{form.departmentId ? 'Select designation…' : 'Pick a department first…'}</option>
                     {visibleDesignations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
@@ -802,6 +843,35 @@ export default function RequisitionsPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Company-module linked fields: Location ← Company → Branches,
+                  Grade ← designation levels, Shift Timings ← Company → Shifts. */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Location <span className="text-red-500">*</span></label>
+                  <select value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })} className={INPUT_CLS}>
+                    <option value="">{branches.length ? 'Select location…' : 'No locations found'}</option>
+                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}{b.city ? ` — ${b.city}` : ''}</option>)}
+                  </select>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Locations come from Company → Branches master data.</p>
+                </div>
+                <div>
+                  <label className={`${LABEL_CLS} mb-1 block`}>Grade <span className="text-red-500">*</span></label>
+                  <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} className={INPUT_CLS}>
+                    <option value="">{gradeOptions.length ? 'Select grade…' : 'Pick a department first…'}</option>
+                    {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Grades come from the designation levels in the company module.</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={`${LABEL_CLS} mb-1 block`}>Shift Timings</label>
+                  <select value={form.shiftTimings} onChange={(e) => setForm({ ...form, shiftTimings: e.target.value })} className={INPUT_CLS}>
+                    <option value="">{shifts.length ? 'Select shift…' : 'No shifts configured'}</option>
+                    {shifts.map(s => <option key={s.id} value={`${s.name}${s.startTime ? ` (${s.startTime}${s.endTime ? `–${s.endTime}` : ''})` : ''}`}>{s.name}{s.startTime ? ` — ${s.startTime}${s.endTime ? `–${s.endTime}` : ''}` : ''}</option>)}
+                  </select>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Shift timings come from Company → Shifts master data.</p>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -813,12 +883,9 @@ export default function RequisitionsPage() {
             </div>
             <div className="mt-3 space-y-3">
               <div>
-                <label className={`${LABEL_CLS} mb-1 block`}>Salary Range / Budget <span className="text-red-500">*</span></label>
-                <div className="flex items-center gap-2">
-                  <input value={salaryMin} onChange={(e) => { const v = e.target.value; setSalaryMin(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(v, salaryMax) })); }} placeholder="Min" className={INPUT_CLS} inputMode="text" />
-                  <span className="shrink-0 text-sm text-slate-400">−</span>
-                  <input value={salaryMax} onChange={(e) => { const v = e.target.value; setSalaryMax(v); setForm(f => ({ ...f, salaryBudget: composeSalaryRange(salaryMin, v) })); }} placeholder="Max" className={INPUT_CLS} inputMode="text" />
-                </div>
+                <label className={`${LABEL_CLS} mb-1 block`}>Budget <span className="text-red-500">*</span></label>
+                <input value={form.salaryBudget} onChange={(e) => setForm({ ...form, salaryBudget: e.target.value })} placeholder="e.g. ₹9,00,000 – ₹12,00,000" className={INPUT_CLS} inputMode="text" />
+                <p className="mt-0.5 text-[10px] text-slate-500">Auto-filled from the company module — picking a Position inserts its salary band; you can adjust it.</p>
               </div>
 
               <div>
@@ -946,7 +1013,7 @@ export default function RequisitionsPage() {
       {/* Tabs — Employee-module underline style. switchTab resets the list
           filter so My Approvals is never silently filtered to empty. */}
       <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
-        <button type="button" onClick={() => switchTab('requisitions')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'requisitions' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Requisitions</button>
+        <button type="button" onClick={() => switchTab('requisitions')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'requisitions' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Requisition List</button>
         <button type="button" onClick={() => switchTab('approvals')} className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'approvals' ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>My Approvals ({needsActionCount})</button>
       </div>
 
@@ -976,8 +1043,9 @@ export default function RequisitionsPage() {
           </button>
         </div>
 
-        <div className="grid min-h-[460px] grid-cols-1 gap-4 xl:grid-cols-[minmax(430px,1fr)_minmax(0,1.1fr)]">
-          {/* Requisition List */}
+        <div className="space-y-4">
+          {/* Requisition List — full width; hidden while a requisition is open full-screen */}
+          {!selectedRequisition && (
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-4">
               <div className="flex items-center justify-between gap-2">
@@ -986,15 +1054,18 @@ export default function RequisitionsPage() {
               </div>
               <div className="relative mt-3"><FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID, title, or department..." className="h-10 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/10" /></div>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { switchTab('requisitions'); setListFilter(key); }} className={`rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
+                {([['all', `All (${requisitions.length})`], ['action', `Needs Action (${needsActionCount})`], ['pending', `Pending (${inApprovalCount})`], ['draft', `Draft (${draftCount})`], ['approved', `Approved (${approvedCount})`], ['rejected', `Rejected (${rejectedCount})`]] as const).map(([key, label]) => <button type="button" key={key} onClick={() => { switchTab('requisitions'); setListFilter(key); }} className={`rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${listFilter === key ? 'bg-green-700 text-white shadow-sm' : 'border border-slate-300 bg-white text-slate-700 hover:border-green-400 hover:text-green-700'}`}>{label}</button>)}
               </div>
             </div>
-            {/* Columns sized so every badge fits without cropping. On phones the
-                Openings column is hidden — 5 columns do not fit at 375px. */}
-            <div className="grid grid-cols-[64px_minmax(0,1fr)_78px_92px] items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:grid-cols-[66px_minmax(0,1fr)_44px_80px_104px]">
-              <span className="whitespace-nowrap">Req ID</span><span className="whitespace-nowrap">Position</span><span className="hidden whitespace-nowrap text-center sm:block">Open</span><span className="whitespace-nowrap text-center">Priority</span><span className="whitespace-nowrap text-center">Status</span>
+            {/* Columns sized so every badge fits without cropping. The grid keeps
+                a 920px min-width and scrolls horizontally on phones — columns
+                never overlap. */}
+            <div className="overflow-x-auto">
+            <div className="min-w-[920px]">
+            <div className="grid grid-cols-[70px_minmax(0,1.25fr)_minmax(0,0.9fr)_minmax(0,0.85fr)_42px_76px_96px_minmax(0,0.8fr)_minmax(0,1.05fr)] items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <span className="whitespace-nowrap">Req ID</span><span className="whitespace-nowrap">Position</span><span className="whitespace-nowrap">Department</span><span className="whitespace-nowrap">Location</span><span className="whitespace-nowrap text-center">Open</span><span className="whitespace-nowrap text-center">Priority</span><span className="whitespace-nowrap text-center">Status</span><span className="whitespace-nowrap">Requested By</span><span className="whitespace-nowrap text-right">View</span>
             </div>
-            <div className="max-h-[560px] space-y-1.5 overflow-y-auto p-3">
+            <div className="space-y-1.5 p-3">
               {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-slate-100" />) : filteredRequisitions.length === 0 ? (
                 <div className="px-4 py-12 text-center">
                   <FiSearch className="mx-auto h-8 w-8 text-slate-300" />
@@ -1003,20 +1074,41 @@ export default function RequisitionsPage() {
                 </div>
               ) : filteredRequisitions.map((r) => {
                 const selected = selectedRequisition?.id === r.id;
-                return <button type="button" key={r.id} onClick={() => handleView(r.id)} className={`grid min-h-[56px] w-full grid-cols-[64px_minmax(0,1fr)_78px_92px] items-center gap-1.5 rounded-lg border px-3 py-2 text-left transition sm:grid-cols-[66px_minmax(0,1fr)_44px_80px_104px] ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
+                // Dynamic status naming: say WHO it is waiting on, taken from
+                // the workflow tier (e.g. "Pending HR", "Pending Finance").
+                const tier = (r as any).nextTier as { label?: string; eligible?: boolean } | null | undefined;
+                const tierName = tier?.label ? String(tier.label).replace(/\s*Approval\s*$/i, '').trim() : '';
+                const inFlight = ['pending', 'hr_approved'].includes(r.approvalStatus) || /^tier_\d+_approved$/.test(r.approvalStatus);
+                const statusText = inFlight && tierName ? `Pending ${tierName}` : getApprovalShortLabel(r.approvalStatus);
+                const statusTitle = inFlight && tierName ? `Waiting for ${tierName} approval` : getApprovalLabel(r.approvalStatus);
+                return <div key={r.id} role="button" tabIndex={0} onClick={() => handleView(r.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleView(r.id); }} className={`grid min-h-[56px] w-full cursor-pointer grid-cols-[70px_minmax(0,1.25fr)_minmax(0,0.9fr)_minmax(0,0.85fr)_42px_76px_96px_minmax(0,0.8fr)_minmax(0,1.05fr)] items-center gap-1.5 rounded-lg border px-3 py-2 text-left transition ${selected ? 'border-green-500 bg-green-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-green-300 hover:bg-slate-50'}`}>
                   <span className="text-[11px] font-bold text-slate-900" title={r.requisitionId || '—'}>{r.requisitionId || '—'}</span>
-                  <span className="min-w-0" title={`${r.designation?.title || r.positionTitle || 'Position not specified'} — ${r.department?.name || 'Department not specified'}`}><span className="block truncate text-[13px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span><span className="block truncate text-[11px] text-slate-500">{r.department?.name || 'Department not specified'}</span></span>
-                  <span className="hidden text-center text-[13px] font-bold tabular-nums text-slate-900 sm:block">{r.numberOfOpenings}</span>
+                  <span className="min-w-0" title={r.designation?.title || r.positionTitle || 'Position not specified'}><span className="block truncate text-[13px] font-bold text-slate-900">{r.designation?.title || r.positionTitle || 'Position not specified'}</span></span>
+                  <span className="min-w-0" title={r.department?.name || 'Not specified'}><span className="block truncate text-xs font-semibold text-slate-700">{r.department?.name || 'Not specified'}</span></span>
+                  <span className="min-w-0" title={branches.find((b) => b.id === r.branchId)?.name || 'Not specified'}><span className="block truncate text-xs font-semibold text-slate-700">{branches.find((b) => b.id === r.branchId)?.name || 'Not specified'}</span></span>
+                  <span className="text-center text-[13px] font-bold tabular-nums text-slate-900">{r.numberOfOpenings}</span>
                   <span className="flex min-w-0 justify-center"><span className={`${getPriorityBadge(r.priority)} max-w-full`} title={r.priority}><span className="capitalize">{r.priority}</span></span></span>
-                  <span className="flex min-w-0 justify-center"><span className={`${getApprovalBadge(r.approvalStatus)} max-w-full`} title={getApprovalLabel(r.approvalStatus)}>{getApprovalShortLabel(r.approvalStatus)}</span></span>
-                </button>;
+                  <span className="flex min-w-0 justify-center"><span className={`${getApprovalBadge(r.approvalStatus)} max-w-full`} title={statusTitle}>{statusText}</span></span>
+                  <span className="min-w-0" title={(r as any).managerName || 'Not specified'}><span className="block truncate text-xs font-semibold text-slate-700">{(r as any).managerName || 'Not specified'}</span></span>
+                  {/* Single "View Requisition" action (user request): approvals
+                      and edits happen inside the full-screen view. */}
+                  <span className="flex min-w-0 justify-end" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" title="Open the full requisition view" onClick={() => handleView(r.id)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-green-600 bg-white px-2.5 py-1.5 text-[11px] font-bold text-green-700 transition hover:bg-green-50"><FiFileText className="h-3 w-3" /> View Requisition</button>
+                  </span>
+                </div>;
               })}
             </div>
+            </div>
+            </div>
           </div>
+          )}
 
-          {/* Requisition Detail */}
+          {/* Requisition Detail — full-screen: shows ONLY the selected
+              requisition. No back button (user request) — the "Requisition
+              List" tab returns to the list. */}
+          {selectedRequisition && (
           <div id="view-panel" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            {!selectedRequisition ? <div className="flex min-h-[440px] flex-col items-center justify-center p-8 text-center"><FiBriefcase className="h-10 w-10 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Select a requisition</p><p className="mt-1 text-xs text-slate-400">Choose a request from the list to review its details and actions.</p></div> : (() => {
+            {(() => {
               const r = selectedRequisition;
               const stageIndex = r.approvalStatus === 'budget_approved' ? 3 : r.approvalStatus === 'hr_approved' ? 2 : r.approvalStatus === 'pending' ? 1 : 0;
               const isFailed = r.approvalStatus === 'rejected';
@@ -1038,9 +1130,12 @@ export default function RequisitionsPage() {
                 {/* Mini stat tiles */}
                 <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <StatTile label="Openings" value={String(r.numberOfOpenings)} icon={<FiUsers className="h-4 w-4 text-green-600" />} />
-                  <StatTile label="Salary Budget" value={r.salaryBudget || 'Not specified'} icon={<FiDollarSign className="h-4 w-4 text-amber-500" />} />
+                  <StatTile label="Budget" value={r.salaryBudget || 'Not specified'} icon={<FiDollarSign className="h-4 w-4 text-amber-500" />} />
                   <StatTile label="Closing Date" value={r.expectedJoiningDate ? new Date(r.expectedJoiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not specified'} icon={<FiCalendar className="h-4 w-4 text-green-600" />} />
                   <StatTile label="Interview Rounds" value={String(parseInterviewPlan(r.interviewPlan || '[]').length)} icon={<FiLayers className="h-4 w-4 text-green-600" />} />
+                  <StatTile label="Grade" value={r.grade || 'Not specified'} icon={<FiLayers className="h-4 w-4 text-violet-500" />} />
+                  <StatTile label="Location" value={branches.find((b) => b.id === r.branchId)?.name || 'Not specified'} icon={<FiMapPin className="h-4 w-4 text-cyan-500" />} />
+                  <StatTile label="Shift Timings" value={r.shiftTimings || 'Not specified'} icon={<FiClock className="h-4 w-4 text-slate-500" />} />
                 </div>
 
                 {/* Required skills */}
@@ -1082,6 +1177,9 @@ export default function RequisitionsPage() {
                     <DetailField label="Qualification" value={r.qualification || 'Not specified'} />
                     <DetailField label="Position Type" value={r.positionType || 'Not specified'} capitalize />
                     <DetailField label="Employment Type" value={r.employmentType || 'Not specified'} capitalize />
+                    <DetailField label="Grade" value={r.grade || 'Not specified'} />
+                    <DetailField label="Location" value={branches.find((b) => b.id === r.branchId)?.name || (r as any).branch?.name || 'Not specified'} />
+                    <DetailField label="Shift Timings" value={r.shiftTimings || 'Not specified'} />
                   </div>
                 )}
 
@@ -1102,6 +1200,7 @@ export default function RequisitionsPage() {
               </div>;
             })()}
           </div>
+          )}
         </div>
       </section>
 

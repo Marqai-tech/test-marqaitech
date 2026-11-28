@@ -1506,9 +1506,8 @@ export default function RecruitmentPage() {
   // The pencil icon opens a status dropdown right in the row (no redirect to
   // the create-jobs form). Changing to 'open' re-enters the approval chain
   // server-side when the posting hasn't been approved yet.
-  const [statusEditingId, setStatusEditingId] = useState<string | null>(null);
-  const [statusDraft, setStatusDraft] = useState('open');
-  const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
+  /* Inline status editing removed (user request): job status now updates
+     automatically from the approval flow — no manual pencil editing. */
   // Job approval chain: which pending jobs the current user can approve/reject
   const [jobApprovalMap, setJobApprovalMap] = useState<Record<string, { canApprove: boolean; currentTier?: { label: string; index: number; total: number } }>>({});
   const [jobActionBusyId, setJobActionBusyId] = useState<string | null>(null);
@@ -1528,7 +1527,8 @@ export default function RecruitmentPage() {
     }
   }, []);
 
-  const [expandedJob, setExpandedJob] = useState<string | null>(null);
+  /* Inline job info panel removed (user request) — the eye icon opens the
+     full detail page, so no per-row expand state is needed anymore. */
 
   /* ─── Job Search Matrix (talent-acquisition candidate shortlisting) ─── */
   const [searchFilters, setSearchFilters] = useState({
@@ -1678,30 +1678,8 @@ export default function RecruitmentPage() {
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
   useEffect(() => { queueMicrotask(() => fetchJobApprovals()); }, [fetchData, fetchJobApprovals]);
 
-  /* Inline status update from the Job Posting List (pencil → dropdown → save). */
-  const handleSaveJobStatus = async (jobId: string, nextStatus: string) => {
-    try {
-      setStatusSavingId(jobId);
-      const res = await fetch(`/api/recruitment/${jobId}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error || 'Failed to update status');
-      const approvalNote = nextStatus === 'open' && data?.jobPosting?.status === 'pending_approval'
-        ? ' — sent for approval'
-        : '';
-      toast.success(`Status updated to ${getJobStatusBadge(nextStatus).label}${approvalNote}`);
-      setStatusEditingId(null);
-      fetchData();
-      fetchJobApprovals();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update status');
-    } finally {
-      setStatusSavingId(null);
-    }
-  };
+  /* Inline status update removed from the Job Posting List (user request) —
+     the job status is driven automatically by the approval flow. */
 
   /* Approve / reject the current tier of a pending job from the list. */
   const handleJobApprovalAction = async (jobId: string, jobTitle: string, action: 'approve' | 'reject') => {
@@ -1830,63 +1808,16 @@ export default function RecruitmentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromRequisitionParam]);
 
-  /* Open Job Form - Add */
+  /* Open Job Form - Add: jobs can no longer be created free-form — every job
+     starts from a fully approved requisition (user requirement), so this opens
+     the "From Requisition" picker instead of an empty form. */
   const handleOpenAddJobForm = () => {
-    setEditingJobId(null);
-    setJobRequisitionId(null);
-    setJobForm(initialJobForm);
-    setJobFormStep(1);
-    setHiringTeam([]);
-    setHiringTeamEnabled(true);
-    setJobSkills([]);
-    setSkillInput('');
-    setShowJobForm(true);
-    setShowAppForm(false);
-    setDeleteConfirmId(null);
-    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    setJobsSubTab('requisitions');
+    toast.success('Jobs are created from approved requisitions — pick one below');
   };
 
-  /* Open Job Form - Edit */
-  const handleOpenEditJobForm = (job: JobPosting) => {
-    setEditingJobId(job.id);
-    // "Key Skills:" chips were stored as the first requirements line — parse
-    // them back into the chip editor and keep the remainder as requirements.
-    const parsedSkills = parseSkillsFromRequirements(job.requirements || '');
-    setJobSkills(parsedSkills.skills);
-    setSkillInput('');
-    setJobForm({
-      title: job.title,
-      departmentId: job.department?.id || '',
-      position: job.position,
-      location: job.location || '',
-      workMode: (job as JobPosting & { workMode?: string }).workMode || 'hybrid',
-      type: job.type,
-      experience: job.experience || '',
-      salary: job.salary || '',
-      description: job.description,
-      requirements: parsedSkills.rest,
-      vacancies: String(job.vacancies),
-      closingDate: job.closingDate ? job.closingDate.split('T')[0] : '',
-      status: job.status || 'open',
-      interviewPlan: job.interviewPlan || initialJobForm.interviewPlan,
-    });
-    // Prefill the saved hiring team (stored as a JSON string column) so the
-    // picker shows the existing members and the "Configure team" toggle
-    // reflects whether a team was set.
-    let parsedHiringTeam: Array<{ id: string; name: string; role: string; round?: number }> = [];
-    try {
-      const rawTeam = (job as JobPosting & { hiringTeam?: string | null }).hiringTeam;
-      const parsed = rawTeam ? (typeof rawTeam === 'string' ? JSON.parse(rawTeam) : rawTeam) : [];
-      if (Array.isArray(parsed)) parsedHiringTeam = parsed;
-    } catch { /* keep default [] */ }
-    setHiringTeam(parsedHiringTeam);
-    setHiringTeamEnabled(Array.isArray(parsedHiringTeam) && parsedHiringTeam.length > 0);
-    setJobFormStep(1);
-    setShowJobForm(true);
-    setShowAppForm(false);
-    setDeleteConfirmId(null);
-    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  };
+  /* Job edit entry removed from the list (user request) — jobs are managed
+     from their detail page; the list keeps view / approve / delete only. */
 
   /* Create Job from an approved requisition: auto-fill everything the
      requisition already knows (department, role, skills, experience,
@@ -2218,7 +2149,7 @@ export default function RecruitmentPage() {
       return true;
     });
   }, [displayJobs, jobSearch, jobTypeFilter, jobStatusFilter, jobDeptFilter]);
-  const selectedJob = useMemo(() => displayJobs.find(job => job.id === expandedJob) || filteredJobs[0] || null, [displayJobs, expandedJob, filteredJobs]);
+  /* selectedJob memo removed with the inline job info panel (user request). */
 
   const filteredCandidates = useMemo(() => {
     return maskedApplications.filter(app => {
@@ -2665,7 +2596,7 @@ export default function RecruitmentPage() {
                       <td colSpan={7} className="px-5 py-16 text-center">
                         <FiBriefcase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
                         <p className="text-thb-text-secondary font-medium">{displayJobs.length === 0 ? 'No job postings yet' : 'No jobs match your filters'}</p>
-                        <p className="text-sm text-thb-text-muted mt-1">{displayJobs.length === 0 ? 'Create your first job posting to start hiring' : 'Try adjusting your search or filter criteria'}</p>
+                        <p className="text-sm text-thb-text-muted mt-1">{displayJobs.length === 0 ? 'Jobs are created from approved requisitions — open the From Requisition tab' : 'Try adjusting your search or filter criteria'}</p>
                       </td>
                     </tr>
                   ) : (
@@ -2673,7 +2604,6 @@ export default function RecruitmentPage() {
                       const badge = getJobStatusBadge(job.status);
                       const typeBadge = getJobTypeBadge(job.type);
                       const isDeleting = deleteConfirmId === job.id;
-                      const isEditingStatus = statusEditingId === job.id && statusSavingId !== job.id;
                       const approvalInfo = jobApprovalMap[job.id];
                       return (
                         <Fragment key={job.id}>
@@ -2700,7 +2630,7 @@ export default function RecruitmentPage() {
                             </tr>
                           ) : (
                             <>
-                              <tr onClick={() => setExpandedJob(job.id)} className="cursor-pointer border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                              <tr className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                                 <td className="px-5 py-4">
                                   <div className="min-w-0">
                                     <p className="text-sm font-semibold text-thb-text-primary">{job.title}</p>
@@ -2733,38 +2663,9 @@ export default function RecruitmentPage() {
                                   <span className="text-sm text-thb-text-secondary">{formatDate(job.postedDate)}</span>
                                 </td>
                                 <td className="px-5 py-4">
-                                  {isEditingStatus ? (
-                                    <div className="flex items-center gap-1.5">
-                                      <select
-                                        value={statusDraft}
-                                        onChange={e => setStatusDraft(e.target.value)}
-                                        disabled={statusSavingId === job.id}
-                                        className="px-2 py-1.5 rounded-lg border border-teal-300 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white"
-                                        autoFocus
-                                      >
-                                        <option value="open">Open</option>
-                                        <option value="closed">Closed</option>
-                                        <option value="on_hold">On Hold</option>
-                                        <option value="filled">Filled</option>
-                                      </select>
-                                      <button
-                                        onClick={() => handleSaveJobStatus(job.id, statusDraft)}
-                                        disabled={statusSavingId === job.id}
-                                        className="px-2 py-1.5 bg-teal-600 text-white text-[11px] font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
-                                        title="Save status"
-                                      >
-                                        {statusSavingId === job.id ? '…' : 'Save'}
-                                      </button>
-                                      <button
-                                        onClick={() => { setStatusEditingId(null); setStatusDraft('open'); }}
-                                        className="px-2 py-1.5 border border-thb-border text-[11px] font-medium rounded-lg hover:bg-slate-50 transition-colors"
-                                        title="Cancel"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex flex-col items-start gap-1">
+                                  {/* Status updates automatically from the approval flow —
+                                      no manual status editing (user request). */}
+                                  <div className="flex flex-col items-start gap-1">
                                       <span className={badge.className}>{badge.label}</span>
                                       {job.status === 'pending_approval' && approvalInfo?.currentTier && (
                                         <span className="text-[10px] text-amber-600 font-medium" title={`Waiting for ${approvalInfo.currentTier.label} (tier ${approvalInfo.currentTier.index + 1} of ${approvalInfo.currentTier.total})`}>
@@ -2775,7 +2676,6 @@ export default function RecruitmentPage() {
                                         <span className="text-[10px] text-red-600 font-medium">Approval rejected</span>
                                       )}
                                     </div>
-                                  )}
                                 </td>
                                 <td className="px-5 py-4">
                                   <div className="flex items-center justify-end gap-1">
@@ -2786,15 +2686,6 @@ export default function RecruitmentPage() {
                                     >
                                       <FiEye className="w-4 h-4" />
                                     </Link>
-                                    {isAdmin && (
-                                      <button
-                                        onClick={() => { setStatusEditingId(statusEditingId === job.id ? null : job.id); setStatusDraft(job.status === 'pending_approval' ? 'open' : (job.status || 'open')); }}
-                                        className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                                        title="Edit Status"
-                                      >
-                                        <FiEdit2 className="w-4 h-4" />
-                                      </button>
-                                    )}
                                     {approvalInfo?.canApprove && job.status === 'pending_approval' && (
                                       <>
                                         <button
@@ -2834,17 +2725,9 @@ export default function RecruitmentPage() {
             </div>
           </div>
           </div>
-          <section className="thb-card flex min-h-0 h-full flex-col overflow-hidden border border-thb-border">
-            <div className="border-b border-thb-border px-4 py-3"><h2 className="text-lg font-bold text-thb-text-primary">Job Details</h2><p className="mt-0.5 text-xs text-thb-text-muted">Select a job to view its posting details.</p></div>
-            {selectedJob ? <div className="flex h-[calc(100%-4.5rem)] flex-col gap-3 overflow-y-auto p-4">
-              <div className="flex items-start justify-between gap-3"><div><h3 className="text-xl font-bold text-slate-950">{selectedJob.title}</h3><p className="mt-1 text-xs text-slate-500">{selectedJob.position || 'Job posting'} · {selectedJob.department?.name || 'Department'}</p></div><span className={getJobStatusBadge(selectedJob.status).className}>{getJobStatusBadge(selectedJob.status).label}</span></div>
-              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-xs"><div className="flex items-center justify-between gap-4 py-2"><span className="text-slate-500">Employment type</span><b className="capitalize text-slate-900">{selectedJob.type}</b></div><div className="flex items-center justify-between gap-4 py-2"><span className="text-slate-500">Openings</span><b className="text-slate-900">{selectedJob.vacancies}</b></div><div className="flex items-center justify-between gap-4 py-2"><span className="text-slate-500">Location</span><b className="text-right text-slate-900">{selectedJob.location || 'Not specified'}</b></div><div className="flex items-center justify-between gap-4 py-2"><span className="text-slate-500">Closing date</span><b className="text-slate-900">{selectedJob.closingDate ? formatDate(selectedJob.closingDate) : 'Not specified'}</b></div><div className="flex items-center justify-between gap-4 py-2"><span className="text-slate-500">Salary budget</span><b className="text-right text-slate-900">{selectedJob.salary || 'Not specified'}</b></div></div>
-              <div><h4 className="text-xs font-bold text-slate-800">Interview Rounds</h4><div className="mt-1 flex flex-wrap gap-1.5">{parseInterviewPlan(selectedJob.interviewPlan || '').map((round, index) => <span key={`${round.name}-${index}`} className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">{index + 1}. {round.name || 'Unnamed round'}</span>)}</div></div>
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3"><h4 className="text-xs font-bold text-emerald-900">Applications</h4><p className="mt-1 text-2xl font-bold text-emerald-700">{selectedJob._count?.applications || selectedJob.applications?.length || 0}</p></div>
-              <div className="space-y-3"><div><h4 className="text-xs font-bold text-slate-800">Description</h4><p className="mt-1 line-clamp-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-2.5 text-xs leading-5 text-slate-600">{selectedJob.description || 'No description added.'}</p></div><div><h4 className="text-xs font-bold text-slate-800">Requirements</h4><p className="mt-1 line-clamp-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-2.5 text-xs leading-5 text-slate-600">{selectedJob.requirements || 'No requirements added.'}</p></div></div>
-              <div className="mt-auto flex flex-wrap gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => handleOpenEditJobForm(selectedJob)} className="rounded-lg border border-thb-border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit Job</button><Link href={`/recruitment/${selectedJob.id}`} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50">View Applications</Link><button type="button" onClick={() => setDeleteConfirmId(selectedJob.id)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></div>
-            </div> : <div className="flex h-[420px] items-center justify-center p-6 text-center text-sm text-slate-500">No job postings available.</div>}
-          </section>
+          {/* User request: the inline "Job Details" panel below the list is
+              removed — the eye icon opens the full job detail page instead,
+              and jobs can only be created from approved requisitions. */}
         </div>
         )}
         {jobsSubTab === 'requisitions' && (

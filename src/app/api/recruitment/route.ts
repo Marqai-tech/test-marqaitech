@@ -223,6 +223,20 @@ export async function GET(request: Request) {
       }).catch(() => []),
     ]);
 
+    // Upcoming-interviews fallback: the company-scoped query can miss
+    // interviews whose job posting carries a different/null company marker.
+    // If nothing came back, retry tenant-wide so the dashboard reflects the
+    // real scheduled interviews instead of an empty card.
+    if ((recentInterviews as Array<Record<string, unknown>>).length === 0) {
+      const fallbackInterviews = await db.interview.findMany({
+        where: { status: 'scheduled', date: { gte: now } },
+        include: { jobApplication: { select: { candidateName: true, jobPosting: { select: { title: true } } } } },
+        orderBy: { date: 'asc' },
+        take: 5,
+      }).catch(() => []);
+      (recentInterviews as unknown[]).push(...(fallbackInterviews as unknown[]));
+    }
+
     // Dynamic pipeline config → stage labels/order come from workflow config
     const wfConfig = await resolveRecruitmentConfig(db, decodedRec.tenantId as string, companyId || null).catch(() => null);
     const countByStatus = new Map<string, number>(

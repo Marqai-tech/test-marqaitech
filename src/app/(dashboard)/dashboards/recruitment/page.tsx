@@ -84,11 +84,13 @@ const STAT_ACCENTS: Record<string, { bg: string; ring: string }> = {
 };
 
 const QUICK_ACTIONS = [
-  { label: 'Post New Job', icon: FiPlus, color: COLORS.indigo, href: '/job-portal' },
+  // All actions route to the NEW-build recruitment screens (Recruitment module
+  // tab screens), never the retired standalone pages.
+  { label: 'Post New Job', icon: FiPlus, color: COLORS.indigo, href: '/recruitment?tab=jobs&single=jobs' },
   { label: 'Schedule Interview', icon: FiCalendar, color: COLORS.emerald, href: '/interviews' },
-  { label: 'Review Applications', icon: FiEye, color: COLORS.amber, href: '/recruitment' },
+  { label: 'Review Applications', icon: FiEye, color: COLORS.amber, href: '/recruitment?tab=candidates&single=candidates' },
   { label: 'Talent Pool', icon: FiUsers, color: COLORS.pink, href: '/recruitment/talent-pool' },
-  { label: 'Offer Management', icon: FiSend, color: COLORS.cyan, href: '/offers' },
+  { label: 'Offer Management', icon: FiSend, color: COLORS.cyan, href: '/offers/dashboard' },
   { label: 'Analytics', icon: FiBarChart2, color: COLORS.violet, href: '/recruitment/analytics' },
 ];
 
@@ -255,45 +257,11 @@ function InterviewTypeBadge({ type }: { type: string }) {
 
 /* ── Placeholder Tabs ── */
 
+/* User request: the top tab strip must contain ONLY Overview — the Reports
+   and Settings placeholder tabs (and their placeholder screens) are removed. */
 const recruitmentTabs: DashboardTabConfig[] = [
   { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
-  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
-  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
 ];
-
-function RecruitmentReportsPlaceholder() {
-  return (
-    <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
-        <FiFileText className="w-7 h-7 text-white" />
-      </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
-        Hiring analytics, pipeline reports, and recruitment metrics
-      </p>
-      <a href="/recruitment/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
-        <FiBarChart2 className="w-4 h-4" /> Go to Reports
-      </a>
-    </div>
-  );
-}
-
-function RecruitmentSettingsPlaceholder() {
-  return (
-    <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center shadow-lg mb-4">
-        <FiSettings className="w-7 h-7 text-white" />
-      </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Settings & Configuration</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
-        Configure hiring workflows, approval chains, and recruitment preferences
-      </p>
-      <a href="/recruitment/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
-        <FiSettings className="w-4 h-4" /> Go to Settings
-      </a>
-    </div>
-  );
-}
 
 function RecruitmentPageContent() {
   return (
@@ -308,10 +276,6 @@ function RecruitmentPageContent() {
       gradientColor="from-teal-500 to-teal-600"
       tabs={recruitmentTabs}
       overviewContent={<RecruitmentContent />}
-      children={{
-        reports: <RecruitmentReportsPlaceholder />,
-        settings: <RecruitmentSettingsPlaceholder />,
-      }}
     />
     </>
   );
@@ -340,8 +304,6 @@ function RecruitmentContent() {
   const [recentApplications, setRecentApplications] = useState<Application[]>([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState<Interview[]>([]);
   const [quickActions] = useState<QuickAction[]>(QUICK_ACTIONS);
-
-  const companyName = selectedCompany?.name || user?.company?.name || '3Boxes Tech';
 
   /* ─── fetch data ─── */
   useEffect(() => {
@@ -424,19 +386,8 @@ function RecruitmentContent() {
   return (
     <div className="space-y-6 pb-8">
 
-      {/* Task 156 — header actions (moved from the old in-content banner; the shell now renders the SmartHR banner) */}
-      <div className="flex items-center justify-between gap-2 flex-wrap -mt-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            {companyName}
-          </span>
-          <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 shadow-sm">
-            {/* Phase 15 fix: Dynamic quarter instead of hardcoded "Q1 2026" */}
-            {new Date().getFullYear()} Q{Math.floor(new Date().getMonth() / 3) + 1}
-          </span>
-        </div>
-      </div>
+      {/* User request: the top chip area (company name + year-quarter pills)
+          is removed — the dashboard opens directly with the KPI cards. */}
 
       {/* ═══════ Stat Cards — shared SmartHR StatCard (Task 156-b) ═══════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -601,7 +552,7 @@ function RecruitmentContent() {
               icon={<FiFileText className="w-4 h-4" />}
               accent="text-[#10B981]"
               action={
-                <button onClick={() => router.push('/recruitment')} className="text-xs text-[#3A57C4] font-semibold hover:underline flex items-center gap-1 cursor-pointer">
+                <button onClick={() => router.push('/recruitment?tab=candidates&single=candidates')} className="text-xs text-[#3A57C4] font-semibold hover:underline flex items-center gap-1 cursor-pointer">
                   View All <FiChevronRight className="w-3 h-3" />
                 </button>
               }
@@ -621,7 +572,7 @@ function RecruitmentContent() {
                     {recentApplications.length === 0 ? (
                       <tr><td colSpan={5} className="py-8 text-center text-sm text-thb-text-muted">No recent applications found.</td></tr>
                     ) : recentApplications.map((app) => (
-                      <tr key={app.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => router.push('/recruitment')}>
+                      <tr key={app.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => router.push('/recruitment?tab=candidates&single=candidates')}>
                         <td className="py-3 px-3 font-medium text-thb-text-primary">{app.candidate}</td>
                         <td className="py-3 px-3 text-thb-text-secondary max-w-[180px] truncate">{app.role}</td>
                         <td className="py-3 px-3"><SourceBadge source={app.source} /></td>
@@ -658,7 +609,9 @@ function RecruitmentContent() {
                 </div>
               }
             >
-              <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+              {/* User request: no internal scrolling — the card grows with its
+                  content and the page scrolls normally. */}
+              <div className="space-y-3">
                 {upcomingInterviews.length === 0 ? (
                   <div className="py-8 text-center text-sm text-thb-text-muted">No upcoming interviews scheduled.</div>
                 ) : upcomingInterviews.map((interview) => {

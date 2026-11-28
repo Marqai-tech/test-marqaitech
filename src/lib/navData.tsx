@@ -395,8 +395,6 @@ export const navSections: NavSection[] = [
     description: 'Talent acquisition & hiring pipeline',
     dashboardTabs: [
       { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
-      { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
-      { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
       // ── Primary recruitment workflow (kept in operational order) ──
@@ -405,7 +403,7 @@ export const navSections: NavSection[] = [
       // sub-tabs open or closed; the children are the actual links.
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment', children: [
         { label: 'Requisition Form', href: '/requisitions?view=form', icon: <FiEdit3 className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
-        { label: 'Requisition List', href: '/requisitions?view=list', icon: <FiList className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
+        { label: 'Requisitions', href: '/requisitions?view=list', icon: <FiList className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
       ] },
       { label: 'Create Jobs', href: '/recruitment?tab=jobs&single=jobs', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Find Candidates', href: '/recruitment?tab=candidates&single=candidates', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
