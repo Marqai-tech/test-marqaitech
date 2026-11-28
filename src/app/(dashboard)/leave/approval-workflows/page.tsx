@@ -184,7 +184,28 @@ export default function ApprovalWorkflowsPage() {
     if (activeTab === 'proxy' && proxyDelegations.length === 0 && !proxyLoading) {
       fetchProxyDelegations();
     }
-  }, [activeTab, proxyDelegations.length, proxyLoading, fetchProxyDelegations]);
+    // Also fetch employees if they haven't been loaded yet (needed for the
+    // proxy modal dropdowns). The workflow tab fetches them via fetchWorkflows,
+    // but if the user goes directly to the proxy tab, employees would be empty
+    // and the dropdown would show "Unknown".
+    if (activeTab === 'proxy' && employees.length === 0) {
+      const h = getAuthHeaders();
+      const sq = scopeQuery();
+      fetch(`/api/employees?limit=200&excludeManagement=0${sq ? `&${sq}` : ''}`, { headers: h })
+        .then(r => r.ok ? r.json() : { employees: [] })
+        .then(d => {
+          const emps = (d.employees || d.data || []).map((e: any) => ({
+            id: e.id,
+            name: `${e.firstName || ''} ${e.lastName || ''}`.trim(),
+            email: e.email || '',
+            role: e.user?.role || e.role || '',
+            employeeId: e.employeeId || '',
+          }));
+          setEmployees(emps);
+        })
+        .catch(() => {});
+    }
+  }, [activeTab, proxyDelegations.length, proxyLoading, fetchProxyDelegations, employees.length, scopeQuery]);
 
   const saveProxy = async (data: any) => {
     setProxySaving(true);
@@ -696,9 +717,9 @@ export default function ApprovalWorkflowsPage() {
         </div>
       )}
 
-      {/* Proxy Modal */}
+      {/* Proxy inline form (replaces the popup modal) */}
       {showProxyModal && (
-        <ProxyModal
+        <ProxyForm
           editing={editingProxy}
           employees={employees}
           leaveTypes={leaveTypes}
@@ -1050,8 +1071,8 @@ export default function ApprovalWorkflowsPage() {
   );
 }
 
-/* ─── Proxy Modal Component ─── */
-function ProxyModal({ editing, employees, leaveTypes, onSave, onClose, saving }: {
+/* ─── Proxy Form Component (inline panel, not a popup) ─── */
+function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: {
   editing: any | null;
   employees: EmpOption[];
   leaveTypes: LeaveType[];
@@ -1103,138 +1124,147 @@ function ProxyModal({ editing, employees, leaveTypes, onSave, onClose, saving }:
     { key: 'canReject', label: 'Reject (with reason)' },
     { key: 'canReturnForClarification', label: 'Return for clarification' },
     { key: 'canModifyDates', label: 'Modify dates / duration' },
-    { key: 'canChangeLeaveType', label: 'Change leave type (e.g. CL → LWP)' },
+    { key: 'canChangeLeaveType', label: 'Change leave type (e.g. CL \u2192 LWP)' },
     { key: 'canPartiallyApprove', label: 'Partially approve' },
     { key: 'canCancelApproved', label: 'Cancel approved leave' },
     { key: 'canRedelegate', label: 'Re-delegate to another person' },
   ];
 
-  const empOptions = employees.filter(e => e.role && ['tenant_admin','admin','hr_admin','manager','ceo','employee'].includes((e.role||'').toLowerCase()));
+  // Show all employees with a role (for the dropdowns)
+  const empOptions = employees.length > 0
+    ? employees
+    : [];
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div>
           <h3 className="text-lg font-bold text-slate-900">{editing ? 'Edit Proxy Approver' : 'Assign Proxy Approver'}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><FiX className="w-5 h-5" /></button>
+          <p className="text-sm text-slate-500 mt-0.5">Delegate approval authority when the original approver is unavailable or misses SLA.</p>
         </div>
-        <div className="p-6 space-y-5">
-          {/* Approver + Proxy */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Original Approver <span className="text-red-500">*</span></label>
-              <select value={form.approverId} onChange={e => set('approverId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
-                <option value="">— Select approver —</option>
-                {empOptions.map(e => <option key={e.id} value={e.id}>{e.name} ({e.role})</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Proxy Approver <span className="text-red-500">*</span></label>
-              <select value={form.proxyId} onChange={e => set('proxyId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
-                <option value="">— Select proxy —</option>
-                {empOptions.filter(e => e.id !== form.approverId).map(e => <option key={e.id} value={e.id}>{e.name} ({e.role})</option>)}
-              </select>
-            </div>
-          </div>
+        <button onClick={onClose} className="h-9 px-4 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+          <FiX className="w-4 h-4" /> Close
+        </button>
+      </div>
 
-          {/* Date range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Start Date <span className="text-red-500">*</span></label>
-              <input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
-            </div>
-            <div>
-              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">End Date <span className="text-red-500">*</span></label>
-              <input type="date" value={form.endDate} min={form.startDate} onChange={e => set('endDate', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
-            </div>
-          </div>
-
-          {/* Activation condition */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Activation Condition</label>
-              <select value={form.activationCondition} onChange={e => set('activationCondition', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
-                <option value="sla_timeout">Approver didn't act within SLA</option>
-                <option value="on_leave">Approver on leave</option>
-                <option value="always">Always</option>
-              </select>
-            </div>
-            {form.activationCondition === 'sla_timeout' && (
-              <div>
-                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">SLA Hours (auto-escalate after)</label>
-                <input type="number" min={1} value={form.slaHours} onChange={e => set('slaHours', parseInt(e.target.value) || 24)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
-              </div>
-            )}
-          </div>
-
-          {/* Leave types */}
+      {/* Body */}
+      <div className="p-6 space-y-5">
+        {/* Approver + Proxy */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Leave Types</label>
-            <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => set('leaveTypeIds', ['all'])}
-                className={`px-2.5 py-1 rounded text-[11px] font-bold border ${form.leaveTypeIds.includes('all') ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>All Types</button>
-              {leaveTypes.map(lt => (
-                <button key={lt.id} onClick={() => toggleLeaveType(lt.id)}
-                  className={`px-2.5 py-1 rounded text-[11px] font-bold border ${form.leaveTypeIds.includes(lt.id) ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{lt.code}</button>
-              ))}
-            </div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Original Approver <span className="text-red-500">*</span></label>
+            <select value={form.approverId} onChange={e => set('approverId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
+              <option value="">— Select approver —</option>
+              {empOptions.map(e => <option key={e.id} value={e.id}>{e.name} {e.role ? `(${e.role})` : ''} {e.email ? `— ${e.email}` : ''}</option>)}
+            </select>
           </div>
-
-          {/* Max leave days */}
           <div>
-            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Max leave days proxy can approve (0 = unlimited, escalate if exceeded)</label>
-            <input type="number" min={0} value={form.maxLeaveDays} onChange={e => set('maxLeaveDays', parseInt(e.target.value) || 0)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
-          </div>
-
-          {/* Permissions */}
-          <div>
-            <label className="block text-[12.5px] font-semibold text-slate-700 mb-2">Proxy Permissions</label>
-            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-slate-50 border border-slate-100">
-              {PERMISSION_FIELDS.map(p => (
-                <label key={p.key} className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={form.permissions[p.key] === true} onChange={e => setPerm(p.key, e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
-                  {p.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Reason */}
-          <div>
-            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Reason (optional)</label>
-            <textarea rows={2} value={form.reason} onChange={e => set('reason', e.target.value)} placeholder="e.g. Annual leave, business trip"
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none" />
-          </div>
-
-          {/* Notification options */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
-              <input type="checkbox" checked={form.notifyOriginalApprover} onChange={e => set('notifyOriginalApprover', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
-              Notify original approver of proxy actions
-            </label>
-            <label className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
-              <input type="checkbox" checked={form.showProxyNameToEmployee} onChange={e => set('showProxyNameToEmployee', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
-              Show proxy name to employee
-            </label>
-          </div>
-
-          {/* Enabled toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100">
-            <span className="text-[12.5px] font-semibold text-slate-700">Enabled</span>
-            <button onClick={() => set('isEnabled', !form.isEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Proxy Approver <span className="text-red-500">*</span></label>
+            <select value={form.proxyId} onChange={e => set('proxyId', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
+              <option value="">— Select proxy —</option>
+              {empOptions.filter(e => e.id !== form.approverId).map(e => <option key={e.id} value={e.id}>{e.name} {e.role ? `(${e.role})` : ''} {e.email ? `— ${e.email}` : ''}</option>)}
+            </select>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 sticky bottom-0 bg-white">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-          <button onClick={submit} disabled={saving} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
-            {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSave className="w-4 h-4" />} Save Proxy
+        {/* Date range */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Start Date <span className="text-red-500">*</span></label>
+            <input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+          </div>
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">End Date <span className="text-red-500">*</span></label>
+            <input type="date" value={form.endDate} min={form.startDate} onChange={e => set('endDate', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+          </div>
+        </div>
+
+        {/* Activation condition */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Activation Condition</label>
+            <select value={form.activationCondition} onChange={e => set('activationCondition', e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white">
+              <option value="sla_timeout">Approver didn't act within SLA</option>
+              <option value="on_leave">Approver on leave</option>
+              <option value="always">Always</option>
+            </select>
+          </div>
+          {form.activationCondition === 'sla_timeout' && (
+            <div>
+              <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">SLA Hours (auto-escalate after)</label>
+              <input type="number" min={1} value={form.slaHours} onChange={e => set('slaHours', parseInt(e.target.value) || 24)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+            </div>
+          )}
+        </div>
+
+        {/* Leave types */}
+        <div>
+          <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Leave Types</label>
+          <div className="flex flex-wrap gap-1.5">
+            <button onClick={() => set('leaveTypeIds', ['all'])}
+              className={`px-2.5 py-1 rounded text-[11px] font-bold border ${form.leaveTypeIds.includes('all') ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>All Types</button>
+            {leaveTypes.map(lt => (
+              <button key={lt.id} onClick={() => toggleLeaveType(lt.id)}
+                className={`px-2.5 py-1 rounded text-[11px] font-bold border ${form.leaveTypeIds.includes(lt.id) ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{lt.code}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Max leave days */}
+        <div>
+          <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Max leave days proxy can approve (0 = unlimited, escalate if exceeded)</label>
+          <input type="number" min={0} value={form.maxLeaveDays} onChange={e => set('maxLeaveDays', parseInt(e.target.value) || 0)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" />
+        </div>
+
+        {/* Permissions */}
+        <div>
+          <label className="block text-[12.5px] font-semibold text-slate-700 mb-2">Proxy Permissions</label>
+          <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-slate-50 border border-slate-100">
+            {PERMISSION_FIELDS.map(p => (
+              <label key={p.key} className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
+                <input type="checkbox" checked={form.permissions[p.key] === true} onChange={e => setPerm(p.key, e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+                {p.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Reason */}
+        <div>
+          <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Reason (optional)</label>
+          <textarea rows={2} value={form.reason} onChange={e => set('reason', e.target.value)} placeholder="e.g. Annual leave, business trip"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none" />
+        </div>
+
+        {/* Notification options */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
+            <input type="checkbox" checked={form.notifyOriginalApprover} onChange={e => set('notifyOriginalApprover', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+            Notify original approver of proxy actions
+          </label>
+          <label className="flex items-center gap-2 text-[12.5px] text-slate-700 cursor-pointer">
+            <input type="checkbox" checked={form.showProxyNameToEmployee} onChange={e => set('showProxyNameToEmployee', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+            Show proxy name to employee
+          </label>
+        </div>
+
+        {/* Enabled toggle */}
+        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100">
+          <span className="text-[12.5px] font-semibold text-slate-700">Enabled</span>
+          <button onClick={() => set('isEnabled', !form.isEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100">
+        <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+        <button onClick={submit} disabled={saving} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
+          {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSave className="w-4 h-4" />} Save Proxy
+        </button>
       </div>
     </div>
   );
