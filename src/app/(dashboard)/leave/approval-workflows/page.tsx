@@ -1119,7 +1119,7 @@ function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: 
     if (!form.approverId || !form.proxyId) { toast.error('Select both approver and proxy'); return; }
     if (form.approverId === form.proxyId) { toast.error('Approver and proxy cannot be the same'); return; }
     if (!form.startDate || !form.endDate) { toast.error('Date range is required'); return; }
-    onSave(form);
+    onSave({ ...form, branchIds: selectedBranchIds, departmentIds: selectedDeptIds, designationIds: selectedDesignationIds });
   };
 
   const PERMISSION_FIELDS = [
@@ -1136,21 +1136,46 @@ function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: 
   // Show all employees with a role (for the dropdowns)
   const empOptions = employees.length > 0 ? employees : [];
 
-  // ─── Filter state: shortlist employees by branch / dept / designation ───
-  const [filterBranch, setFilterBranch] = useState('');
-  const [filterDept, setFilterDept] = useState('');
-  const [filterDesignation, setFilterDesignation] = useState('');
+  // ─── Multi-select scope: branches / departments / designations ───
+  // Fetched from /api/branches, /api/departments, /api/designations.
+  // HR selects which branches/depts/designations this proxy applies to.
+  // The selected IDs are saved on the LeaveProxyDelegation row.
+  const [branchList, setBranchList] = useState<Array<{id:string;name:string}>>([]);
+  const [deptList, setDeptList] = useState<Array<{id:string;name:string}>>([]);
+  const [designationList, setDesignationList] = useState<Array<{id:string;title:string}>>([]);
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>(editing?.branchIds || []);
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>(editing?.departmentIds || []);
+  const [selectedDesignationIds, setSelectedDesignationIds] = useState<string[]>(editing?.designationIds || []);
 
-  // Derive unique values for the filter dropdowns
-  const branchOptions = [...new Set(empOptions.map(e => e.branch).filter(Boolean))].sort();
-  const deptOptions = [...new Set(empOptions.map(e => e.department).filter(Boolean))].sort();
-  const designationOptions = [...new Set(empOptions.map(e => e.designation).filter(Boolean))].sort();
+  // Fetch branches, departments, designations from the company APIs
+  useEffect(() => {
+    const h = getAuthHeaders();
+    Promise.all([
+      fetch('/api/branches?limit=200', { headers: h }).catch(() => null),
+      fetch('/api/departments?limit=200', { headers: h }).catch(() => null),
+      fetch('/api/designations?limit=200', { headers: h }).catch(() => null),
+    ]).then(async ([brRes, deptRes, desigRes]) => {
+      if (brRes?.ok) { const d = await brRes.json(); setBranchList(d.data || d.branches || []); }
+      if (deptRes?.ok) { const d = await deptRes.json(); setDeptList(d.data || d.departments || []); }
+      if (desigRes?.ok) { const d = await desigRes.json(); setDesignationList(d.data || d.designations || []); }
+    }).catch(() => {});
+  }, []);
 
-  // Filter employees based on the selected filters
+  // Multi-select toggle helper
+  const toggleId = (id: string, list: string[], setter: (v: string[]) => void) => {
+    setter(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
+  };
+
+  // Build a lookup map from branch/dept/designation ID → name for filtering employees
+  const branchNameById = new Map(branchList.map(b => [b.id, b.name]));
+  const deptNameById = new Map(deptList.map(d => [d.id, d.name]));
+  const desigNameById = new Map(designationList.map(d => [d.id, d.title]));
+
+  // Filter employees based on selected branch/dept/designation IDs
   const filteredEmps = empOptions.filter(e => {
-    if (filterBranch && e.branch !== filterBranch) return false;
-    if (filterDept && e.department !== filterDept) return false;
-    if (filterDesignation && e.designation !== filterDesignation) return false;
+    if (selectedBranchIds.length > 0 && !selectedBranchIds.some(id => branchNameById.get(id) === e.branch)) return false;
+    if (selectedDeptIds.length > 0 && !selectedDeptIds.some(id => deptNameById.get(id) === e.department)) return false;
+    if (selectedDesignationIds.length > 0 && !selectedDesignationIds.some(id => desigNameById.get(id) === e.designation)) return false;
     return true;
   });
 
@@ -1178,28 +1203,55 @@ function ProxyForm({ editing, employees, leaveTypes, onSave, onClose, saving }: 
 
       {/* Body */}
       <div className="p-6 space-y-5">
-        {/* ─── Employee filters (shortlist by branch / dept / designation) ─── */}
-        <div>
-          <label className="block text-[12.5px] font-semibold text-slate-700 mb-2">Filter Employees</label>
-          <div className="grid grid-cols-3 gap-3">
-            <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} className="h-9 px-2 rounded-lg border border-slate-200 text-[12.5px] bg-white">
-              <option value="">All Branches</option>
-              {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
-            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="h-9 px-2 rounded-lg border border-slate-200 text-[12.5px] bg-white">
-              <option value="">All Departments</option>
-              {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)} className="h-9 px-2 rounded-lg border border-slate-200 text-[12.5px] bg-white">
-              <option value="">All Designations</option>
-              {designationOptions.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+        {/* ─── Scope: multi-select branches / departments / designations ─── */}
+        <div className="space-y-3">
+          {/* Branches */}
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Branches <span className="text-[10.5px] font-normal text-slate-400">(select one or more — leave empty for all)</span></label>
+            <div className="flex flex-wrap gap-1.5">
+              {branchList.map(b => {
+                const on = selectedBranchIds.includes(b.id);
+                return (
+                  <button key={b.id} type="button" onClick={() => toggleId(b.id, selectedBranchIds, setSelectedBranchIds)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold border ${on ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>{b.name}</button>
+                );
+              })}
+              {branchList.length === 0 && <span className="text-[11px] text-slate-400">Loading branches...</span>}
+            </div>
           </div>
-          {(filterBranch || filterDept || filterDesignation) && (
-            <p className="text-[11px] text-slate-500 mt-1.5">
+          {/* Departments */}
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Departments <span className="text-[10.5px] font-normal text-slate-400">(select one or more — leave empty for all)</span></label>
+            <div className="flex flex-wrap gap-1.5">
+              {deptList.map(d => {
+                const on = selectedDeptIds.includes(d.id);
+                return (
+                  <button key={d.id} type="button" onClick={() => toggleId(d.id, selectedDeptIds, setSelectedDeptIds)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold border ${on ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>{d.name}</button>
+                );
+              })}
+              {deptList.length === 0 && <span className="text-[11px] text-slate-400">Loading departments...</span>}
+            </div>
+          </div>
+          {/* Designations */}
+          <div>
+            <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Designations <span className="text-[10.5px] font-normal text-slate-400">(select one or more — leave empty for all)</span></label>
+            <div className="flex flex-wrap gap-1.5">
+              {designationList.map(d => {
+                const on = selectedDesignationIds.includes(d.id);
+                return (
+                  <button key={d.id} type="button" onClick={() => toggleId(d.id, selectedDesignationIds, setSelectedDesignationIds)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold border ${on ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>{d.title}</button>
+                );
+              })}
+              {designationList.length === 0 && <span className="text-[11px] text-slate-400">Loading designations...</span>}
+            </div>
+          </div>
+          {(selectedBranchIds.length > 0 || selectedDeptIds.length > 0 || selectedDesignationIds.length > 0) && (
+            <p className="text-[11px] text-slate-500">
               Showing {filteredEmps.length} of {empOptions.length} employees
-              <button onClick={() => { setFilterBranch(''); setFilterDept(''); setFilterDesignation(''); }}
-                className="ml-2 text-blue-600 font-semibold hover:underline">Clear filters</button>
+              <button onClick={() => { setSelectedBranchIds([]); setSelectedDeptIds([]); setSelectedDesignationIds([]); }}
+                className="ml-2 text-blue-600 font-semibold hover:underline">Clear all</button>
             </p>
           )}
         </div>

@@ -32,6 +32,9 @@ async function ensureProxyTable(db: any) {
         "slaHours" INTEGER NOT NULL DEFAULT 24,
         "leaveTypeIds" TEXT,
         "maxLeaveDays" INTEGER NOT NULL DEFAULT 0,
+        "branchIds" TEXT,
+        "departmentIds" TEXT,
+        "designationIds" TEXT,
         "canApprove" BOOLEAN NOT NULL DEFAULT true,
         "canReject" BOOLEAN NOT NULL DEFAULT true,
         "canReturnForClarification" BOOLEAN NOT NULL DEFAULT true,
@@ -52,6 +55,10 @@ async function ensureProxyTable(db: any) {
     `);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "LeaveProxyDelegation_tenantId_idx" ON "LeaveProxyDelegation"("tenantId")`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "LeaveProxyDelegation_approverId_idx" ON "LeaveProxyDelegation"("approverId")`);
+    // Add branchIds/departmentIds/designationIds columns if they don't exist (for existing tables)
+    await db.$executeRawUnsafe(`ALTER TABLE "LeaveProxyDelegation" ADD COLUMN IF NOT EXISTS "branchIds" TEXT`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "LeaveProxyDelegation" ADD COLUMN IF NOT EXISTS "departmentIds" TEXT`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "LeaveProxyDelegation" ADD COLUMN IF NOT EXISTS "designationIds" TEXT`).catch(() => {});
   } catch (e) {
     console.warn('[proxy-delegations] ensureProxyTable failed (non-fatal):', e);
   }
@@ -213,6 +220,9 @@ export async function GET(request: NextRequest) {
         leaveTypeIds: typeof r.leaveTypeIds === 'string' ? JSON.parse(r.leaveTypeIds || '["all"]') : (r.leaveTypeIds || ['all']),
         leaveTypeNames,
         maxLeaveDays: r.maxLeaveDays,
+        branchIds: typeof r.branchIds === 'string' ? JSON.parse(r.branchIds || '[]') : (r.branchIds || []),
+        departmentIds: typeof r.departmentIds === 'string' ? JSON.parse(r.departmentIds || '[]') : (r.departmentIds || []),
+        designationIds: typeof r.designationIds === 'string' ? JSON.parse(r.designationIds || '[]') : (r.designationIds || []),
         permissions: {
           canApprove: r.canApprove,
           canReject: r.canReject,
@@ -266,6 +276,7 @@ export async function POST(request: NextRequest) {
       approverId, proxyId, startDate, endDate,
       activationCondition = 'sla_timeout', slaHours = 24,
       leaveTypeIds = ['all'], maxLeaveDays = 0,
+      branchIds = [], departmentIds = [], designationIds = [],
       reason = '', notifyOriginalApprover = true, showProxyNameToEmployee = true,
       isEnabled = true,
     } = body;
@@ -289,18 +300,23 @@ export async function POST(request: NextRequest) {
 
     const id = `pxd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const ltJson = JSON.stringify(leaveTypeIds || ['all']);
+    const brJson = JSON.stringify(branchIds || []);
+    const deptJson = JSON.stringify(departmentIds || []);
+    const desigJson = JSON.stringify(designationIds || []);
 
     await db.$executeRawUnsafe(
       `INSERT INTO "LeaveProxyDelegation"
        ("id", "tenantId", "approverId", "proxyId", "startDate", "endDate",
         "activationCondition", "slaHours", "leaveTypeIds", "maxLeaveDays",
+        "branchIds", "departmentIds", "designationIds",
         "canApprove", "canReject", "canReturnForClarification", "canModifyDates",
         "canChangeLeaveType", "canPartiallyApprove", "canCancelApproved", "canRedelegate",
         "reason", "notifyOriginalApprover", "showProxyNameToEmployee", "isEnabled",
         "status", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'active', NOW(), NOW())`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, 'active', NOW(), NOW())`,
       id, tenantId, approverId, proxyId, startDate, endDate,
       activationCondition, slaHours, ltJson, maxLeaveDays,
+      brJson, deptJson, desigJson,
       canApprove, canReject, canReturnForClarification, canModifyDates,
       canChangeLeaveType, canPartiallyApprove, canCancelApproved, canRedelegate,
       reason || null, notifyOriginalApprover, showProxyNameToEmployee, isEnabled,
@@ -355,6 +371,18 @@ export async function PUT(request: NextRequest) {
     if (updates.leaveTypeIds !== undefined) {
       vals.push(JSON.stringify(updates.leaveTypeIds || ['all']));
       sets.push(`"leaveTypeIds" = $${pi++}`);
+    }
+    if (updates.branchIds !== undefined) {
+      vals.push(JSON.stringify(updates.branchIds || []));
+      sets.push(`"branchIds" = $${pi++}`);
+    }
+    if (updates.departmentIds !== undefined) {
+      vals.push(JSON.stringify(updates.departmentIds || []));
+      sets.push(`"departmentIds" = $${pi++}`);
+    }
+    if (updates.designationIds !== undefined) {
+      vals.push(JSON.stringify(updates.designationIds || []));
+      sets.push(`"designationIds" = $${pi++}`);
     }
     if (updates.permissions) {
       const p = updates.permissions;
